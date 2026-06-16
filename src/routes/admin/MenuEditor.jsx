@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebase';
+import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-const compressImage = (file, maxDim = 300, quality = 0.75) => {
+const compressImage = (file, maxDim = 120, quality = 0.6) => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
@@ -37,10 +36,12 @@ const compressImage = (file, maxDim = 300, quality = 0.75) => {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Canvas compression failed'));
-      }, 'image/jpeg', quality);
+      try {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      } catch (err) {
+        reject(err);
+      }
     };
     img.onerror = (err) => {
       URL.revokeObjectURL(objectUrl);
@@ -144,30 +145,17 @@ export default function MenuEditor() {
   const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!restaurant?.id) {
-      toast.error('Restaurant context not loaded yet. Please try again.');
-      return;
-    }
-    if (!storage) {
-      toast.error('Firebase Storage is not configured or initialized.');
-      return;
-    }
     setUploadingImage(true);
-    const toastId = toast.loading('Optimizing & compressing image...');
+    const toastId = toast.loading('Compressing image...');
     try {
-      // Compress client side
-      const compressedBlob = await compressImage(file, 300, 0.75);
+      // Compress client side to a lightweight base64 JPEG
+      const base64Data = await compressImage(file, 120, 0.6);
       
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, `restaurants/${restaurant.id}/menu/${Date.now()}.jpg`);
-      await uploadBytes(storageRef, compressedBlob);
-      const url = await getDownloadURL(storageRef);
-      
-      setItemForm(f => ({ ...f, imageUrl: url }));
-      toast.success('Image optimized & uploaded!', { id: toastId });
+      setItemForm(f => ({ ...f, imageUrl: base64Data }));
+      toast.success('Image optimized!', { id: toastId });
     } catch (err) {
-      console.error('[Image Upload Error]', err);
-      toast.error('Failed to upload image: ' + err.message, { id: toastId });
+      console.error('[Image Compression Error]', err);
+      toast.error('Failed to compress image: ' + err.message, { id: toastId });
     } finally {
       e.target.value = ''; // Reset input to allow selecting same file again
       setUploadingImage(false);
@@ -392,10 +380,10 @@ export default function MenuEditor() {
                       onClick={() => document.getElementById('item-image-file').click()}
                       disabled={uploadingImage}
                     >
-                      {uploadingImage ? 'Uploading...' : 'Choose Image'}
+                      {uploadingImage ? 'Processing...' : 'Choose Image'}
                     </button>
                     <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', marginTop: 4 }}>
-                      Will be automatically scaled & compressed to ~15KB
+                      Will be automatically scaled & compressed to ~2KB
                     </div>
                   </div>
                 </div>
