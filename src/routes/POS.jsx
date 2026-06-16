@@ -76,7 +76,7 @@ export default function POS() {
   // Set default active category when menu is loaded
   useEffect(() => {
     if (categories.length) {
-      setActiveCat(prev => prev || categories[0].id);
+      setActiveCat(prev => prev || 'all');
     }
   }, [categories]);
 
@@ -371,7 +371,9 @@ export default function POS() {
   };
 
   // Menu items from active category
-  const displayItems = (categories.find(c => c.id === activeCat)?.items ?? [])
+  const displayItems = (activeCat === 'all'
+    ? categories.flatMap(c => c.items ?? [])
+    : categories.find(c => c.id === activeCat)?.items ?? [])
     .filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
 
   // Order type buttons
@@ -575,6 +577,13 @@ export default function POS() {
 
         {/* Category chips */}
         <div className="pos-category-bar">
+          <button
+            id="cat-all"
+            className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
+            onClick={() => { setActiveCat('all'); setSearch(''); }}
+          >
+            <span>🍽️</span> All Items
+          </button>
           {categories.map(c => (
             <button
               key={c.id}
