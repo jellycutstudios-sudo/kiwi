@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { collection, setDoc, deleteDoc, doc, query, where, getDocs, getDoc, limit, orderBy } from 'firebase/firestore';
+import { collection, setDoc, deleteDoc, doc, query, where, getDocs, getDoc, limit, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, Search, Users, Award, DollarSign, Calendar, Ticket } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -44,7 +44,7 @@ export default function Customers() {
   }
 
   // Load customers with pagination and server-side search
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     if (!restaurant?.id) return;
     setLoading(true);
     try {
@@ -92,23 +92,7 @@ export default function Customers() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Load gift cards one-time
-  const fetchGiftCards = async () => {
-    if (!restaurant?.id) return;
-    try {
-      const q = query(
-        collection(db, 'restaurants', restaurant.id, 'gift_cards'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-      const snap = await getDocs(q);
-      setGiftCards(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) {
-      console.error('Error fetching gift cards:', e);
-    }
-  };
+  }, [restaurant, search]);
 
   // Debounced trigger for customers search
   useEffect(() => {
@@ -118,13 +102,22 @@ export default function Customers() {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [restaurant?.id, search]);
+  }, [restaurant?.id, fetchCustomers]);
 
-  // Load gift cards on restaurant change or tab change to giftcards
+  // Load gift cards in real-time when activeTab is giftcards
   useEffect(() => {
-    if (restaurant?.id && activeTab === 'giftcards') {
-      fetchGiftCards();
-    }
+    if (!restaurant?.id || activeTab !== 'giftcards') return;
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'gift_cards'),
+      orderBy('createdAt', 'desc'),
+      limit(100)
+    );
+    const unsub = onSnapshot(q, snap => {
+      setGiftCards(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, err => {
+      console.error('Error fetching gift cards:', err);
+    });
+    return unsub;
   }, [restaurant?.id, activeTab]);
 
   // ── Customer CRM Actions ──────────────────────────────────
@@ -223,7 +216,6 @@ export default function Customers() {
       toast.success(`Issued Gift Card: ${code}`, { duration: 6000 });
       setShowGcForm(false);
       setGcForm({ initialValue: '100', expiresAt: '' });
-      fetchGiftCards();
     } catch (e) {
       toast.error('Failed to generate: ' + e.message);
     }
@@ -234,7 +226,6 @@ export default function Customers() {
     try {
       await deleteDoc(doc(db, 'restaurants', restaurant.id, 'gift_cards', code));
       toast.success('Gift card voided');
-      fetchGiftCards();
     } catch (e) {
       toast.error('Failed to delete: ' + e.message);
     }
@@ -243,14 +234,21 @@ export default function Customers() {
   // Calculations for CRM
   const filteredCustomers = customers;
 
-  const totalSpendVal = customers.reduce((sum, c) => sum + (c.lifetimeSpend || 0), 0);
-  const totalPointsVal = customers.reduce((sum, c) => sum + (c.points || 0), 0);
+  const totalSpendVal = useMemo(() => {
+    return customers.reduce((sum, c) => sum + (c.lifetimeSpend || 0), 0);
+  }, [customers]);
 
-  const stats = [
-    { label: 'Matching Customers', value: customers.length, icon: Users, color: 'var(--color-accent)', bg: 'var(--color-accent-light)' },
-    { label: 'Loyalty Points (Matching)', value: Math.round(totalPointsVal), icon: Award, color: 'var(--color-orange)', bg: 'var(--color-orange-light)' },
-    { label: 'Customer Spend (Matching)', value: formatCurrency(totalSpendVal, currency), icon: DollarSign, color: 'var(--color-green)', bg: 'var(--color-green-light)' },
-  ];
+  const totalPointsVal = useMemo(() => {
+    return customers.reduce((sum, c) => sum + (c.points || 0), 0);
+  }, [customers]);
+
+  const stats = useMemo(() => {
+    return [
+      { label: 'Matching Customers', value: customers.length, icon: Users, color: 'var(--color-accent)', bg: 'var(--color-accent-light)' },
+      { label: 'Loyalty Points (Matching)', value: Math.round(totalPointsVal), icon: Award, color: 'var(--color-orange)', bg: 'var(--color-orange-light)' },
+      { label: 'Customer Spend (Matching)', value: formatCurrency(totalSpendVal, currency), icon: DollarSign, color: 'var(--color-green)', bg: 'var(--color-green-light)' },
+    ];
+  }, [customers, totalPointsVal, totalSpendVal, currency]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>

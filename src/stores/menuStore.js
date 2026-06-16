@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
-export const useMenuStore = create((set, get) => {
+export const useMenuStore = create((set) => {
   let activeUnsub = null;
   let subscribedRestId = null;
 

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
-import { collection, onSnapshot, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printTokenTicket } from '../utils/print';
@@ -35,7 +35,7 @@ export default function POS() {
   const { issueToken, setToken } = useTokenStore();
   const { categories, loading: loadingMenu, search, setSearch } = useMenuStore();
 
-  const [activeCat,  setActiveCat]  = useState(null);
+  const [activeCat,  setActiveCat]  = useState('all');
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
@@ -83,12 +83,7 @@ export default function POS() {
   };
 
 
-  // Set default active category when menu is loaded
-  useEffect(() => {
-    if (categories.length) {
-      setActiveCat(prev => prev || 'all');
-    }
-  }, [categories]);
+
 
   const [prevRestId, setPrevRestId] = useState(restaurant?.id);
   if (restaurant?.id !== prevRestId) {
@@ -381,10 +376,14 @@ export default function POS() {
   };
 
   // Menu items from active category
-  const displayItems = (activeCat === 'all'
-    ? categories.flatMap(c => c.items ?? [])
-    : categories.find(c => c.id === activeCat)?.items ?? [])
-    .filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
+  const displayItems = useMemo(() => {
+    const rawItems = activeCat === 'all'
+      ? categories.flatMap(c => c.items ?? [])
+      : categories.find(c => c.id === activeCat)?.items ?? [];
+    if (!search) return rawItems;
+    const lowerSearch = search.toLowerCase();
+    return rawItems.filter(i => i.name.toLowerCase().includes(lowerSearch));
+  }, [categories, activeCat, search]);
 
   // Order type buttons
   const orderTypes = [

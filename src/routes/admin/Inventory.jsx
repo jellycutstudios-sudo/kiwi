@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -288,8 +288,13 @@ export default function Inventory() {
   };
 
   // Calculations for Stock Dashboard
-  const totalValValue = ingredients.reduce((sum, ing) => sum + (ing.cost * ing.qty), 0);
-  const lowStockItems = ingredients.filter(ing => ing.qty <= ing.minQty);
+  const totalValValue = useMemo(() => {
+    return ingredients.reduce((sum, ing) => sum + (ing.cost * ing.qty), 0);
+  }, [ingredients]);
+
+  const lowStockItems = useMemo(() => {
+    return ingredients.filter(ing => ing.qty <= ing.minQty);
+  }, [ingredients]);
 
   const stats = [
     { label: 'Total Valuation', value: formatCurrency(totalValValue, currency), icon: DollarSign, color: 'var(--color-green)', bg: 'var(--color-green-light)' },

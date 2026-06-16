@@ -1,0 +1,340 @@
+/* ============================================================
+   Floor Plan Editor Styles — Modern Dashboard Treatment
+   ============================================================ */
+
+.fpe-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: calc(100vh - 130px);
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  padding: 2px;
+}
+
+/* --- Toolbar --- */
+.fpe-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+}
+
+.fpe-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: var(--space-3);
+}
+
+.fpe-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-label);
+  margin: 0;
+  letter-spacing: -0.4px;
+}
+
+.fpe-subtitle {
+  font-size: 12px;
+  color: var(--color-label-tertiary);
+}
+
+.fpe-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.fpe-badge {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator-opaque);
+  color: var(--color-label-secondary);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+}
+
+/* --- Floor selection segmented control --- */
+.fpe-floor-tabs {
+  display: flex;
+  gap: 6px;
+  background: #f1f0eb;
+  padding: 4px;
+  border-radius: 12px;
+  width: fit-content;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+.fpe-floor-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-label-tertiary);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.fpe-floor-btn:hover {
+  color: var(--color-label);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.fpe-floor-btn.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.fpe-floor-count {
+  font-size: 10px;
+  background: var(--color-bg-secondary);
+  color: var(--color-label-secondary);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+}
+
+.fpe-floor-btn.active .fpe-floor-count {
+  background: #000000;
+  color: #ffffff;
+}
+
+/* --- Layout Workspace --- */
+.fpe-workspace {
+  display: flex;
+  gap: var(--space-4);
+  flex: 1;
+  overflow: hidden;
+}
+
+/* --- Empty Canvas State --- */
+.fpe-empty-canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-label-tertiary);
+  gap: var(--space-3);
+  background: #fafaf7;
+  text-align: center;
+  padding: var(--space-8);
+}
+
+.fpe-empty-icon {
+  font-size: 48px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.05));
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.fpe-empty-text {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-label-secondary);
+}
+
+.fpe-empty-sub {
+  font-size: 13px;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+/* --- Properties Sidebar --- */
+.fpe-sidebar {
+  width: 280px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator-opaque);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+}
+
+.fpe-sidebar-header {
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-separator-opaque);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fpe-sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-label);
+  letter-spacing: -0.2px;
+}
+
+.fpe-sidebar-body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* --- Figma-style Segmented Control for shape --- */
+.fpe-segmented {
+  display: flex;
+  background: #f1f0eb;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 2px;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+.fpe-segment-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-label-tertiary);
+  border-radius: 7px;
+  transition: all var(--duration-fast) var(--ease-out);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.fpe-segment-btn:hover {
+  color: var(--color-label);
+}
+
+.fpe-segment-btn.active {
+  background: var(--color-bg-elevated);
+  color: #000000;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* --- Styled form controls --- */
+.fpe-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fpe-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-label-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fpe-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-separator-opaque);
+  background: var(--color-bg);
+  color: var(--color-label);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.fpe-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* --- Range input --- */
+.fpe-range-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fpe-range {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #e4e3de;
+  border-radius: var(--radius-full);
+  outline: none;
+}
+
+.fpe-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #000000;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  border: 2px solid #ffffff;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.fpe-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.fpe-range-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-label-secondary);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* --- QR Code Display Card --- */
+.fpe-qr-card {
+  border: 1px dashed var(--color-separator-opaque);
+  border-radius: 14px;
+  padding: var(--space-3);
+  background: #fafaf9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.fpe-qr-wrapper {
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.fpe-qr-img {
+  width: 120px;
+  height: 120px;
+  display: block;
+}
+
+.fpe-qr-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px !important;
+  padding: 8px 14px !important;
+}

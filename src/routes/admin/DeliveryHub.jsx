@@ -39,12 +39,7 @@ export default function DeliveryHub() {
     return unsub;
   }, [restaurant?.id]);
 
-  // Set default category when menu is loaded
-  useEffect(() => {
-    if (categories.length) {
-      setSelectedCat(prev => prev || categories[0].id);
-    }
-  }, [categories]);
+
 
   // 3. Fetch delivery orders for analytics (last 30 days)
   useEffect(() => {
@@ -151,7 +146,8 @@ export default function DeliveryHub() {
   const todayCommission = todayOrders.reduce((sum, o) => sum + ((o.total * (o.platformCommission || 0)) / 100), 0);
   
   const activeCount = Object.values(integrations).filter(c => c.enabled === true).length;
-  const activeCatData = categories.find(c => c.id === selectedCat);
+  const activeCatId = selectedCat || categories[0]?.id || '';
+  const activeCatData = categories.find(c => c.id === activeCatId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
@@ -331,7 +327,7 @@ export default function DeliveryHub() {
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               <select 
                 className="form-select form-select-sm"
-                value={selectedCat}
+                value={activeCatId}
                 onChange={e => setSelectedCat(e.target.value)}
                 style={{ width: 180 }}
               >

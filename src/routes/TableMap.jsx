@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useTableStore } from '../stores/tableStore';
@@ -23,7 +23,9 @@ export default function TableMap() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   const [activeFloor, setActiveFloor] = useState('Ground Floor');
-  const allFloors = Array.from(new Set(['Ground Floor', ...tables.map(t => t.floor || 'Ground Floor')]));
+  const allFloors = useMemo(() => {
+    return Array.from(new Set(['Ground Floor', ...tables.map(t => t.floor || 'Ground Floor')]));
+  }, [tables]);
 
   // UPI Settle Modal state
   const [upiOrderToSettle, setUpiOrderToSettle] = useState(null);
@@ -152,6 +154,177 @@ export default function TableMap() {
 
   const selectedOrder = selected ? tableOrders[selected] : null;
 
+  // Render visual chairs dynamically around a table card
+  const renderChairs = (table) => {
+    const chairs = [];
+    const capacity = table.capacity || 4;
+    const size = table.w || 80;
+    const shape = table.shape || 'rect';
+    const isOccupied = table.status === 'occupied';
+
+    // Scan order items for occupant emojis
+    const order = tableOrders[table.id];
+    const defaultEmojis = ['🍕', '🍹', '🍔', '🧁', '🍜', '☕', '🍩', '🌮', '🍣', '🍟', '🍷', '🍝', '😋', '🥤'];
+    const keywordMap = {
+      'pizza': '🍕',
+      'burger': '🍔',
+      'fry': '🍟',
+      'fries': '🍟',
+      'pasta': '🍝',
+      'spaghetti': '🍝',
+      'noodle': '🍜',
+      'ramen': '🍜',
+      'soup': '🥣',
+      'sushi': '🍣',
+      'taco': '🌮',
+      'sandwich': '🥪',
+      'salad': '🥗',
+      'steak': '🥩',
+      'chicken': '🍗',
+      'cake': '🧁',
+      'dessert': '🍩',
+      'donut': '🍩',
+      'coffee': '☕',
+      'tea': '🍵',
+      'drink': '🍹',
+      'cocktail': '🍹',
+      'juice': '🥤',
+      'soda': '🥤',
+      'beer': '🍺',
+      'wine': '🍷',
+    };
+
+    const occupantEmojis = [];
+    if (isOccupied && order && order.items) {
+      for (const item of order.items) {
+        const nameLower = (item.name || '').toLowerCase();
+        for (const [key, emoji] of Object.entries(keywordMap)) {
+          if (nameLower.includes(key) && !occupantEmojis.includes(emoji)) {
+            occupantEmojis.push(emoji);
+            break;
+          }
+        }
+        if (occupantEmojis.length >= capacity) break;
+      }
+    }
+
+    let seedOffset = 0;
+    while (occupantEmojis.length < capacity) {
+      const hash = ((table.id ?? '') + seedOffset).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const fallback = defaultEmojis[hash % defaultEmojis.length];
+      if (!occupantEmojis.includes(fallback)) {
+        occupantEmojis.push(fallback);
+      }
+      seedOffset++;
+    }
+
+
+    if (shape === 'round') {
+      const radius = size / 2;
+      const dist = radius + 4; // Distance from center to chair center
+      for (let i = 0; i < capacity; i++) {
+        const angle = (i * 2 * Math.PI) / capacity - Math.PI / 2;
+        const x = radius + dist * Math.cos(angle) - 7;
+        const y = radius + dist * Math.sin(angle) - 7;
+        chairs.push(
+          <div
+            key={`chair-${i}`}
+            className="table-chair"
+            style={{ left: x, top: y }}
+          />
+        );
+
+        if (isOccupied) {
+          const emojiX = radius + (dist + 12) * Math.cos(angle) - 6;
+          const emojiY = radius + (dist + 12) * Math.sin(angle) - 6;
+          chairs.push(
+            <span
+              key={`chair-emoji-${i}`}
+              className="chair-emoji"
+              style={{
+                left: emojiX,
+                top: emojiY,
+                animationDelay: `${i * 0.4}s`
+              }}
+            >
+              {occupantEmojis[i]}
+            </span>
+          );
+        }
+      }
+    } else {
+      // Rectangular table: distribute chairs along the 4 edges
+      let topCount = 0;
+      let bottomCount = 0;
+      let leftCount = 0;
+      let rightCount = 0;
+
+      if (capacity === 1 || capacity === 2 || capacity === 3) {
+        topCount = 1;
+        if (capacity >= 2) bottomCount = 1;
+        if (capacity >= 3) leftCount = 1;
+      } else if (capacity > 3) {
+        topCount = Math.ceil(capacity / 4);
+        bottomCount = Math.floor(capacity / 4) + (capacity % 4 >= 2 ? 1 : 0);
+        leftCount = Math.floor(capacity / 4) + (capacity % 4 >= 3 ? 1 : 0);
+        rightCount = Math.floor(capacity / 4);
+      }
+
+      let chairIndex = 0;
+      const addChairsForEdge = (count, edge) => {
+        const step = size / (count + 1);
+        for (let i = 0; i < count; i++) {
+          const offset = (i + 1) * step;
+          let style = {};
+          let emojiStyle = {};
+          if (edge === 'top') {
+            style = { left: offset - 7, top: -11 };
+            emojiStyle = { left: offset - 6, top: -25 };
+          } else if (edge === 'bottom') {
+            style = { left: offset - 7, top: size - 3 };
+            emojiStyle = { left: offset - 6, top: size + 11 };
+          } else if (edge === 'left') {
+            style = { left: -11, top: offset - 7 };
+            emojiStyle = { left: -25, top: offset - 6 };
+          } else if (edge === 'right') {
+            style = { left: size - 3, top: offset - 7 };
+            emojiStyle = { left: size + 11, top: offset - 6 };
+          }
+          chairs.push(
+            <div
+              key={`chair-${edge}-${i}`}
+              className="table-chair"
+              style={style}
+            />
+          );
+
+          if (isOccupied) {
+            chairs.push(
+              <span
+                key={`chair-emoji-${edge}-${i}`}
+                className="chair-emoji"
+                style={{
+                  ...emojiStyle,
+                  animationDelay: `${chairIndex * 0.4}s`
+                }}
+              >
+                {occupantEmojis[chairIndex]}
+              </span>
+            );
+            chairIndex++;
+          }
+        }
+      };
+
+      addChairsForEdge(topCount, 'top');
+      addChairsForEdge(bottomCount, 'bottom');
+      addChairsForEdge(leftCount, 'left');
+      addChairsForEdge(rightCount, 'right');
+    }
+
+    return chairs;
+  };
+
   return (
     <div style={{ display:'flex', gap:'var(--space-5)', height:'calc(100vh - 120px)', overflow:'hidden' }}>
       {/* Main map */}
@@ -211,6 +384,7 @@ export default function TableMap() {
                   color: isActive ? 'var(--color-on-dark)' : 'var(--color-label-secondary)',
                   padding: '1px 6px',
                   borderRadius: 'var(--radius-full)',
+                  border: 'none',
                   fontWeight: 'bold'
                 }}>
                   {floorTableCount}
@@ -221,119 +395,81 @@ export default function TableMap() {
         </div>
 
         {/* Canvas */}
-        <div style={{ 
-          flex:1, 
-          position:'relative', 
-          background:'#fafafa', 
-          borderRadius:'var(--radius-xl)', 
-          overflow:'hidden', 
-          border:'1.5px solid var(--color-separator-opaque)', 
-          backgroundImage:'radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1.2px)', 
-          backgroundSize:'24px 24px' 
-        }}>
-          {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(t => {
-            const cfg = statusConfig[t.status] ?? statusConfig.free;
-            const order = tableOrders[t.id];
-            const isReserved = reservations.some(r => r.tableId === t.id);
-            return (
-              <button
-                key={t.id}
-                id={`map-table-${t.id}`}
-                onClick={() => setSelected(selected === t.id ? null : t.id)}
-                style={{
-                  position:'absolute',
-                  left: t.x ?? 80,
-                  top: t.y ?? 80,
-                  width: t.w ?? 80,
-                  height: t.h ?? 80,
-                  borderRadius: t.shape === 'round' ? '50%' : 'var(--radius-lg)',
-                  border: `2px solid ${selected === t.id ? 'var(--color-label)' : cfg.color}`,
-                  background: selected === t.id ? 'var(--color-bg)' : cfg.bg,
-                  display:'flex', 
-                  flexDirection:'column', 
-                  alignItems:'center', 
-                  justifyContent:'center',
-                  cursor:'pointer',
-                  transition:'all var(--duration-fast) var(--ease-out)',
-                  boxShadow: selected === t.id 
-                    ? `0 0 0 4px var(--color-accent-light), 0 8px 20px rgba(0,0,0,0.12)` 
-                    : '0 4px 10px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04)',
-                  fontFamily:'var(--font-family)',
-                  gap: '2px',
-                  outline: 'none',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'scale(1.04)';
-                  if (selected !== t.id) {
-                    e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.08)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'none';
-                  if (selected !== t.id) {
-                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04)';
-                  }
-                }}
-              >
-                <span style={{ 
-                  fontWeight: 'var(--weight-bold)', 
-                  fontSize: '14px',
-                  color: selected === t.id ? 'var(--color-label)' : cfg.text
-                }}>
-                  {t.name}
-                </span>
-                <span style={{ 
-                  fontSize: '10px', 
-                  fontWeight: 'var(--weight-medium)',
-                  color: selected === t.id ? 'var(--color-label-secondary)' : `${cfg.text}bb` 
-                }}>
-                  {t.capacity} seats
-                </span>
-                {order && (
-                  <span style={{ 
-                    fontSize: '10px', 
-                    fontWeight: 'var(--weight-bold)', 
-                    color: '#ffffff',
-                    background: cfg.color,
-                    padding: '2px 6px',
-                    borderRadius: 'var(--radius-full)',
-                    marginTop: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    scale: '0.9'
-                  }}>
-                    {formatCurrency(order.total ?? 0, currency)}
-                  </span>
-                )}
-                {isReserved && t.status === 'free' && (
-                  <span style={{
+        <div className="table-canvas-wrapper">
+          <div className="table-canvas">
+            {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(t => {
+              const cfg = statusConfig[t.status] ?? statusConfig.free;
+              const order = tableOrders[t.id];
+              const isReserved = reservations.some(r => r.tableId === t.id);
+              return (
+                <button
+                  key={t.id}
+                  id={`map-table-${t.id}`}
+                  onClick={() => setSelected(selected === t.id ? null : t.id)}
+                  className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} status-${selected === t.id ? 'selected' : t.status || 'free'}`}
+                  style={{
                     position: 'absolute',
-                    top: -6,
-                    right: -6,
-                    background: '#f59e0b',
-                    color: '#fff',
-                    borderRadius: '50%',
-                    width: 20,
-                    height: 20,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '10px',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                    fontWeight: 'bold',
-                    border: '1.5px solid #ffffff'
-                  }} title="Reserved Today">
-                    📅
+                    left: t.x ?? 80,
+                    top: t.y ?? 80,
+                    width: t.w ?? 80,
+                    height: t.h ?? 80,
+                  }}
+                >
+                  {renderChairs(t)}
+                  <span className="table-label">
+                    {t.name}
                   </span>
-                )}
-              </button>
-            );
-          })}
-          {tables.length === 0 && (
-            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', gap:'var(--space-3)' }}>
-              <div style={{fontSize:40}}>🗺️</div>
-              <div>No tables — set up your floor plan in Admin → Floor Plan Editor</div>
-            </div>
-          )}
+                  <span className="table-capacity">
+                    👥 {t.capacity}p
+                  </span>
+                  {order && (
+                    <span style={{ 
+                      fontSize: '10px', 
+                      fontWeight: 'var(--weight-bold)', 
+                      color: '#ffffff',
+                      background: cfg.color,
+                      padding: '2px 6px',
+                      borderRadius: 'var(--radius-full)',
+                      marginTop: '4px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      scale: '0.9',
+                      zIndex: 3
+                    }}>
+                      {formatCurrency(order.total ?? 0, currency)}
+                    </span>
+                  )}
+                  {isReserved && t.status === 'free' && (
+                    <span style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      background: '#f59e0b',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      width: 20,
+                      height: 20,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '10px',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                      fontWeight: 'bold',
+                      border: '1.5px solid #ffffff',
+                      zIndex: 4
+                    }} title="Reserved Today">
+                      📅
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {tables.length === 0 && (
+              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', gap:'var(--space-3)' }}>
+                <div style={{fontSize:40}}>🗺️</div>
+                <div>No tables — set up your floor plan in Admin → Floor Plan Editor</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

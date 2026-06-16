@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { collection, onSnapshot, serverTimestamp, getDoc, doc, writeBatch, increment, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { Plus, Minus, X, Check, Clock, ChefHat, CheckSquare } from 'lucide-react';
+import { Plus, Minus, Check, Clock, ChefHat, CheckSquare } from 'lucide-react';
 import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
 
@@ -128,7 +128,9 @@ export default function OnlineOrderPage() {
   }, [restaurant?.id, activeOrderId, restaurantId]);
 
   const currency = restaurant?.currency ?? 'INR';
-  const items = categories.find(c => c.id === activeCat)?.items ?? [];
+  const items = useMemo(() => {
+    return (categories.find(c => c.id === activeCat)?.items ?? []).filter(i => i.available !== false);
+  }, [categories, activeCat]);
 
   const heroStyle = {
     background: restaurant?.onlineCover 
@@ -183,7 +185,13 @@ export default function OnlineOrderPage() {
     else setCart(c => c.map(i => i.id === id ? { ...i, qty } : i));
   };
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = useMemo(() => {
+    return cart.reduce((s, i) => s + i.price * i.qty, 0);
+  }, [cart]);
+
+  const cartCount = useMemo(() => {
+    return cart.reduce((sum, i) => sum + i.qty, 0);
+  }, [cart]);
 
   const submitOrder = async () => {
     if (!name.trim()) {
@@ -656,7 +664,7 @@ export default function OnlineOrderPage() {
           {/* Cart Card */}
           <div className="card">
             <div className="card-header">
-              <span className="card-title">Your Order ({cart.reduce((sum, i) => sum + i.qty, 0)} items)</span>
+              <span className="card-title">Your Order ({cartCount} items)</span>
               <span style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)' }}>{formatCurrency(subtotal, currency)}</span>
             </div>
             
@@ -899,7 +907,7 @@ export default function OnlineOrderPage() {
 
         {/* Menu */}
         <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)', marginBottom:'var(--space-6)' }}>
-          {items.filter(i => i.available !== false).map(item => {
+          {items.map(item => {
             const cartItem = cart.find(c => c.menuItemId === item.id || c.id === item.id);
             return (
               <div key={item.id} className="card" style={{ display:'flex', alignItems:'center', padding:'var(--space-4)', gap:'var(--space-4)' }}>
@@ -968,7 +976,7 @@ export default function OnlineOrderPage() {
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🛒 View Order ({cart.reduce((sum, i) => sum + i.qty, 0)} items)
+            🛒 View Order ({cartCount} items)
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {formatCurrency(subtotal, currency)} →

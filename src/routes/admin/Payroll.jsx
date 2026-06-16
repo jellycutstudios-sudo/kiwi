@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
@@ -51,55 +51,63 @@ export default function Payroll() {
   }, [restaurant?.id, selectedMonth]);
 
   // 3. Compute display data combining staff data & month's payroll entries
-  const payrollRecords = staffList.map(staff => {
-    const entry = payrollEntries[staff.id] || {};
-    
-    // Fall back to staff base settings if no monthly entry exists
-    const salaryType = entry.salaryType || staff.salaryType || 'monthly';
-    const salaryRate = entry.salaryRate !== undefined ? entry.salaryRate : (staff.salaryRate || 0);
-    const overtimeRate = entry.overtimeRate !== undefined ? entry.overtimeRate : (staff.overtimeRate || 1.5);
-    
-    const hoursWorked = entry.hoursWorked || 0;
-    const overtimeHours = entry.overtimeHours || 0;
-    const bonus = entry.bonus || 0;
-    const deductions = entry.deductions || 0;
-    const notes = entry.notes || '';
+  const payrollRecords = useMemo(() => {
+    return staffList.map(staff => {
+      const entry = payrollEntries[staff.id] || {};
+      
+      // Fall back to staff base settings if no monthly entry exists
+      const salaryType = entry.salaryType || staff.salaryType || 'monthly';
+      const salaryRate = entry.salaryRate !== undefined ? entry.salaryRate : (staff.salaryRate || 0);
+      const overtimeRate = entry.overtimeRate !== undefined ? entry.overtimeRate : (staff.overtimeRate || 1.5);
+      
+      const hoursWorked = entry.hoursWorked || 0;
+      const overtimeHours = entry.overtimeHours || 0;
+      const bonus = entry.bonus || 0;
+      const deductions = entry.deductions || 0;
+      const notes = entry.notes || '';
 
-    // Compute gross & net pay
-    const grossPay = salaryType === 'hourly'
-      ? (salaryRate * hoursWorked) + (salaryRate * overtimeRate * overtimeHours) + bonus
-      : salaryRate + bonus;
-    const netPay = Math.max(0, grossPay - deductions);
+      // Compute gross & net pay
+      const grossPay = salaryType === 'hourly'
+        ? (salaryRate * hoursWorked) + (salaryRate * overtimeRate * overtimeHours) + bonus
+        : salaryRate + bonus;
+      const netPay = Math.max(0, grossPay - deductions);
 
-    return {
-      staffId: staff.id,
-      staffName: staff.name,
-      role: staff.role,
-      active: staff.active !== false,
-      salaryType,
-      salaryRate,
-      overtimeRate,
-      hoursWorked,
-      overtimeHours,
-      bonus,
-      deductions,
-      notes,
-      grossPay,
-      netPay,
-      hasSavedEntry: !!payrollEntries[staff.id]
-    };
-  }).filter(record => record.active || record.hasSavedEntry); // Show active staff, or inactive staff who have a payroll entry for this month
+      return {
+        staffId: staff.id,
+        staffName: staff.name,
+        role: staff.role,
+        active: staff.active !== false,
+        salaryType,
+        salaryRate,
+        overtimeRate,
+        hoursWorked,
+        overtimeHours,
+        bonus,
+        deductions,
+        notes,
+        grossPay,
+        netPay,
+        hasSavedEntry: !!payrollEntries[staff.id]
+      };
+    }).filter(record => record.active || record.hasSavedEntry); // Show active staff, or inactive staff who have a payroll entry for this month
+  }, [staffList, payrollEntries]);
 
   // Filter records by search query
-  const filteredRecords = payrollRecords.filter(r => 
-    r.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRecords = useMemo(() => {
+    return payrollRecords.filter(r => 
+      r.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.role.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [payrollRecords, searchQuery]);
 
   // Compute overall summary stats
   const totalStaff = filteredRecords.length;
-  const totalGross = filteredRecords.reduce((sum, r) => sum + r.grossPay, 0);
-  const totalNet = filteredRecords.reduce((sum, r) => sum + r.netPay, 0);
+  const totalGross = useMemo(() => {
+    return filteredRecords.reduce((sum, r) => sum + r.grossPay, 0);
+  }, [filteredRecords]);
+  const totalNet = useMemo(() => {
+    return filteredRecords.reduce((sum, r) => sum + r.netPay, 0);
+  }, [filteredRecords]);
 
   // Handle opening edit modal
   const openEditModal = (record) => {

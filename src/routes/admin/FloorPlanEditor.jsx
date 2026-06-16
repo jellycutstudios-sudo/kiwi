@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Printer, Download, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
+import './FloorPlanEditor.css';
 
 export default function FloorPlanEditor() {
   const { restaurant } = useAuthStore();
@@ -180,38 +181,157 @@ export default function FloorPlanEditor() {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(selectedTableQrUrl)}`
     : '';
 
+  // Render visual chairs dynamically around a table card
+  const renderChairs = (table) => {
+    const chairs = [];
+    const capacity = table.capacity || 4;
+    const size = table.w || 80;
+    const shape = table.shape || 'rect';
+    const isOccupied = table.status === 'occupied';
+
+    const defaultEmojis = ['🍕', '🍹', '🍔', '🧁', '🍜', '☕', '🍩', '🌮', '🍣', '🍟', '🍷', '🍝', '😋', '🥤'];
+    const hash = (table.id ?? '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    if (shape === 'round') {
+      const radius = size / 2;
+      const dist = radius + 4; // Distance from center to chair center
+      for (let i = 0; i < capacity; i++) {
+        const angle = (i * 2 * Math.PI) / capacity - Math.PI / 2;
+        const x = radius + dist * Math.cos(angle) - 7;
+        const y = radius + dist * Math.sin(angle) - 7;
+        chairs.push(
+          <div
+            key={`chair-${i}`}
+            className="table-chair"
+            style={{ left: x, top: y }}
+          />
+        );
+
+        if (isOccupied) {
+          const emojiX = radius + (dist + 12) * Math.cos(angle) - 6;
+          const emojiY = radius + (dist + 12) * Math.sin(angle) - 6;
+          const emoji = defaultEmojis[(hash + i) % defaultEmojis.length];
+          chairs.push(
+            <span
+              key={`chair-emoji-${i}`}
+              className="chair-emoji"
+              style={{
+                left: emojiX,
+                top: emojiY,
+                animationDelay: `${i * 0.4}s`
+              }}
+            >
+              {emoji}
+            </span>
+          );
+        }
+      }
+    } else {
+      // Rectangular table: distribute chairs along the 4 edges
+      let topCount = 0;
+      let bottomCount = 0;
+      let leftCount = 0;
+      let rightCount = 0;
+
+      if (capacity === 1 || capacity === 2 || capacity === 3) {
+        topCount = 1;
+        if (capacity >= 2) bottomCount = 1;
+        if (capacity >= 3) leftCount = 1;
+      } else if (capacity > 3) {
+        topCount = Math.ceil(capacity / 4);
+        bottomCount = Math.floor(capacity / 4) + (capacity % 4 >= 2 ? 1 : 0);
+        leftCount = Math.floor(capacity / 4) + (capacity % 4 >= 3 ? 1 : 0);
+        rightCount = Math.floor(capacity / 4);
+      }
+
+      let chairIndex = 0;
+      const addChairsForEdge = (count, edge) => {
+        const step = size / (count + 1);
+        for (let i = 0; i < count; i++) {
+          const offset = (i + 1) * step;
+          let style = {};
+          let emojiStyle = {};
+          if (edge === 'top') {
+            style = { left: offset - 7, top: -11 };
+            emojiStyle = { left: offset - 6, top: -25 };
+          } else if (edge === 'bottom') {
+            style = { left: offset - 7, top: size - 3 };
+            emojiStyle = { left: offset - 6, top: size + 11 };
+          } else if (edge === 'left') {
+            style = { left: -11, top: offset - 7 };
+            emojiStyle = { left: -25, top: offset - 6 };
+          } else if (edge === 'right') {
+            style = { left: size - 3, top: offset - 7 };
+            emojiStyle = { left: size + 11, top: offset - 6 };
+          }
+          chairs.push(
+            <div
+              key={`chair-${edge}-${i}`}
+              className="table-chair"
+              style={style}
+            />
+          );
+
+          if (isOccupied) {
+            const emoji = defaultEmojis[(hash + chairIndex) % defaultEmojis.length];
+            chairs.push(
+              <span
+                key={`chair-emoji-${edge}-${i}`}
+                className="chair-emoji"
+                style={{
+                  ...emojiStyle,
+                  animationDelay: `${chairIndex * 0.4}s`
+                }}
+              >
+                {emoji}
+              </span>
+            );
+            chairIndex++;
+          }
+        }
+      };
+
+      addChairsForEdge(topCount, 'top');
+      addChairsForEdge(bottomCount, 'bottom');
+      addChairsForEdge(leftCount, 'left');
+      addChairsForEdge(rightCount, 'right');
+    }
+
+    return chairs;
+  };
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)', height:'calc(100vh - 120px)' }}>
+    <div className="fpe-container">
       {/* Toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:'var(--space-3)', flexWrap:'wrap' }}>
-        <h2 className="text-title2">Floor Plan Editor</h2>
-        <button className="btn btn-primary" id="add-table-btn" onClick={handleAddTable}>
-          <Plus size={16} /> Add Table
-        </button>
-        <button className="btn btn-secondary" id="add-floor-btn" onClick={handleAddFloor}>
-          ➕ Add Floor
-        </button>
-        <button 
-          className="btn btn-secondary" 
-          id="print-all-qrs-btn" 
-          onClick={handlePrintAllQRs}
-          disabled={tables.length === 0}
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          🖨️ Print All QRs
-        </button>
-        {selected && (
-          <button className="btn btn-danger btn-sm" id="delete-table-btn" onClick={() => { deleteTable(restaurant.id, selected); setSelected(null); }}>
-            <Trash2 size={14} /> Remove
+      <div className="fpe-toolbar">
+        <div className="fpe-title-section">
+          <h2 className="fpe-title">Floor Plan Editor</h2>
+          <span className="fpe-subtitle">Arrange tables and generate customer QR codes</span>
+        </div>
+        <div className="fpe-actions">
+          <button className="btn btn-primary" id="add-table-btn" onClick={handleAddTable} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Plus size={16} /> Add Table
           </button>
-        )}
-        <div className="badge badge-green" style={{ marginLeft:'auto' }}>
+          <button className="btn btn-secondary" id="add-floor-btn" onClick={handleAddFloor} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Layers size={15} /> Add Floor
+          </button>
+          <button 
+            className="btn btn-secondary" 
+            id="print-all-qrs-btn" 
+            onClick={handlePrintAllQRs}
+            disabled={tables.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Printer size={15} /> Print All QRs
+          </button>
+        </div>
+        <div className="fpe-badge">
           {tables.length} tables configured
         </div>
       </div>
 
       {/* Floor Selection Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-separator)', paddingBottom: '10px' }}>
+      <div className="fpe-floor-tabs">
         {allFloors.map(floor => {
           const isActive = activeFloor === floor;
           const floorTableCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
@@ -219,23 +339,14 @@ export default function FloorPlanEditor() {
             <button
               key={floor}
               type="button"
-              className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+              className={`fpe-floor-btn ${isActive ? 'active' : ''}`}
               onClick={() => {
                 setActiveFloor(floor);
                 setSelected(null);
               }}
-              style={{ padding: '6px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <span>{floor}</span>
-              <span style={{ 
-                fontSize: 10, 
-                opacity: 0.85, 
-                background: isActive ? 'var(--color-bg-elevated)' : 'var(--color-bg-secondary)', 
-                color: isActive ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-                padding: '1px 6px',
-                borderRadius: 'var(--radius-full)',
-                fontWeight: 'bold'
-              }}>
+              <span className="fpe-floor-count">
                 {floorTableCount}
               </span>
             </button>
@@ -243,120 +354,122 @@ export default function FloorPlanEditor() {
         })}
       </div>
 
-      <div style={{ display:'flex', gap:'var(--space-4)', flex:1, overflow:'hidden' }}>
+      <div className="fpe-workspace">
         {/* Canvas */}
-        <div
-          ref={canvasRef}
-          className="table-canvas"
-          style={{
-            flex: 1,
-            position: 'relative',
-            border: '1px solid var(--color-separator)',
-            borderRadius: 'var(--radius-xl)',
-            overflow: 'hidden',
-            cursor: dragging ? 'grabbing' : 'default',
-          }}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(table => (
-            <div
-              key={table.id}
-              id={`table-item-${table.id}`}
-              className={`table-item ${table.shape === 'round' ? 'round' : 'rect'} ${selected === table.id ? 'status-selected' : `status-${table.status}`}`}
-              style={{
-                left: table.x,
-                top: table.y,
-                width: table.w ?? 80,
-                height: table.h ?? 80,
-              }}
-              onMouseDown={e => handleMouseDown(e, table)}
-            >
-              <div className="table-label">{table.name}</div>
-              <div className="table-capacity">{table.capacity}p</div>
-            </div>
-          ))}
-          {tables.length === 0 && (
-            <div style={{
-              position:'absolute', inset:0, display:'flex', flexDirection:'column',
-              alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', gap:'var(--space-3)',
-            }}>
-              <div style={{fontSize:40}}>🗺️</div>
-              <div>Click "Add Table" to start building your floor plan</div>
-            </div>
-          )}
+        <div className="table-canvas-wrapper">
+          <div
+            ref={canvasRef}
+            className={`table-canvas ${dragging ? 'dragging' : ''}`}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
+            {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(table => (
+              <div
+                key={table.id}
+                id={`table-item-${table.id}`}
+                className={`table-item ${table.shape === 'round' ? 'round' : 'rect'} ${selected === table.id ? 'status-selected' : `status-${table.status || 'free'}`}`}
+                style={{
+                  left: table.x,
+                  top: table.y,
+                  width: table.w ?? 80,
+                  height: table.h ?? 80,
+                }}
+                onMouseDown={e => handleMouseDown(e, table)}
+              >
+                {renderChairs(table)}
+                <div className="table-label">{table.name}</div>
+                <div className="table-capacity">
+                  <span>👥</span> {table.capacity}p
+                </div>
+              </div>
+            ))}
+            {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).length === 0 && (
+              <div className="fpe-empty-canvas">
+                <div className="fpe-empty-icon">🗺️</div>
+                <div className="fpe-empty-text">No tables on this floor</div>
+                <div className="fpe-empty-sub">Click "Add Table" above to place your first table here, or move an existing table to this floor.</div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Properties panel */}
         {selectedTable && (
-          <div className="card" style={{ width: 240, flexShrink:0, display: 'flex', flexDirection: 'column', maxHeight: '100%', overflowY: 'auto' }}>
-            <div className="card-header"><span className="card-title">Table Properties</span></div>
-            <div style={{ padding:'var(--space-4)', display:'flex', flexDirection:'column', gap:'var(--space-4)', flex: 1 }}>
-              <div className="form-group">
-                <label className="form-label">Name</label>
+          <div className="fpe-sidebar">
+            <div className="fpe-sidebar-header">
+              <span className="fpe-sidebar-title">Table Properties</span>
+              <button 
+                className="btn btn-danger btn-xs" 
+                id="delete-table-btn" 
+                onClick={() => { deleteTable(restaurant.id, selected); setSelected(null); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px' }}
+              >
+                <Trash2 size={12} /> Remove
+              </button>
+            </div>
+            <div className="fpe-sidebar-body">
+              <div className="fpe-form-group">
+                <label className="fpe-label">Table Name</label>
                 <input
                   id="table-name-input"
-                  className="form-input"
+                  className="fpe-input"
                   value={selectedTable.name}
                   onChange={e => updateTable(restaurant.id, selected, { name: e.target.value })}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Capacity</label>
+              <div className="fpe-form-group">
+                <label className="fpe-label">Capacity (Seats)</label>
                 <input
                   id="table-capacity-input"
-                  className="form-input"
+                  className="fpe-input"
                   type="number"
                   min={1}
                   max={20}
                   value={selectedTable.capacity}
-                  onChange={e => updateTable(restaurant.id, selected, { capacity: parseInt(e.target.value) })}
+                  onChange={e => updateTable(restaurant.id, selected, { capacity: parseInt(e.target.value) || 1 })}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Shape</label>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-2)' }}>
-                  {['rect','round'].map(s => (
-                    <button
-                      key={s}
-                      id={`shape-${s}`}
-                      onClick={() => updateTable(restaurant.id, selected, { shape: s })}
-                      style={{
-                        padding:'var(--space-3)',
-                        borderRadius: s === 'round' ? '50%' : 'var(--radius-md)',
-                        border:`2px solid ${selectedTable.shape === s ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                        background: selectedTable.shape === s ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                        color: selectedTable.shape === s ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-                        fontWeight:'var(--weight-semibold)',
-                        fontSize:'var(--text-caption1)',
-                        cursor:'pointer',
-                        fontFamily:'var(--font-family)',
-                      }}
-                    >
-                      {s === 'round' ? '⭕' : '▭'} {s}
-                    </button>
-                  ))}
+              <div className="fpe-form-group">
+                <label className="fpe-label">Table Shape</label>
+                <div className="fpe-segmented">
+                  <button
+                    id="shape-rect"
+                    className={`fpe-segment-btn ${selectedTable.shape === 'rect' ? 'active' : ''}`}
+                    onClick={() => updateTable(restaurant.id, selected, { shape: 'rect' })}
+                  >
+                    <span>▭</span> Rectangle
+                  </button>
+                  <button
+                    id="shape-round"
+                    className={`fpe-segment-btn ${selectedTable.shape === 'round' ? 'active' : ''}`}
+                    onClick={() => updateTable(restaurant.id, selected, { shape: 'round' })}
+                  >
+                    <span>⭕</span> Circle
+                  </button>
                 </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Size</label>
-                <input
-                  id="table-size-input"
-                  className="form-input"
-                  type="range"
-                  min={60}
-                  max={160}
-                  value={selectedTable.w ?? 80}
-                  onChange={e => updateTable(restaurant.id, selected, { w: parseInt(e.target.value), h: parseInt(e.target.value) })}
-                />
+              <div className="fpe-form-group">
+                <label className="fpe-label">Size</label>
+                <div className="fpe-range-container">
+                  <input
+                    id="table-size-input"
+                    className="fpe-range"
+                    type="range"
+                    min={60}
+                    max={160}
+                    value={selectedTable.w ?? 80}
+                    onChange={e => updateTable(restaurant.id, selected, { w: parseInt(e.target.value), h: parseInt(e.target.value) })}
+                  />
+                  <span className="fpe-range-val">{selectedTable.w ?? 80}px</span>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Floor Location</label>
+              <div className="fpe-form-group">
+                <label className="fpe-label">Floor Location</label>
                 <select
                   id="table-floor-select"
-                  className="form-select"
+                  className="fpe-input"
                   value={selectedTable.floor ?? 'Ground Floor'}
                   onChange={e => {
                     const nextFloor = e.target.value;
@@ -372,19 +485,20 @@ export default function FloorPlanEditor() {
               </div>
 
               {/* Table QR Code section */}
-              <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <span className="form-label" style={{ alignSelf: 'flex-start' }}>Table QR Code</span>
-                <div style={{ padding: 6, background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
-                  <img src={selectedTableQrImg} alt={`QR Code for Table ${selectedTable.name}`} style={{ width: 130, height: 130, display: 'block' }} />
+              <div className="fpe-form-group" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 'var(--space-4)' }}>
+                <label className="fpe-label">Table QR Code</label>
+                <div className="fpe-qr-card">
+                  <div className="fpe-qr-wrapper">
+                    <img className="fpe-qr-img" src={selectedTableQrImg} alt={`QR Code for Table ${selectedTable.name}`} />
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-sm fpe-qr-btn"
+                    id="download-qr-btn"
+                    onClick={() => window.open(selectedTableQrImg, '_blank')}
+                  >
+                    <Download size={14} /> Download QR
+                  </button>
                 </div>
-                <button
-                  className="btn btn-secondary btn-xs"
-                  id="download-qr-btn"
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                  onClick={() => window.open(selectedTableQrImg, '_blank')}
-                >
-                  Download QR
-                </button>
               </div>
             </div>
           </div>
@@ -393,3 +507,4 @@ export default function FloorPlanEditor() {
     </div>
   );
 }
+

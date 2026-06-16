@@ -45,6 +45,7 @@ export default function Settings() {
   const save = async () => {
     setSaving(true);
     try {
+      const settingsToSave = { ...settings };
       if (settings.slug && settings.slug.trim()) {
         const cleanSlug = settings.slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '');
         if (cleanSlug !== settings.slug) {
@@ -61,11 +62,12 @@ export default function Settings() {
           setSaving(false);
           return;
         }
-        settings.slug = cleanSlug;
+        settingsToSave.slug = cleanSlug;
       }
 
-      await updateDoc(doc(db, 'restaurants', restaurant.id), settings);
-      useAuthStore.setState({ restaurant: { id: restaurant.id, ...settings } });
+      await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
+      setSettings(settingsToSave);
+      useAuthStore.setState({ restaurant: { id: restaurant.id, ...settingsToSave } });
       toast.success('Settings saved!');
     } catch (e) {
       toast.error('Failed to save settings: ' + e.message);

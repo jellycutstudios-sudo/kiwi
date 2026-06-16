@@ -117,115 +117,129 @@ export default function Reports() {
     return unsub;
   }, [restaurant?.id, activeTab]);
 
-  const staffMap = staff.reduce((acc, s) => {
-    acc[s.id] = s.name;
-    return acc;
-  }, {});
+  const staffMap = useMemo(() => {
+    return staff.reduce((acc, s) => {
+      acc[s.id] = s.name;
+      return acc;
+    }, {});
+  }, [staff]);
 
   // KPI Calculations
-  const totalSales   = data.reduce((s, d) => s + (d.total ?? 0), 0);
-  const totalOrders  = data.length;
-  const avgOrder     = totalOrders ? totalSales / totalOrders : 0;
+  const kpis = useMemo(() => {
+    const totalSales   = data.reduce((s, d) => s + (d.total ?? 0), 0);
+    const totalOrders  = data.length;
+    const avgOrder     = totalOrders ? totalSales / totalOrders : 0;
 
-  const ordersWithPrepTime = data.filter(d => d.prepDuration !== undefined && d.prepDuration !== null);
-  const totalPrepDuration = ordersWithPrepTime.reduce((sum, d) => sum + d.prepDuration, 0);
-  const avgPrepTime = ordersWithPrepTime.length 
-    ? Math.round((totalPrepDuration / ordersWithPrepTime.length) / 60 * 10) / 10 
-    : 0;
+    const ordersWithPrepTime = data.filter(d => d.prepDuration !== undefined && d.prepDuration !== null);
+    const totalPrepDuration = ordersWithPrepTime.reduce((sum, d) => sum + d.prepDuration, 0);
+    const avgPrepTime = ordersWithPrepTime.length 
+      ? Math.round((totalPrepDuration / ordersWithPrepTime.length) / 60 * 10) / 10 
+      : 0;
 
-  // Unpack split payments for correct method breakdown
-  const byPayment = data.reduce((acc, d) => {
-    if (d.paymentMethod === 'split' && Array.isArray(d.splitPayments)) {
-      d.splitPayments.forEach(p => {
-        const method = p.method ?? 'cash';
-        acc[method] = (acc[method] ?? 0) + (p.amount ?? 0);
-      });
-    } else {
-      const method = d.paymentMethod ?? 'cash';
-      acc[method] = (acc[method] ?? 0) + (d.total ?? 0);
-    }
-    return acc;
-  }, {});
+    // Unpack split payments for correct method breakdown
+    const byPayment = data.reduce((acc, d) => {
+      if (d.paymentMethod === 'split' && Array.isArray(d.splitPayments)) {
+        d.splitPayments.forEach(p => {
+          const method = p.method ?? 'cash';
+          acc[method] = (acc[method] ?? 0) + (p.amount ?? 0);
+        });
+      } else {
+        const method = d.paymentMethod ?? 'cash';
+        acc[method] = (acc[method] ?? 0) + (d.total ?? 0);
+      }
+      return acc;
+    }, {});
 
-  const byType = data.reduce((acc, d) => {
-    acc[d.type ?? 'pos'] = (acc[d.type ?? 'pos'] ?? 0) + 1;
-    return acc;
-  }, {});
+    const byType = data.reduce((acc, d) => {
+      acc[d.type ?? 'pos'] = (acc[d.type ?? 'pos'] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return { totalSales, totalOrders, avgOrder, avgPrepTime, byPayment, byType };
+  }, [data]);
+
+  const { totalSales, totalOrders, avgOrder, avgPrepTime, byPayment, byType } = kpis;
 
   // Chart Aggregation Helper (Sales Trend)
-  const getTodayTrend = () => {
-    const hours = Array.from({ length: 24 }).map((_, i) => ({ label: `${i}:00`, sales: 0 }));
-    data.forEach(order => {
-      if (!order.createdAt) return;
-      const date = typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate() : new Date(order.createdAt);
-      const hour = date.getHours();
-      hours[hour].sales += order.total ?? 0;
-    });
-    return hours;
-  };
+  const trendDataInfo = useMemo(() => {
+    const getTodayTrend = () => {
+      const hours = Array.from({ length: 24 }).map((_, i) => ({ label: `${i}:00`, sales: 0 }));
+      data.forEach(order => {
+        if (!order.createdAt) return;
+        const date = typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate() : new Date(order.createdAt);
+        const hour = date.getHours();
+        hours[hour].sales += order.total ?? 0;
+      });
+      return hours;
+    };
 
-  const getWeekTrend = () => {
-    const days = [];
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push({ dateStr: d.toDateString(), label: dayNames[d.getDay()], sales: 0 });
-    }
-    data.forEach(order => {
-      if (!order.createdAt) return;
-      const date = typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate() : new Date(order.createdAt);
-      const dateStr = date.toDateString();
-      const found = days.find(day => day.dateStr === dateStr);
-      if (found) {
-        found.sales += order.total ?? 0;
+    const getWeekTrend = () => {
+      const days = [];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        days.push({ dateStr: d.toDateString(), label: dayNames[d.getDay()], sales: 0 });
       }
-    });
-    return days;
-  };
+      data.forEach(order => {
+        if (!order.createdAt) return;
+        const date = typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate() : new Date(order.createdAt);
+        const dateStr = date.toDateString();
+        const found = days.find(day => day.dateStr === dateStr);
+        if (found) {
+          found.sales += order.total ?? 0;
+        }
+      });
+      return days;
+    };
 
-  const getMonthTrend = () => {
-    const days = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      days.push({ dateStr: d.toDateString(), label, sales: 0 });
-    }
-    data.forEach(order => {
-      if (!order.createdAt) return;
-      const date = typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate() : new Date(order.createdAt);
-      const dateStr = date.toDateString();
-      const found = days.find(day => day.dateStr === dateStr);
-      if (found) {
-        found.sales += order.total ?? 0;
+    const getMonthTrend = () => {
+      const days = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        days.push({ dateStr: d.toDateString(), label, sales: 0 });
       }
+      data.forEach(order => {
+        if (!order.createdAt) return;
+        const date = typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate() : new Date(order.createdAt);
+        const dateStr = date.toDateString();
+        const found = days.find(day => day.dateStr === dateStr);
+        if (found) {
+          found.sales += order.total ?? 0;
+        }
+      });
+      return days;
+    };
+
+    const trend = period === 'today' ? getTodayTrend() : period === 'week' ? getWeekTrend() : getMonthTrend();
+    const maxSales = Math.max(...trend.map(d => d.sales), 100);
+
+    // SVG Chart Plotting Points
+    const chartWidth = 540;
+    const chartHeight = 160;
+    const paddingLeft = 45;
+    const paddingTop = 20;
+
+    const pts = trend.map((d, i) => {
+      const x = paddingLeft + i * (chartWidth / (trend.length - 1 || 1));
+      const y = paddingTop + chartHeight - (d.sales / maxSales) * chartHeight;
+      return { x, y, label: d.label, sales: d.sales };
     });
-    return days;
-  };
 
-  const trendData = period === 'today' ? getTodayTrend() : period === 'week' ? getWeekTrend() : getMonthTrend();
-  const maxSales = Math.max(...trendData.map(d => d.sales), 100);
+    const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const area = pts.length > 0
+      ? `${path} L ${pts[pts.length - 1].x} ${paddingTop + chartHeight} L ${pts[0].x} ${paddingTop + chartHeight} Z`
+      : '';
 
-  // SVG Chart Plotting Points
-  const chartWidth = 540;
-  const chartHeight = 160;
-  const paddingLeft = 45;
-  const paddingTop = 20;
+    return { trendData: trend, maxSales, points: pts, pathD: path, areaD: area, chartWidth, chartHeight, paddingLeft, paddingTop };
+  }, [data, period]);
 
-  const points = trendData.map((d, i) => {
-    const x = paddingLeft + i * (chartWidth / (trendData.length - 1 || 1));
-    const y = paddingTop + chartHeight - (d.sales / maxSales) * chartHeight;
-    return { x, y, label: d.label, sales: d.sales };
-  });
-
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaD = points.length > 0
-    ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
-    : '';
+  const { trendData, maxSales, points, pathD, areaD, chartWidth, chartHeight, paddingLeft, paddingTop } = trendDataInfo;
 
   // Hourly Heatmap (Aggregated Order Counts)
-  const getHourlyHeatmap = () => {
+  const heatmapInfo = useMemo(() => {
     const hourlyCounts = Array.from({ length: 24 }).fill(0);
     data.forEach(order => {
       if (!order.createdAt) return;
@@ -237,13 +251,14 @@ export default function Reports() {
       const label = `${h % 12 === 0 ? 12 : h % 12} ${h >= 12 ? 'PM' : 'AM'}`;
       activeHours.push({ hour: h, label, count: hourlyCounts[h] });
     }
-    return activeHours;
-  };
-  const hourlyData = getHourlyHeatmap();
-  const maxHourlyCount = Math.max(...hourlyData.map(h => h.count), 1);
+    const maxCount = Math.max(...activeHours.map(h => h.count), 1);
+    return { hourlyData: activeHours, maxHourlyCount: maxCount };
+  }, [data]);
+
+  const { hourlyData, maxHourlyCount } = heatmapInfo;
 
   // Menu Aggregators (Best Sellers)
-  const getBestSellers = () => {
+  const bestSellers = useMemo(() => {
     const counts = {};
     data.forEach(order => {
       if (!Array.isArray(order.items)) return;
@@ -257,20 +272,18 @@ export default function Reports() {
       });
     });
     return Object.values(counts).sort((a, b) => b.qty - a.qty);
-  };
-  const bestSellers = getBestSellers();
+  }, [data]);
 
   // Menu Aggregators (Slow Movers)
-  const getSlowMovers = () => {
+  const slowMovers = useMemo(() => {
     const soldNames = new Set(bestSellers.map(b => b.name));
     return menuItems
       .filter(item => !soldNames.has(item.name))
       .map(item => ({ name: item.name, emoji: item.emoji ?? '🍽️', price: item.price }));
-  };
-  const slowMovers = getSlowMovers();
+  }, [menuItems, bestSellers]);
 
   // Staff Leaderboard Aggregator
-  const getStaffLeaderboard = () => {
+  const staffLeaderboard = useMemo(() => {
     const staffStats = {};
     data.forEach(order => {
       const sId = order.staffId ?? 'unknown';
@@ -288,17 +301,15 @@ export default function Reports() {
       }
     });
     return Object.values(staffStats).sort((a, b) => b.revenue - a.revenue);
-  };
-  const staffLeaderboard = getStaffLeaderboard();
+  }, [data, staff, staffMap]);
 
   // Tips & Gratuity Aggregators
-  const tipsOrders = data.filter(d => (d.tipAmount ?? 0) > 0);
-  const totalTips = data.reduce((s, d) => s + (d.tipAmount ?? 0), 0);
-  const avgTip = tipsOrders.length ? totalTips / tipsOrders.length : 0;
-  const tipRate = totalOrders ? (tipsOrders.length / totalOrders) * 100 : 0;
+  const tipInfo = useMemo(() => {
+    const tipsOrders = data.filter(d => (d.tipAmount ?? 0) > 0);
+    const totalTips = data.reduce((s, d) => s + (d.tipAmount ?? 0), 0);
+    const avgTip = tipsOrders.length ? totalTips / tipsOrders.length : 0;
+    const tipRate = totalOrders ? (tipsOrders.length / totalOrders) * 100 : 0;
 
-  // Staff tip leaderboard
-  const getTipLeaderboard = () => {
     const tipStats = {};
     data.forEach(order => {
       if (!order.tipAmount || order.tipAmount <= 0) return;
@@ -313,9 +324,12 @@ export default function Reports() {
       const match = staff.find(s => s.id === id);
       if (match) tipStats[id].name = match.name;
     });
-    return Object.values(tipStats).sort((a, b) => b.tipTotal - a.tipTotal);
-  };
-  const tipLeaderboard = getTipLeaderboard();
+    const tipLeaderboard = Object.values(tipStats).sort((a, b) => b.tipTotal - a.tipTotal);
+
+    return { tipsOrders, totalTips, avgTip, tipRate, tipLeaderboard };
+  }, [data, staff, staffMap, totalOrders]);
+
+  const { tipsOrders, totalTips, avgTip, tipRate, tipLeaderboard } = tipInfo;
 
   // PDF / Document Export Handler
   const handleExportPDF = () => {

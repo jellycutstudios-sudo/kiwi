@@ -302,6 +302,7 @@ ul, ol { list-style: none; }
   flex: 1;
   padding: var(--space-6);
   overflow-y: auto;
+  background-color: var(--color-bg);
 }
 
 /* ============================================================
@@ -766,7 +767,9 @@ ul, ol { list-style: none; }
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   animation: slideUp var(--duration-normal) var(--ease-spring);
 }
 
@@ -776,6 +779,7 @@ ul, ol { list-style: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -788,6 +792,8 @@ ul, ol { list-style: none; }
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  flex: 1;
+  overflow-y: auto;
 }
 
 .modal-footer {
@@ -1293,6 +1299,9 @@ ul, ol { list-style: none; }
 /* ============================================================
    Table Map
    ============================================================ */
+/* ============================================================
+   Table Map & Floor Plan
+   ============================================================ */
 .table-map-container {
   position: relative;
   flex: 1;
@@ -1301,14 +1310,29 @@ ul, ol { list-style: none; }
   border-radius: var(--radius-xl);
 }
 
+.table-canvas-wrapper {
+  flex: 1;
+  position: relative;
+  border: 1.5px solid var(--color-separator-opaque);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--color-bg);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+}
+
 .table-canvas {
   position: relative;
   width: 100%;
   height: 100%;
-  background-image:
-    linear-gradient(var(--color-separator) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-separator) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+  overflow: hidden;
+}
+
+.table-canvas.dragging {
+  cursor: grabbing;
 }
 
 .table-item {
@@ -1320,16 +1344,20 @@ ul, ol { list-style: none; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-footnote);
-  box-shadow: var(--shadow-sm);
   user-select: none;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+  overflow: visible; /* allows chairs to overflow bounds */
+  z-index: 2;
+  outline: none;
 }
 
 .table-item:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07), 0 2px 6px rgba(0, 0, 0, 0.03);
   z-index: 10;
+  transform: scale(1.03);
 }
 
 .table-item.round {
@@ -1337,16 +1365,132 @@ ul, ol { list-style: none; }
 }
 
 .table-item.rect {
-  border-radius: var(--radius-md);
+  border-radius: 16px;
 }
 
-.table-item.status-free      { border-color: var(--color-green);    background: var(--color-green-light); }
-.table-item.status-occupied  { border-color: var(--color-red);      background: var(--color-red-light); }
-.table-item.status-reserved  { border-color: var(--color-orange);   background: var(--color-orange-light); }
-.table-item.status-selected  { border-color: var(--color-accent);   background: var(--color-accent-light); box-shadow: 0 0 0 3px var(--color-accent-light); }
+/* --- Table state color schemes --- */
+.table-item.status-free {
+  background: #ffffff;
+  border-color: #10b981;
+  color: #065f46;
+}
+.table-item.status-free .table-chair {
+  background: #a7f3d0;
+  border-color: #10b981;
+}
 
-.table-label { font-size: var(--text-caption1); font-weight: var(--weight-bold); }
-.table-capacity { font-size: var(--text-caption2); color: var(--color-label-secondary); }
+.table-item.status-occupied {
+  background: #ffffff;
+  border-color: #ef4444;
+  color: #991b1b;
+  animation: tableGlowOccupied 3s infinite ease-in-out;
+}
+.table-item.status-occupied .table-chair {
+  background: #fecaca;
+  border-color: #ef4444;
+}
+
+.table-item.status-reserved {
+  background: #ffffff;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+.table-item.status-reserved .table-chair {
+  background: #fef3c7;
+  border-color: #fbbf24;
+}
+
+.table-item.status-selected {
+  background: #f5f3ff;
+  border-color: #6366f1;
+  color: #312e81;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), 0 10px 24px rgba(99, 102, 241, 0.08);
+}
+.table-item.status-selected .table-chair {
+  background: #c7d2fe;
+  border-color: #6366f1;
+}
+
+.table-label {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.table-capacity {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 1px;
+}
+
+.table-chair {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e4e3de;
+  border: 1.5px solid #a8a29e;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  z-index: -1;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+/* --- Live Dining Animations (Chair level) --- */
+.chair-emoji {
+  position: absolute;
+  font-size: 11px;
+  opacity: 0.9;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
+  animation: chairEmojiFloat 2.6s infinite ease-in-out;
+  z-index: 5;
+}
+
+@keyframes chairEmojiFloat {
+  0%, 100% {
+    transform: translateY(0) scale(0.95) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.15) rotate(8deg);
+  }
+}
+
+/* Speed up chair emoji float on hover */
+.table-item:hover .chair-emoji {
+  animation-duration: 1.3s;
+}
+
+/* Pulse animation for occupied chairs */
+.table-item.status-occupied .table-chair {
+  animation: chairPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes chairPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.15);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+  }
+}
+
+/* Occupied table glow pulse */
+@keyframes tableGlowOccupied {
+  0%, 100% {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.15), 0 4px 10px rgba(239, 68, 68, 0.05);
+  }
+}
+
+
 
 /* ============================================================
    Token Display (TV Screen)
