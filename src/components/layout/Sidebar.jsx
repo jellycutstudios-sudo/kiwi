@@ -33,11 +33,10 @@ const ADMIN_NAV = [
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, setCollapsed }) {
   const { t } = useTranslation();
   const { staffDoc, signOut, restaurant } = useAuthStore();
   const { unreadOnlineCount } = useOrderStore();
-  const [collapsed, setCollapsed] = useState(false);
   const role = staffDoc?.role ?? 'cashier';
   const isAdmin = ['admin', 'super_admin'].includes(role);
   const isSuperAdmin = role === 'super_admin';

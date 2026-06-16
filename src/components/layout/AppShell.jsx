@@ -88,6 +88,8 @@ export default function AppShell() {
     i18n.changeLanguage(next);
   };
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   // POS page uses its own full-height layout
   const isPOS = location.pathname === '/pos';
 
@@ -100,8 +102,8 @@ export default function AppShell() {
           100% { opacity: 1; }
         }
       `}</style>
-      <Sidebar />
-      <div className="main-content">
+      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Top Bar */}
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
           <h1 className="top-bar-title text-title3" style={isPOS ? { flex: 'none', marginRight: 'var(--space-4)' } : {}}>{pageTitle}</h1>
