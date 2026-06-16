@@ -1,7 +1,17 @@
+const crypto = require('crypto');
+
 function verifyZomatoSignature(headers, apiKey) {
   if (!apiKey) return false;
   const headerKey = headers['x-zomato-api-key'] || headers['authorization'];
-  return headerKey === apiKey;
+  if (!headerKey) return false;
+
+  const headerBuf = Buffer.from(headerKey);
+  const apiKeyBuf = Buffer.from(apiKey);
+  if (headerBuf.length !== apiKeyBuf.length) {
+    crypto.timingSafeEqual(headerBuf, headerBuf);
+    return false;
+  }
+  return crypto.timingSafeEqual(headerBuf, apiKeyBuf);
 }
 
 function normalizeZomatoOrder(body) {

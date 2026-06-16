@@ -303,5 +303,10 @@ async function syncAllEnabledPlatforms(restaurantId) {
 
 module.exports = {
   syncAllEnabledPlatforms,
-  syncPlatformMenu
+  syncPlatformMenu,
+  formatForUberEats,
+  formatForZomato,
+  formatForSwiggy,
+  formatForDeliveroo
 };
+

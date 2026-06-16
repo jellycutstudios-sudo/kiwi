@@ -13,14 +13,22 @@ const CURRENCIES = {
   USD: { locale: 'en-US', symbol: '$', name: 'US Dollar' },
 };
 
+const formatterCache = {};
+
 export function formatCurrency(amount, currency = 'INR') {
-  const cfg = CURRENCIES[currency] ?? CURRENCIES['INR'];
-  return new Intl.NumberFormat(cfg.locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  const finalCurrency = CURRENCIES[currency] ? currency : 'INR';
+  const cfg = CURRENCIES[finalCurrency];
+  const cacheKey = `${cfg.locale}_${finalCurrency}`;
+
+  if (!formatterCache[cacheKey]) {
+    formatterCache[cacheKey] = new Intl.NumberFormat(cfg.locale, {
+      style: 'currency',
+      currency: finalCurrency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  return formatterCache[cacheKey].format(amount);
 }
 
 export function getCurrencySymbol(currency = 'INR') {

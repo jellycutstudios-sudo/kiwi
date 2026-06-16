@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { formatCurrency } from '../utils/formatCurrency';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2
@@ -13,31 +13,45 @@ export default function Dashboard() {
   const { activeOrders, unreadOnlineCount } = useOrderStore();
   const [todayStats, setTodayStats] = useState({ sales: 0, orders: 0, avg: 0 });
   const [loading, setLoading] = useState(true);
+  const [currentDateStr, setCurrentDateStr] = useState(new Date().toDateString());
   const currency = restaurant?.currency ?? 'INR';
+
+  // Check periodically if calendar day rolled over to trigger boundary updates
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const todayStr = new Date().toDateString();
+      if (todayStr !== currentDateStr) {
+        setCurrentDateStr(todayStr);
+      }
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [currentDateStr]);
 
   useEffect(() => {
     if (!restaurant?.id) return;
     const today = new Date();
     today.setHours(0,0,0,0);
     
-    // Query today's orders directly. This uses a single-field index and does not require a composite index.
+    // Subscribe to today's orders in real-time
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
       where('createdAt', '>=', today)
     );
     
-    getDocs(q).then(snap => {
+    const unsub = onSnapshot(q, snap => {
       const docs = snap.docs.map(d => d.data());
       const todayBilled = docs.filter(d => d.status === 'billed');
       const sales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
       const orders = todayBilled.length;
       setTodayStats({ sales, orders, avg: orders ? sales / orders : 0 });
       setLoading(false);
-    }).catch(err => {
-      console.error("Dashboard stats query failed:", err);
+    }, err => {
+      console.error("Dashboard stats subscription failed:", err);
       setLoading(false);
     });
-  }, [restaurant?.id]);
+
+    return unsub;
+  }, [restaurant?.id, currentDateStr]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? '☀️ Good Morning' : hour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening';

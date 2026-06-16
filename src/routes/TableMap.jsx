@@ -14,7 +14,7 @@ export default function TableMap() {
   const navigate = useNavigate();
   const { restaurant } = useAuthStore();
   const { tables, subscribe, freeTable } = useTableStore();
-  const { updateOrderStatus, loadOrderToCart, settleOrder } = useOrderStore();
+  const { updateOrderStatus, loadOrderToCart, settleOrder, clearCart, setTable, setOrderType } = useOrderStore();
   const [selected, setSelected] = useState(null);
   const [tableOrders, setTableOrders] = useState({});
   const [reservations, setReservations] = useState([]);
@@ -127,9 +127,27 @@ export default function TableMap() {
   };
 
   const statusConfig = {
-    free:     { color: 'var(--status-free)',     bg: 'var(--color-green-light)',  label: 'Free' },
-    occupied: { color: 'var(--status-occupied)', bg: 'var(--color-red-light)',    label: 'Occupied' },
-    reserved: { color: 'var(--status-reserved)', bg: 'var(--color-orange-light)', label: 'Reserved' },
+    free: { 
+      color: '#10b981', // emerald green
+      bg: '#f0fdf4', // light green tint
+      text: '#15803d', // medium green for text
+      badge: 'badge-green',
+      label: 'Free' 
+    },
+    occupied: { 
+      color: '#ef4444', // red
+      bg: '#fef2f2', // light red tint
+      text: '#b91c1c', // medium red for text
+      badge: 'badge-red',
+      label: 'Occupied' 
+    },
+    reserved: { 
+      color: '#f59e0b', // amber orange
+      bg: '#fffbeb', // light amber tint
+      text: '#b45309', // medium amber for text
+      badge: 'badge-orange',
+      label: 'Reserved' 
+    },
   };
 
   const selectedOrder = selected ? tableOrders[selected] : null;
@@ -139,15 +157,33 @@ export default function TableMap() {
       {/* Main map */}
       <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
         {/* Legend */}
-        <div style={{ display:'flex', gap:'var(--space-4)', flexWrap:'wrap', alignItems:'center' }}>
-          {Object.entries(statusConfig).map(([k, v]) => (
-            <div key={k} style={{ display:'flex', alignItems:'center', gap:'var(--space-2)', fontSize:'var(--text-footnote)' }}>
-              <div style={{ width:12, height:12, borderRadius:'var(--radius-xs)', background:v.color }} />
-              {v.label} ({tables.filter(t => (t.floor || 'Ground Floor') === activeFloor && t.status===k).length})
-            </div>
-          ))}
-          <div className="badge badge-green" style={{ marginLeft:'auto' }}>
-            {tables.length} tables configured
+        <div style={{ display:'flex', gap:'var(--space-3)', flexWrap:'wrap', alignItems:'center' }}>
+          {Object.entries(statusConfig).map(([k, v]) => {
+            const count = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor && t.status === k).length;
+            return (
+              <div 
+                key={k} 
+                style={{ 
+                  display:'flex', 
+                  alignItems:'center', 
+                  gap:'var(--space-2)', 
+                  fontSize:'12px',
+                  fontWeight: 'var(--weight-semibold)',
+                  color: v.text,
+                  background: v.bg,
+                  padding: '4px 12px',
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid transparent'
+                }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: v.color }} />
+                <span>{v.label}</span>
+                <span style={{ opacity: 0.75, fontSize: '10px' }}>({count})</span>
+              </div>
+            );
+          })}
+          <div className="badge badge-gray" style={{ marginLeft:'auto', fontWeight: 'var(--weight-semibold)' }}>
+            📍 {tables.length} tables configured
           </div>
         </div>
 
@@ -185,7 +221,16 @@ export default function TableMap() {
         </div>
 
         {/* Canvas */}
-        <div style={{ flex:1, position:'relative', background:'var(--color-bg-secondary)', borderRadius:'var(--radius-xl)', overflow:'hidden', border:'1px solid var(--color-separator)', backgroundImage:'linear-gradient(var(--color-separator) 1px, transparent 1px), linear-gradient(90deg, var(--color-separator) 1px, transparent 1px)', backgroundSize:'40px 40px' }}>
+        <div style={{ 
+          flex:1, 
+          position:'relative', 
+          background:'#fafafa', 
+          borderRadius:'var(--radius-xl)', 
+          overflow:'hidden', 
+          border:'1.5px solid var(--color-separator-opaque)', 
+          backgroundImage:'radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1.2px)', 
+          backgroundSize:'24px 24px' 
+        }}>
           {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(t => {
             const cfg = statusConfig[t.status] ?? statusConfig.free;
             const order = tableOrders[t.id];
@@ -202,34 +247,80 @@ export default function TableMap() {
                   width: t.w ?? 80,
                   height: t.h ?? 80,
                   borderRadius: t.shape === 'round' ? '50%' : 'var(--radius-lg)',
-                  border:`2.5px solid ${selected===t.id ? 'var(--color-accent)' : cfg.color}`,
-                  background: selected===t.id ? 'var(--color-accent-light)' : cfg.bg,
-                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                  border: `2px solid ${selected === t.id ? 'var(--color-label)' : cfg.color}`,
+                  background: selected === t.id ? 'var(--color-bg)' : cfg.bg,
+                  display:'flex', 
+                  flexDirection:'column', 
+                  alignItems:'center', 
+                  justifyContent:'center',
                   cursor:'pointer',
                   transition:'all var(--duration-fast) var(--ease-out)',
-                  boxShadow: selected===t.id ? `0 0 0 3px var(--color-accent-light)` : 'var(--shadow-sm)',
+                  boxShadow: selected === t.id 
+                    ? `0 0 0 4px var(--color-accent-light), 0 8px 20px rgba(0,0,0,0.12)` 
+                    : '0 4px 10px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04)',
                   fontFamily:'var(--font-family)',
+                  gap: '2px',
+                  outline: 'none',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'scale(1.04)';
+                  if (selected !== t.id) {
+                    e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.08)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  if (selected !== t.id) {
+                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04)';
+                  }
                 }}
               >
-                <span style={{ fontWeight:'var(--weight-bold)', fontSize:'var(--text-caption1)' }}>{t.name}</span>
-                <span style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-secondary)' }}>{t.capacity}p</span>
-                {order && <span style={{ fontSize:8, color:cfg.color, fontWeight:600, textTransform:'uppercase' }}>●</span>}
+                <span style={{ 
+                  fontWeight: 'var(--weight-bold)', 
+                  fontSize: '14px',
+                  color: selected === t.id ? 'var(--color-label)' : cfg.text
+                }}>
+                  {t.name}
+                </span>
+                <span style={{ 
+                  fontSize: '10px', 
+                  fontWeight: 'var(--weight-medium)',
+                  color: selected === t.id ? 'var(--color-label-secondary)' : `${cfg.text}bb` 
+                }}>
+                  {t.capacity} seats
+                </span>
+                {order && (
+                  <span style={{ 
+                    fontSize: '10px', 
+                    fontWeight: 'var(--weight-bold)', 
+                    color: '#ffffff',
+                    background: cfg.color,
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-full)',
+                    marginTop: '4px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    scale: '0.9'
+                  }}>
+                    {formatCurrency(order.total ?? 0, currency)}
+                  </span>
+                )}
                 {isReserved && t.status === 'free' && (
                   <span style={{
                     position: 'absolute',
                     top: -6,
                     right: -6,
-                    background: 'var(--color-orange)',
+                    background: '#f59e0b',
                     color: '#fff',
                     borderRadius: '50%',
-                    width: 18,
-                    height: 18,
+                    width: 20,
+                    height: 20,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 9,
-                    boxShadow: 'var(--shadow-sm)',
-                    fontWeight: 'bold'
+                    fontSize: '10px',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                    fontWeight: 'bold',
+                    border: '1.5px solid #ffffff'
                   }} title="Reserved Today">
                     📅
                   </span>
@@ -248,56 +339,75 @@ export default function TableMap() {
 
       {/* Table detail panel */}
       {selected && selectedTable && (
-        <div className="card" style={{ width:280, flexShrink:0, display:'flex', flexDirection:'column', animation:'slideInRight var(--duration-normal) var(--ease-spring)' }}>
+        <div className="card" style={{ width:300, flexShrink:0, display:'flex', flexDirection:'column', animation:'slideInRight var(--duration-normal) var(--ease-spring)' }}>
           <div className="card-header">
-            <span className="card-title">{selectedTable.name}</span>
+            <span className="card-title" style={{ fontSize: '18px', fontWeight: 'var(--weight-bold)' }}>Table {selectedTable.name}</span>
             <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setSelected(null)}>✕</button>
           </div>
           <div style={{ padding:'var(--space-4)', display:'flex', flexDirection:'column', gap:'var(--space-4)', flex:1 }}>
             <div style={{ display:'flex', gap:'var(--space-2)' }}>
-              <span className={`badge ${selectedTable.status === 'free' ? 'badge-green' : selectedTable.status === 'occupied' ? 'badge-red' : 'badge-orange'}`}>
+              <span className={`badge ${selectedTable.status === 'free' ? 'badge-green' : selectedTable.status === 'occupied' ? 'badge-red' : 'badge-orange'}`} style={{ textTransform: 'capitalize' }}>
                 {selectedTable.status}
               </span>
               <span className="badge badge-gray">{selectedTable.capacity} seats</span>
             </div>
 
             {selectedOrder ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-                <div style={{ fontWeight:'var(--weight-semibold)' }}>Current Order</div>
-                <div style={{ fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)' }}>
-                  #{selectedOrder.id.slice(-8).toUpperCase()}
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight:'var(--weight-semibold)', fontSize: '13px' }}>Current Order</span>
+                  <span style={{ fontSize:'10px', color:'var(--color-label-tertiary)', fontFamily: 'monospace' }}>
+                    ID: #{selectedOrder.id.slice(-8).toUpperCase()}
+                  </span>
                 </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-1)' }}>
+
+                <div style={{ 
+                  background: 'var(--color-bg-secondary)', 
+                  borderRadius: 'var(--radius-md)', 
+                  padding: 'var(--space-3) var(--space-4)',
+                  display:'flex', 
+                  flexDirection:'column', 
+                  gap:'var(--space-2)',
+                  border: '1px solid var(--color-separator)'
+                }}>
                   {(selectedOrder.items??[]).map((item,i) => (
                     <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:'var(--text-footnote)' }}>
-                      <span>×{item.qty} {item.name}</span>
-                      <span>{formatCurrency(item.price*item.qty,currency)}</span>
+                      <span style={{ fontWeight: 'var(--weight-medium)' }}>
+                        <span style={{ color: 'var(--color-label-secondary)', marginRight: 'var(--space-1)' }}>×{item.qty}</span>
+                        {item.name}
+                      </span>
+                      <span style={{ fontWeight: 'var(--weight-semibold)' }}>
+                        {formatCurrency(item.price*item.qty, currency)}
+                      </span>
                     </div>
                   ))}
+                  <div style={{ borderTop:'1px dashed var(--color-separator)', paddingTop:'var(--space-2)', marginTop: '4px', fontWeight:'var(--weight-bold)', display:'flex', justifyContent:'space-between', fontSize: 'var(--text-subhead)' }}>
+                    <span>Total</span>
+                    <span style={{ color: 'var(--color-accent)' }}>
+                      {formatCurrency(selectedOrder.total??0, currency)}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ borderTop:'1px solid var(--color-separator)', paddingTop:'var(--space-2)', fontWeight:'var(--weight-bold)', display:'flex', justifyContent:'space-between' }}>
-                  <span>Total</span>
-                  <span>{formatCurrency(selectedOrder.total??0, currency)}</span>
-                </div>
+
                 <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)' }}>
                   {/* Status updates */}
                   {selectedOrder.status !== 'ready' && selectedOrder.status !== 'served' && (
-                    <button className="btn btn-primary" onClick={async()=>{await updateOrderStatus(restaurant.id,selectedOrder.id,'ready');toast.success('Order ready!');}}>
+                    <button className="btn btn-primary" onClick={async()=>{await updateOrderStatus(restaurant.id,selectedOrder.id,'ready');toast.success('Order ready!');}} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '40px' }}>
                       ✅ Mark Ready
                     </button>
                   )}
                   {selectedOrder.status === 'ready' && (
-                    <button className="btn btn-success" onClick={async()=>{await updateOrderStatus(restaurant.id,selectedOrder.id,'served');toast.success('Served!');}}>
+                    <button className="btn btn-success" onClick={async()=>{await updateOrderStatus(restaurant.id,selectedOrder.id,'served');toast.success('Served!');}} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '40px', background: '#10b981', borderColor: '#10b981', color: '#ffffff' }}>
                       🍽️ Mark Served
                     </button>
                   )}
 
                   {/* Waiter Actions */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={handleAddItems} style={{ fontSize: '12px' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={handleAddItems} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '36px', fontSize: '12px' }}>
                       ➕ Add Items
                     </button>
-                    <button className="btn btn-secondary btn-sm" onClick={handlePrintBill} style={{ fontSize: '12px' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={handlePrintBill} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '36px', fontSize: '12px' }}>
                       🖨️ Print Bill
                     </button>
                   </div>
@@ -308,15 +418,15 @@ export default function TableMap() {
                       type="button"
                       className="btn btn-secondary btn-sm" 
                       onClick={() => setShowTransfer(true)} 
-                      style={{ fontSize: '12px' }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '36px', fontSize: '12px' }}
                     >
-                      🔀 Move Table
+                      🔄 Move Table
                     </button>
                     <button 
                       type="button"
                       className="btn btn-secondary btn-sm" 
                       onClick={() => setShowMerge(true)} 
-                      style={{ fontSize: '12px' }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '36px', fontSize: '12px' }}
                     >
                       🔗 Merge Bills
                     </button>
@@ -324,34 +434,67 @@ export default function TableMap() {
 
                   {/* Settle / Free Table */}
                   {selectedOrder.paymentMethod === 'unpaid' ? (
-                    <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
-                      <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-secondary)', marginBottom: 'var(--space-2)', fontWeight: 'var(--weight-semibold)' }}>
-                        Settle Payment & Free Table:
+                    <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                      <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-label-secondary)', marginBottom: 'var(--space-2)', fontWeight: 'var(--weight-bold)', letterSpacing: '0.04em' }}>
+                        Settle Payment
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-1)' }}>
-                        {['cash', 'card', 'upi'].map(m => (
-                          <button
-                            key={m}
-                            className="btn btn-secondary btn-xs"
-                            style={{ fontSize: '10px', textTransform: 'uppercase', padding: '6px 0', fontWeight: 'var(--weight-bold)' }}
-                            onClick={() => {
-                              if (m === 'upi') {
-                                setUpiOrderToSettle(selectedOrder);
-                              } else {
-                                handleSettle(m);
-                              }
-                            }}
-                          >
-                            {m}
-                          </button>
-                        ))}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                        {['cash', 'card', 'upi'].map(m => {
+                          let emoji = '💵';
+                          let color = '#059669';
+                          let bg = '#ecfdf5';
+                          if (m === 'card') { emoji = '💳'; color = '#2563eb'; bg = '#eff6ff'; }
+                          if (m === 'upi') { emoji = '📱'; color = '#7c3aed'; bg = '#f5f3ff'; }
+                          return (
+                            <button
+                              key={m}
+                              className="btn"
+                              style={{
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                padding: '8px 0',
+                                fontWeight: 'var(--weight-bold)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '2px',
+                                borderColor: color,
+                                background: bg,
+                                color: color,
+                                boxShadow: 'none',
+                                height: 'auto'
+                              }}
+                              onClick={() => {
+                                if (m === 'upi') {
+                                  setUpiOrderToSettle(selectedOrder);
+                                } else {
+                                  handleSettle(m);
+                                }
+                              }}
+                            >
+                              <span style={{ fontSize: '14px' }}>{emoji}</span>
+                              <span>{m}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
                     <button 
                       className="btn btn-secondary" 
-                      style={{ borderTop: '1px solid var(--color-separator)' }}
+                      style={{ 
+                        marginTop: 'var(--space-2)', 
+                        height: '40px', 
+                        borderColor: 'var(--color-separator)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
                       onClick={async () => {
+                        if (selectedOrder) {
+                          await updateOrderStatus(restaurant.id, selectedOrder.id, 'billed');
+                        }
                         await freeTable(restaurant.id, selectedTable.id);
                         setSelected(null);
                         toast.success('Table freed!');
@@ -411,9 +554,38 @@ export default function TableMap() {
                     );
                   }
                   return (
-                    <div style={{ textAlign:'center', color:'var(--color-label-tertiary)', padding:'var(--space-4)' }}>
-                      <div style={{fontSize:32}}>✅</div>
-                      <div style={{marginTop:'var(--space-2)', fontSize:'var(--text-footnote)'}}>Table is free</div>
+                    <div style={{ 
+                      textAlign:'center', 
+                      color:'var(--color-label-tertiary)', 
+                      padding:'var(--space-5) var(--space-3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 'var(--space-2)',
+                      background: '#fcfcfc',
+                      border: '1.5px dashed var(--color-separator)',
+                      borderRadius: 'var(--radius-lg)'
+                    }}>
+                      <div style={{ fontSize: 28 }}>🍽️</div>
+                      <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-label)', fontSize: 'var(--text-footnote)' }}>
+                        Table is Available
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', lineHeight: '1.4' }}>
+                        No active order currently seated.
+                      </div>
+                      <button 
+                        className="btn btn-primary btn-sm"
+                        style={{ marginTop: 'var(--space-2)', width: '100%', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        onClick={() => {
+                          clearCart();
+                          setTable(selectedTable.id, selectedTable.name);
+                          setOrderType('dine-in');
+                          toast.success(`Started new order for ${selectedTable.name}`);
+                          navigate('/pos');
+                        }}
+                      >
+                        ⚡ Start Order
+                      </button>
                     </div>
                   );
                 })()}

@@ -7,7 +7,7 @@
  */
 
 export function computeTax(subtotal, taxConfig = {}) {
-  const { type = 'none', rate = 0, cgst = 0, sgst = 0 } = taxConfig;
+  const { type = 'none', rate = 0, cgst, sgst } = taxConfig;
 
   switch (type) {
     case 'gst': {

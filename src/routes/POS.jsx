@@ -73,6 +73,16 @@ export default function POS() {
   const taxInfo   = getTaxInfo(restaurant);
   const total     = getTotal(restaurant);
 
+  const getItemQty = (item) => {
+    return items.reduce((sum, cartItem) => {
+      if (cartItem.id === item.id || cartItem.menuItemId === item.id) {
+        return sum + cartItem.qty;
+      }
+      return sum;
+    }, 0);
+  };
+
+
   // Set default active category when menu is loaded
   useEffect(() => {
     if (categories.length) {
@@ -611,30 +621,74 @@ export default function POS() {
           </div>
         ) : (
           <div className="menu-grid">
-            {displayItems.map(item => (
-              <button
-                key={item.id}
-                id={`menu-item-${item.id}`}
-                className={`menu-item-card ${item.available === false ? 'unavailable' : ''}`}
-                onClick={() => {
-                  if (item.modifierGroups && item.modifierGroups.length > 0) {
-                    setActiveModifierItem(item);
-                  } else {
-                    addItem(item);
+            {displayItems.map(item => {
+              const qty = getItemQty(item);
+              const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
+              return (
+                <div
+                  key={item.id}
+                  id={`menu-item-${item.id}`}
+                  role="button"
+                  tabIndex={0}
+                  className={`menu-item-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                  onClick={() => {
+                    if (item.available === false) return;
+                    if (hasModifiers) {
+                      setActiveModifierItem(item);
+                    } else {
+                      addItem(item);
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (item.available === false) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (hasModifiers) {
+                        setActiveModifierItem(item);
+                      } else {
+                        addItem(item);
+                      }
+                    }
+                  }}
+                >
+                  {qty > 0 && (
+                    <div className="menu-item-qty-badge">{qty}</div>
+                  )}
+                  {item.imageUrl || item.image
+                    ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
+                    : <div className="menu-item-img-placeholder">{item.emoji ?? '🍽️'}</div>
                   }
-                }}
-              >
-                {item.imageUrl || item.image
-                  ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
-                  : <div className="menu-item-img-placeholder">{item.emoji ?? '🍽️'}</div>
-                }
-                <div className="menu-item-body">
-                  <div className="menu-item-name">{item.name}</div>
-                  <div className="menu-item-price">{formatCurrency(item.price, currency)}</div>
+                  <div className="menu-item-body">
+                    <div className="menu-item-name">{item.name}</div>
+                    <div className="menu-item-price">{formatCurrency(item.price, currency)}</div>
+                  </div>
+                  {qty > 0 && !hasModifiers ? (
+                    <div className="menu-item-qty-controls" onClick={e => e.stopPropagation()}>
+                      <button
+                        className="menu-item-qty-btn"
+                        onClick={() => {
+                          const cartItem = items.find(i => i.id === item.id);
+                          if (cartItem) {
+                            updateQty(item.id, cartItem.qty - 1);
+                          }
+                        }}
+                      >
+                        -
+                      </button>
+                      <span className="menu-item-qty-text">{qty}</span>
+                      <button
+                        className="menu-item-qty-btn"
+                        onClick={() => addItem(item)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="menu-item-add-btn">+</div>
+                  )}
                 </div>
-                <div className="menu-item-add-btn">+</div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -101,6 +101,21 @@ export default function AppShell() {
           50% { opacity: 0.4; }
           100% { opacity: 1; }
         }
+        @keyframes pulseOnline {
+          0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); }
+          70% { box-shadow: 0 0 0 8px rgba(52, 199, 89, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
+        }
+        @keyframes pulseSimOffline {
+          0% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0.7); }
+          70% { box-shadow: 0 0 0 8px rgba(255, 149, 0, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0); }
+        }
+        @keyframes pulseOffline {
+          0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+          70% { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
       `}</style>
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -122,53 +137,35 @@ export default function AppShell() {
           )}
 
           <div className="top-bar-actions" style={isPOS ? { marginLeft: 'auto' } : {}}>
-            {/* Network status indicator */}
+            {/* Network status indicator (glowing dot) */}
             <div 
               onClick={toggleOfflineSimulation}
-              title="Click to toggle simulated offline mode for testing"
+              title={
+                isSimulatedOffline 
+                  ? "Offline Sim Mode Active (Click to go Online)" 
+                  : isOnline 
+                    ? "System Online & Connected (Click to simulate Offline)" 
+                    : "System Offline / Network Disconnected"
+              }
               style={{
                 cursor: 'pointer',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
                 background: isSimulatedOffline 
-                  ? 'rgba(255, 149, 0, 0.1)' 
+                  ? '#ff9500' 
                   : isOnline 
-                    ? 'rgba(52, 199, 89, 0.1)' 
-                    : 'rgba(255, 59, 48, 0.1)',
-                color: isSimulatedOffline 
-                  ? 'var(--color-orange)' 
+                    ? '#34c759' 
+                    : '#ff3b30',
+                animation: isSimulatedOffline 
+                  ? 'pulseSimOffline 2s infinite' 
                   : isOnline 
-                    ? 'var(--color-green)' 
-                    : 'var(--color-red)',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                border: `1.5px solid ${
-                  isSimulatedOffline 
-                    ? 'var(--color-orange)' 
-                    : isOnline 
-                      ? 'var(--color-green)' 
-                      : 'var(--color-red)'
-                }`,
-                fontSize: '11px',
-                fontWeight: 'var(--weight-bold)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                animation: !isOnline ? 'blink 1.5s infinite' : 'none',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
+                    ? 'pulseOnline 2s infinite' 
+                    : 'pulseOffline 1.5s infinite',
+                margin: '0 var(--space-2)',
+                transition: 'all 0.3s ease',
               }}
-            >
-              <span style={{ 
-                width: 6, 
-                height: 6, 
-                borderRadius: '50%', 
-                background: isSimulatedOffline 
-                  ? 'var(--color-orange)' 
-                  : isOnline 
-                    ? 'var(--color-green)' 
-                    : 'var(--color-red)' 
-              }} />
-              {isSimulatedOffline ? '🟠 Sim Offline' : isOnline ? '🟢 Connected' : '⚠️ Offline'}
-            </div>
+            />
 
             {/* Language toggle */}
             <button
@@ -200,13 +197,6 @@ export default function AppShell() {
                 }} />
               )}
             </button>
-
-            {/* Restaurant badge */}
-            {restaurant?.name && (
-              <div className="badge badge-blue" style={{ fontSize: 'var(--text-caption2)' }}>
-                {restaurant.name}
-              </div>
-            )}
           </div>
         </header>
 

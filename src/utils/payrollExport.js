@@ -1,10 +1,10 @@
 /**
- * Utility to export payroll data to CSV format and trigger download
+ * Generates the raw CSV content for payroll export
  * @param {Array} payrollData - Array of payroll records
- * @param {string} month - The month string (e.g. "2026-06")
  * @param {string} currency - Currency code (e.g. "INR", "USD")
+ * @returns {string} Raw CSV string
  */
-export function exportPayrollToCSV(payrollData, month, currency = 'INR') {
+export function generatePayrollCSV(payrollData, currency = 'INR') {
   const headers = [
     'Staff Name',
     'Role',
@@ -35,7 +35,7 @@ export function exportPayrollToCSV(payrollData, month, currency = 'INR') {
     (p.notes || '').replace(/"/g, '""') // Escape double quotes
   ]);
 
-  const csvContent = [
+  return [
     headers.join(','),
     ...rows.map(row => row.map(val => {
       // Escape commas and wrap in quotes if necessary
@@ -46,7 +46,16 @@ export function exportPayrollToCSV(payrollData, month, currency = 'INR') {
       return strVal;
     }).join(','))
   ].join('\n');
+}
 
+/**
+ * Utility to export payroll data to CSV format and trigger download
+ * @param {Array} payrollData - Array of payroll records
+ * @param {string} month - The month string (e.g. "2026-06")
+ * @param {string} currency - Currency code (e.g. "INR", "USD")
+ */
+export function exportPayrollToCSV(payrollData, month, currency = 'INR') {
+  const csvContent = generatePayrollCSV(payrollData, currency);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -57,3 +66,4 @@ export function exportPayrollToCSV(payrollData, month, currency = 'INR') {
   link.click();
   document.body.removeChild(link);
 }
+

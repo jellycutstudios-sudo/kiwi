@@ -64,17 +64,27 @@ export default function Reports() {
 
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('status', '==', 'billed'),
-      orderBy('createdAt', 'desc'),
-      limit(500)
+      where('createdAt', '>=', start)
     );
     getDocs(q).then(snap => {
       const docs = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => d.createdAt?.toDate?.() >= start);
+        .filter(d => d.status === 'billed');
+      
+      // Sort in-memory descending by createdAt
+      docs.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt ? new Date(b.createdAt) : 0);
+        return dateB - dateA;
+      });
+
       setData(docs);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(err => {
+      console.error("Reports stats query failed:", err);
+      setData([]);
+      setLoading(false);
+    });
   }, [restaurant?.id, period]);
 
   // 4. Fetch shifts

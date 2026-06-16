@@ -6,7 +6,14 @@ function verifyUberSignature(rawBody, signature, clientSecret) {
   const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
   const hmac = crypto.createHmac('sha256', clientSecret);
   const digest = hmac.update(bodyStr).digest('hex');
-  return digest === signature;
+
+  const digestBuf = Buffer.from(digest);
+  const signatureBuf = Buffer.from(signature);
+  if (digestBuf.length !== signatureBuf.length) {
+    crypto.timingSafeEqual(digestBuf, digestBuf);
+    return false;
+  }
+  return crypto.timingSafeEqual(digestBuf, signatureBuf);
 }
 
 function normalizeUberOrder(body) {
