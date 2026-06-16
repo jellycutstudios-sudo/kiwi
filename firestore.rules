@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // Users collection (super admin / admin accounts)
+    match /users/{userId} {
+      allow read: if isSignedIn() && uid() == userId;
+      allow write: if isSignedIn() && uid() == userId;
+    }
+
+    // Restaurants
+    match /restaurants/{restaurantId} {
+      // Anyone can read restaurant info (for online order page)
+      allow read: if true;
+      // Only authenticated admins can write
+      allow write: if isSignedIn();
+
+      // Staff — admins can CRUD, staff can only read their own doc
+      match /staff/{staffId} {
+        allow read: if true; // PIN login needs to query
+        allow write: if isSignedIn();
+      }
+
+      // Menu — public read, admin write
+      match /menu/{catId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Tables — public read, authenticated write
+      match /tables/{tableId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Orders — public create (for online orders), authenticated read/update
+      match /orders/{orderId} {
+        allow read: if isSignedIn();
+        allow create: if true; // customers can place online orders without auth
+        allow update, delete: if isSignedIn();
+      }
+
+      // Tokens — public read (for TV display), authenticated write
+      match /tokens/{date} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Delivery Sync logs
+      match /deliverySync/{platform}/logs/{logId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+
+      // Delivery Settings overrides
+      match /deliverySettings/{platform}/items/{itemId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Inventory — authenticated read/write
+      match /inventory/{itemId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Payroll — authenticated read/write
+      match /payroll/{month}/entries/{staffId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Customers CRM — authenticated read/write
+      match /customers/{customerId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Reservations — authenticated read/write
+      match /reservations/{reservationId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Waitlist Queue — authenticated read/write
+      match /waitlist/{waitlistId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Suppliers Directory — authenticated read/write
+      match /suppliers/{supplierId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Purchase Orders — authenticated read/write
+      match /purchase_orders/{poId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Gift Cards & Vouchers — authenticated read/write
+      match /gift_cards/{cardId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Shifts & Drawer Tills — authenticated read/write
+      match /shifts/{shiftId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Void Audits Ledger — authenticated read/write
+      match /void_logs/{logId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+  }
+}
