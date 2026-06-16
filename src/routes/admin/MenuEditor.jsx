@@ -10,40 +10,42 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 const compressImage = (file, maxDim = 300, quality = 0.75) => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (e) => {
-      const img = new Image();
-      img.src = e.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
 
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
         }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Canvas compression failed'));
-        }, 'image/jpeg', quality);
-      };
-      img.onerror = (err) => reject(err);
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas compression failed'));
+      }, 'image/jpeg', quality);
     };
-    reader.onerror = (err) => reject(err);
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(err);
+    };
   });
 };
 
@@ -142,6 +144,14 @@ export default function MenuEditor() {
   const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!restaurant?.id) {
+      toast.error('Restaurant context not loaded yet. Please try again.');
+      return;
+    }
+    if (!storage) {
+      toast.error('Firebase Storage is not configured or initialized.');
+      return;
+    }
     setUploadingImage(true);
     const toastId = toast.loading('Optimizing & compressing image...');
     try {
@@ -159,6 +169,7 @@ export default function MenuEditor() {
       console.error('[Image Upload Error]', err);
       toast.error('Failed to upload image: ' + err.message, { id: toastId });
     } finally {
+      e.target.value = ''; // Reset input to allow selecting same file again
       setUploadingImage(false);
     }
   };
