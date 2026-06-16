@@ -9,10 +9,10 @@ import { printReceipt } from '../utils/print';
 import { computeTax } from '../utils/taxUtils';
 
 const PLATFORM_BADGES = {
-  zomato:      { label: 'Zomato',     color: '#E23744', bg: '#fdeaea', emoji: '🍕' },
-  swiggy:      { label: 'Swiggy',     color: '#FC8019', bg: '#fff3eb', emoji: '🟠' },
+  zomato:      { label: 'Zomato',     color: '#000000', bg: '#f5f5f5', emoji: '🍕' },
+  swiggy:      { label: 'Swiggy',     color: '#000000', bg: '#f5f5f5', emoji: '🟠' },
   ubereats:    { label: 'Uber Eats',  color: '#000000', bg: '#f5f5f5', emoji: '🚗' },
-  deliveroo:   { label: 'Deliveroo',  color: '#00CCBC', bg: '#e0faf8', emoji: '🦘' },
+  deliveroo:   { label: 'Deliveroo',  color: '#000000', bg: '#f5f5f5', emoji: '🦘' },
   native:      { label: 'Direct',     color: 'var(--color-label)', bg: 'var(--color-bg-tertiary)', emoji: '🌐' },
 };
 

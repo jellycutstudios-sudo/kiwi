@@ -86,7 +86,7 @@ export default function TableMap() {
     const sanitizedNote = tableInfo.replace(/[^a-zA-Z0-9]/g, '_');
     const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${(upiOrderToSettle.total ?? 0).toFixed(2)}&cu=${currency || 'INR'}&tn=${sanitizedNote}`;
     
-    QRCode.toDataURL(upiUrl, { width: 220, margin: 1, color: { dark: '#0a0a0a', light: '#fffaf0' } })
+    QRCode.toDataURL(upiUrl, { width: 220, margin: 1, color: { dark: '#0a0a0a', light: '#ffffff' } })
       .then(url => setQrDataUrl(url))
       .catch(err => {
         console.error('[QR Generation Error]', err);

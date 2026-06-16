@@ -10,84 +10,84 @@
   /* ===================================================
      CANVAS & SURFACE — Warm cream palette (never cool gray)
      =================================================== */
-  --color-bg:              #fffaf0;   /* canvas — warm cream base */
-  --color-bg-secondary:    #faf5e8;   /* surface-soft */
-  --color-bg-tertiary:     #f5f0e0;   /* surface-card */
-  --color-bg-grouped:      #faf5e8;
+  --color-bg:              #ffffff;   /* canvas — pure white base */
+  --color-bg-secondary:    #f5f5f5;   /* surface-soft — light gray */
+  --color-bg-tertiary:     #e5e5e5;   /* surface-card — gray */
+  --color-bg-grouped:      #fcfcfc;
   --color-bg-elevated:     #ffffff;   /* Elevated surfaces (cards, modals) pop out in white */
 
   /* ===================================================
      INK / TEXT — Dark near-black for high contrast
      =================================================== */
-  --color-label:           #0a0a0a;   /* ink — primary headlines */
+  --color-label:           #000000;   /* ink — primary headlines */
   --color-label-secondary: #222222;   /* body — running text (darker for high contrast) */
-  --color-label-tertiary:  #505050;   /* muted (darker for high contrast) */
-  --color-label-quat:      #787878;   /* muted-soft */
+  --color-label-tertiary:  #555555;   /* muted (darker for high contrast) */
+  --color-label-quat:      #777777;   /* muted-soft */
 
   /* ===================================================
      BORDERS — Warm tinted hairlines with higher visibility
      =================================================== */
-  --color-separator:       #d8d3c5;   /* warm separator outline */
-  --color-separator-opaque:#d8d3c5;
+  --color-separator:       #222222;   /* strong black separator outline */
+  --color-separator-opaque:#222222;
 
-  --color-fill:            rgba(10,10,10,0.06);
-  --color-fill-secondary:  rgba(10,10,10,0.09);
-  --color-fill-tertiary:   rgba(10,10,10,0.04);
+  --color-fill:            rgba(0,0,0,0.06);
+  --color-fill-secondary:  rgba(0,0,0,0.12);
+  --color-fill-tertiary:   rgba(0,0,0,0.04);
 
   /* ===================================================
      BRAND ACCENT — Hot pink primary (Clay brand)
      =================================================== */
-  --color-accent:          #ff4d8b;   /* brand-pink */
-  --color-accent-light:    rgba(255,77,139,0.10);
-  --color-accent-hover:    #e63d7a;
+  --color-accent:          #000000;   /* brand-pink -> black */
+  --color-accent-light:    rgba(0,0,0,0.06);
+  --color-accent-hover:    #222222;
 
   /* ===================================================
      6-COLOR BRAND PALETTE
      =================================================== */
-  --color-brand-pink:      #ff4d8b;
-  --color-brand-pink-light:rgba(255,77,139,0.12);
-  --color-brand-teal:      #1a3a3a;   /* deep teal — featured/enterprise */
-  --color-brand-teal-light:rgba(26,58,58,0.10);
-  --color-brand-lavender:  #b8a4ed;
-  --color-brand-lavender-light:rgba(184,164,237,0.15);
-  --color-brand-peach:     #ffb084;
-  --color-brand-peach-light:rgba(255,176,132,0.15);
-  --color-brand-ochre:     #e8b94a;
-  --color-brand-ochre-light:rgba(232,185,74,0.15);
-  --color-brand-mint:      #a4d4c5;
-  --color-brand-mint-light:rgba(164,212,197,0.15);
-  --color-brand-coral:     #ff6b5a;
+  --color-brand-pink:      #000000;
+  --color-brand-pink-light:rgba(0,0,0,0.08);
+  --color-brand-teal:      #1a1a1a;   /* deep teal -> deep gray */
+  --color-brand-teal-light:rgba(0,0,0,0.08);
+  --color-brand-lavender:  #777777;
+  --color-brand-lavender-light:rgba(0,0,0,0.05);
+  --color-brand-peach:     #555555;
+  --color-brand-peach-light:rgba(0,0,0,0.05);
+  --color-brand-ochre:     #888888;
+  --color-brand-ochre-light:rgba(0,0,0,0.05);
+  --color-brand-mint:      #cccccc;
+  --color-brand-mint-light:rgba(0,0,0,0.05);
+  --color-brand-coral:     #444444;
 
   /* ===================================================
      SEMANTIC / STATUS COLORS
      =================================================== */
-  --color-green:           #22c55e;   /* success */
-  --color-green-light:     rgba(34,197,94,0.12);
+  --color-green:           #555555;   /* success -> neutral dark gray */
+  --color-green-light:     rgba(0,0,0,0.06);
   --color-red:             #ef4444;   /* error */
   --color-red-light:       rgba(239,68,68,0.12);
   --color-orange:          #f59e0b;   /* warning */
   --color-orange-light:    rgba(245,158,11,0.12);
-  --color-yellow:          #e8b94a;   /* ochre-warm */
-  --color-yellow-light:    rgba(232,185,74,0.15);
-  --color-purple:          #b8a4ed;   /* lavender */
-  --color-purple-light:    rgba(184,164,237,0.15);
-  --color-teal:            #a4d4c5;   /* mint */
-  --color-teal-light:      rgba(164,212,197,0.15);
-  --color-indigo:          #b8a4ed;
-  --color-pink:            #ff4d8b;
+  --color-yellow:          #888888;   /* ochre-warm -> gray */
+  --color-yellow-light:    rgba(0,0,0,0.05);
+  --color-purple:          #666666;   /* lavender -> gray */
+  --color-purple-light:    rgba(0,0,0,0.05);
+  --color-teal:            #777777;   /* mint -> gray */
+  --color-teal-light:      rgba(0,0,0,0.05);
+  --color-indigo:          #555555;
+  --color-pink:            #333333;
 
   /* Status — mapped to Clay semantics */
-  --status-free:           var(--color-green);
+  --status-free:           #cccccc;   /* light gray */
   --status-occupied:       var(--color-red);
   --status-reserved:       var(--color-orange);
-  --status-pending:        var(--color-brand-ochre);
-  --status-ready:          var(--color-brand-mint);
+  --status-pending:        #888888;
+  --status-ready:          #222222;
 
   /* ===================================================
      DARK SURFACE (KDS / Token display — stays dark)
      =================================================== */
-  --color-surface-dark:          #0a1a1a;
-  --color-surface-dark-elevated: #1a2a2a;
+  --color-surface-dark:          #000000;
+  --color-surface-dark-elevated: #1a1a1a;
   --color-separator-dark:        rgba(255,255,255,0.10);
   --color-on-dark:               #ffffff;
   --color-on-dark-soft:          #a0a0a0;
@@ -97,7 +97,7 @@
      =================================================== */
   --sidebar-width:         240px;
   --sidebar-collapsed:     64px;
-  --sidebar-bg:            #fffaf0;   /* cream — not frosted glass */
+  --sidebar-bg:            #ffffff;   /* cream — not frosted glass -> white */
 
   /* ===================================================
      BORDER RADIUS — Generous rounded shapes
@@ -682,7 +682,7 @@ ul, ol { list-style: none; }
 .badge-green  { background: var(--color-green-light);  color: var(--color-green); }
 .badge-red    { background: var(--color-red-light);    color: var(--color-red); }
 .badge-orange { background: var(--color-orange-light); color: var(--color-orange); }
-.badge-yellow { background: var(--color-yellow-light); color: #8a6800; }
+.badge-yellow { background: var(--color-yellow-light); color: var(--color-label-secondary); }
 .badge-purple { background: var(--color-purple-light); color: var(--color-purple); }
 .badge-teal   { background: var(--color-teal-light);   color: var(--color-teal); }
 .badge-gray   { background: var(--color-fill-tertiary); color: var(--color-label-secondary); }
@@ -1446,7 +1446,7 @@ ul, ol { list-style: none; }
   transition: all var(--duration-fast);
 }
 
-.kds-ready-btn:hover { background: #16a34a; }
+.kds-ready-btn:hover { background: #333333; }
 
 /* ============================================================
    Online Order Customer Page

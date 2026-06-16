@@ -10,11 +10,11 @@ import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 
 const METHODS = [
-  { key: 'cash',     label: 'Cash',     icon: Banknote,    color: 'var(--color-green)' },
-  { key: 'card',     label: 'Card',     icon: CreditCard,  color: 'var(--color-accent)' },
-  { key: 'terminal', label: 'Terminal', icon: CreditCard,  color: 'var(--color-blue)' },
-  { key: 'upi',      label: 'UPI',      icon: Smartphone,  color: 'var(--color-purple)' },
-  { key: 'split',    label: 'Split',    icon: Split,        color: 'var(--color-orange)' },
+  { key: 'cash',     label: 'Cash',     icon: Banknote,    color: 'var(--color-label)' },
+  { key: 'card',     label: 'Card',     icon: CreditCard,  color: 'var(--color-label)' },
+  { key: 'terminal', label: 'Terminal', icon: CreditCard,  color: 'var(--color-label)' },
+  { key: 'upi',      label: 'UPI',      icon: Smartphone,  color: 'var(--color-label)' },
+  { key: 'split',    label: 'Split',    icon: Split,        color: 'var(--color-label)' },
 ];
 
 export default function PaymentModal({ total, currency, onConfirm, onClose }) {

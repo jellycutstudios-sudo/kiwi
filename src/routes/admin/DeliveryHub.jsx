@@ -9,9 +9,9 @@ import toast from 'react-hot-toast';
 
 const PLATFORM_META = {
   ubereats: { name: 'Uber Eats', emoji: '🚗', color: '#000000', bg: '#f5f5f5' },
-  zomato:   { name: 'Zomato',    emoji: '🍕', color: '#E23744', bg: '#fdeaea' },
-  swiggy:   { name: 'Swiggy',    emoji: '🟠', color: '#FC8019', bg: '#fff3eb' },
-  deliveroo:{ name: 'Deliveroo', emoji: '🦘', color: '#00CCBC', bg: '#e0faf8' },
+  zomato:   { name: 'Zomato',    emoji: '🍕', color: '#000000', bg: '#f5f5f5' },
+  swiggy:   { name: 'Swiggy',    emoji: '🟠', color: '#000000', bg: '#f5f5f5' },
+  deliveroo:{ name: 'Deliveroo', emoji: '🦘', color: '#000000', bg: '#f5f5f5' },
 };
 
 export default function DeliveryHub() {
