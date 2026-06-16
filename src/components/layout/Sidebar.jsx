@@ -118,9 +118,9 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       </nav>
 
       {/* Footer */}
-      <div className="sidebar-footer">
+      <div className="sidebar-footer" style={{ padding: collapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {!collapsed && (
-          <div style={{ marginBottom: 'var(--space-3)', overflow: 'hidden' }}>
+          <div style={{ marginBottom: 'var(--space-3)', overflow: 'hidden', width: '100%' }}>
             <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {staffDoc?.name ?? 'User'}
             </div>
@@ -129,34 +129,28 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', gap: 'var(--space-2)', width: '100%', alignItems: 'center', justifyContent: 'center' }}>
           <button
             className="btn btn-secondary btn-icon"
             onClick={handleSignOut}
             title="Sign out"
-            style={{ flex: collapsed ? 1 : undefined }}
+            style={{ width: '36px', height: '36px', flexShrink: 0 }}
           >
             <LogOut size={16} />
           </button>
-          {!collapsed && (
-            <button
-              className="btn btn-secondary btn-icon"
-              style={{ marginLeft: 'auto' }}
-              onClick={() => setCollapsed(true)}
-              title="Collapse sidebar"
-            >
-              <ChevronLeft size={16} />
-            </button>
-          )}
-          {collapsed && (
-            <button
-              className="btn btn-secondary btn-icon"
-              onClick={() => setCollapsed(false)}
-              title="Expand sidebar"
-            >
-              <ChevronRight size={16} />
-            </button>
-          )}
+          <button
+            className="btn btn-secondary btn-icon"
+            style={{ 
+              marginLeft: collapsed ? '0' : 'auto',
+              width: '36px',
+              height: '36px',
+              flexShrink: 0
+            }}
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
       </div>
     </aside>
