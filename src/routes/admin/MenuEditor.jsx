@@ -2,10 +2,51 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
+
+const compressImage = (file, maxDim = 300, quality = 0.75) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Canvas compression failed'));
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 
 export default function MenuEditor() {
   const { restaurant } = useAuthStore();
@@ -15,8 +56,10 @@ export default function MenuEditor() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen' });
+  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '' });
   const [inventory, setInventory] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
 
   // Auto-select first category when loaded
   useEffect(() => {
@@ -68,6 +111,7 @@ export default function MenuEditor() {
       modifierGroups: itemForm.modifierGroups ?? [],
       recipe: itemForm.recipe ?? [],
       station: itemForm.station ?? 'Kitchen',
+      imageUrl: itemForm.imageUrl ?? '',
     };
     const items = editItem
       ? cat.items.map(i => i.id === editItem.id ? newItem : i)
@@ -75,8 +119,9 @@ export default function MenuEditor() {
     await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCat), { items });
     setShowItemForm(false);
     setEditItem(null);
-    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen' });
+    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '' });
     toast.success(editItem ? 'Item updated!' : 'Item added!');
+
   };
 
   const deleteItem = async (catId, itemId) => {
@@ -88,11 +133,38 @@ export default function MenuEditor() {
 
   const toggleAvailable = async (catId, item) => {
     const cat = categories.find(c => c.id === catId);
-    const items = cat.items.map(i => i.id === item.id ? { ...i, available: !i.available } : i);
+    if (!cat) return;
+    const items = cat.items.map(i => i.id === item.id ? { ...i, available: i.available === false } : i);
     await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items });
+    toast.success('Availability updated');
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    const toastId = toast.loading('Optimizing & compressing image...');
+    try {
+      // Compress client side
+      const compressedBlob = await compressImage(file, 300, 0.75);
+      
+      // Upload to Firebase Storage
+      const storageRef = ref(storage, `restaurants/${restaurant.id}/menu/${Date.now()}.jpg`);
+      await uploadBytes(storageRef, compressedBlob);
+      const url = await getDownloadURL(storageRef);
+      
+      setItemForm(f => ({ ...f, imageUrl: url }));
+      toast.success('Image optimized & uploaded!', { id: toastId });
+    } catch (err) {
+      console.error('[Image Upload Error]', err);
+      toast.error('Failed to upload image: ' + err.message, { id: toastId });
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const activeCatData = categories.find(c => c.id === activeCat);
+
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
@@ -150,7 +222,7 @@ export default function MenuEditor() {
           <div className="card-header">
             <span className="card-title">{activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}</span>
             {activeCat && (
-              <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen' }); setShowItemForm(true); }}>
+              <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen', imageUrl:'' }); setShowItemForm(true); }}>
                 <Plus size={14}/> Add Item
               </button>
             )}
@@ -168,7 +240,13 @@ export default function MenuEditor() {
                 borderBottom:'1px solid var(--color-separator)',
                 opacity: item.available === false ? 0.5 : 1,
               }}>
-                <div style={{ fontSize:28 }}>{item.emoji ?? '🍽️'}</div>
+                {item.imageUrl ? (
+                  <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--color-separator)', flexShrink: 0 }}>
+                    <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 28 }}>{item.emoji ?? '🍽️'}</div>
+                )}
                 <div style={{ flex:1 }}>
                   <div style={{ fontWeight:'var(--weight-semibold)' }}>{item.name}</div>
                   {item.description && <div style={{ fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:1 }}>{item.description}</div>}
@@ -185,7 +263,7 @@ export default function MenuEditor() {
                   >
                     {item.available !== false ? 'Available' : 'Unavailable'}
                   </button>
-                  <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen' }); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
+                  <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '' }); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
                     <Edit2 size={12}/>
                   </button>
                   <button className="btn btn-icon btn-sm" style={{ color:'var(--color-red)' }} onClick={() => deleteItem(activeCat, item.id)} id={`delete-item-${item.id}`}>
@@ -262,6 +340,56 @@ export default function MenuEditor() {
                 <label className="form-label">Description (optional)</label>
                 <input id="item-desc-input" className="form-input" placeholder="Short description..." value={itemForm.description} onChange={e => setItemForm(f=>({...f,description:e.target.value}))} />
               </div>
+
+              {/* Photo Upload Option */}
+              <div className="form-group" style={{ marginBottom: 'var(--space-3)' }}>
+                <label className="form-label">Item Image (Auto-compressed thumbnail)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  {itemForm.imageUrl ? (
+                    <div style={{ position: 'relative', width: 64, height: 64, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--color-separator)', flexShrink: 0 }}>
+                      <img src={itemForm.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        type="button"
+                        onClick={() => setItemForm(f => ({ ...f, imageUrl: '' }))}
+                        style={{
+                          position: 'absolute', top: 2, right: 2,
+                          background: 'rgba(0,0,0,0.6)', color: '#fff',
+                          border: 'none', borderRadius: '50%',
+                          width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, cursor: 'pointer'
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ width: 64, height: 64, borderRadius: 'var(--radius-md)', border: '1.5px dashed var(--color-separator)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, background: 'var(--color-bg-secondary)', flexShrink: 0 }}>
+                      📷
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="item-image-file"
+                      onChange={handleImageChange}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => document.getElementById('item-image-file').click()}
+                      disabled={uploadingImage}
+                    >
+                      {uploadingImage ? 'Uploading...' : 'Choose Image'}
+                    </button>
+                    <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', marginTop: 4 }}>
+                      Will be automatically scaled & compressed to ~15KB
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <label style={{ display:'flex', alignItems:'center', gap:'var(--space-2)', cursor:'pointer', fontSize:'var(--text-subhead)', marginBottom:'var(--space-3)' }}>
                 <input type="checkbox" checked={itemForm.available} onChange={e => setItemForm(f=>({...f,available:e.target.checked}))} />
                 Item is available

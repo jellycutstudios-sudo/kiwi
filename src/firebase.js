@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getMessaging, isSupported } from 'firebase/messaging';
+import { getStorage } from 'firebase/storage';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 export const isFirebaseConfigured = !!(
@@ -17,6 +18,7 @@ let app = null;
 let auth = null;
 let db = null;
 let messaging = null;
+let storage = null;
 
 if (isFirebaseConfigured) {
   const firebaseConfig = {
@@ -32,6 +34,7 @@ if (isFirebaseConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app);
 
     // Enable offline persistence
     enableIndexedDbPersistence(db).catch(() => {});
@@ -47,5 +50,6 @@ if (isFirebaseConfigured) {
   }
 }
 
-export { app, auth, db, messaging };
+export { app, auth, db, messaging, storage };
+
 

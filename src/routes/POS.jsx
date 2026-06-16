@@ -615,8 +615,8 @@ export default function POS() {
                   }
                 }}
               >
-                {item.image
-                  ? <img src={item.image} alt={item.name} className="menu-item-img" loading="lazy" />
+                {item.imageUrl || item.image
+                  ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
                   : <div className="menu-item-img-placeholder">{item.emoji ?? '🍽️'}</div>
                 }
                 <div className="menu-item-body">

@@ -903,8 +903,8 @@ export default function OnlineOrderPage() {
             const cartItem = cart.find(c => c.menuItemId === item.id || c.id === item.id);
             return (
               <div key={item.id} className="card" style={{ display:'flex', alignItems:'center', padding:'var(--space-4)', gap:'var(--space-4)' }}>
-                {item.image ? (
-                  <img src={item.image} alt={item.name} style={{ width:64, height:64, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} />
+                {item.imageUrl || item.image ? (
+                  <img src={item.imageUrl || item.image} alt={item.name} style={{ width:64, height:64, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} />
                 ) : (
                   <div style={{ width:64, height:64, background:'var(--color-bg-secondary)', borderRadius:'var(--radius-md)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, flexShrink:0 }}>
                     {item.emoji ?? '🍽️'}
