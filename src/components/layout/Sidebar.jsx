@@ -121,8 +121,8 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       <div className="sidebar-footer" style={{ padding: collapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {!collapsed && (
           <div style={{ marginBottom: 'var(--space-3)', overflow: 'hidden', width: '100%' }}>
-            <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {staffDoc?.name ?? 'User'}
+            <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={staffDoc?.email || staffDoc?.name}>
+              {staffDoc?.name === 'Super Admin' ? (staffDoc?.email ?? 'Super Admin') : (staffDoc?.name ?? 'User')}
             </div>
             <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-secondary)', textTransform: 'capitalize' }}>
               {staffDoc?.role ?? 'Staff'}
