@@ -7,7 +7,7 @@ import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-const compressImage = (file, maxDim = 120, quality = 0.6) => {
+const compressImage = (file, maxDim = 200, quality = 0.7) => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
@@ -149,7 +149,7 @@ export default function MenuEditor() {
     const toastId = toast.loading('Compressing image...');
     try {
       // Compress client side to a lightweight base64 JPEG
-      const base64Data = await compressImage(file, 120, 0.6);
+      const base64Data = await compressImage(file, 200, 0.7);
       
       setItemForm(f => ({ ...f, imageUrl: base64Data }));
       toast.success('Image optimized!', { id: toastId });
@@ -383,7 +383,7 @@ export default function MenuEditor() {
                       {uploadingImage ? 'Processing...' : 'Choose Image'}
                     </button>
                     <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', marginTop: 4 }}>
-                      Will be automatically scaled & compressed to ~2KB
+                      Will be automatically scaled & compressed to ~5KB
                     </div>
                   </div>
                 </div>
