@@ -33,6 +33,7 @@ const Settings       = lazy(() => import('./routes/admin/Settings'));
 const Restaurants    = lazy(() => import('./routes/admin/Restaurants'));
 const DeliveryHub    = lazy(() => import('./routes/admin/DeliveryHub'));
 const PendingApproval= lazy(() => import('./routes/PendingApproval'));
+const ActiveOrders   = lazy(() => import('./routes/ActiveOrders'));
 
 export default function App() {
   const { i18n } = useTranslation();
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="/dashboard"       element={<Dashboard />} />
               <Route path="/pos"             element={<POS />} />
               <Route path="/tables"          element={<TableMap />} />
+              <Route path="/orders"          element={<ActiveOrders />} />
               <Route path="/online-orders"   element={<OnlineOrders />} />
               <Route path="/kds"             element={<KDS />} />
               <Route path="/reports"         element={<Reports />} />

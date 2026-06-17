@@ -10,6 +10,8 @@ import {
 import { doc, getDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+let isLoggingIn = false;
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -37,9 +39,28 @@ export const useAuthStore = create(
 
       // PIN login for staff (looks up PIN in Firestore)
       loginWithPin: async (restaurantId, pin) => {
+        isLoggingIn = true;
         set({ loading: true, error: null });
         try {
-          const staffRef = collection(db, 'restaurants', restaurantId, 'staff');
+          const cleanRestId = restaurantId.trim();
+          let actualRestId = cleanRestId;
+
+          // 1. Try to find restaurant by customId
+          const restQuery = query(collection(db, 'restaurants'), where('customId', '==', cleanRestId));
+          const restSnap = await getDocs(restQuery);
+          
+          if (!restSnap.empty) {
+            actualRestId = restSnap.docs[0].id;
+          } else {
+            // Fallback: Try to find restaurant by slug
+            const slugQuery = query(collection(db, 'restaurants'), where('slug', '==', cleanRestId));
+            const slugSnap = await getDocs(slugQuery);
+            if (!slugSnap.empty) {
+              actualRestId = slugSnap.docs[0].id;
+            }
+          }
+
+          const staffRef = collection(db, 'restaurants', actualRestId, 'staff');
           const q = query(staffRef, where('pin', '==', pin), where('active', '==', true));
           const snap = await getDocs(q);
           if (snap.empty) {
@@ -62,12 +83,12 @@ export const useAuthStore = create(
           }
 
           // Load restaurant
-          const restDoc = await getDoc(doc(db, 'restaurants', restaurantId));
+          const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
           if (!restDoc.exists()) {
             set({ loading: false, error: 'Restaurant not found' });
             return { ok: false, error: 'Restaurant not found' };
           }
-          const restData = { id: restaurantId, ...restDoc.data() };
+          const restData = { id: actualRestId, ...restDoc.data() };
           if (restData.status !== 'approved') {
             set({ loading: false, error: 'Restaurant is pending approval or suspended' });
             return { ok: false, error: 'Restaurant is pending approval or suspended' };
@@ -83,6 +104,8 @@ export const useAuthStore = create(
         } catch (e) {
           set({ loading: false, error: e.message });
           return { ok: false, error: e.message };
+        } finally {
+          isLoggingIn = false;
         }
       },
 
@@ -129,10 +152,11 @@ export const useAuthStore = create(
       },
 
       signOut: async () => {
+        // Clear state synchronously and set loading to true during transition
+        set({ user: null, staffDoc: null, restaurant: null, loading: true });
         if (auth) {
           await firebaseSignOut(auth);
         }
-        set({ user: null, staffDoc: null, restaurant: null });
       },
 
       initAuthListener: () => {
@@ -144,8 +168,23 @@ export const useAuthStore = create(
           if (user) {
             if (user.isAnonymous) {
               // Anonymous user (PIN login session) — no /users doc to load.
-              // Just ensure loading is cleared; staffDoc already in persisted state.
-              set({ user, loading: false });
+              if (isLoggingIn) {
+                // In the middle of loginWithPin — do nothing, loginWithPin will handle setting the state.
+                return;
+              }
+              if (get().staffDoc && get().restaurant) {
+                set({ user, loading: false });
+              } else {
+                // Page load/refresh with orphaned anonymous session — clean up and show login screen
+                if (auth) {
+                  try {
+                    await firebaseSignOut(auth);
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }
+                set({ user: null, staffDoc: null, restaurant: null, loading: false });
+              }
             } else {
               // Full email/password session — load full user profile from Firestore.
               await get().loadUserData(user);

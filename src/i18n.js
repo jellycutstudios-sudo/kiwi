@@ -70,6 +70,7 @@ const resources = {
       activeOrders: 'Active Orders',
       orderHistory: 'Order History',
       onlineOrders: 'Online Orders',
+      deliveryOrders: 'Delivery Orders',
       pending: 'Pending',
       preparing: 'Preparing',
       ready: 'Ready',

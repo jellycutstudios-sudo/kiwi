@@ -221,7 +221,7 @@ export default function TableMap() {
 
     if (shape === 'round') {
       const radius = size / 2;
-      const dist = radius + 4; // Distance from center to chair center
+      const dist = radius + 5;
       for (let i = 0; i < capacity; i++) {
         const angle = (i * 2 * Math.PI) / capacity - Math.PI / 2;
         const x = radius + dist * Math.cos(angle) - 7;
@@ -229,28 +229,10 @@ export default function TableMap() {
         chairs.push(
           <div
             key={`chair-${i}`}
-            className="table-chair"
-            style={{ left: x, top: y }}
+            className="table-chair chair-round"
+            style={{ left: x, top: y, width: 14, height: 14, borderRadius: '50%' }}
           />
         );
-
-        if (isOccupied) {
-          const emojiX = radius + (dist + 12) * Math.cos(angle) - 6;
-          const emojiY = radius + (dist + 12) * Math.sin(angle) - 6;
-          chairs.push(
-            <span
-              key={`chair-emoji-${i}`}
-              className="chair-emoji"
-              style={{
-                left: emojiX,
-                top: emojiY,
-                animationDelay: `${i * 0.4}s`
-              }}
-            >
-              {occupantEmojis[i]}
-            </span>
-          );
-        }
       }
     } else {
       // Rectangular table: distribute chairs along the 4 edges
@@ -276,19 +258,14 @@ export default function TableMap() {
         for (let i = 0; i < count; i++) {
           const offset = (i + 1) * step;
           let style = {};
-          let emojiStyle = {};
           if (edge === 'top') {
-            style = { left: offset - 7, top: -11 };
-            emojiStyle = { left: offset - 6, top: -25 };
+            style = { left: offset - 9, top: -13, width: 18, height: 10, borderRadius: '3px 3px 0 0' };
           } else if (edge === 'bottom') {
-            style = { left: offset - 7, top: size - 3 };
-            emojiStyle = { left: offset - 6, top: size + 11 };
+            style = { left: offset - 9, top: size + 3, width: 18, height: 10, borderRadius: '0 0 3px 3px' };
           } else if (edge === 'left') {
-            style = { left: -11, top: offset - 7 };
-            emojiStyle = { left: -25, top: offset - 6 };
+            style = { left: -13, top: offset - 9, width: 10, height: 18, borderRadius: '3px 0 0 3px' };
           } else if (edge === 'right') {
-            style = { left: size - 3, top: offset - 7 };
-            emojiStyle = { left: size + 11, top: offset - 6 };
+            style = { left: size + 3, top: offset - 9, width: 10, height: 18, borderRadius: '0 3px 3px 0' };
           }
           chairs.push(
             <div
@@ -297,22 +274,6 @@ export default function TableMap() {
               style={style}
             />
           );
-
-          if (isOccupied) {
-            chairs.push(
-              <span
-                key={`chair-emoji-${edge}-${i}`}
-                className="chair-emoji"
-                style={{
-                  ...emojiStyle,
-                  animationDelay: `${chairIndex * 0.4}s`
-                }}
-              >
-                {occupantEmojis[chairIndex]}
-              </span>
-            );
-            chairIndex++;
-          }
         }
       };
 

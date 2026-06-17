@@ -90,7 +90,12 @@ export default function StaffManager() {
         <div>
           <h2 className="text-title2">Staff Manager</h2>
           <p className="text-secondary text-subhead" style={{marginTop:2}}>
-            Restaurant ID for PIN login: <strong style={{fontFamily:'var(--font-mono)', color:'var(--color-accent)'}}>{restaurant?.id}</strong>
+            Restaurant ID for PIN login: <strong style={{fontFamily:'var(--font-mono)', color:'var(--color-accent)'}}>{restaurant?.customId || restaurant?.id}</strong>
+            {restaurant?.customId && (
+              <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginLeft: '8px' }}>
+                (Original ID: {restaurant.id})
+              </span>
+            )}
           </p>
         </div>
         <button className="btn btn-primary" id="add-staff-btn" onClick={() => { setEditId(null); setForm({name:'',pin:'',role:'cashier',email:'',salaryType:'monthly',salaryRate:'',overtimeRate:'1.5'}); setShowForm(true); }}>

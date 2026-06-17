@@ -210,7 +210,15 @@ export default function Dashboard() {
     return unsub;
   }, [restaurant?.id, currentDateStr]);
 
-  const hour = new Date().getHours();
+  const [hour, setHour] = useState(() => new Date().getHours());
+
+  // Keep greeting in sync with client's local clock, updating every minute
+  useEffect(() => {
+    const tick = () => setHour(new Date().getHours());
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const greeting = hour < 12 ? '☀️ Good Morning' : hour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening';
 
   const stats = [
@@ -233,7 +241,7 @@ export default function Dashboard() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       {/* Greeting */}
       <div>
-        <h1 className="text-large-title">{greeting}, {staffDoc?.name?.split(' ')[0] ?? 'Chef'}</h1>
+        <h1 className="text-title2">{greeting}, {staffDoc?.name?.split(' ')[0] ?? 'Chef'}</h1>
         <p className="text-secondary text-body" style={{ marginTop: 'var(--space-1)' }}>
           {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>

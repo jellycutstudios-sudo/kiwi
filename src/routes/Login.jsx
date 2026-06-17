@@ -108,291 +108,232 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      {/* Left — hero */}
-      <div className="login-left">
-        <div className="login-left-content">
-          <div style={{ fontSize: 64, marginBottom: 'var(--space-4)' }}>🍽️</div>
-          <h1 style={{ fontSize: 'var(--text-largeTitle)', fontWeight: 'var(--weight-bold)', marginBottom: 'var(--space-3)' }}>
-            RestaurantOS
-          </h1>
-          <p style={{ fontSize: 'var(--text-title3)', opacity: 0.85, maxWidth: 320 }}>
-            Lightning-fast POS for modern restaurants
-          </p>
-          <div style={{ marginTop: 'var(--space-10)', display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['🎫 Token System', '🗺️ Table Maps', '📱 Online Orders', '🍳 Kitchen Display'].map(f => (
-              <div key={f} style={{
-                background: 'rgba(255,255,255,0.15)',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: 'var(--text-footnote)',
-                fontWeight: 'var(--weight-semibold)',
-              }}>{f}</div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Right — form */}
-      <div className="login-right" style={{ overflowY: 'auto', padding: 'var(--space-6) 0' }}>
-        <div className="login-form-box" style={{ maxHeight: 'none', margin: 'auto' }}>
+      <div className="login-form-card">
+        <div className="login-card-header">
           <div className="login-logo">🍽️</div>
-          <h2 className="text-title2" style={{ marginBottom: 'var(--space-2)' }}>
+          <h2 className="login-card-title">
             {mode === 'email' ? t('adminLogin') : mode === 'pin' ? t('staffLogin') : 'Register Restaurant'}
           </h2>
-          <p className="text-secondary text-subhead" style={{ marginBottom: 'var(--space-6)' }}>
+          <p className="login-card-subtitle">
             {mode === 'email' 
               ? 'Sign in with your admin credentials' 
               : mode === 'pin' 
                 ? 'Enter your restaurant ID and PIN' 
                 : 'Start your modern restaurant POS journey today'}
           </p>
+        </div>
 
-          {/* Mode toggle */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr',
-            background: 'var(--color-bg-secondary)',
-            borderRadius: 'var(--radius-md)',
-            padding: 3,
-            marginBottom: 'var(--space-6)',
-          }}>
-            {[
-              { m: 'email', label: '📧 Admin' },
-              { m: 'pin', label: '🔢 Staff PIN' },
-              { m: 'register', label: '🚀 Register' }
-            ].map(item => (
-              <button
-                key={item.m}
-                id={`login-mode-${item.m}`}
-                onClick={() => { setMode(item.m); clearError(); setPin(''); }}
-                style={{
-                  padding: '8px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  fontWeight: 'var(--weight-semibold)',
-                  fontSize: 'var(--text-footnote)',
-                  background: mode === item.m ? 'var(--color-bg)' : 'transparent',
-                  color: mode === item.m ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-                  boxShadow: mode === item.m ? 'var(--shadow-xs)' : 'none',
-                  transition: 'all var(--duration-fast)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+        {/* Mode toggle */}
+        <div className="login-mode-toggle">
+          {[
+            { m: 'email', label: '📧 Admin' },
+            { m: 'pin', label: '🔢 Staff PIN' },
+            { m: 'register', label: '🚀 Register' }
+          ].map(item => (
+            <button
+              key={item.m}
+              id={`login-mode-${item.m}`}
+              onClick={() => { setMode(item.m); clearError(); setPin(''); }}
+              className={`login-mode-btn ${mode === item.m ? 'active' : ''}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
 
-          {error && (
-            <div style={{
-              padding: 'var(--space-3) var(--space-4)',
-              background: 'var(--color-red-light)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--color-red)',
-              fontSize: 'var(--text-footnote)',
-              marginBottom: 'var(--space-4)',
-              fontWeight: 'var(--weight-medium)',
-            }}>{error}</div>
-          )}
+        {error && (
+          <div className="login-error-msg">{error}</div>
+        )}
 
-          {mode === 'email' ? (
-            <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <div className="form-group">
-                <label className="form-label">Email</label>
+        {mode === 'email' ? (
+          <form onSubmit={handleEmailLogin} className="login-form">
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                id="login-email"
+                className="form-input"
+                type="email"
+                placeholder={t('emailPlaceholder')}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <div className="password-input-wrapper">
                 <input
-                  id="login-email"
+                  id="login-password"
+                  className="form-input password-input"
+                  type={showPw ? 'text' : 'password'}
+                  placeholder={t('passwordPlaceholder')}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="password-toggle-btn"
+                >
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            <button
+              id="login-submit-btn"
+              className="btn btn-primary btn-lg login-submit-btn"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? '...' : t('signIn')}
+            </button>
+          </form>
+        ) : mode === 'pin' ? (
+          <div className="login-form">
+            <div className="form-group login-rest-id-group">
+              <label className="form-label">Restaurant ID</label>
+              <input
+                id="login-restaurant-id"
+                className="form-input"
+                placeholder="e.g. my-restaurant or rest_abc123"
+                value={restaurantId}
+                onChange={e => setRestaurantId(e.target.value)}
+              />
+            </div>
+            {/* PIN dots */}
+            <div className="pin-dots">
+              {[0,1,2,3].map(i => (
+                <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
+              ))}
+            </div>
+            {/* PIN pad */}
+            <div className="pin-pad">
+              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
+                <button
+                  key={i}
+                  id={k ? `pin-key-${k}` : undefined}
+                  className={`pin-key ${k === '' ? 'empty' : ''}`}
+                  onClick={() => {
+                    if (k === '⌫') setPin(p => p.slice(0,-1));
+                    else if (k) handlePinKey(k);
+                  }}
+                  disabled={loading}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+            {loading && (
+              <div className="login-verifying">
+                Verifying...
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleRegister} className="login-form register-form">
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Owner Name *</label>
+                <input
+                  id="reg-name"
+                  className="form-input"
+                  placeholder="Your Name"
+                  value={regName}
+                  onChange={e => setRegName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Owner Email *</label>
+                <input
+                  id="reg-email"
                   className="form-input"
                   type="email"
-                  placeholder={t('emailPlaceholder')}
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  value={regEmail}
+                  onChange={e => setRegEmail(e.target.value)}
                   required
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    id="login-password"
-                    className="form-input"
-                    type={showPw ? 'text' : 'password'}
-                    placeholder={t('passwordPlaceholder')}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    style={{ paddingRight: 44 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(!showPw)}
-                    style={{
-                      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--color-label-secondary)',
-                    }}
-                  >
-                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-              <button
-                id="login-submit-btn"
-                className="btn btn-primary btn-lg"
-                type="submit"
-                disabled={loading}
-                style={{ width: '100%', marginTop: 'var(--space-2)' }}
-              >
-                {loading ? '...' : t('signIn')}
-              </button>
-            </form>
-          ) : mode === 'pin' ? (
-            <div>
-              <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
-                <label className="form-label">Restaurant ID</label>
-                <input
-                  id="login-restaurant-id"
-                  className="form-input"
-                  placeholder="e.g. rest_abc123"
-                  value={restaurantId}
-                  onChange={e => setRestaurantId(e.target.value)}
-                />
-              </div>
-              {/* PIN dots */}
-              <div className="pin-dots">
-                {[0,1,2,3].map(i => (
-                  <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
-                ))}
-              </div>
-              {/* PIN pad */}
-              <div className="pin-pad">
-                {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
-                  <button
-                    key={i}
-                    id={k ? `pin-key-${k}` : undefined}
-                    className="pin-key"
-                    onClick={() => {
-                      if (k === '⌫') setPin(p => p.slice(0,-1));
-                      else if (k) handlePinKey(k);
-                    }}
-                    style={{ opacity: k === '' ? 0 : 1, pointerEvents: k === '' ? 'none' : 'auto' }}
-                    disabled={loading}
-                  >
-                    {k}
-                  </button>
-                ))}
-              </div>
-              {loading && (
-                <div style={{ textAlign: 'center', marginTop: 'var(--space-3)', color: 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)' }}>
-                  Verifying...
-                </div>
-              )}
             </div>
-          ) : (
-            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label className="form-label">Owner Name *</label>
-                  <input
-                    id="reg-name"
-                    className="form-input"
-                    placeholder="Your Name"
-                    value={regName}
-                    onChange={e => setRegName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Owner Email *</label>
-                  <input
-                    id="reg-email"
-                    className="form-input"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={regEmail}
-                    onChange={e => setRegEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
 
+            <div className="form-group">
+              <label className="form-label">Password *</label>
+              <input
+                id="reg-password"
+                className="form-input"
+                type="password"
+                placeholder="Min 6 characters"
+                value={regPassword}
+                onChange={e => setRegPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <hr className="form-divider" />
+
+            <div className="form-row unequal">
               <div className="form-group">
-                <label className="form-label">Password *</label>
+                <label className="form-label">Restaurant Name *</label>
                 <input
-                  id="reg-password"
+                  id="reg-rest-name"
                   className="form-input"
-                  type="password"
-                  placeholder="Min 6 characters"
-                  value={regPassword}
-                  onChange={e => setRegPassword(e.target.value)}
+                  placeholder="Delicious Cafe"
+                  value={regRestName}
+                  onChange={e => setRegRestName(e.target.value)}
                   required
                 />
               </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--color-separator)', margin: '4px 0' }} />
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label className="form-label">Restaurant Name *</label>
-                  <input
-                    id="reg-rest-name"
-                    className="form-input"
-                    placeholder="Delicious Cafe"
-                    value={regRestName}
-                    onChange={e => setRegRestName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Currency *</label>
-                  <select
-                    id="reg-rest-currency"
-                    className="form-select"
-                    value={regCurrency}
-                    onChange={e => setRegCurrency(e.target.value)}
-                    required
-                  >
-                    {CURRENCY_OPTIONS.map(c => (
-                      <option key={c.code} value={c.code}>{c.code}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="form-label">Currency *</label>
+                <select
+                  id="reg-rest-currency"
+                  className="form-select"
+                  value={regCurrency}
+                  onChange={e => setRegCurrency(e.target.value)}
+                  required
+                >
+                  {CURRENCY_OPTIONS.map(c => (
+                    <option key={c.code} value={c.code}>{c.code}</option>
+                  ))}
+                </select>
               </div>
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label className="form-label">Phone</label>
-                  <input
-                    id="reg-phone"
-                    className="form-input"
-                    placeholder="+91..."
-                    value={regPhone}
-                    onChange={e => setRegPhone(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Address</label>
-                  <input
-                    id="reg-address"
-                    className="form-input"
-                    placeholder="City, Area"
-                    value={regAddress}
-                    onChange={e => setRegAddress(e.target.value)}
-                  />
-                </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Phone</label>
+                <input
+                  id="reg-phone"
+                  className="form-input"
+                  placeholder="+91..."
+                  value={regPhone}
+                  onChange={e => setRegPhone(e.target.value)}
+                />
               </div>
+              <div className="form-group">
+                <label className="form-label">Address</label>
+                <input
+                  id="reg-address"
+                  className="form-input"
+                  placeholder="City, Area"
+                  value={regAddress}
+                  onChange={e => setRegAddress(e.target.value)}
+                />
+              </div>
+            </div>
 
-              <button
-                id="reg-submit-btn"
-                className="btn btn-primary btn-lg"
-                type="submit"
-                disabled={registering}
-                style={{ width: '100%', marginTop: 'var(--space-2)' }}
-              >
-                {registering ? 'Registering...' : 'Register Restaurant'}
-              </button>
-            </form>
-          )}
-        </div>
+            <button
+              id="reg-submit-btn"
+              className="btn btn-primary btn-lg login-submit-btn"
+              type="submit"
+              disabled={registering}
+            >
+              {registering ? 'Registering...' : 'Register Restaurant'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
 import {
-  LayoutDashboard, ShoppingCart, LayoutGrid, Globe,
+  LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -14,7 +14,8 @@ const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
   { key: 'pos',            path: '/pos',                  icon: ShoppingCart,    label: 'pos',          roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
   { key: 'tables',         path: '/tables',               icon: LayoutGrid,      label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
-  { key: 'online_orders',  path: '/online-orders',        icon: Globe,           label: 'onlineOrders', roles: ['admin', 'super_admin', 'cashier'], badge: true },
+  { key: 'active_orders',  path: '/orders',               icon: ClipboardList,   label: 'activeOrders', roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
+  { key: 'online_orders',  path: '/online-orders',        icon: Truck,           label: 'deliveryOrders', roles: ['admin', 'super_admin', 'cashier'], badge: true },
   { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen'] },
   { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin'] },
 ];

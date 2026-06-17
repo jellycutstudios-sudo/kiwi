@@ -41,6 +41,13 @@ export default function POS() {
   const [activeModifierItem, setActiveModifierItem] = useState(null);
 
   const [custSearch, setCustSearch] = useState('');
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setMobileCartOpen(false);
+    }
+  }, [items.length]);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [newCustName, setNewCustName] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
@@ -653,54 +660,53 @@ export default function POS() {
                   {qty > 0 && (
                     <div className="menu-item-qty-badge">{qty}</div>
                   )}
-                  {item.imageUrl || item.image
-                    ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
-                    : <div className="menu-item-img-placeholder">{item.emoji ?? '🍽️'}</div>
-                  }
+                  <div className="menu-item-img-wrap">
+                    {item.imageUrl || item.image
+                      ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
+                      : <div className="menu-item-img-placeholder">{item.emoji ?? '🍽️'}</div>
+                    }
+                  </div>
                   <div className="menu-item-body">
                     <div className="menu-item-name">{item.name}</div>
                     <div className="menu-item-price">{formatCurrency(item.price, currency)}</div>
                   </div>
-                  {qty > 0 && !hasModifiers ? (
-                    <div className="menu-item-qty-controls" onClick={e => e.stopPropagation()}>
-                      <button
-                        className="menu-item-qty-btn"
-                        onClick={() => {
-                          const cartItem = items.find(i => i.id === item.id);
-                          if (cartItem) {
-                            updateQty(item.id, cartItem.qty - 1);
-                          }
-                        }}
-                      >
-                        -
-                      </button>
-                      <span className="menu-item-qty-text">{qty}</span>
-                      <button
-                        className="menu-item-qty-btn"
-                        onClick={() => addItem(item)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="menu-item-add-btn">+</div>
-                  )}
+
                 </div>
+
               );
             })}
           </div>
         )}
+
+        {/* Sticky Bottom bar for mobile/tablet portrait */}
+        {items.length > 0 && (
+          <div className="mobile-cart-toggle-bar" onClick={() => setMobileCartOpen(true)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShoppingCart size={18} />
+              <span>{t('cart')} ({items.reduce((sum, i) => sum + i.qty, 0)} items)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontWeight: 'var(--weight-bold)' }}>{formatCurrency(total, currency)}</span>
+              <span style={{ fontSize: '10px', marginLeft: '2px' }}>▲</span>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Mobile Cart Overlay */}
+      {mobileCartOpen && (
+        <div className="mobile-cart-overlay" onClick={() => setMobileCartOpen(false)} />
+      )}
+
       {/* ── Cart Panel ─────────────────────────────── */}
-      <div className="pos-cart-panel">
+      <div className={`pos-cart-panel ${mobileCartOpen ? 'open' : ''}`}>
         <div className="cart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
             <ShoppingCart size={18} color="var(--color-accent)" />
             <span className="text-headline">{t('cart')}</span>
             {items.length > 0 && <span className="badge badge-blue">{items.length}</span>}
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button 
               className="btn btn-secondary btn-sm" 
               onClick={() => setShowTillModal(true)} 
@@ -716,6 +722,14 @@ export default function POS() {
                 <Trash2 size={14} /> {t('clearCart')}
               </button>
             )}
+            <button
+              className="btn btn-ghost btn-icon mobile-only"
+              onClick={() => setMobileCartOpen(false)}
+              style={{ width: '30px', height: '30px', padding: 0 }}
+              title="Close cart"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
 
@@ -875,96 +889,71 @@ export default function POS() {
                 const courseItems = items.filter(i => (i.course ?? 'Mains') === courseName);
                 if (courseItems.length === 0) return null;
                 return (
-                  <div key={courseName} style={{ marginBottom: 'var(--space-3)' }}>
+                  <div key={courseName}>
                     {/* Course Header */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '4px var(--space-4)',
-                      background: 'var(--color-bg-secondary)',
-                      borderBottom: '1px solid var(--color-separator)',
-                      fontSize: 11,
-                      fontWeight: 'var(--weight-bold)',
-                      textTransform: 'uppercase',
-                      color: 'var(--color-label-secondary)',
-                      letterSpacing: '0.05em'
-                    }}>
-                      <span>🍽️ {courseName}</span>
+                    <div className="cart-course-header">
+                      <span className="cart-course-header-label">{courseName}</span>
+                      <div className="cart-course-header-line" />
                       {editingOrderId && courseItems.some(i => i.prepState === 'hold') && (
                         <button
                           type="button"
                           className="btn btn-primary btn-xs"
                           onClick={async () => {
                             const res = await useOrderStore.getState().fireCourse(restaurant.id, editingOrderId, courseName);
-                            if (res.ok) {
-                              toast.success(`Fired ${courseName}!`);
-                            } else {
-                              toast.error(`Fire failed: ${res.error}`);
-                            }
+                            if (res.ok) toast.success(`Fired ${courseName}!`);
+                            else toast.error(`Fire failed: ${res.error}`);
                           }}
-                          style={{ padding: '2px 8px', fontSize: 9 }}
+                          style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0 }}
                         >
-                          🔥 Fire Course
+                          🔥 Fire
                         </button>
                       )}
                     </div>
 
-                    {/* Course Items List */}
+                    {/* Course Items */}
                     {courseItems.map(i => (
-                      <div key={i.id} className="cart-item" style={{ borderBottom: '1px solid var(--color-separator)', padding: '10px var(--space-4)', gap: '6px' }}>
-                        {/* Line 1: Primary Info (Name on left, Qty/Price/X on right) */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-                          <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                      <div key={i.id} className="cart-item">
+                        {/* Row 1: Name + Price + Remove */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                          <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)', flex: 1, lineHeight: 1.3 }}>
                             {i.name}
+                            {i.selectedModifiers?.length > 0 && (
+                              <span style={{ display: 'block', fontSize: '10px', color: 'var(--color-label-tertiary)', fontWeight: 'var(--weight-regular)', marginTop: 2 }}>
+                                + {i.selectedModifiers.map(m => m.name).join(', ')}
+                              </span>
+                            )}
                           </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-                            <div className="cart-item-qty" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <button className="qty-btn" onClick={() => handleCartDecrement(i)}><Minus size={10}/></button>
-                              <span className="qty-count">{i.qty}</span>
-                              <button className="qty-btn" onClick={() => updateQty(i.id, i.qty + 1)}><Plus size={10}/></button>
-                            </div>
-                            <div className="cart-item-price" style={{ minWidth: 60, textAlign: 'right', fontWeight: 'var(--weight-semibold)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)' }}>
                               {formatCurrency(i.price * i.qty, currency)}
-                            </div>
-                            <button onClick={() => handleCartRemove(i)} style={{ color:'var(--color-red)', background:'none', border:'none', cursor:'pointer', padding:'2px', marginLeft: 4 }}>
-                              <X size={12}/>
+                            </span>
+                            <button onClick={() => handleCartRemove(i)} style={{ color: 'var(--color-label-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
+                              <X size={14}/>
                             </button>
                           </div>
                         </div>
-
-                        {/* Line 2: Meta Info (Badge, Course select dropdown, Modifiers inline) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
-                          <span 
+                        {/* Row 2: Qty controls + status badge + course */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-sm)', padding: '2px 4px' }}>
+                            <button className="qty-btn" onClick={() => handleCartDecrement(i)}><Minus size={10}/></button>
+                            <span className="qty-count">{i.qty}</span>
+                            <button className="qty-btn" onClick={() => updateQty(i.id, i.qty + 1)}><Plus size={10}/></button>
+                          </div>
+                          <span
                             className={`badge ${i.prepState === 'hold' ? 'badge-orange' : 'badge-green'}`}
-                            style={{ fontSize: 9, padding: '2px 6px', cursor: 'pointer', userSelect: 'none', height: '18px', display: 'inline-flex', alignItems: 'center' }}
+                            style={{ fontSize: 9, padding: '2px 7px', cursor: 'pointer', userSelect: 'none' }}
                             onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
                             title="Click to toggle Hold/Fire"
                           >
-                            {i.prepState === 'hold' ? '⏳ HOLD' : '🔥 FIRED'}
+                            {i.prepState === 'hold' ? '⏳ Hold' : '🔥 Fired'}
                           </span>
                           <select
                             value={i.course ?? 'Mains'}
                             onChange={(e) => useOrderStore.getState().setItemCourse(i.id, e.target.value)}
-                            style={{
-                              fontSize: 9,
-                              padding: '2px 6px',
-                              height: '18px',
-                              borderRadius: '4px',
-                              background: 'var(--color-bg-secondary)',
-                              color: 'var(--color-label-secondary)',
-                              border: '1px solid var(--color-separator)',
-                              cursor: 'pointer',
-                              outline: 'none'
-                            }}
+                            style={{ fontSize: 10, padding: '2px 4px', height: '20px', borderRadius: '4px', background: 'var(--color-bg-secondary)', color: 'var(--color-label-secondary)', border: '1px solid var(--color-separator)', cursor: 'pointer', outline: 'none', marginLeft: 'auto' }}
                           >
                             {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
-                          {i.selectedModifiers?.length > 0 && (
-                            <span style={{ fontSize: '9px', color: 'var(--color-label-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={i.selectedModifiers.map(m => m.name).join(', ')}>
-                              (+ {i.selectedModifiers.map(m => m.name).join(', ')})
-                            </span>
-                          )}
                         </div>
                       </div>
                     ))}
@@ -1094,24 +1083,22 @@ export default function POS() {
 
         {/* Actions */}
         {orderType === 'dine-in' ? (
-          <div style={{ display: 'flex', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-4)' }}>
+          <div className="cart-action-buttons">
             <button
-              className="btn btn-secondary"
+              className="btn btn-secondary cart-action-btn"
               id="send-to-kitchen-btn"
               onClick={handleSendToKitchen}
               disabled={!items.length}
               type="button"
-              style={{ flex: 1, height: 44, borderRadius: 'var(--radius-lg)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
             >
               🍳 Send to Kitchen
             </button>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary cart-action-btn"
               id="checkout-btn"
               onClick={handleCheckout}
               disabled={!items.length}
               type="button"
-              style={{ flex: 1, height: 44, borderRadius: 'var(--radius-lg)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
             >
               💳 Pay & Free
             </button>

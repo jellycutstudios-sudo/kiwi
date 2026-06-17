@@ -88,10 +88,25 @@ export default function AppShell() {
     i18n.changeLanguage(next);
   };
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // On POS-sized screens (≤ 1366px) collapse the sidebar everywhere by default —
+  // 240px of nav labels wastes ~23% of a 1024px screen on every page.
+  // Users on large monitors (> 1366px) get the expanded sidebar.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.innerWidth <= 1366
+  );
 
   // POS page uses its own full-height layout
   const isPOS = location.pathname === '/pos';
+
+  useEffect(() => {
+    if (isPOS) {
+      // Always collapse to icon-only on POS — maximises menu grid space on every screen size.
+      // Icon sidebar (64px) beats a burger menu: cashiers get 1-tap nav, never 2 taps.
+      setSidebarCollapsed(true);
+    }
+    // On other pages we respect whatever state the user has set (or the screen-size default above).
+    // No forced restore — if they manually expanded on a small screen, honour that choice.
+  }, [isPOS]);
 
   return (
     <div className="app-shell">

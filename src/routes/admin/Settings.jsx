@@ -46,6 +46,8 @@ export default function Settings() {
     setSaving(true);
     try {
       const settingsToSave = { ...settings };
+      
+      // Validate and check slug conflict
       if (settings.slug && settings.slug.trim()) {
         const cleanSlug = settings.slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '');
         if (cleanSlug !== settings.slug) {
@@ -63,6 +65,28 @@ export default function Settings() {
           return;
         }
         settingsToSave.slug = cleanSlug;
+      }
+
+      // Validate and check customId conflict
+      if (settings.customId && settings.customId.trim()) {
+        const cleanCustomId = settings.customId.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '');
+        if (cleanCustomId !== settings.customId) {
+          toast.error('Custom Restaurant ID can only contain letters, numbers, hyphens, and underscores.');
+          setSaving(false);
+          return;
+        }
+
+        const q = query(collection(db, 'restaurants'), where('customId', '==', cleanCustomId));
+        const snap = await getDocs(q);
+        const conflict = snap.docs.some(docSnap => docSnap.id !== restaurant.id);
+        if (conflict) {
+          toast.error('This Custom Restaurant ID is already taken by another restaurant.');
+          setSaving(false);
+          return;
+        }
+        settingsToSave.customId = cleanCustomId;
+      } else {
+        settingsToSave.customId = '';
       }
 
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
@@ -147,6 +171,17 @@ export default function Settings() {
                   <div className="form-group">
                     <label className="form-label">Restaurant Name</label>
                     <input id="settings-name" className="form-input" value={settings.name??''} onChange={e=>updateField('name',e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Custom Restaurant ID (for Staff PIN Login)</label>
+                    <input 
+                      id="settings-custom-id" 
+                      className="form-input" 
+                      placeholder="e.g. my-restaurant" 
+                      value={settings.customId??''} 
+                      onChange={e=>updateField('customId',e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))} 
+                    />
+                    <span className="text-secondary text-caption2">A custom ID staff can use to log in. Only lowercase letters, numbers, hyphens, and underscores allowed.</span>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Address</label>
