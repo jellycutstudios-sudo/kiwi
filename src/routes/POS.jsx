@@ -678,19 +678,29 @@ export default function POS() {
           </div>
         )}
 
-        {/* Sticky Bottom bar for mobile/tablet portrait */}
-        {items.length > 0 && (
-          <div className="mobile-cart-toggle-bar" onClick={() => setMobileCartOpen(true)}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShoppingCart size={18} />
-              <span>{t('cart')} ({items.reduce((sum, i) => sum + i.qty, 0)} items)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 'var(--weight-bold)' }}>{formatCurrency(total, currency)}</span>
-              <span style={{ fontSize: '10px', marginLeft: '2px' }}>▲</span>
-            </div>
-          </div>
-        )}
+        {/* Floating Cart Button for mobile/tablet */}
+        <div 
+          className={`mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`} 
+          onClick={() => setMobileCartOpen(true)}
+          title={t('cart')}
+        >
+          {items.length > 0 ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShoppingCart size={18} />
+                <span className="badge badge-blue" style={{ background: 'var(--color-accent)', color: '#fff', padding: '2px 6px', borderRadius: '50%' }}>
+                  {items.reduce((sum, i) => sum + i.qty, 0)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 'var(--weight-bold)' }}>{formatCurrency(total, currency)}</span>
+                <span style={{ fontSize: '10px' }}>▲</span>
+              </div>
+            </>
+          ) : (
+            <ShoppingCart size={20} />
+          )}
+        </div>
       </div>
 
       {/* Mobile Cart Overlay */}

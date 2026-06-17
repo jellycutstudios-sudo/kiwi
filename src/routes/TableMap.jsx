@@ -287,7 +287,7 @@ export default function TableMap() {
   };
 
   return (
-    <div style={{ display:'flex', gap:'var(--space-5)', height:'calc(100vh - 120px)', overflow:'hidden' }}>
+    <div className="table-map-layout">
       {/* Main map */}
       <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
         {/* Legend */}
@@ -436,7 +436,9 @@ export default function TableMap() {
 
       {/* Table detail panel */}
       {selected && selectedTable && (
-        <div className="card" style={{ width:300, flexShrink:0, display:'flex', flexDirection:'column', animation:'slideInRight var(--duration-normal) var(--ease-spring)' }}>
+        <>
+          <div className="table-map-overlay-mobile" onClick={() => setSelected(null)} />
+          <div className="card table-map-detail-panel" style={{ width:300, flexShrink:0, display:'flex', flexDirection:'column', animation:'slideInRight var(--duration-normal) var(--ease-spring)' }}>
           <div className="card-header">
             <span className="card-title" style={{ fontSize: '18px', fontWeight: 'var(--weight-bold)' }}>Table {selectedTable.name}</span>
             <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setSelected(null)}>✕</button>
@@ -690,6 +692,7 @@ export default function TableMap() {
             )}
           </div>
         </div>
+      </>
       )}
 
       {/* Move Table Modal */}

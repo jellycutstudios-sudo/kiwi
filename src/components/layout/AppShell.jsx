@@ -7,7 +7,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Globe } from 'lucide-react';
+import { Bell, Globe, Menu } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const PAGE_TITLES = {
@@ -33,6 +33,11 @@ export default function AppShell() {
   const { subscribeStaff } = useStaffStore();
   const { subscribe: subscribeTables } = useTableStore();
   const [isSimulatedOffline, setIsSimulatedOffline] = useState(!!window.__simulateOffline);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
   const [isOnline, setIsOnline] = useState(navigator.onLine && !window.__simulateOffline);
 
   useEffect(() => {
@@ -132,10 +137,33 @@ export default function AppShell() {
           100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
         }
       `}</style>
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <Sidebar 
+        collapsed={sidebarCollapsed} 
+        setCollapsed={setSidebarCollapsed} 
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
+      />
+      
+      {mobileSidebarOpen && (
+        <div 
+          className="mobile-sidebar-overlay" 
+          onClick={() => setMobileSidebarOpen(false)} 
+        />
+      )}
+
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Top Bar */}
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
+          {/* Burger menu button visible only on mobile/tablet */}
+          <button
+            className="btn btn-secondary btn-icon burger-menu-btn"
+            onClick={() => setMobileSidebarOpen(true)}
+            id="burger-menu-btn"
+            title="Open menu"
+          >
+            <Menu size={20} />
+          </button>
+          
           <h1 className="top-bar-title text-title3" style={isPOS ? { flex: 'none', marginRight: 'var(--space-4)' } : {}}>{pageTitle}</h1>
           
           {isPOS && (

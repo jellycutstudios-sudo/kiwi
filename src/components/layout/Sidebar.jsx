@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -33,11 +33,17 @@ const ADMIN_NAV = [
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];
 
-export default function Sidebar({ collapsed, setCollapsed }) {
+export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const { t } = useTranslation();
   const { staffDoc, signOut, restaurant } = useAuthStore();
   const { unreadOnlineCount } = useOrderStore();
   const role = staffDoc?.role ?? 'cashier';
+
+  const handleItemClick = () => {
+    if (setMobileOpen) {
+      setMobileOpen(false);
+    }
+  };
   const isAdmin = ['admin', 'super_admin'].includes(role);
   const isSuperAdmin = role === 'super_admin';
 
@@ -47,11 +53,21 @@ export default function Sidebar({ collapsed, setCollapsed }) {
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Header */}
-      <div className="sidebar-header">
-        <div className="sidebar-logo">🍽️</div>
-        {!collapsed && <span className="sidebar-brand">RestaurantOS</span>}
+      <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="sidebar-logo">🍽️</div>
+          {!collapsed && <span className="sidebar-brand">RestaurantOS</span>}
+        </div>
+        <button
+          className="btn btn-ghost btn-icon sidebar-close-btn"
+          onClick={() => setMobileOpen(false)}
+          title="Close menu"
+          style={{ width: '32px', height: '32px', padding: 0 }}
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Restaurant name */}
@@ -81,6 +97,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                 to={n.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 title={collapsed ? t(n.label) : undefined}
+                onClick={handleItemClick}
               >
                 <span className="nav-item-icon"><n.icon size={18} strokeWidth={1.8} /></span>
                 {!collapsed && <span>{t(n.label)}</span>}
@@ -108,6 +125,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                 to={n.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 title={collapsed ? t(n.label) : undefined}
+                onClick={handleItemClick}
               >
                 <span className="nav-item-icon"><n.icon size={18} strokeWidth={1.8} /></span>
                 {!collapsed && <span>{t(n.label)}</span>}
