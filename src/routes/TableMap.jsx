@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useTableStore } from '../stores/tableStore';
@@ -9,6 +9,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt } from '../utils/print';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 export default function TableMap() {
   const navigate = useNavigate();
@@ -26,6 +27,25 @@ export default function TableMap() {
   const allFloors = useMemo(() => {
     return Array.from(new Set(['Ground Floor', ...tables.map(t => t.floor || 'Ground Floor')]));
   }, [tables]);
+
+  const [zoom, setZoom] = useState(1);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (!wrapperRef.current) return;
+      const width = wrapperRef.current.clientWidth;
+      if (window.innerWidth <= 1024) {
+        const fitZoom = Math.min((width - 24) / 1000, 1);
+        setZoom(fitZoom);
+      } else {
+        setZoom(1);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // UPI Settle Modal state
   const [upiOrderToSettle, setUpiOrderToSettle] = useState(null);
@@ -289,7 +309,7 @@ export default function TableMap() {
   return (
     <div className="table-map-layout">
       {/* Main map */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {/* Legend */}
         <div style={{ display:'flex', gap:'var(--space-3)', flexWrap:'wrap', alignItems:'center' }}>
           {Object.entries(statusConfig).map(([k, v]) => {
@@ -355,81 +375,143 @@ export default function TableMap() {
           })}
         </div>
 
-        {/* Canvas */}
-        <div className="table-canvas-wrapper">
-          <div className="table-canvas">
-            {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(t => {
-              const cfg = statusConfig[t.status] ?? statusConfig.free;
-              const order = tableOrders[t.id];
-              const isReserved = reservations.some(r => r.tableId === t.id);
-              return (
-                <button
-                  key={t.id}
-                  id={`map-table-${t.id}`}
-                  onClick={() => setSelected(selected === t.id ? null : t.id)}
-                  className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} status-${selected === t.id ? 'selected' : t.status || 'free'}`}
-                  style={{
-                    position: 'absolute',
-                    left: t.x ?? 80,
-                    top: t.y ?? 80,
-                    width: t.w ?? 80,
-                    height: t.h ?? 80,
-                  }}
-                >
-                  {renderChairs(t)}
-                  <span className="table-label">
-                    {t.name}
-                  </span>
-                  <span className="table-capacity">
-                    👥 {t.capacity}p
-                  </span>
-                  {order && (
-                    <span style={{ 
-                      fontSize: '10px', 
-                      fontWeight: 'var(--weight-bold)', 
-                      color: '#ffffff',
-                      background: cfg.color,
-                      padding: '2px 6px',
-                      borderRadius: 'var(--radius-full)',
-                      marginTop: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      scale: '0.9',
-                      zIndex: 3
-                    }}>
-                      {formatCurrency(order.total ?? 0, currency)}
-                    </span>
-                  )}
-                  {isReserved && t.status === 'free' && (
-                    <span style={{
-                      position: 'absolute',
-                      top: -6,
-                      right: -6,
-                      background: '#f59e0b',
-                      color: '#fff',
-                      borderRadius: '50%',
-                      width: 20,
-                      height: 20,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                      fontWeight: 'bold',
-                      border: '1.5px solid #ffffff',
-                      zIndex: 4
-                    }} title="Reserved Today">
-                      📅
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {tables.length === 0 && (
-              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', gap:'var(--space-3)' }}>
-                <div style={{fontSize:40}}>🗺️</div>
-                <div>No tables — set up your floor plan in Admin → Floor Plan Editor</div>
+        <div className="table-canvas-wrapper" ref={wrapperRef}>
+          {/* Zoom Controls */}
+          <div className="canvas-zoom-controls">
+            <button
+              type="button"
+              className="zoom-btn"
+              onClick={() => setZoom(z => Math.max(0.25, Math.round((z - 0.1) * 10) / 10))}
+              disabled={zoom <= 0.25}
+              title="Zoom Out"
+            >
+              <ZoomOut size={16} />
+            </button>
+            <span className="zoom-val">{Math.round(zoom * 100)}%</span>
+            <button
+              type="button"
+              className="zoom-btn"
+              onClick={() => setZoom(z => Math.min(2.0, Math.round((z + 0.1) * 10) / 10))}
+              disabled={zoom >= 2.0}
+              title="Zoom In"
+            >
+              <ZoomIn size={16} />
+            </button>
+            <button
+              type="button"
+              className="zoom-btn fit-btn"
+              onClick={() => {
+                if (wrapperRef.current) {
+                  const width = wrapperRef.current.clientWidth;
+                  const fitZoom = Math.min((width - 24) / 1000, 1);
+                  setZoom(fitZoom);
+                }
+              }}
+              title="Fit Screen"
+            >
+              <Maximize2 size={12} /> Fit
+            </button>
+          </div>
+
+          <div className="table-canvas-scroll-area">
+            <div
+              className="table-canvas-scroll-container"
+              style={{
+                width: `${1000 * zoom}px`,
+                height: `${650 * zoom}px`,
+              }}
+            >
+              <div
+                className="table-canvas"
+                style={{
+                  transform: `scale(${zoom})`,
+                }}
+              >
+                {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(t => {
+                  const cfg = statusConfig[t.status] ?? statusConfig.free;
+                  const order = tableOrders[t.id];
+                  const isReserved = reservations.some(r => r.tableId === t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      id={`map-table-${t.id}`}
+                      onClick={() => {
+                        const status = t.status || 'free';
+                        if (status === 'free') {
+                          clearCart();
+                          setTable(t.id, t.name);
+                          setOrderType('dine-in');
+                          toast.success(`Started new order for ${t.name}`);
+                          navigate('/pos');
+                        } else {
+                          setSelected(selected === t.id ? null : t.id);
+                        }
+                      }}
+                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} status-${selected === t.id ? 'selected' : t.status || 'free'}`}
+                      style={{
+                        position: 'absolute',
+                        left: t.x ?? 80,
+                        top: t.y ?? 80,
+                        width: t.w ?? 80,
+                        height: t.h ?? 80,
+                      }}
+                    >
+                      {renderChairs(t)}
+                      <span className="table-label">
+                        {t.name}
+                      </span>
+                      <span className="table-capacity">
+                        👥 {t.capacity}p
+                      </span>
+                      {order && (
+                        <span style={{ 
+                          fontSize: '10px', 
+                          fontWeight: 'var(--weight-bold)', 
+                          color: '#ffffff',
+                          background: cfg.color,
+                          padding: '2px 6px',
+                          borderRadius: 'var(--radius-full)',
+                          marginTop: '4px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          scale: '0.9',
+                          zIndex: 3
+                        }}>
+                          {formatCurrency(order.total ?? 0, currency)}
+                        </span>
+                      )}
+                      {isReserved && t.status === 'free' && (
+                        <span style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -6,
+                          background: '#f59e0b',
+                          color: '#fff',
+                          borderRadius: '50%',
+                          width: 20,
+                          height: 20,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                          fontWeight: 'bold',
+                          border: '1.5px solid #ffffff',
+                          zIndex: 4
+                        }} title="Reserved Today">
+                          📅
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {tables.length === 0 && (
+                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', gap:'var(--space-3)' }}>
+                    <div style={{fontSize:40}}>🗺️</div>
+                    <div>No tables — set up your floor plan in Admin → Floor Plan Editor</div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

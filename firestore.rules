@@ -57,8 +57,11 @@ service cloud.firestore {
       }
 
       // Delivery Settings overrides
-      match /deliverySettings/{platform}/items/{itemId} {
+      match /deliverySettings/{platform} {
         allow read, write: if isSignedIn();
+        match /{document=**} {
+          allow read, write: if isSignedIn();
+        }
       }
 
       // Inventory — authenticated read/write

@@ -7,7 +7,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Globe, Menu } from 'lucide-react';
+import { Bell, Globe, Menu, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const PAGE_TITLES = {
@@ -34,6 +34,7 @@ export default function AppShell() {
   const { subscribe: subscribeTables } = useTableStore();
   const [isSimulatedOffline, setIsSimulatedOffline] = useState(!!window.__simulateOffline);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -167,16 +168,27 @@ export default function AppShell() {
           <h1 className="top-bar-title text-title3" style={isPOS ? { flex: 'none', marginRight: 'var(--space-4)' } : {}}>{pageTitle}</h1>
           
           {isPOS && (
-            <div style={{ flex: 1, maxWidth: '400px', display: 'flex', alignItems: 'center' }}>
-              <input
-                className="form-input"
-                placeholder={`🔍 ${t('search')} menu...`}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                id="menu-search-input"
-                style={{ height: '36px', fontSize: 'var(--text-subhead)', padding: '6px 12px' }}
-              />
-            </div>
+            <>
+              <div className="desktop-only" style={{ flex: 1, maxWidth: '400px', display: 'flex', alignItems: 'center' }}>
+                <input
+                  className="form-input"
+                  placeholder={`🔍 ${t('search')} menu...`}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  id="menu-search-input"
+                  style={{ height: '36px', fontSize: 'var(--text-subhead)', padding: '6px 12px' }}
+                />
+              </div>
+              <button
+                type="button"
+                className={`btn btn-icon mobile-only ${search ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setIsSearchOpen(true)}
+                title="Search menu"
+                style={{ height: '36px', width: '36px', marginRight: 'var(--space-2)' }}
+              >
+                <Search size={18} />
+              </button>
+            </>
           )}
 
           <div className="top-bar-actions" style={isPOS ? { marginLeft: 'auto' } : {}}>
@@ -248,6 +260,47 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile Search Modal Overlay */}
+      {isSearchOpen && (
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1100, paddingTop: '10vh' }} onClick={e => e.target === e.currentTarget && setIsSearchOpen(false)}>
+          <div className="modal animate-slide-up" style={{ maxWidth: '90%', width: '400px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                🔍 {t('search')} Menu
+              </h3>
+              <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setIsSearchOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: 'var(--space-4)' }}>
+              <input
+                className="form-input"
+                placeholder="Type to search menu..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+                style={{ height: '44px', fontSize: 'var(--text-body)', padding: '10px 16px', width: '100%' }}
+              />
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  setSearch('');
+                  setIsSearchOpen(false);
+                }}
+              >
+                Clear Search
+              </button>
+              <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => setIsSearchOpen(false)}>
+                Apply Search
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

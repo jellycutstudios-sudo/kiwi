@@ -22,25 +22,42 @@ async function getRestaurantMenu(restaurantId) {
  */
 async function getPlatformOverrides(restaurantId, platform) {
   const db = admin.firestore();
-  const overridesSnap = await db.collection('restaurants').doc(restaurantId)
+  const itemsSnap = await db.collection('restaurants').doc(restaurantId)
     .collection('deliverySettings').doc(platform).collection('items').get();
   
-  const overrides = {};
-  overridesSnap.forEach(doc => {
-    overrides[doc.id] = doc.data();
+  const categoriesSnap = await db.collection('restaurants').doc(restaurantId)
+    .collection('deliverySettings').doc(platform).collection('categories').get();
+  
+  const items = {};
+  itemsSnap.forEach(doc => {
+    items[doc.id] = doc.data();
   });
-  return overrides;
+
+  const categories = {};
+  categoriesSnap.forEach(doc => {
+    categories[doc.id] = doc.data();
+  });
+
+  return { items, categories };
 }
 
 /**
  * Format menu to Uber Eats Catalog format
  */
 function formatForUberEats(menu, overrides) {
-  const categories = menu.map(cat => {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
+  const categories = activeCategories.map(cat => {
     const items = (cat.items || [])
       .filter(item => {
         // filter out items marked as unavailable on this platform
-        const override = overrides[item.id];
+        const override = itemOverrides[item.id];
         if (override && override.available === false) return false;
         return item.available !== false;
       })
@@ -90,13 +107,21 @@ function formatForUberEats(menu, overrides) {
  * Format menu to Zomato Menu format
  */
 function formatForZomato(menu, overrides) {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
   return {
-    categories: menu.map(cat => ({
+    categories: activeCategories.map(cat => ({
       category_id: cat.id,
       category_name: cat.name,
       items: (cat.items || [])
         .filter(item => {
-          const override = overrides[item.id];
+          const override = itemOverrides[item.id];
           if (override && override.available === false) return false;
           return item.available !== false;
         })
@@ -115,14 +140,22 @@ function formatForZomato(menu, overrides) {
  * Format menu to Swiggy Menu format
  */
 function formatForSwiggy(menu, overrides) {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
   return {
     menu: {
-      categories: menu.map(cat => ({
+      categories: activeCategories.map(cat => ({
         id: cat.id,
         name: cat.name,
         items: (cat.items || [])
           .filter(item => {
-            const override = overrides[item.id];
+            const override = itemOverrides[item.id];
             if (override && override.available === false) return false;
             return item.available !== false;
           })
@@ -142,13 +175,21 @@ function formatForSwiggy(menu, overrides) {
  * Format menu to Deliveroo Menu format
  */
 function formatForDeliveroo(menu, overrides) {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
   return {
-    categories: menu.map(cat => ({
+    categories: activeCategories.map(cat => ({
       id: cat.id,
       name: cat.name,
       items: (cat.items || [])
         .filter(item => {
-          const override = overrides[item.id];
+          const override = itemOverrides[item.id];
           if (override && override.available === false) return false;
           return item.available !== false;
         })
@@ -273,7 +314,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
 /**
  * Main function to sync menu for all active platforms
  */
-async function syncAllEnabledPlatforms(restaurantId) {
+async function syncAllEnabledPlatforms(restaurantId, targetPlatform = null) {
   const db = admin.firestore();
   const restDoc = await db.collection('restaurants').doc(restaurantId).get();
   
@@ -283,7 +324,14 @@ async function syncAllEnabledPlatforms(restaurantId) {
 
   const data = restDoc.data();
   const integrations = data.deliveryIntegrations || {};
-  const activePlatforms = Object.keys(integrations).filter(platform => integrations[platform].enabled === true);
+  let activePlatforms = Object.keys(integrations).filter(platform => integrations[platform].enabled === true);
+
+  if (targetPlatform) {
+    if (!activePlatforms.includes(targetPlatform)) {
+      throw new Error(`Platform ${targetPlatform} is not enabled or supported.`);
+    }
+    activePlatforms = [targetPlatform];
+  }
 
   if (activePlatforms.length === 0) {
     return { message: 'No active delivery integrations found.', synced: [] };

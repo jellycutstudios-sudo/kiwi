@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Plus, Trash2, Printer, Download, Layers } from 'lucide-react';
+import { Plus, Trash2, Printer, Download, Layers, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './FloorPlanEditor.css';
 
@@ -12,6 +12,8 @@ export default function FloorPlanEditor() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [selected, setSelected] = useState(null);
   const canvasRef = useRef(null);
+  const [zoom, setZoom] = useState(1);
+  const wrapperRef = useRef(null);
 
   const [activeFloor, setActiveFloor] = useState('Ground Floor');
   const [emptyFloors, setEmptyFloors] = useState([]);
@@ -27,12 +29,33 @@ export default function FloorPlanEditor() {
     return subscribe(restaurant.id);
   }, [restaurant?.id, subscribe]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (!wrapperRef.current) return;
+      const width = wrapperRef.current.clientWidth;
+      if (window.innerWidth <= 1024) {
+        const fitZoom = Math.min((width - 24) / 1000, 1);
+        setZoom(fitZoom);
+      } else {
+        setZoom(1);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleMouseDown = (e, table) => {
     e.preventDefault();
     setDragging(table.id);
     setSelected(table.id);
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    setDragOffset({
+      x: (e.clientX - rect.left) / zoom - table.x,
+      y: (e.clientY - rect.top) / zoom - table.y
+    });
   };
 
   const handleMouseMove = (e) => {
@@ -40,8 +63,13 @@ export default function FloorPlanEditor() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left - dragOffset.x, rect.width - 100));
-    const y = Math.max(0, Math.min(e.clientY - rect.top - dragOffset.y, rect.height - 100));
+    const rawX = (e.clientX - rect.left) / zoom - dragOffset.x;
+    const rawY = (e.clientY - rect.top) / zoom - dragOffset.y;
+    const table = tables.find(t => t.id === dragging);
+    const tableW = table?.w ?? 80;
+    const tableH = table?.h ?? 80;
+    const x = Math.max(0, Math.min(rawX, 1000 - tableW));
+    const y = Math.max(0, Math.min(rawY, 650 - tableH));
     updateTable(restaurant.id, dragging, { x: Math.round(x / 40) * 40, y: Math.round(y / 40) * 40 });
   };
 
@@ -356,41 +384,91 @@ export default function FloorPlanEditor() {
 
       <div className="fpe-workspace">
         {/* Canvas */}
-        <div className="table-canvas-wrapper">
-          <div
-            ref={canvasRef}
-            className={`table-canvas ${dragging ? 'dragging' : ''}`}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(table => (
+        <div className="table-canvas-wrapper" ref={wrapperRef}>
+          {/* Zoom Controls */}
+          <div className="canvas-zoom-controls">
+            <button
+              type="button"
+              className="zoom-btn"
+              onClick={() => setZoom(z => Math.max(0.25, Math.round((z - 0.1) * 10) / 10))}
+              disabled={zoom <= 0.25}
+              title="Zoom Out"
+            >
+              <ZoomOut size={16} />
+            </button>
+            <span className="zoom-val">{Math.round(zoom * 100)}%</span>
+            <button
+              type="button"
+              className="zoom-btn"
+              onClick={() => setZoom(z => Math.min(2.0, Math.round((z + 0.1) * 10) / 10))}
+              disabled={zoom >= 2.0}
+              title="Zoom In"
+            >
+              <ZoomIn size={16} />
+            </button>
+            <button
+              type="button"
+              className="zoom-btn fit-btn"
+              onClick={() => {
+                if (wrapperRef.current) {
+                  const width = wrapperRef.current.clientWidth;
+                  const fitZoom = Math.min((width - 24) / 1000, 1);
+                  setZoom(fitZoom);
+                }
+              }}
+              title="Fit Screen"
+            >
+              <Maximize2 size={12} /> Fit
+            </button>
+          </div>
+
+          <div className="table-canvas-scroll-area">
+            <div
+              className="table-canvas-scroll-container"
+              style={{
+                width: `${1000 * zoom}px`,
+                height: `${650 * zoom}px`,
+              }}
+            >
               <div
-                key={table.id}
-                id={`table-item-${table.id}`}
-                className={`table-item ${table.shape === 'round' ? 'round' : 'rect'} ${selected === table.id ? 'status-selected' : `status-${table.status || 'free'}`}`}
+                ref={canvasRef}
+                className={`table-canvas ${dragging ? 'dragging' : ''}`}
                 style={{
-                  left: table.x,
-                  top: table.y,
-                  width: table.w ?? 80,
-                  height: table.h ?? 80,
+                  transform: `scale(${zoom})`,
                 }}
-                onMouseDown={e => handleMouseDown(e, table)}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
               >
-                {renderChairs(table)}
-                <div className="table-label">{table.name}</div>
-                <div className="table-capacity">
-                  <span>👥</span> {table.capacity}p
-                </div>
+                {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(table => (
+                  <div
+                    key={table.id}
+                    id={`table-item-${table.id}`}
+                    className={`table-item ${table.shape === 'round' ? 'round' : 'rect'} ${selected === table.id ? 'status-selected' : `status-${table.status || 'free'}`}`}
+                    style={{
+                      left: table.x,
+                      top: table.y,
+                      width: table.w ?? 80,
+                      height: table.h ?? 80,
+                    }}
+                    onMouseDown={e => handleMouseDown(e, table)}
+                  >
+                    {renderChairs(table)}
+                    <div className="table-label">{table.name}</div>
+                    <div className="table-capacity">
+                      <span>👥</span> {table.capacity}p
+                    </div>
+                  </div>
+                ))}
+                {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).length === 0 && (
+                  <div className="fpe-empty-canvas">
+                    <div className="fpe-empty-icon">🗺️</div>
+                    <div className="fpe-empty-text">No tables on this floor</div>
+                    <div className="fpe-empty-sub">Click "Add Table" above to place your first table here, or move an existing table to this floor.</div>
+                  </div>
+                )}
               </div>
-            ))}
-            {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).length === 0 && (
-              <div className="fpe-empty-canvas">
-                <div className="fpe-empty-icon">🗺️</div>
-                <div className="fpe-empty-text">No tables on this floor</div>
-                <div className="fpe-empty-sub">Click "Add Table" above to place your first table here, or move an existing table to this floor.</div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 

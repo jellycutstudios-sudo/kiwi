@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
+import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -31,9 +32,53 @@ export default function POS() {
     discount, discountType, setDiscount, getDiscountAmount,
     customer, setCustomerProfile, setRedeemingPoints,
     activeShift, openShift, closeShift, recordCashTransaction, subscribeActiveShift
-  } = useOrderStore();
+  } = useOrderStore(
+    useShallow((state) => ({
+      items: state.items,
+      addItem: state.addItem,
+      removeItem: state.removeItem,
+      updateQty: state.updateQty,
+      clearCart: state.clearCart,
+      orderType: state.orderType,
+      setOrderType: state.setOrderType,
+      tableId: state.tableId,
+      tableName: state.tableName,
+      setTable: state.setTable,
+      customerName: state.customerName,
+      customerPhone: state.customerPhone,
+      setCustomer: state.setCustomer,
+      note: state.note,
+      setNote: state.setNote,
+      getSubtotal: state.getSubtotal,
+      getTaxInfo: state.getTaxInfo,
+      getTotal: state.getTotal,
+      submitOrder: state.submitOrder,
+      paymentMethod: state.paymentMethod,
+      setPaymentMethod: state.setPaymentMethod,
+      editingOrderId: state.editingOrderId,
+      discount: state.discount,
+      discountType: state.discountType,
+      setDiscount: state.setDiscount,
+      getDiscountAmount: state.getDiscountAmount,
+      customer: state.customer,
+      setCustomerProfile: state.setCustomerProfile,
+      setRedeemingPoints: state.setRedeemingPoints,
+      activeShift: state.activeShift,
+      openShift: state.openShift,
+      closeShift: state.closeShift,
+      recordCashTransaction: state.recordCashTransaction,
+      subscribeActiveShift: state.subscribeActiveShift
+    }))
+  );
   const { issueToken, setToken } = useTokenStore();
-  const { categories, loading: loadingMenu, search, setSearch } = useMenuStore();
+  const { categories, loading: loadingMenu, search, setSearch } = useMenuStore(
+    useShallow((state) => ({
+      categories: state.categories,
+      loading: state.loading,
+      search: state.search,
+      setSearch: state.setSearch
+    }))
+  );
 
   const [activeCat,  setActiveCat]  = useState('all');
   const [showPayment, setShowPayment] = useState(false);

@@ -151,4 +151,24 @@ describe('syncMenu - Catalog formatters', () => {
       expect(result.categories[0].items).toHaveLength(1);
     });
   });
+
+  describe('Category-level overrides', () => {
+    it('should filter out a whole category when it is paused', () => {
+      const overrides = {
+        items: {},
+        categories: {
+          'cat-1': { available: false }
+        }
+      };
+      
+      const uberResult = formatForUberEats(mockMenu, overrides);
+      expect(uberResult.catalog.categories).toHaveLength(1);
+      expect(uberResult.catalog.categories[0].id).toBe('cat-2');
+      expect(uberResult.catalog.items).toHaveLength(1);
+      
+      const zomatoResult = formatForZomato(mockMenu, overrides);
+      expect(zomatoResult.categories).toHaveLength(1);
+      expect(zomatoResult.categories[0].category_id).toBe('cat-2');
+    });
+  });
 });

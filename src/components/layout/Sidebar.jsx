@@ -1,12 +1,15 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
 import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -16,6 +19,7 @@ const NAV = [
   { key: 'tables',         path: '/tables',               icon: LayoutGrid,      label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
   { key: 'active_orders',  path: '/orders',               icon: ClipboardList,   label: 'activeOrders', roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
   { key: 'online_orders',  path: '/online-orders',        icon: Truck,           label: 'deliveryOrders', roles: ['admin', 'super_admin', 'cashier'], badge: true },
+  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Sliders,         label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'] },
   { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen'] },
   { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin'] },
 ];
@@ -23,7 +27,6 @@ const NAV = [
 const ADMIN_NAV = [
   { key: 'staff',       path: '/admin/staff',       icon: Users,            label: 'staff' },
   { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll' },
-  { key: 'delivery_hub', path: '/admin/delivery-hub', icon: Truck,          label: 'deliveryHub' },
   { key: 'menu',        path: '/admin/menu',         icon: UtensilsCrossed,  label: 'menu' },
   { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory' },
   { key: 'customers',   path: '/admin/customers',    icon: Contact,          label: 'customers' },
@@ -39,6 +42,32 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const { unreadOnlineCount } = useOrderStore();
   const role = staffDoc?.role ?? 'cashier';
 
+  const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const q = collection(db, 'restaurants', restaurant.id, 'deliverySettings');
+    const unsub = onSnapshot(q, (snap) => {
+      let paused = false;
+      const now = new Date();
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.paused) {
+          if (data.pauseUntil) {
+            const resumeTime = data.pauseUntil.toDate ? data.pauseUntil.toDate() : new Date(data.pauseUntil);
+            if (resumeTime > now) {
+              paused = true;
+            }
+          } else {
+            paused = true;
+          }
+        }
+      });
+      setAnyPlatformPaused(paused);
+    });
+    return unsub;
+  }, [restaurant?.id]);
+
   const handleItemClick = () => {
     if (setMobileOpen) {
       setMobileOpen(false);
@@ -52,13 +81,15 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     toast.success('Signed out');
   };
 
+  const isCollapsed = collapsed && !mobileOpen;
+
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Header */}
       <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div className="sidebar-logo">🍽️</div>
-          {!collapsed && <span className="sidebar-brand">RestaurantOS</span>}
+          {!isCollapsed && <span className="sidebar-brand">RestaurantOS</span>}
         </div>
         <button
           className="btn btn-ghost btn-icon sidebar-close-btn"
@@ -71,7 +102,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       </div>
 
       {/* Restaurant name */}
-      {!collapsed && restaurant?.name && (
+      {!isCollapsed && restaurant?.name && (
         <div style={{
           padding: 'var(--space-2) var(--space-4)',
           borderBottom: '1px solid var(--color-separator)',
@@ -90,21 +121,32 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       <nav className="sidebar-nav">
         {!isSuperAdmin && (
           <>
-            {!collapsed && <div className="sidebar-section-label">{t('pos')}</div>}
+            {!isCollapsed && <div className="sidebar-section-label">{t('pos')}</div>}
             {NAV.filter(n => n.roles.includes('all') || n.roles.includes(role)).map(n => (
               <NavLink
                 key={n.key}
                 to={n.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                title={collapsed ? t(n.label) : undefined}
+                title={isCollapsed ? t(n.label) : undefined}
                 onClick={handleItemClick}
+                style={{ position: 'relative' }}
               >
                 <span className="nav-item-icon"><n.icon size={18} strokeWidth={1.8} /></span>
-                {!collapsed && <span>{t(n.label)}</span>}
-                {n.badge && unreadOnlineCount > 0 && !collapsed && (
+                {!isCollapsed && <span>{t(n.label)}</span>}
+                {n.badge && unreadOnlineCount > 0 && !isCollapsed && (
                   <span className="nav-badge">{unreadOnlineCount}</span>
                 )}
-                {n.badge && unreadOnlineCount > 0 && collapsed && (
+                {n.badge && unreadOnlineCount > 0 && isCollapsed && (
+                  <span style={{
+                    position: 'absolute', top: 4, right: 6,
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: 'var(--color-red)',
+                  }} />
+                )}
+                {n.key === 'delivery_hub' && anyPlatformPaused && !isCollapsed && (
+                  <span className="nav-badge" style={{ background: 'var(--color-red)' }}>⏸️</span>
+                )}
+                {n.key === 'delivery_hub' && anyPlatformPaused && isCollapsed && (
                   <span style={{
                     position: 'absolute', top: 4, right: 6,
                     width: 8, height: 8, borderRadius: '50%',
@@ -118,17 +160,17 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
         {isAdmin && (
           <>
-            {!collapsed && <div className="sidebar-section-label" style={{marginTop: isSuperAdmin ? 0 : 'var(--space-3)'}}>{t('admin')}</div>}
+            {!isCollapsed && <div className="sidebar-section-label" style={{marginTop: isSuperAdmin ? 0 : 'var(--space-3)'}}>{t('admin')}</div>}
             {ADMIN_NAV.filter(n => isSuperAdmin ? n.superAdmin : !n.superAdmin).map(n => (
               <NavLink
                 key={n.key}
                 to={n.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                title={collapsed ? t(n.label) : undefined}
+                title={isCollapsed ? t(n.label) : undefined}
                 onClick={handleItemClick}
               >
                 <span className="nav-item-icon"><n.icon size={18} strokeWidth={1.8} /></span>
-                {!collapsed && <span>{t(n.label)}</span>}
+                {!isCollapsed && <span>{t(n.label)}</span>}
               </NavLink>
             ))}
           </>
@@ -136,8 +178,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       </nav>
 
       {/* Footer */}
-      <div className="sidebar-footer" style={{ padding: collapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {!collapsed && (
+      <div className="sidebar-footer" style={{ padding: isCollapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {!isCollapsed && (
           <div style={{ marginBottom: 'var(--space-3)', overflow: 'hidden', width: '100%' }}>
             <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={staffDoc?.email || staffDoc?.name}>
               {staffDoc?.name === 'Super Admin' ? (staffDoc?.email ?? 'Super Admin') : (staffDoc?.name ?? 'User')}
@@ -147,7 +189,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', gap: 'var(--space-2)', width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: isCollapsed ? 'column' : 'row', gap: 'var(--space-2)', width: '100%', alignItems: 'center', justifyContent: 'center' }}>
           <button
             className="btn btn-secondary btn-icon"
             onClick={handleSignOut}
@@ -157,17 +199,17 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             <LogOut size={16} />
           </button>
           <button
-            className="btn btn-secondary btn-icon"
+            className="btn btn-secondary btn-icon sidebar-collapse-btn"
             style={{ 
-              marginLeft: collapsed ? '0' : 'auto',
+              marginLeft: isCollapsed ? '0' : 'auto',
               width: '36px',
               height: '36px',
               flexShrink: 0
             }}
             onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
       </div>

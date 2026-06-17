@@ -173,9 +173,9 @@ export default function MenuEditor() {
         </button>
       </div>
 
-      <div style={{ display:'flex', gap:'var(--space-4)' }}>
+      <div className="menu-editor-layout">
         {/* Categories sidebar */}
-        <div className="card" style={{ width:220, flexShrink:0 }}>
+        <div className={`menu-editor-sidebar card ${activeCat !== null ? 'desktop-only' : ''}`}>
           <div className="card-header"><span className="card-title">Categories</span></div>
           <div style={{ padding:'var(--space-2)' }}>
             {categories.map(c => (
@@ -216,9 +216,19 @@ export default function MenuEditor() {
         </div>
 
         {/* Items panel */}
-        <div className="card" style={{ flex:1 }}>
-          <div className="card-header">
-            <span className="card-title">{activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}</span>
+        <div className={`card ${activeCat === null ? 'desktop-only' : ''}`} style={{ flex: 1 }}>
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm mobile-only"
+                onClick={() => setActiveCat(null)}
+                style={{ padding: '6px 12px' }}
+              >
+                ← Back
+              </button>
+              <span className="card-title">{activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}</span>
+            </div>
             {activeCatId && (
               <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen', imageUrl:'' }); setActiveTab('general'); setShowItemForm(true); }}>
                 <Plus size={14}/> Add Item
@@ -232,41 +242,39 @@ export default function MenuEditor() {
                 <div style={{marginTop:'var(--space-2)'}}>No items in this category</div>
               </div>
             ) : (activeCatData?.items ?? []).map((item) => (
-              <div key={item.id} style={{
-                display:'flex', alignItems:'center', gap:'var(--space-4)',
-                padding:'var(--space-4) var(--space-5)',
-                borderBottom:'1px solid var(--color-separator)',
-                opacity: item.available === false ? 0.5 : 1,
-              }}>
+              <div key={item.id} className="menu-item-row" style={{ opacity: item.available === false ? 0.5 : 1 }}>
                 {item.imageUrl ? (
                   <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--color-separator)', flexShrink: 0 }}>
                     <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
                 ) : (
-                  <div style={{ fontSize: 28 }}>{item.emoji ?? '🍽️'}</div>
+                  <div style={{ fontSize: 28, flexShrink: 0 }}>{item.emoji ?? '🍽️'}</div>
                 )}
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:'var(--weight-semibold)' }}>{item.name}</div>
-                  {item.description && <div style={{ fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:1 }}>{item.description}</div>}
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)' }}>{item.name}</div>
+                  {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
                 </div>
-                <div style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)', minWidth:80, textAlign:'right' }}>
-                  {item.price?.toFixed(2)}
-                </div>
-                <div style={{ display:'flex', gap:'var(--space-2)', alignItems:'center' }}>
-                  <button
-                    onClick={() => toggleAvailable(activeCatId, item)}
-                    className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
-                    style={{ cursor:'pointer', border:'none', fontFamily:'var(--font-family)' }}
-                    title="Toggle availability"
-                  >
-                    {item.available !== false ? 'Available' : 'Unavailable'}
-                  </button>
-                  <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '' }); setActiveTab('general'); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
-                    <Edit2 size={12}/>
-                  </button>
-                  <button className="btn btn-icon btn-sm" style={{ color:'var(--color-red)' }} onClick={() => deleteItem(activeCatId, item.id)} id={`delete-item-${item.id}`}>
-                    <Trash2 size={12}/>
-                  </button>
+                
+                <div className="menu-item-meta-actions">
+                  <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', minWidth: 80, textAlign: 'right', fontSize: 'var(--text-subhead)' }}>
+                    {formatCurrency(item.price, restaurant?.currency ?? 'INR')}
+                  </div>
+                  <div className="menu-item-actions">
+                    <button
+                      onClick={() => toggleAvailable(activeCatId, item)}
+                      className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
+                      style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font-family)' }}
+                      title="Toggle availability"
+                    >
+                      {item.available !== false ? 'Available' : 'Unavailable'}
+                    </button>
+                    <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '' }); setActiveTab('general'); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
+                      <Edit2 size={12}/>
+                    </button>
+                    <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteItem(activeCatId, item.id)} id={`delete-item-${item.id}`}>
+                      <Trash2 size={12}/>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -153,6 +153,27 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
       return res.status(401).send('Unauthorized: Invalid Signature');
     }
 
+    // Check if platform is paused
+    const settingsDoc = await db.collection('restaurants').doc(restaurantId)
+      .collection('deliverySettings').doc(platform).get();
+    
+    if (settingsDoc.exists) {
+      const settingsData = settingsDoc.data();
+      if (settingsData.paused) {
+        let isPaused = true;
+        if (settingsData.pauseUntil) {
+          const pauseUntilDate = settingsData.pauseUntil.toDate ? settingsData.pauseUntil.toDate() : new Date(settingsData.pauseUntil);
+          if (pauseUntilDate <= new Date()) {
+            isPaused = false;
+          }
+        }
+        if (isPaused) {
+          console.warn(`Incoming order webhook for ${platform} rejected: Channel is paused. Reason: ${settingsData.pauseReason || 'None'}`);
+          return res.status(503).send(`Service Temporarily Unavailable: Channel ${platform} is paused.`);
+        }
+      }
+    }
+
     // Normalize order
     const normalizedOrder = adapter.normalize(req.body);
     
@@ -184,15 +205,40 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// Endpoint to manually trigger menu sync
+// Endpoint to manually trigger menu sync or accept/reject delivery orders
 exports.syncDeliveryMenu = functions.https.onRequest(async (req, res) => {
-  const { restaurantId } = req.query;
+  const { restaurantId, platform, action, orderId } = req.query;
   if (!restaurantId) {
     return res.status(400).send('Missing restaurantId');
   }
+
+  // Handle order accept/reject actions from the POS frontend OnlineOrders page
+  if (action) {
+    if (!platform || !orderId) {
+      return res.status(400).send('Missing platform or orderId for order action');
+    }
+    try {
+      console.log(`[ORDER ACTION] Simulating order ${action} for platform ${platform}, order ${orderId} at restaurant ${restaurantId}`);
+      // In a production environment, this is where we would invoke the platform's order acceptance/rejection APIs
+      // (e.g. POST https://api.uber.com/v1/order/{orderId}/accept)
+      
+      return res.status(200).json({
+        success: true,
+        action,
+        platform,
+        orderId,
+        details: `Simulated order ${action} notification sent successfully to ${platform} (Sandbox Mode).`
+      });
+    } catch (err) {
+      console.error(`Error notifying platform ${platform} of order ${action}:`, err);
+      return res.status(500).send(err.message);
+    }
+  }
+
+  // Otherwise, handle manual menu sync
   try {
     const { syncAllEnabledPlatforms } = require('./menu/syncMenu');
-    const result = await syncAllEnabledPlatforms(restaurantId);
+    const result = await syncAllEnabledPlatforms(restaurantId, platform || null);
     return res.status(200).json(result);
   } catch (err) {
     return res.status(500).send(err.message);

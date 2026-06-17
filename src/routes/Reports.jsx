@@ -497,7 +497,7 @@ export default function Reports() {
             Real-time business insights, best-selling menus, heatmaps, and staff leaderboards.
           </p>
         </div>
-        <div style={{ display:'flex', gap:'var(--space-2)' }}>
+        <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap' }}>
           <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Download size={14} /> Export Report
           </button>
@@ -525,7 +525,7 @@ export default function Reports() {
       </div>
 
       {/* Dashboard Sub-navigation Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-separator)', marginBottom: '-4px', flexWrap: 'wrap' }}>
+      <div className="reports-tabs">
         {[
           { key: 'overview', label: 'Sales Overview', icon: Activity },
           { key: 'menu', label: 'Menu Performance', icon: PieChart },
@@ -537,21 +537,7 @@ export default function Reports() {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '12px 24px',
-              background: 'none',
-              border: 'none',
-              borderBottom: `2.5px solid ${activeTab === t.key ? 'var(--color-accent)' : 'transparent'}`,
-              color: activeTab === t.key ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-              fontWeight: activeTab === t.key ? 'var(--weight-bold)' : 'var(--weight-semibold)',
-              fontSize: 'var(--text-subhead)',
-              cursor: 'pointer',
-              transition: 'all var(--duration-fast)',
-              fontFamily: 'var(--font-family)'
-            }}
+            className={`reports-tab-btn ${activeTab === t.key ? 'active' : ''}`}
           >
             <t.icon size={15} />
             {t.label}
@@ -718,7 +704,7 @@ export default function Reports() {
 
       {/* TAB 2: MENU PERFORMANCE */}
       {activeTab === 'menu' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--space-4)', alignItems: 'start' }}>
+        <div className="reports-menu-grid">
           
           {/* Best Sellers */}
           <div className="card card-padded">
@@ -729,26 +715,26 @@ export default function Reports() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
-                    <th style={{ padding: '8px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Rank</th>
-                    <th style={{ padding: '8px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Item</th>
-                    <th style={{ padding: '8px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'center' }}>Qty Sold</th>
-                    <th style={{ padding: '8px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'right' }}>Revenue</th>
+                    <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'left' }}>Rank</th>
+                    <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'left' }}>Item</th>
+                    <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'center' }}>Qty Sold</th>
+                    <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'right' }}>Revenue</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bestSellers.map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid var(--color-separator)' }}>
-                      <td style={{ padding: '10px 0', fontWeight: 'var(--weight-bold)', color: idx < 3 ? 'var(--color-accent)' : 'var(--color-label-tertiary)' }}>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 'var(--weight-bold)', color: idx < 3 ? 'var(--color-accent)' : 'var(--color-label-tertiary)', textAlign: 'left' }}>
                         #{idx + 1}
                       </td>
-                      <td style={{ padding: '10px 0', fontWeight: 'var(--weight-semibold)' }}>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 'var(--weight-semibold)', textAlign: 'left' }}>
                         <span style={{ marginRight: 6 }}>{item.emoji}</span>
                         {item.name}
                       </td>
-                      <td style={{ padding: '10px 0', textAlign: 'center', fontWeight: 'var(--weight-semibold)' }}>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center', fontWeight: 'var(--weight-semibold)' }}>
                         {item.qty}
                       </td>
-                      <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)' }}>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)' }}>
                         {formatCurrency(item.revenue, currency)}
                       </td>
                     </tr>
@@ -835,38 +821,40 @@ export default function Reports() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
-                  <th style={{ padding: '10px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Rank</th>
-                  <th style={{ padding: '10px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Staff Member</th>
-                  <th style={{ padding: '10px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Role</th>
-                  <th style={{ padding: '10px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'center' }}>Orders Taken</th>
-                  <th style={{ padding: '10px 0', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'right' }}>Total Sales</th>
+                  <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'left' }}>Rank</th>
+                  <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'left' }}>Staff Member</th>
+                  <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'left' }}>Role</th>
+                  <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'center' }}>Orders Taken</th>
+                  <th style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', textAlign: 'right' }}>Total Sales</th>
                 </tr>
               </thead>
               <tbody>
                 {staffLeaderboard.map((staffMember, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--color-separator)' }}>
-                    <td style={{ padding: '12px 0', fontWeight: 'var(--weight-bold)', color: idx === 0 ? 'var(--color-orange)' : 'var(--color-label-tertiary)' }}>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 'var(--weight-bold)', color: idx === 0 ? 'var(--color-orange)' : 'var(--color-label-tertiary)', textAlign: 'left' }}>
                       {idx === 0 ? '👑 #1' : `#${idx + 1}`}
                     </td>
-                    <td style={{ padding: '12px 0', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%',
-                        background: idx === 0 ? 'var(--color-orange-light)' : 'var(--color-fill-tertiary)',
-                        color: idx === 0 ? 'var(--color-orange)' : 'var(--color-label-secondary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 'var(--weight-bold)'
-                      }}>
-                        {staffMember.name.charAt(0).toUpperCase()}
+                    <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%',
+                          background: idx === 0 ? 'var(--color-orange-light)' : 'var(--color-fill-tertiary)',
+                          color: idx === 0 ? 'var(--color-orange)' : 'var(--color-label-secondary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 'var(--weight-bold)'
+                        }}>
+                          {staffMember.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: 'var(--weight-semibold)' }}>{staffMember.name}</span>
                       </div>
-                      <span style={{ fontWeight: 'var(--weight-semibold)' }}>{staffMember.name}</span>
                     </td>
-                    <td style={{ padding: '12px 0', textTransform: 'capitalize', color: 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)' }}>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)', textTransform: 'capitalize', color: 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)', textAlign: 'left' }}>
                       {staffMember.role || 'System / Web'}
                     </td>
-                    <td style={{ padding: '12px 0', textAlign: 'center', fontWeight: 'var(--weight-semibold)' }}>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center', fontWeight: 'var(--weight-semibold)' }}>
                       {staffMember.count}
                     </td>
-                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'var(--weight-bold)', color: 'var(--color-green)' }}>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', fontWeight: 'var(--weight-bold)', color: 'var(--color-green)' }}>
                       {formatCurrency(staffMember.revenue, currency)}
                     </td>
                   </tr>
@@ -1177,7 +1165,7 @@ export default function Reports() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
 
           {/* KPI Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)' }}>
+          <div className="stat-grid">
             {[
               { label: 'Total Tips Collected', value: formatCurrency(totalTips, currency), color: 'var(--color-orange)', bg: 'var(--color-orange-light)', icon: HeartHandshake },
               { label: 'Orders With Tips', value: `${tipsOrders.length} / ${totalOrders}`, color: 'var(--color-green)', bg: 'var(--color-green-light)', icon: ShoppingCart },
