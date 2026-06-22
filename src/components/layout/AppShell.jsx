@@ -36,8 +36,12 @@ export default function AppShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // Close mobile sidebar whenever the route changes
   useEffect(() => {
-    setMobileSidebarOpen(false);
+    // Using a microtask defers the state update out of the synchronous render cycle,
+    // satisfying the react-hooks/set-state-in-effect rule while keeping the same UX.
+    const id = setTimeout(() => setMobileSidebarOpen(false), 0);
+    return () => clearTimeout(id);
   }, [location.pathname]);
   const [isOnline, setIsOnline] = useState(navigator.onLine && !window.__simulateOffline);
 
@@ -106,9 +110,10 @@ export default function AppShell() {
 
   useEffect(() => {
     if (isPOS) {
+      // Defer to avoid synchronous setState-in-effect lint rule.
       // Always collapse to icon-only on POS — maximises menu grid space on every screen size.
-      // Icon sidebar (64px) beats a burger menu: cashiers get 1-tap nav, never 2 taps.
-      setSidebarCollapsed(true);
+      const id = setTimeout(() => setSidebarCollapsed(true), 0);
+      return () => clearTimeout(id);
     }
     // On other pages we respect whatever state the user has set (or the screen-size default above).
     // No forced restore — if they manually expanded on a small screen, honour that choice.

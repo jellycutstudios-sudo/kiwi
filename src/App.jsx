@@ -34,11 +34,13 @@ const Restaurants    = lazy(() => import('./routes/admin/Restaurants'));
 const DeliveryHub    = lazy(() => import('./routes/admin/DeliveryHub'));
 const PendingApproval= lazy(() => import('./routes/PendingApproval'));
 const ActiveOrders   = lazy(() => import('./routes/ActiveOrders'));
+const LandingPage    = lazy(() => import('./routes/LandingPage'));
 
 export default function App() {
   const { i18n } = useTranslation();
   const { initAuthListener, loading, user, staffDoc, restaurant } = useAuthStore();
-  const isSuperAdmin = staffDoc?.role === 'super_admin';
+  const userRole = staffDoc?.role ?? null;
+  const isSuperAdmin = userRole === 'super_admin';
   const isApproved = isSuperAdmin || restaurant?.status === 'approved';
 
   // Init Firebase auth listener
@@ -81,15 +83,16 @@ export default function App() {
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public routes — no auth needed */}
+          <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={isSuperAdmin ? "/admin/restaurants" : "/dashboard"} replace /> : <Navigate to="/pending-approval" replace />) : <LandingPage />} />
+          <Route path="/landing"                      element={<LandingPage />} />
           <Route path="/display/tokens/:restaurantId" element={<TokenDisplay />} />
           <Route path="/order/:restaurantId"          element={<OnlineOrderPage />} />
           <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to="/" replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />
           <Route path="/pending-approval"             element={isAuth ? (!isApproved ? <PendingApproval /> : <Navigate to="/" replace />) : <Navigate to="/login" replace />} />
 
-          {/* Protected POS routes */}
-          <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} />}>
+          {/* Protected POS routes — all authenticated + approved users */}
+          <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} userRole={userRole} />}>
             <Route element={<AppShell />}>
-              <Route path="/"                element={<Navigate to={isSuperAdmin ? "/admin/restaurants" : "/dashboard"} replace />} />
               <Route path="/dashboard"       element={<Dashboard />} />
               <Route path="/pos"             element={<POS />} />
               <Route path="/tables"          element={<TableMap />} />
@@ -97,22 +100,29 @@ export default function App() {
               <Route path="/online-orders"   element={<OnlineOrders />} />
               <Route path="/kds"             element={<KDS />} />
               <Route path="/reports"         element={<Reports />} />
-              {/* Admin-only routes */}
-              <Route path="/admin/staff"     element={<StaffManager />} />
-              <Route path="/admin/payroll"   element={<Payroll />} />
-              <Route path="/admin/menu"      element={<MenuEditor />} />
-              <Route path="/admin/inventory" element={<Inventory />} />
-              <Route path="/admin/customers" element={<Customers />} />
-              <Route path="/admin/reservations" element={<Reservations />} />
-              <Route path="/admin/floor"     element={<FloorPlanEditor />} />
-              <Route path="/admin/settings"  element={<Settings />} />
-              <Route path="/admin/restaurants" element={<Restaurants />} />
-              <Route path="/admin/delivery-hub" element={<DeliveryHub />} />
+
+              {/* Admin-only routes — require 'admin' or 'super_admin' role */}
+              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin']} userRole={userRole} />}>
+                <Route path="/admin/staff"        element={<StaffManager />} />
+                <Route path="/admin/payroll"      element={<Payroll />} />
+                <Route path="/admin/menu"         element={<MenuEditor />} />
+                <Route path="/admin/inventory"    element={<Inventory />} />
+                <Route path="/admin/customers"    element={<Customers />} />
+                <Route path="/admin/reservations" element={<Reservations />} />
+                <Route path="/admin/floor"        element={<FloorPlanEditor />} />
+                <Route path="/admin/settings"     element={<Settings />} />
+                <Route path="/admin/delivery-hub" element={<DeliveryHub />} />
+              </Route>
+
+              {/* Super-admin only */}
+              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['super_admin']} userRole={userRole} />}>
+                <Route path="/admin/restaurants" element={<Restaurants />} />
+              </Route>
             </Route>
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to={isAuth ? (isApproved ? (isSuperAdmin ? '/admin/restaurants' : '/dashboard') : '/pending-approval') : '/login'} replace />} />
+          <Route path="*" element={<Navigate to={isAuth ? (isApproved ? (isSuperAdmin ? '/admin/restaurants' : '/dashboard') : '/pending-approval') : '/'} replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

@@ -779,7 +779,7 @@ export default function Settings() {
                       className="btn btn-secondary btn-sm"
                       onClick={() => {
                         if (settings.peripheralConfig?.soundAlerts) {
-                          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-200.wav');
+                          const audio = new Audio('/sounds/order-chime.wav');
                           audio.play().catch(() => {});
                         }
                         toast.success('Triggering ESC/POS test printing logs... Check browser console!');

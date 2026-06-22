@@ -620,7 +620,8 @@ export const useOrderStore = create((set, get) => ({
             const data = change.doc.data();
             if (data.type === 'online' && data.status === 'pending') {
               try {
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-200.wav');
+                // Use locally bundled chime — no external CDN dependency
+                const audio = new Audio('/sounds/order-chime.wav');
                 audio.play().catch(e => console.log('Chime playback blocked/failed:', e));
               } catch (err) {
                 console.warn('Failed to play order chime:', err);

@@ -7,7 +7,7 @@ import {
   onAuthStateChanged,
   signInAnonymously,
 } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 let isLoggingIn = false;
@@ -111,22 +111,10 @@ export const useAuthStore = create(
 
       loadUserData: async (firebaseUser) => {
         try {
-          // Fetch user document directly by ID to satisfy security rules
+          // Fetch user document by UID — role is read from Firestore, never derived client-side.
+          // To grant super_admin: set role:'super_admin' directly in Firebase Console → Firestore → /users/{uid}
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          let userSnap = await getDoc(userDocRef);
-          
-          // Auto-seed/verify super admin account role
-          if (firebaseUser.uid === 'LfE7iE0XHVgWj6oeBWq7CHXs8gr1' || firebaseUser.email === 'admin@kiwios.com') {
-            if (!userSnap.exists() || userSnap.data()?.role !== 'super_admin') {
-              await setDoc(userDocRef, {
-                uid: firebaseUser.uid,
-                name: userSnap.exists() ? (userSnap.data()?.name || 'Super Admin') : 'Super Admin',
-                email: firebaseUser.email || 'admin@kiwios.com',
-                role: 'super_admin',
-              }, { merge: true });
-              userSnap = await getDoc(userDocRef);
-            }
-          }
+          const userSnap = await getDoc(userDocRef);
 
           if (userSnap.exists()) {
             const userData = { id: userSnap.id, ...userSnap.data() };
@@ -144,6 +132,7 @@ export const useAuthStore = create(
               loading: false,
             });
           } else {
+            // No /users doc yet — user is authenticated but not set up in the system
             set({ user: firebaseUser, loading: false });
           }
         } catch (e) {

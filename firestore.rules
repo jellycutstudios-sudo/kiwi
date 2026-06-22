@@ -2,76 +2,113 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─────────────────────────────────────────────
     // Helper functions
-    function isSignedIn() { return request.auth != null; }
-    function uid() { return request.auth.uid; }
-
-    // Users collection (super admin / admin accounts)
-    match /users/{userId} {
-      allow read: if isSignedIn() && uid() == userId;
-      allow write: if isSignedIn() && uid() == userId;
+    // ─────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Restaurants
-    match /restaurants/{restaurantId} {
-      // Anyone can read restaurant info (for online order page)
-      allow read: if true;
-      // Only authenticated admins can write
-      allow write: if isSignedIn();
+    function uid() {
+      return request.auth.uid;
+    }
 
-      // Staff — admins can CRUD, staff can only read their own doc
+    // Read the caller's own user document (for email-login admins)
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(uid())).data;
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function isUserAdmin(restaurantId) {
+      return isSignedIn() && (
+        getUserRole() == 'super_admin' || 
+        (getUserRole() == 'admin' && getUserData().restaurantId == restaurantId)
+      );
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && getUserRole() == 'super_admin';
+    }
+
+    // ─────────────────────────────────────────────
+    // /users — admins can only read/write their own doc
+    // ─────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:  if isSignedIn() && uid() == userId;
+      // Protect user role creation and changes
+      allow create: if isSignedIn() && uid() == userId && request.resource.data.role == 'admin';
+      allow update: if isSignedIn() && uid() == userId && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'restaurantId'])
+      ) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // /restaurants
+    // ─────────────────────────────────────────────
+    match /restaurants/{restaurantId} {
+      // Public read — online order page needs restaurant name/logo
+      allow read: if true;
+      // Write — only authenticated admin-level users who belong to this restaurant
+      allow write: if isUserAdmin(restaurantId);
+
+      // Staff — public read (PIN login), admin write only
       match /staff/{staffId} {
-        allow read: if true; // PIN login needs to query
-        allow write: if isSignedIn();
+        allow read:  if true;
+        allow write: if isUserAdmin(restaurantId);
       }
 
-      // Menu — public read, admin write
+      // Menu — public read, admin write only
       match /menu/{catId} {
-        allow read: if true;
-        allow write: if isSignedIn();
+        allow read:  if true;
+        allow write: if isUserAdmin(restaurantId);
       }
 
       // Tables — public read, authenticated write
       match /tables/{tableId} {
-        allow read: if true;
+        allow read:  if true;
         allow write: if isSignedIn();
       }
 
-      // Orders — public create (for online orders), authenticated read/update
+      // Orders — public create (online orders), authenticated read/update/delete
       match /orders/{orderId} {
-        allow read: if isSignedIn();
-        allow create: if true; // customers can place online orders without auth
+        allow read:   if isSignedIn();
+        allow create: if true;                     // customers place online orders without auth
         allow update, delete: if isSignedIn();
       }
 
-      // Tokens — public read (for TV display), authenticated write
+      // Tokens — public read (TV display), authenticated write
       match /tokens/{date} {
-        allow read: if true;
+        allow read:  if true;
         allow write: if isSignedIn();
       }
 
-      // Delivery Sync logs
+      // Delivery Sync logs — read-only for authenticated, write via Cloud Functions only
       match /deliverySync/{platform}/logs/{logId} {
-        allow read: if isSignedIn();
+        allow read:  if isSignedIn();
         allow write: if false;
       }
 
-      // Delivery Settings overrides
+      // Delivery Settings — authenticated admin read/write
       match /deliverySettings/{platform} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isUserAdmin(restaurantId);
         match /{document=**} {
-          allow read, write: if isSignedIn();
+          allow read, write: if isUserAdmin(restaurantId);
         }
       }
 
       // Inventory — authenticated read/write
       match /inventory/{itemId} {
-        allow read, write: if isSignedIn();
+        allow read:  if isSignedIn();
+        allow write: if isSignedIn();
       }
 
-      // Payroll — authenticated read/write
+      // Payroll — SENSITIVE: admin-only
       match /payroll/{month}/entries/{staffId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isUserAdmin(restaurantId);
       }
 
       // Customers CRM — authenticated read/write
@@ -89,30 +126,37 @@ service cloud.firestore {
         allow read, write: if isSignedIn();
       }
 
-      // Suppliers Directory — authenticated read/write
+      // Suppliers Directory — admin only (financial data)
       match /suppliers/{supplierId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isUserAdmin(restaurantId);
       }
 
-      // Purchase Orders — authenticated read/write
+      // Purchase Orders — admin only
       match /purchase_orders/{poId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isUserAdmin(restaurantId);
       }
 
-      // Gift Cards & Vouchers — authenticated read/write
+      // Gift Cards & Vouchers — authenticated read, cashier/admin write
       match /gift_cards/{cardId} {
-        allow read, write: if isSignedIn();
+        allow read:  if isSignedIn();
+        allow write: if isSignedIn();   // cashier can redeem (balance update)
       }
 
-      // Shifts & Drawer Tills — authenticated read/write
+      // Shifts & Drawer Tills — authenticated read/write (cashiers open/close shifts)
       match /shifts/{shiftId} {
         allow read, write: if isSignedIn();
       }
 
-      // Void Audits Ledger — authenticated read/write
+      // Void Audits Ledger — SENSITIVE: read admin-only, write via authenticated only
       match /void_logs/{logId} {
-        allow read, write: if isSignedIn();
+        allow read:  if isUserAdmin(restaurantId);
+        allow write: if isSignedIn();
       }
     }
+
+    // ─────────────────────────────────────────────
+    // Super-admin: manage restaurants list
+    // ─────────────────────────────────────────────
+    // (restaurants collection write is already handled above via isUserAdmin)
   }
 }

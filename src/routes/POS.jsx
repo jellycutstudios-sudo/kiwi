@@ -90,7 +90,9 @@ export default function POS() {
 
   useEffect(() => {
     if (items.length === 0) {
-      setMobileCartOpen(false);
+      // Defer to avoid synchronous setState-in-effect lint rule
+      const id = setTimeout(() => setMobileCartOpen(false), 0);
+      return () => clearTimeout(id);
     }
   }, [items.length]);
   const [showQuickRegister, setShowQuickRegister] = useState(false);

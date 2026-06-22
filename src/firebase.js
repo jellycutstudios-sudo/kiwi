@@ -2,14 +2,14 @@
 // Initialize Firebase — replace config with your Firebase project credentials
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getMessaging, isSupported } from 'firebase/messaging';
 import { getStorage } from 'firebase/storage';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 export const isFirebaseConfigured = !!(
-  apiKey && 
-  apiKey !== 'YOUR_API_KEY' && 
+  apiKey &&
+  apiKey !== 'YOUR_API_KEY' &&
   apiKey !== 'your_api_key' &&
   apiKey !== ''
 );
@@ -33,11 +33,15 @@ if (isFirebaseConfigured) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
     storage = getStorage(app);
 
-    // Enable offline persistence
-    enableIndexedDbPersistence(db).catch(() => {});
+    // Enable offline persistence using the modern API
+    // (Replaces deprecated enableIndexedDbPersistence from Firebase v9 compat layer)
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
 
     // FCM — only in browsers that support it
     isSupported().then(supported => {
@@ -51,5 +55,3 @@ if (isFirebaseConfigured) {
 }
 
 export { app, auth, db, messaging, storage };
-
-

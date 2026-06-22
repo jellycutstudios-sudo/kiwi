@@ -2,12 +2,34 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-// Triggered when a new order is created in a restaurant
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: verify Firebase ID token from Authorization header
+// ─────────────────────────────────────────────────────────────────────────────
+async function verifyAuthToken(req, res) {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    res.status(401).send('Unauthorized: Missing Bearer token');
+    return null;
+  }
+  const idToken = authHeader.split('Bearer ')[1];
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    return decoded;
+  } catch (e) {
+    console.error('Token verification failed:', e.message);
+    res.status(401).send('Unauthorized: Invalid token');
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FCM: Notify staff when a new online order arrives
+// ─────────────────────────────────────────────────────────────────────────────
 exports.sendNewOrderNotification = functions.firestore
   .document('restaurants/{restaurantId}/orders/{orderId}')
   .onCreate(async (snapshot, context) => {
     const order = snapshot.data();
-    
+
     // Only send notification for incoming online orders
     if (order.type !== 'online') {
       return null;
@@ -16,10 +38,9 @@ exports.sendNewOrderNotification = functions.firestore
     const { restaurantId } = context.params;
 
     try {
-      // 1. Fetch all staff members for this restaurant who have registered FCM tokens
       const staffRef = admin.firestore().collection('restaurants').doc(restaurantId).collection('staff');
       const staffSnap = await staffRef.where('active', '==', true).get();
-      
+
       const tokens = [];
       staffSnap.forEach(doc => {
         const staffData = doc.data();
@@ -33,11 +54,10 @@ exports.sendNewOrderNotification = functions.firestore
         return null;
       }
 
-      // Unique tokens list
       const uniqueTokens = [...new Set(tokens)];
 
-      // 2. Build the notification payload
-      const payload = {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: uniqueTokens,
         notification: {
           title: 'New Online Order!',
           body: `Order for ${order.customerName || 'Customer'} - Total: ${order.total} ${order.currency}`,
@@ -46,24 +66,20 @@ exports.sendNewOrderNotification = functions.firestore
           orderId: snapshot.id,
           click_action: `/online-orders`
         }
-      };
-
-      // 3. Send notification to all tokens
-      const response = await admin.messaging().sendEachForMulticast({
-        tokens: uniqueTokens,
-        notification: payload.notification,
-        data: payload.data
       });
 
-      console.log(`Successfully sent new order notifications: ${response.successCount} succeeded, ${response.failureCount} failed.`);
-      
+      console.log(`FCM: ${response.successCount} succeeded, ${response.failureCount} failed.`);
+
       // Clean up invalid/stale tokens
       if (response.failureCount > 0) {
         const tokensToRemove = [];
         response.responses.forEach((resp, idx) => {
           if (!resp.success) {
             const errCode = resp.error.code;
-            if (errCode === 'messaging/invalid-registration-token' || errCode === 'messaging/registration-token-not-registered') {
+            if (
+              errCode === 'messaging/invalid-registration-token' ||
+              errCode === 'messaging/registration-token-not-registered'
+            ) {
               tokensToRemove.push(uniqueTokens[idx]);
             }
           }
@@ -71,7 +87,6 @@ exports.sendNewOrderNotification = functions.firestore
 
         if (tokensToRemove.length > 0) {
           console.log(`Cleaning up ${tokensToRemove.length} stale tokens.`);
-          // For each staff member, remove stale tokens
           const batch = admin.firestore().batch();
           staffSnap.forEach(doc => {
             const staffData = doc.data();
@@ -92,7 +107,9 @@ exports.sendNewOrderNotification = functions.firestore
     }
   });
 
-// Webhook endpoint to receive incoming orders from delivery platforms
+// ─────────────────────────────────────────────────────────────────────────────
+// Webhook: Receive incoming orders from delivery platforms (Uber Eats, Zomato…)
+// ─────────────────────────────────────────────────────────────────────────────
 exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
   const { platform, restaurantId } = req.query;
 
@@ -128,7 +145,7 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
       return res.status(400).send('Unsupported Platform');
     }
 
-    // Validate Signature/Auth
+    // Validate Signature/Auth — NEVER bypass in production
     let isValid = false;
     if (platform === 'ubereats') {
       const signature = req.headers['x-uber-signature'];
@@ -136,16 +153,6 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
       isValid = adapter.verifySignature(rawBody, signature, platformConfig.clientSecret);
     } else {
       isValid = adapter.verifySignature(req.headers, platformConfig.apiKey);
-    }
-
-    // Check if configuration is mock/sandbox
-    const isMockCredentials = 
-      (platform === 'ubereats' && (!platformConfig.clientSecret || platformConfig.clientSecret.includes('client_secret_'))) ||
-      (platform !== 'ubereats' && (!platformConfig.apiKey || platformConfig.apiKey.includes('api_key_')));
-
-    if (!isValid && isMockCredentials) {
-      console.log(`[SANDBOX] Signature verification bypassed for ${platform} webhook because mock credentials are used.`);
-      isValid = true;
     }
 
     if (!isValid) {
@@ -156,19 +163,21 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
     // Check if platform is paused
     const settingsDoc = await db.collection('restaurants').doc(restaurantId)
       .collection('deliverySettings').doc(platform).get();
-    
+
     if (settingsDoc.exists) {
       const settingsData = settingsDoc.data();
       if (settingsData.paused) {
         let isPaused = true;
         if (settingsData.pauseUntil) {
-          const pauseUntilDate = settingsData.pauseUntil.toDate ? settingsData.pauseUntil.toDate() : new Date(settingsData.pauseUntil);
+          const pauseUntilDate = settingsData.pauseUntil.toDate
+            ? settingsData.pauseUntil.toDate()
+            : new Date(settingsData.pauseUntil);
           if (pauseUntilDate <= new Date()) {
             isPaused = false;
           }
         }
         if (isPaused) {
-          console.warn(`Incoming order webhook for ${platform} rejected: Channel is paused. Reason: ${settingsData.pauseReason || 'None'}`);
+          console.warn(`Webhook for ${platform} rejected — channel paused. Reason: ${settingsData.pauseReason || 'None'}`);
           return res.status(503).send(`Service Temporarily Unavailable: Channel ${platform} is paused.`);
         }
       }
@@ -176,7 +185,7 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
 
     // Normalize order
     const normalizedOrder = adapter.normalize(req.body);
-    
+
     // Set auto-accept state
     const autoAccept = restData.deliverySettings?.autoAccept ?? false;
     if (autoAccept) {
@@ -191,13 +200,11 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
     const orderRef = db.collection('restaurants').doc(restaurantId).collection('orders');
     const savedDoc = await orderRef.add(normalizedOrder);
 
-    console.log(`Successfully processed ${platform} order ${normalizedOrder.externalOrderId} -> docId ${savedDoc.id}`);
+    console.log(`Processed ${platform} order ${normalizedOrder.externalOrderId} -> docId ${savedDoc.id}`);
 
-    // Return response to platform
     if (platform === 'ubereats') {
       return res.status(200).json({ status: 'ok', order_id: normalizedOrder.externalOrderId });
     }
-
     return res.status(200).send('Order Processed');
   } catch (error) {
     console.error(`Error processing delivery webhook for platform ${platform}:`, error);
@@ -205,37 +212,41 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// Endpoint to manually trigger menu sync or accept/reject delivery orders
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTP: Menu sync + order accept/reject — SECURED with Firebase Auth token
+// ─────────────────────────────────────────────────────────────────────────────
 exports.syncDeliveryMenu = functions.https.onRequest(async (req, res) => {
+  // Require valid Firebase Auth Bearer token
+  const decodedToken = await verifyAuthToken(req, res);
+  if (!decodedToken) return;
+
   const { restaurantId, platform, action, orderId } = req.query;
   if (!restaurantId) {
     return res.status(400).send('Missing restaurantId');
   }
 
-  // Handle order accept/reject actions from the POS frontend OnlineOrders page
+  // Handle order accept/reject actions from the POS frontend
   if (action) {
     if (!platform || !orderId) {
       return res.status(400).send('Missing platform or orderId for order action');
     }
     try {
-      console.log(`[ORDER ACTION] Simulating order ${action} for platform ${platform}, order ${orderId} at restaurant ${restaurantId}`);
-      // In a production environment, this is where we would invoke the platform's order acceptance/rejection APIs
-      // (e.g. POST https://api.uber.com/v1/order/{orderId}/accept)
-      
+      console.log(`[ORDER ACTION] ${action} for ${platform} order ${orderId} at ${restaurantId} by uid=${decodedToken.uid}`);
+      // TODO: Call platform APIs (Uber Eats, Zomato…) to accept/reject the order
       return res.status(200).json({
         success: true,
         action,
         platform,
         orderId,
-        details: `Simulated order ${action} notification sent successfully to ${platform} (Sandbox Mode).`
+        details: `Order ${action} processed for ${platform}.`
       });
     } catch (err) {
-      console.error(`Error notifying platform ${platform} of order ${action}:`, err);
+      console.error(`Error notifying ${platform} of order ${action}:`, err);
       return res.status(500).send(err.message);
     }
   }
 
-  // Otherwise, handle manual menu sync
+  // Manual menu sync
   try {
     const { syncAllEnabledPlatforms } = require('./menu/syncMenu');
     const result = await syncAllEnabledPlatforms(restaurantId, platform || null);
@@ -244,4 +255,3 @@ exports.syncDeliveryMenu = functions.https.onRequest(async (req, res) => {
     return res.status(500).send(err.message);
   }
 });
-

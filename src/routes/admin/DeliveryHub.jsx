@@ -226,7 +226,7 @@ export default function DeliveryHub() {
         
         for (const rule of busyHours) {
           const isOvernight = rule.start > rule.end;
-          let ruleActive = false;
+          let ruleActive;
           
           if (rule.day === 'all') {
             ruleActive = isOvernight

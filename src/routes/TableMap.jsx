@@ -272,7 +272,6 @@ export default function TableMap() {
         rightCount = Math.floor(capacity / 4);
       }
 
-      let chairIndex = 0;
       const addChairsForEdge = (count, edge) => {
         const step = size / (count + 1);
         for (let i = 0; i < count; i++) {

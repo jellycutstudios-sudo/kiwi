@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
@@ -10,8 +11,17 @@ import { CURRENCY_OPTIONS } from '../utils/formatCurrency';
 
 export default function Login() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { loginWithEmail, loginWithPin, loading, error, clearError } = useAuthStore();
-  const [mode, setMode] = useState('email'); // 'email' | 'pin' | 'register'
+  // Derive initial mode from URL query param at mount — no useEffect needed
+  const [mode, setMode] = useState(() => {
+    const queryMode = searchParams.get('mode');
+    if (queryMode === 'register' || queryMode === 'pin' || queryMode === 'email') {
+      return queryMode;
+    }
+    return 'email';
+  });
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -109,6 +119,9 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-form-card">
+        <Link to="/" className="login-back-home">
+          ← Home
+        </Link>
         <div className="login-card-header">
           <div className="login-logo">🍽️</div>
           <h2 className="login-card-title">

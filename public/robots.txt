@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Allow: /landing
+Allow: /order/
+
+# Disallow authenticated/internal app routes
+Disallow: /dashboard
+Disallow: /pos
+Disallow: /tables
+Disallow: /orders
+Disallow: /kds
+Disallow: /reports
+Disallow: /admin/
+Disallow: /login
+Disallow: /pending-approval
+Disallow: /display/
+
+Sitemap: https://kiwios.com/sitemap.xml
