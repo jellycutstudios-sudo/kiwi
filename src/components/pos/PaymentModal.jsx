@@ -734,13 +734,15 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                     padding: 'var(--space-3) var(--space-2)',
                     borderRadius: 'var(--radius-lg)',
                     border: `2px solid ${paymentMethod === m.key ? m.color : 'var(--color-separator-opaque)'}`,
-                    background: paymentMethod === m.key ? 'var(--color-bg)' : 'transparent',
+                    background: paymentMethod === m.key ? 'rgba(128,128,128,0.08)' : 'transparent',
+                    boxShadow: paymentMethod === m.key ? `0 8px 16px -4px rgba(0,0,0,0.1), 0 4px 8px -4px ${m.color}` : 'none',
+                    transform: paymentMethod === m.key ? 'translateY(-2px)' : 'none',
                     cursor: 'pointer',
-                    transition: 'all var(--duration-fast)',
+                    transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
                     fontFamily: 'var(--font-family)',
                   }}
                 >
-                  <div style={{ marginBottom: 6 }}>
+                  <div style={{ marginBottom: 6, transform: paymentMethod === m.key ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.2s ease' }}>
                     <m.icon size={20} color={paymentMethod === m.key ? m.color : 'var(--color-label-secondary)'} />
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 'var(--weight-bold)', color: paymentMethod === m.key ? 'var(--color-label)' : 'var(--color-label-secondary)' }}>
