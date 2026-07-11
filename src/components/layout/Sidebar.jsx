@@ -88,8 +88,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       {/* Header */}
       <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div className="sidebar-logo">🍽️</div>
-          {!isCollapsed && <span className="sidebar-brand">RestaurantOS</span>}
+          {isCollapsed ? (
+            <img src="/fav.png" alt="Icon" style={{ width: '32px', height: '32px' }} />
+          ) : (
+            <img src="/logorupos.svg" alt="Logo" style={{ height: '28px', marginLeft: '4px' }} />
+          )}
         </div>
         <button
           className="btn btn-ghost btn-icon sidebar-close-btn"

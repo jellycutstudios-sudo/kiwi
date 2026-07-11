@@ -123,7 +123,7 @@ export default function Login() {
           ← Home
         </Link>
         <div className="login-card-header">
-          <div className="login-logo">🍽️</div>
+          <img src="/logorupos.svg" alt="Logo" style={{ display: 'block', margin: '0 auto 16px', height: '40px' }} />
           <h2 className="login-card-title">
             {mode === 'email' ? t('adminLogin') : mode === 'pin' ? t('staffLogin') : 'Register Restaurant'}
           </h2>

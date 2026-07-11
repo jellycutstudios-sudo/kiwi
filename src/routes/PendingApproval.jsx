@@ -37,8 +37,19 @@ export default function PendingApproval() {
         <div style={{ fontSize: 'var(--text-footnote)', color: 'var(--color-label-tertiary)', background: 'var(--color-bg-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)' }}>
           <h4 style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-label-secondary)', marginBottom: 6 }}>Next Steps:</h4>
           <ol style={{ paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <li>Please contact the system Super Admin to make your subscription payment offline.</li>
-            <li>Provide your <strong>Restaurant ID</strong> listed above.</li>
+            <li>
+              Please contact the system Super Admin via{' '}
+              <a 
+                href={`https://wa.me/919400018008?text=Hello%20Super%20Admin,%20I%20have%20completed%20the%20registration%20for%20my%20restaurant%20and%20would%20like%20to%20arrange%20the%20offline%20payment%20verification.%0A%0ARestaurant%20ID%3A%20${restaurant?.id}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: 'var(--color-success, #28c840)', fontWeight: 'var(--weight-bold, 700)', textDecoration: 'underline' }}
+              >
+                WhatsApp (+91 94000 18008)
+              </a>{' '}
+              to make your subscription payment offline.
+            </li>
+            <li>Provide your <strong>Restaurant ID</strong> ({restaurant?.id || 'N/A'}) to the admin.</li>
             <li>Once the payment is received, the Super Admin will approve your account, and you will gain immediate access to RestaurantOS.</li>
           </ol>
         </div>

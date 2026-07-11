@@ -52,8 +52,10 @@ service cloud.firestore {
     match /restaurants/{restaurantId} {
       // Public read — online order page needs restaurant name/logo
       allow read: if true;
-      // Write — only authenticated admin-level users who belong to this restaurant
-      allow write: if isUserAdmin(restaurantId);
+      // Create — any signed-in user can register a new restaurant
+      allow create: if isSignedIn();
+      // Update/Delete — only authenticated admin-level users who belong to this restaurant
+      allow update, delete: if isUserAdmin(restaurantId);
 
       // Staff — public read (PIN login), admin write only
       match /staff/{staffId} {
