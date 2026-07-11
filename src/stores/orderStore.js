@@ -28,6 +28,7 @@ export const useOrderStore = create((set, get) => ({
   activeOrders: [],
   onlineOrders: [],
   unreadOnlineCount: 0,
+  notifiedReadyOrders: new Set(),
 
   // Payment
   paymentMethod: 'cash',  // 'cash' | 'card' | 'upi' | 'split'
@@ -91,7 +92,8 @@ export const useOrderStore = create((set, get) => ({
     discount: order.discount ?? 0,
     discountType: order.discountType ?? 'fixed',
     splitPayments: order.splitPayments ?? [],
-    upiRef: order.upiRef ?? ''
+    upiRef: order.upiRef ?? '',
+    tokenNumber: order.token ?? null
   }),
 
   clearCart: () => {
@@ -566,28 +568,70 @@ export const useOrderStore = create((set, get) => ({
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
       where('status', 'in', ['pending', 'preparing', 'ready']),
-      orderBy('createdAt', 'desc'),
       limit(100)
     );
     let isInitial = true;
     return onSnapshot(q, snap => {
-      const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const rawOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Sort in memory by createdAt descending to avoid composite index requirement
+      const orders = rawOrders.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return timeB - timeA;
+      });
       const online = orders.filter(o => o.type === 'online');
 
-      // Play chime for newly added online pending orders
+      // Play chime and show toast notifications for order events
       if (!isInitial) {
         snap.docChanges().forEach(change => {
+          const data = change.doc.data();
+          const orderId = change.doc.id;
+
+          const playChime = () => {
+            try {
+              const audio = new Audio('/sounds/order-chime.wav');
+              audio.play().catch(e => console.log('Chime playback blocked/failed:', e));
+            } catch (err) {
+              console.warn('Failed to play order chime:', err);
+            }
+          };
+
           if (change.type === 'added') {
-            const data = change.doc.data();
+            // New Online Order (Pending)
             if (data.type === 'online' && data.status === 'pending') {
-              try {
-                // Use locally bundled chime — no external CDN dependency
-                const audio = new Audio('/sounds/order-chime.wav');
-                audio.play().catch(e => console.log('Chime playback blocked/failed:', e));
-              } catch (err) {
-                console.warn('Failed to play order chime:', err);
+              playChime();
+              toast('🔔 New online order received!', { duration: 6000 });
+            }
+            // New POS/Dine-In/Takeaway Order placed by another terminal/waiter
+            else if (data.status === 'pending') {
+              playChime();
+              const orderDesc = data.tableName ? `Table ${data.tableName}` : `Order #${orderId.slice(-4).toUpperCase()}`;
+              toast(`🍽️ New order placed for ${orderDesc}!`, { duration: 5000 });
+            }
+          }
+
+          if (change.type === 'modified') {
+            // Check if status transitioned to 'ready' (prepared by kitchen)
+            if (data.status === 'ready') {
+              const notified = get().notifiedReadyOrders || new Set();
+              if (!notified.has(orderId)) {
+                notified.add(orderId);
+                set({ notifiedReadyOrders: notified });
+                playChime();
+                
+                const orderDesc = data.tableName ? `Table ${data.tableName}` : `Takeaway #${orderId.slice(-4).toUpperCase()}`;
+                toast(`🍳 ${orderDesc} is READY to serve!`, { duration: 6000 });
               }
-              toast('New online order received!', { icon: '🔔', duration: 6000 });
+            }
+          }
+
+          if (change.type === 'removed') {
+            // Check if order was cancelled
+            if (data.status === 'cancelled') {
+              playChime();
+              const orderDesc = data.tableName ? `Table ${data.tableName}` : `Order #${orderId.slice(-4).toUpperCase()}`;
+              toast.error(`❌ ${orderDesc} has been CANCELLED!`, { duration: 6000 });
             }
           }
         });

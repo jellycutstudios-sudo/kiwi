@@ -28,3 +28,4 @@ dist-ssr
 
 # Local environment
 .node_env/
+.vercel

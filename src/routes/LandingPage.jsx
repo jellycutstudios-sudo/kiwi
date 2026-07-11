@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -18,6 +18,18 @@ export default function LandingPage() {
   const { user, staffDoc } = useAuthStore();
   const isAuth = !!user || !!staffDoc;
   const isRtl = i18n.language === 'ar';
+
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [activeMockupTab, setActiveMockupTab] = useState('tables'); // 'tables' or 'cart'
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const toggleLanguage = () => {
     const next = i18n.language === 'ar' ? 'en' : 'ar';
@@ -74,16 +86,16 @@ export default function LandingPage() {
           <div className="neo-nav-actions">
             <button onClick={toggleLanguage} className="neo-lang-btn" title="Toggle Language">
               <Globe size={16} />
-              <span>{i18n.language === 'ar' ? 'English' : 'العربية'}</span>
+              <span>{isMobileView ? (i18n.language === 'ar' ? 'EN' : 'AR') : (i18n.language === 'ar' ? 'English' : 'العربية')}</span>
             </button>
 
             {isAuth ? (
               <Link to="/dashboard" className="neo-btn neo-btn-primary">
-                {t('goToDashboard')}
+                {isMobileView ? 'Dashboard' : t('goToDashboard')}
               </Link>
             ) : (
               <Link to="/login" className="neo-btn neo-btn-secondary">
-                {t('signIn')}
+                {isMobileView ? 'Login' : t('signIn')}
               </Link>
             )}
           </div>
@@ -129,107 +141,95 @@ export default function LandingPage() {
             </div>
             
             {/* Embedded Interactive POS simulator */}
-            <div className="neo-browser-content" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
-              
-              {/* Tables Map */}
-              <div style={{ background: '#fff', border: '2px solid #000', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h4 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#666' }}>{t('tables')}</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  {Object.values(tables).map((tbl) => (
-                    <button
-                      key={tbl.id}
-                      onClick={() => handleTableClick(tbl.id)}
-                      style={{
-                        padding: '16px 12px',
-                        border: '2px solid #000',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        fontWeight: '700',
-                        fontFamily: 'Satoshi, sans-serif',
-                        background: tbl.id === selectedTable ? 'var(--neo-yellow)' : '#fff',
-                        transform: tbl.id === selectedTable ? 'translate(2px, 2px)' : 'none',
-                        boxShadow: tbl.id === selectedTable ? 'none' : '3px 3px 0px #000',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.1s ease'
-                      }}
-                    >
-                      <span style={{ fontSize: '14px' }}>{tbl.name}</span>
-                      <span style={{
-                        fontSize: '9px',
-                        fontWeight: '800',
-                        padding: '2px 8px',
-                        borderRadius: '20px',
-                        background: tbl.status === 'occupied' ? '#ff5f57' : tbl.status === 'billed' ? '#febc2e' : '#28c840',
-                        color: tbl.status === 'occupied' ? '#fff' : '#000',
-                        border: '1px solid #000'
-                      }}>
-                        {t(tbl.status)}
-                      </span>
-                    </button>
-                  ))}
+            <div className="neo-browser-content">
+              {/* Tab Selector for Mobile / Tab View */}
+              {isMobileView && (
+                <div className="neo-mockup-tabs">
+                  <button 
+                    onClick={() => setActiveMockupTab('tables')}
+                    className={`neo-mockup-tab ${activeMockupTab === 'tables' ? 'active' : ''}`}
+                  >
+                    {t('tables') || 'Tables'}
+                  </button>
+                  <button 
+                    onClick={() => setActiveMockupTab('cart')}
+                    className={`neo-mockup-tab ${activeMockupTab === 'cart' ? 'active' : ''}`}
+                  >
+                    {t('cart') || 'Cart'} ({tables[selectedTable].items.length})
+                  </button>
                 </div>
-              </div>
+              )}
 
-              {/* Bill Details */}
-              <div style={{ background: '#fff', border: '2px solid #000', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <h4 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#666', marginBottom: '12px' }}>
-                    {tables[selectedTable].name} {t('cart')}
-                  </h4>
-                  
-                  {/* Status update simulated */}
-                  <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
-                    {['free', 'occupied', 'billed'].map((st) => (
-                      <button
-                        key={st}
-                        onClick={() => toggleTableStatus(selectedTable, st)}
-                        style={{
-                          flex: 1,
-                          fontSize: '10px',
-                          fontWeight: '800',
-                          padding: '6px 4px',
-                          fontFamily: 'Satoshi, sans-serif',
-                          border: '1.5px solid #000',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          background: tables[selectedTable].status === st ? 'var(--neo-sage)' : '#fff',
-                          transition: 'background-color 0.1s'
-                        }}
-                      >
-                        {t(st)}
-                      </button>
-                    ))}
+              <div className="neo-browser-grid">
+                {/* Tables Map */}
+                {(!isMobileView || activeMockupTab === 'tables') && (
+                  <div className="neo-mockup-col neo-mockup-col-tables">
+                    <h4 className="neo-mockup-col-title">{t('tables')}</h4>
+                    <div className="neo-mockup-tables-grid">
+                      {Object.values(tables).map((tbl) => (
+                        <button
+                          key={tbl.id}
+                          onClick={() => handleTableClick(tbl.id)}
+                          className={`neo-mockup-table-btn ${tbl.id === selectedTable ? 'selected' : ''}`}
+                        >
+                          <span className="neo-mockup-table-name">{tbl.name}</span>
+                          <span className={`neo-mockup-table-status-badge status-${tbl.status}`}>
+                            {t(tbl.status)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                )}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '140px', overflowY: 'auto' }}>
-                    {tables[selectedTable].items.length > 0 ? (
-                      tables[selectedTable].items.map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px dashed #ddd', paddingBottom: '6px' }}>
-                          <div>
-                            <span style={{ fontWeight: '700' }}>{item.name}</span>
-                            <span style={{ color: '#666', marginLeft: '6px' }}>x{item.qty}</span>
-                          </div>
-                          <span style={{ fontWeight: '700' }}>₹{item.qty * item.price}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ textAlign: 'center', color: '#999', fontSize: '12px', padding: '24px 0' }}>
-                        <UtensilsCrossed size={18} style={{ marginBottom: '6px', opacity: 0.5 }} />
-                        <div>{t('emptyCart')}</div>
+                {/* Bill Details */}
+                {(!isMobileView || activeMockupTab === 'cart') && (
+                  <div className="neo-mockup-col neo-mockup-col-cart">
+                    <div className="neo-mockup-cart-upper">
+                      <h4 className="neo-mockup-col-title">
+                        {tables[selectedTable].name} {t('cart')}
+                      </h4>
+                      
+                      {/* Status update simulated */}
+                      <div className="neo-mockup-status-toggle">
+                        {['free', 'occupied', 'billed'].map((st) => (
+                          <button
+                            key={st}
+                            onClick={() => toggleTableStatus(selectedTable, st)}
+                            className={`neo-mockup-status-btn ${tables[selectedTable].status === st ? 'active' : ''}`}
+                          >
+                            {t(st)}
+                          </button>
+                        ))}
                       </div>
-                    )}
+
+                      <div className="neo-mockup-cart-items">
+                        {tables[selectedTable].items.length > 0 ? (
+                          tables[selectedTable].items.map((item, idx) => (
+                            <div key={idx} className="neo-mockup-cart-item">
+                              <div>
+                                <span className="neo-mockup-item-name">{item.name}</span>
+                                <span className="neo-mockup-item-qty">x{item.qty}</span>
+                              </div>
+                              <span className="neo-mockup-item-total">₹{item.qty * item.price}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="neo-mockup-cart-empty">
+                            <UtensilsCrossed size={18} className="neo-mockup-empty-icon" />
+                            <div>{t('emptyCart')}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="neo-mockup-cart-footer">
+                      <span>{t('total')}</span>
+                      <span>₹{getTableBillTotal(tables[selectedTable].items)}</span>
+                    </div>
                   </div>
-                </div>
-
-                <div style={{ borderTop: '2.5px solid #000', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '15px' }}>
-                  <span>{t('total')}</span>
-                  <span>₹{getTableBillTotal(tables[selectedTable].items)}</span>
-                </div>
+                )}
               </div>
-
             </div>
           </div>
         </div>

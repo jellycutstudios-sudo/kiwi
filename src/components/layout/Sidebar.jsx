@@ -16,22 +16,22 @@ import toast from 'react-hot-toast';
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
   { key: 'pos',            path: '/pos',                  icon: ShoppingCart,    label: 'pos',          roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
-  { key: 'tables',         path: '/tables',               icon: LayoutGrid,      label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
+  { key: 'tables',         path: '/tables',               icon: LayoutGrid,      label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'], requiredMode: 'table' },
   { key: 'active_orders',  path: '/orders',               icon: ClipboardList,   label: 'activeOrders', roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
-  { key: 'online_orders',  path: '/online-orders',        icon: Truck,           label: 'deliveryOrders', roles: ['admin', 'super_admin', 'cashier'], badge: true },
-  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Sliders,         label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'] },
-  { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen'] },
+  { key: 'online_orders',  path: '/online-orders',        icon: Truck,           label: 'deliveryOrders', roles: ['admin', 'super_admin', 'cashier'], badge: true, requiredMode: 'online' },
+  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Sliders,         label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'], requiredMode: 'delivery_hub' },
+  { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen'], requiredMode: 'kds' },
   { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin'] },
 ];
 
 const ADMIN_NAV = [
   { key: 'staff',       path: '/admin/staff',       icon: Users,            label: 'staff' },
-  { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll' },
+  { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll', requiredMode: 'payroll' },
   { key: 'menu',        path: '/admin/menu',         icon: UtensilsCrossed,  label: 'menu' },
-  { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory' },
-  { key: 'customers',   path: '/admin/customers',    icon: Contact,          label: 'customers' },
-  { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations' },
-  { key: 'floor',       path: '/admin/floor',        icon: Map,              label: 'floorPlan' },
+  { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory', requiredMode: 'inventory' },
+  { key: 'customers',   path: '/admin/customers',    icon: Contact,          label: 'customers', requiredMode: 'customers' },
+  { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
+  { key: 'floor',       path: '/admin/floor',        icon: Map,              label: 'floorPlan', requiredMode: 'table' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];
@@ -125,7 +125,15 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         {!isSuperAdmin && (
           <>
             {!isCollapsed && <div className="sidebar-section-label">{t('pos')}</div>}
-            {NAV.filter(n => n.roles.includes('all') || n.roles.includes(role)).map(n => (
+            {NAV.filter(n => {
+              const hasRole = n.roles.includes('all') || n.roles.includes(role);
+              if (!hasRole) return false;
+              if (n.requiredMode) {
+                const modes = restaurant?.modes ?? ['pos'];
+                return modes.includes(n.requiredMode);
+              }
+              return true;
+            }).map(n => (
               <NavLink
                 key={n.key}
                 to={n.path}
@@ -164,7 +172,15 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         {isAdmin && (
           <>
             {!isCollapsed && <div className="sidebar-section-label" style={{marginTop: isSuperAdmin ? 0 : 'var(--space-3)'}}>{t('admin')}</div>}
-            {ADMIN_NAV.filter(n => isSuperAdmin ? n.superAdmin : !n.superAdmin).map(n => (
+            {ADMIN_NAV.filter(n => {
+              const hasRole = isSuperAdmin ? n.superAdmin : !n.superAdmin;
+              if (!hasRole) return false;
+              if (n.requiredMode) {
+                const modes = restaurant?.modes ?? ['pos'];
+                return modes.includes(n.requiredMode);
+              }
+              return true;
+            }).map(n => (
               <NavLink
                 key={n.key}
                 to={n.path}

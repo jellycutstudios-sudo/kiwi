@@ -1,7 +1,7 @@
 // Token Store — manages token issuance and TV display
 import { create } from 'zustand';
 import {
-  doc, onSnapshot, runTransaction
+  doc, onSnapshot, runTransaction, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -41,7 +41,23 @@ export const useTokenStore = create((set) => ({
       const snap = await tx.get(tokenRef);
       if (!snap.exists()) return;
       const current = snap.data().current ?? 0;
-      tx.update(tokenRef, { current: current + 1 });
+      tx.update(tokenRef, { 
+        current: current + 1,
+        lastCalledAt: serverTimestamp() 
+      });
+    });
+  },
+
+  // Call a specific token number directly (cashier/KDS action)
+  callSpecificToken: async (restaurantId, tokenNumber) => {
+    const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(tokenRef);
+      tx.set(tokenRef, {
+        current: Number(tokenNumber),
+        latest: snap.exists() ? (snap.data().latest ?? Number(tokenNumber)) : Number(tokenNumber),
+        lastCalledAt: serverTimestamp()
+      }, { merge: true });
     });
   },
 
@@ -50,14 +66,15 @@ export const useTokenStore = create((set) => ({
     const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
     return onSnapshot(tokenRef, (snap) => {
       if (snap.exists()) {
-        const { current = 0, latest = 0 } = snap.data();
+        const { current = 0, latest = 0, lastCalledAt = null } = snap.data();
+        const callTime = lastCalledAt?.toDate ? lastCalledAt.toDate().getTime() : Date.now();
         const queue = Array.from(
           { length: Math.max(0, latest - current) },
           (_, i) => current + i + 1
         ).slice(0, 10);
-        set({ currentServing: current, latestIssued: latest, queue });
+        set({ currentServing: current, latestIssued: latest, queue, lastCalledAt: callTime });
       } else {
-        set({ currentServing: 0, latestIssued: 0, queue: [] });
+        set({ currentServing: 0, latestIssued: 0, queue: [], lastCalledAt: null });
       }
     });
   },

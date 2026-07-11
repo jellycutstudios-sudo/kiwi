@@ -7,11 +7,16 @@ import { Save, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const MODES = [
-  { key: 'pos',    label: '🧾 Bill Only',        desc: 'Simple cashier-only billing' },
-  { key: 'table',  label: '🗺️ Table Management',  desc: 'Floor plan with table assignment' },
-  { key: 'token',  label: '🎫 Token / QSR',       desc: 'Token issuance & TV display' },
-  { key: 'online', label: '📱 Online Orders',     desc: 'Customer-facing order page' },
-  { key: 'kds',    label: '🍳 Kitchen Display',   desc: 'KDS screen for kitchen staff' },
+  { key: 'pos',          label: '🧾 Bill Only',            desc: 'Simple cashier-only billing' },
+  { key: 'table',        label: '🗺️ Table Management',      desc: 'Floor plan with table assignment' },
+  { key: 'token',        label: '🎫 Token / QSR',           desc: 'Token issuance & TV display' },
+  { key: 'online',       label: '📱 Online Orders',         desc: 'Customer-facing order page' },
+  { key: 'kds',          label: '🍳 Kitchen Display',       desc: 'KDS screen for kitchen staff' },
+  { key: 'inventory',    label: '📦 Inventory Management',  desc: 'Track ingredients, stock, and suppliers' },
+  { key: 'payroll',      label: '💸 Staff Payroll',         desc: 'Manage staff wages, shifts, and payouts' },
+  { key: 'delivery_hub', label: '🛵 Delivery Hub',          desc: 'Manage in-house and third-party delivery orders' },
+  { key: 'reservations',  label: '📅 Table Reservations',    desc: 'Book and manage table reservations' },
+  { key: 'customers',    label: '🤝 Loyalty & Customers',   desc: 'Manage customer profiles and reward points' },
 ];
 
 const TAX_TYPES = [
@@ -33,7 +38,21 @@ export default function Settings() {
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+
+  useEffect(() => {
+    if (copiedToken) {
+      const timer = setTimeout(() => setCopiedToken(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedToken]);
+
+  const copyTokenDisplayLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/display/tokens/${restaurant?.id}`);
+    setCopiedToken(true);
+    toast.success('TV display URL copied!');
+  };
 
   useEffect(() => {
     if (!restaurant?.id) return;
@@ -208,37 +227,100 @@ export default function Settings() {
                 <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
                   Enable or disable features for your restaurant type
                 </p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-                  {MODES.map(m => {
-                    const active = (settings.modes ?? []).includes(m.key);
-                    return (
-                      <label key={m.key} style={{
-                        display:'flex', alignItems:'center', gap:'var(--space-4)',
-                        padding:'var(--space-4)',
-                        border:`2px solid ${active ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                        borderRadius:'var(--radius-lg)',
-                        background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                        cursor:'pointer',
-                        transition:'all var(--duration-fast)',
-                      }}>
-                        <input
-                          type="checkbox"
-                          id={`mode-${m.key}`}
-                          checked={active}
-                          onChange={e => {
-                            const modes = settings.modes ?? [];
-                            updateField('modes', e.target.checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
-                          }}
-                        />
-                        <div>
-                          <div style={{ fontWeight:'var(--weight-semibold)', fontSize:'var(--text-subhead)' }}>{m.label}</div>
-                          <div style={{ fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:1 }}>{m.desc}</div>
-                        </div>
-                      </label>
-                    );
-                  })}
+                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
+                  {[
+                    {
+                      title: '⚡ Core Operations & Billing',
+                      desc: 'Basic modes for managing service types and kitchen workflow.',
+                      keys: ['pos', 'table', 'token', 'kds']
+                    },
+                    {
+                      title: '🌐 Sales Channels & Bookings',
+                      desc: 'Enable customer-facing ordering, reservations, and deliveries.',
+                      keys: ['online', 'delivery_hub', 'reservations']
+                    },
+                    {
+                      title: '💼 Back Office & Admin',
+                      desc: 'Tools for tracking inventory, staff payroll, and customer loyalty.',
+                      keys: ['inventory', 'payroll', 'customers']
+                    }
+                  ].map(group => (
+                    <div key={group.title} style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
+                      <div style={{ borderBottom:'1px solid var(--color-separator)', paddingBottom:'var(--space-2)' }}>
+                        <h4 style={{ fontWeight:'var(--weight-bold)', fontSize:'var(--text-subhead)', color:'var(--color-label-primary)' }}>{group.title}</h4>
+                        <p className="text-secondary text-caption1" style={{ marginTop:2 }}>{group.desc}</p>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'var(--space-3)' }}>
+                        {group.keys.map(key => {
+                          const m = MODES.find(x => x.key === key);
+                          if (!m) return null;
+                          const active = (settings.modes ?? []).includes(m.key);
+                          return (
+                            <label key={m.key} style={{
+                              display:'flex', alignItems:'flex-start', gap:'var(--space-3)',
+                              padding:'var(--space-3) var(--space-4)',
+                              border:`1px solid ${active ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
+                              borderRadius:'var(--radius-md)',
+                              background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
+                              cursor:'pointer',
+                              transition:'all var(--duration-fast)',
+                            }}>
+                              <input
+                                type="checkbox"
+                                id={`mode-${m.key}`}
+                                checked={active}
+                                style={{ marginTop: 3 }}
+                                onChange={e => {
+                                  const modes = settings.modes ?? [];
+                                  updateField('modes', e.target.checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
+                                }}
+                              />
+                              <div>
+                                <div style={{ fontWeight:'var(--weight-semibold)', fontSize:'var(--text-footnote)', color:'var(--color-label-primary)' }}>{m.label}</div>
+                                <div style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-secondary)', marginTop:2, lineHeight:1.3 }}>{m.desc}</div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {/* QSR TV Display Link */}
+              {(settings.modes ?? []).includes('token') && (
+                <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  <div>
+                    <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>📺 QSR TV Token Display Link</h3>
+                    <p className="text-secondary text-footnote">
+                      Open this URL on a TV or monitor in the waiting area to show the live token queue to customers.
+                    </p>
+                  </div>
+                  <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+                    <input
+                      className="form-input"
+                      readOnly
+                      value={`${window.location.origin}/display/tokens/${restaurant?.id}`}
+                      style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
+                    />
+                    <button className="btn btn-primary" id="copy-token-link-btn" onClick={copyTokenDisplayLink} type="button">
+                      {copiedToken ? <Check size={16}/> : <Copy size={16}/>}
+                      {copiedToken ? 'Copied!' : 'Copy'}
+                    </button>
+                    <a 
+                      href={`/display/tokens/${restaurant?.id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-icon"
+                      title="Open in new tab"
+                      style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}
+                    >
+                      🔗
+                    </a>
+                  </div>
+                </div>
+              )}
 
               {/* Service Charge & Gratuity */}
               <div className="card card-padded">

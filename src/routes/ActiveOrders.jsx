@@ -5,6 +5,7 @@ import { useOrderStore } from '../stores/orderStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
 import { printReceipt } from '../utils/print';
+import { useTokenStore } from '../stores/tokenStore';
 import { 
   ClipboardList, Search, Clock, Printer, Check, ChefHat, 
   Bell, AlertTriangle, User, Eye, X
@@ -15,7 +16,18 @@ export default function ActiveOrders() {
   const { t } = useTranslation();
   const { restaurant, staffDoc } = useAuthStore();
   const { activeOrders, updateOrderStatus } = useOrderStore();
+  const { callSpecificToken } = useTokenStore();
   
+  const handleCallToken = async (tokenNumber) => {
+    if (!restaurant?.id) return;
+    try {
+      await callSpecificToken(restaurant.id, tokenNumber);
+      toast.success(`Calling Token #${tokenNumber} on TV Display!`, { icon: '📢' });
+    } catch (err) {
+      toast.error("Failed to call token number");
+    }
+  };
+
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'dine-in' | 'takeaway' | 'online'
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'preparing' | 'ready' (for mobile toggle)
@@ -49,10 +61,15 @@ export default function ActiveOrders() {
     setCrossedItems(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleStatusChange = async (orderId, nextStatus, successMsg) => {
+  const handleStatusChange = async (order, nextStatus, successMsg) => {
     try {
-      await updateOrderStatus(restaurant.id, orderId, nextStatus);
+      await updateOrderStatus(restaurant.id, order.id, nextStatus);
       toast.success(successMsg || `Order status updated to ${nextStatus}!`);
+      
+      // Auto-call token if completing/serving
+      if ((nextStatus === 'served' || nextStatus === 'billed') && order.token) {
+        handleCallToken(order.token);
+      }
     } catch (err) {
       toast.error('Failed to update status: ' + err.message);
     }
@@ -117,7 +134,9 @@ export default function ActiveOrders() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-body)', color: 'var(--color-label)' }}>
-                {order.type === 'dine-in' ? `🍽️ ${order.tableName || 'Table'}` : order.type === 'takeaway' ? `🛍️ Token #${order.token ?? '—'}` : `🌐 Online`}
+                {order.token && `🎫 #${order.token} `}
+                {order.type === 'dine-in' && `🍽️ ${order.tableName || 'Table'}`}
+                {!order.token && order.type !== 'dine-in' && (order.type === 'takeaway' ? `🛍️ Takeaway` : `🌐 Online`)}
               </span>
               <span style={{
                 fontSize: '10px',
@@ -225,11 +244,32 @@ export default function ActiveOrders() {
             <Printer size={14} />
           </button>
 
+          {order.token && (
+            <button
+              className="btn btn-secondary btn-icon btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCallToken(order.token);
+              }}
+              title={`Call Token #${order.token}`}
+              style={{ 
+                width: 32, 
+                height: 32, 
+                padding: 0,
+                background: 'rgba(255,176,132,0.15)',
+                color: 'var(--color-brand-peach)',
+                border: '1px solid rgba(255,176,132,0.3)',
+              }}
+            >
+              <Bell size={14} />
+            </button>
+          )}
+
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
             {order.status === 'pending' && (
               <button 
                 className="btn btn-primary btn-sm"
-                onClick={() => handleStatusChange(order.id, 'preparing', 'Sent to preparation')}
+                onClick={() => handleStatusChange(order, 'preparing', 'Sent to preparation')}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', padding: '0 10px', height: 32 }}
               >
                 <ChefHat size={12} />
@@ -240,7 +280,7 @@ export default function ActiveOrders() {
             {order.status === 'preparing' && (
               <button 
                 className="btn btn-primary btn-sm"
-                onClick={() => handleStatusChange(order.id, 'ready', 'Marked as Ready!')}
+                onClick={() => handleStatusChange(order, 'ready', 'Marked as Ready!')}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', padding: '0 10px', height: 32, background: 'var(--color-teal)', borderColor: 'var(--color-teal)' }}
               >
                 <Bell size={12} />
@@ -251,7 +291,7 @@ export default function ActiveOrders() {
             {order.status === 'ready' && (
               <button 
                 className="btn btn-success btn-sm"
-                onClick={() => handleStatusChange(order.id, order.type === 'dine-in' ? 'served' : 'billed', 'Order completed!')}
+                onClick={() => handleStatusChange(order, order.type === 'dine-in' ? 'served' : 'billed', 'Order completed!')}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', padding: '0 10px', height: 32, background: 'var(--color-green)', borderColor: 'var(--color-green)' }}
               >
                 <Check size={12} />
@@ -471,7 +511,28 @@ export default function ActiveOrders() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'var(--color-bg-secondary)', padding: '12px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
                 {selectedOrderDetails.tableName && <div><strong>Table:</strong> {selectedOrderDetails.tableName}</div>}
-                {selectedOrderDetails.token && <div><strong>Token:</strong> #{selectedOrderDetails.token}</div>}
+                {selectedOrderDetails.token ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div><strong>Token:</strong> #{selectedOrderDetails.token}</div>
+                    <button
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => handleCallToken(selectedOrderDetails.token)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        background: 'rgba(92,107,192,0.15)',
+                        color: 'var(--color-accent)',
+                        border: '1px solid rgba(92,107,192,0.3)',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 'var(--weight-bold)'
+                      }}
+                    >
+                      📢 Call Token #{selectedOrderDetails.token}
+                    </button>
+                  </div>
+                ) : null}
                 {selectedOrderDetails.customerName && <div><strong>Customer:</strong> {selectedOrderDetails.customerName}</div>}
                 {selectedOrderDetails.customerPhone && <div><strong>Phone:</strong> {selectedOrderDetails.customerPhone}</div>}
                 <div><strong>Ordered:</strong> {new Date(selectedOrderDetails.createdAt?.toDate ? selectedOrderDetails.createdAt.toDate() : selectedOrderDetails.createdAt).toLocaleTimeString()}</div>

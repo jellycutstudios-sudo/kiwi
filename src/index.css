@@ -836,7 +836,6 @@ ul, ol { list-style: none; }
   flex-direction: column;
   overflow: hidden;
 }
-
 .pos-cart-panel {
   display: flex;
   flex-direction: column;
@@ -3086,5 +3085,58 @@ body, .sidebar, .top-bar, .card, .main-content {
 }
 
 
+/* --- TV Display Flash Animations --- */
+.flash-animate {
+  animation: giantFlash 0.5s ease-out 3;
+}
 
+@keyframes giantFlash {
+  0% { transform: scale(1); filter: drop-shadow(0 0 40px rgba(255,176,132,0.4)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 100px rgba(255,176,132,1)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 40px rgba(255,176,132,0.4)); }
+}
 
+.flash-text {
+  animation: textFlashOpacity 0.5s ease-out 3;
+}
+
+@keyframes textFlashOpacity {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+.voice-unlock-banner {
+  position: fixed;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-accent);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: var(--radius-round);
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: tokenPulse 2s ease-in-out infinite;
+}
+
+.voice-active-banner {
+  position: fixed;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+  padding: 6px 16px;
+  border-radius: var(--radius-round);
+  font-size: 11px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

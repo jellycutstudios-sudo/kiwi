@@ -241,7 +241,15 @@ export default function AppShell() {
             <button
               className="btn btn-secondary btn-icon"
               style={{ position: 'relative' }}
-              onClick={markOnlineOrdersRead}
+              onClick={() => {
+                if (unreadOnlineCount > 0) {
+                  const count = unreadOnlineCount;
+                  markOnlineOrdersRead();
+                  toast.success(`Marked ${count} pending online orders as read.`, { icon: '📭' });
+                } else {
+                  toast('You don\'t have any new notifications.', { icon: '📭' });
+                }
+              }}
               id="notification-bell-btn"
             >
               <Bell size={16} />

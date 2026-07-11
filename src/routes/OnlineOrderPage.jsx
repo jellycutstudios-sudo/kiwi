@@ -339,6 +339,22 @@ export default function OnlineOrderPage() {
     </div>
   );
 
+  // Check if online mode is enabled for this restaurant
+  const isOnlineModeActive = !restaurant.modes || restaurant.modes.includes('online');
+  if (!isOnlineModeActive) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-family)', background:'var(--color-bg-secondary)', padding:'var(--space-4)' }}>
+        <div className="card card-padded" style={{ textAlign:'center', maxWidth:'400px', width:'100%', border:'1px solid var(--color-separator)' }}>
+          <div style={{fontSize:52, marginBottom:'var(--space-3)'}}>📱</div>
+          <h2 className="text-title2" style={{marginBottom:'var(--space-2)', color:'var(--color-label-primary)'}}>Online Ordering Disabled</h2>
+          <p className="text-secondary text-subhead" style={{marginBottom:0, color:'var(--color-label-secondary)'}}>
+            Online ordering is currently turned off for this restaurant. Please contact staff or visit us in person.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // ── Render Order Tracker ─────────────────────────────────
   if (activeOrderId && activeOrder && viewMode === 'tracker') {
     const orderTypeVal = activeOrder.orderType || activeOrder.type || 'dine-in';

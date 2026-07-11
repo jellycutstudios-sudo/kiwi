@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useKdsStore } from '../stores/kdsStore';
+import { useTokenStore } from '../stores/tokenStore';
 import toast from 'react-hot-toast';
 import { ChefHat } from 'lucide-react';
 
@@ -13,6 +14,18 @@ export default function KDS() {
   const { restaurant } = useAuthStore();
   const { activeOrders } = useOrderStore();
   const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
+  const { callSpecificToken } = useTokenStore();
+  
+  const handleCallToken = async (tokenNumber) => {
+    if (!restaurant?.id) return;
+    try {
+      await callSpecificToken(restaurant.id, tokenNumber);
+      toast.success(`Calling Token #${tokenNumber}!`, { icon: '📢' });
+    } catch (err) {
+      toast.error("Failed to call token");
+    }
+  };
+
   const [activeStation, setActiveStation] = useState('All');
   
   const prevCountRef = useRef(0);
@@ -68,6 +81,15 @@ export default function KDS() {
   const handleMarkReady = async (order, station) => {
     await updateKDSStationStatus(restaurant.id, order, station, 'ready');
     toast.success('Station items marked as ready!', { icon: '✅' });
+
+    if (station === 'All' && order.token && modes.includes('token')) {
+      try {
+        await callSpecificToken(restaurant.id, order.token);
+        toast.success(`Auto-called Token #${order.token} on TV display!`, { icon: '📢' });
+      } catch (err) {
+        console.error("Auto-call failed", err);
+      }
+    }
   };
 
   const cycleItemStatus = async (order, itemIndex, currentStatus) => {
@@ -181,9 +203,32 @@ export default function KDS() {
                 {/* Card Header */}
                 <div className="kds-order-header">
                   <div>
-                    <div className="kds-order-id">
-                      {order.type === 'dine-in' ? `🪑 ${order.tableName ?? 'Table'}` :
-                       order.token ? `🎫 #${String(order.token).padStart(3,'0')}` : '🛍️ Takeaway'}
+                    <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      {order.token && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCallToken(order.token);
+                          }}
+                          className="btn btn-secondary btn-xs"
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: 10,
+                            height: 20,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            background: 'rgba(255,176,132,0.15)',
+                            color: 'var(--color-brand-peach)',
+                            border: '1px solid rgba(255,176,132,0.3)',
+                          }}
+                          title="Call token on TV display"
+                        >
+                          📢 #{String(order.token).padStart(3,'0')}
+                        </button>
+                      )}
+                      {order.type === 'dine-in' && `🪑 ${order.tableName ?? 'Table'}`}
+                      {!order.token && order.type !== 'dine-in' && '🛍️ Takeaway'}
                     </div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
                       {order.type} · #{order.id.slice(-6).toUpperCase()}

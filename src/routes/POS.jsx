@@ -5,8 +5,9 @@ import { useOrderStore } from '../stores/orderStore';
 import { useShiftStore } from '../stores/shiftStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
+import { useTableStore } from '../stores/tableStore';
 import { useShallow } from 'zustand/react/shallow';
-import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printTokenTicket } from '../utils/print';
@@ -31,7 +32,9 @@ export default function POS() {
     setPaymentMethod,
     editingOrderId,
     discount, discountType, setDiscount, getDiscountAmount,
-    customer, setCustomerProfile, setRedeemingPoints
+    customer, setCustomerProfile, setRedeemingPoints,
+    loadOrderToCart,
+    tokenNumber, setToken
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -62,7 +65,10 @@ export default function POS() {
       getDiscountAmount: state.getDiscountAmount,
       customer: state.customer,
       setCustomerProfile: state.setCustomerProfile,
-      setRedeemingPoints: state.setRedeemingPoints
+      setRedeemingPoints: state.setRedeemingPoints,
+      loadOrderToCart: state.loadOrderToCart,
+      tokenNumber: state.tokenNumber,
+      setToken: state.setToken
     }))
   );
 
@@ -77,7 +83,7 @@ export default function POS() {
       subscribeActiveShift: state.subscribeActiveShift
     }))
   );
-  const { issueToken, setToken } = useTokenStore();
+  const { issueToken } = useTokenStore();
   const { categories, loading: loadingMenu, search, setSearch } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
@@ -91,6 +97,45 @@ export default function POS() {
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
+
+  const { tables } = useTableStore();
+  const [tableOrders, setTableOrders] = useState({});
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'orders'),
+      where('status', 'in', ['pending', 'preparing', 'ready', 'served']),
+      where('type', '==', 'dine-in')
+    );
+    return onSnapshot(q, snap => {
+      const map = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.tableId) map[data.tableId] = { id: d.id, ...data };
+      });
+      setTableOrders(map);
+    });
+  }, [restaurant?.id]);
+
+  const handleTableSelectQuick = (table) => {
+    if (table.status === 'occupied') {
+      const activeOrder = tableOrders[table.id];
+      if (activeOrder) {
+        loadOrderToCart(activeOrder);
+        toast.success(`Loaded active order for ${table.name}`, { icon: '🍽️' });
+      } else {
+        setTable(table.id, table.name);
+        toast.success(`Selected ${table.name}`, { icon: '🪑' });
+      }
+    } else {
+      if (editingOrderId || tableId) {
+        clearCart();
+      }
+      setTable(table.id, table.name);
+      toast.success(`Assigned to ${table.name}`, { icon: '🪑' });
+    }
+  };
 
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -475,21 +520,26 @@ export default function POS() {
       return;
     }
 
+    let token = tokenNumber;
+    if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
+      token = await issueToken(restaurant.id);
+      setToken(token);
+    }
+
     setPaymentMethod('unpaid');
     const res = await submitOrder(restaurant, staffDoc?.id);
     if (!res.ok) { toast.error(res.error); return; }
 
     toast.success(editingOrderId ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
-    // Bug 4 fix: Only print token ticket in token/QSR mode for takeaway orders
-    if (modes.includes('token') && orderType === 'takeaway') {
-      printTokenTicket({ token: null, orderType, customerName, restaurant });
+    if (token) {
+      printTokenTicket({ token, orderType, customerName, restaurant });
     }
   };
 
   const handlePaymentConfirm = async () => {
-    // If QSR mode — issue token
-    let token = null;
-    if (modes.includes('token') && orderType === 'takeaway') {
+    // If QSR mode — issue token (if not already set)
+    let token = tokenNumber;
+    if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
       token = await issueToken(restaurant.id);
       setToken(token);
     }
@@ -644,6 +694,7 @@ export default function POS() {
     <div className="pos-layout">
       {/* ── Menu Panel ─────────────────────────────── */}
       <div className="pos-menu-panel">
+
 
         {/* Category chips */}
         <div className="pos-category-bar">
@@ -845,14 +896,44 @@ export default function POS() {
           background: 'var(--color-bg-secondary)'
         }}>
           {orderType === 'dine-in' && (
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowTableSel(true)}
-              id="select-table-btn"
-              style={{ width: '100%', height: '32px', padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            <select
+              value={tableId || ''}
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                if (!selectedId) {
+                  setTable('', '');
+                  return;
+                }
+                const tbl = tables.find(t => t.id === selectedId);
+                if (tbl) handleTableSelectQuick(tbl);
+              }}
+              className="form-input btn-sm"
+              id="select-table-dropdown"
+              style={{ 
+                width: '100%', 
+                height: '32px', 
+                padding: '4px 8px', 
+                fontSize: '12px', 
+                cursor: 'pointer', 
+                background: 'var(--color-bg)',
+                borderColor: 'var(--color-separator)',
+                borderRadius: 'var(--radius-sm)',
+                fontWeight: 'var(--weight-bold)'
+              }}
             >
-              {tableName ? `🪑 ${tableName}` : `🪑 ${t('selectTable')}`}
-            </button>
+              <option value="">🪑 {t('selectTable') || 'Select Table'}</option>
+              {tables.map(table => {
+                const activeOrder = tableOrders[table.id];
+                const statusLabel = table.status === 'occupied' && activeOrder 
+                  ? `${t('occupied') || 'Occupied'} - ₹${activeOrder.total}` 
+                  : table.status === 'reserved' ? (t('reserved') || 'Reserved') : (t('free') || 'Free');
+                return (
+                  <option key={table.id} value={table.id}>
+                    {table.name} ({statusLabel})
+                  </option>
+                );
+              })}
+            </select>
           )}
 
           {/* Customer / Loyalty Info column */}

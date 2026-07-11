@@ -1,6 +1,15 @@
 /* Neo-Brutalist Premium Stylesheet for Landing Page */
 
 @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+/* Arabic Font Overrides */
+[lang="ar"] .neo-landing,
+[lang="ar"] .neo-landing *,
+[lang="ar"] .neo-btn,
+[lang="ar"] .neo-lang-btn {
+  font-family: 'Tajawal', sans-serif !important;
+}
 
 :root {
   --neo-yellow: #ffe17c;
@@ -255,6 +264,198 @@
   padding: 28px;
   background-color: var(--neo-gray-light);
   min-height: 380px;
+}
+
+/* Interactive POS Simulator Mockup */
+.neo-browser-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+
+.neo-mockup-tabs {
+  display: none;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--neo-black);
+  padding-bottom: 12px;
+}
+
+.neo-mockup-tab {
+  flex: 1;
+  padding: 10px;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  background-color: var(--neo-white);
+  border: 2px solid var(--neo-black);
+  border-radius: 8px;
+  box-shadow: 2px 2px 0px 0px var(--neo-black);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  text-align: center;
+}
+
+.neo-mockup-tab.active {
+  background-color: var(--neo-yellow);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px var(--neo-black);
+}
+
+.neo-mockup-col {
+  background-color: var(--neo-white);
+  border: 2px solid var(--neo-black);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 4px 4px 0px 0px var(--neo-black);
+}
+
+.neo-mockup-col-cart {
+  justify-content: space-between;
+}
+
+.neo-mockup-col-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.neo-mockup-tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.neo-mockup-table-btn {
+  padding: 16px 12px;
+  border: 2px solid var(--neo-black);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: 'Satoshi', sans-serif;
+  background-color: var(--neo-white);
+  box-shadow: 3px 3px 0px var(--neo-black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.1s ease;
+}
+
+.neo-mockup-table-btn:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0px var(--neo-black);
+}
+
+.neo-mockup-table-btn.selected {
+  background-color: var(--neo-yellow);
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.neo-mockup-table-name {
+  font-size: 14px;
+}
+
+.neo-mockup-table-status-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--neo-black);
+}
+
+.neo-mockup-table-status-badge.status-occupied {
+  background-color: #ff5f57;
+  color: var(--neo-white);
+}
+
+.neo-mockup-table-status-badge.status-billed {
+  background-color: #febc2e;
+  color: var(--neo-black);
+}
+
+.neo-mockup-table-status-badge.status-free {
+  background-color: #28c840;
+  color: var(--neo-black);
+}
+
+.neo-mockup-status-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.neo-mockup-status-btn {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 6px 4px;
+  font-family: 'Satoshi', sans-serif;
+  border: 1.5px solid var(--neo-black);
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: var(--neo-white);
+  transition: background-color 0.1s;
+}
+
+.neo-mockup-status-btn.active {
+  background-color: var(--neo-sage);
+}
+
+.neo-mockup-cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.neo-mockup-cart-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  border-bottom: 1px dashed #ddd;
+  padding-bottom: 6px;
+}
+
+.neo-mockup-item-name {
+  font-weight: 700;
+}
+
+.neo-mockup-item-qty {
+  color: #666;
+  margin-left: 6px;
+}
+
+.neo-mockup-item-total {
+  font-weight: 700;
+}
+
+.neo-mockup-cart-empty {
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  padding: 24px 0;
+}
+
+.neo-mockup-empty-icon {
+  margin-bottom: 6px;
+  opacity: 0.5;
+}
+
+.neo-mockup-cart-footer {
+  border-top: 2.5px solid var(--neo-black);
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 800;
+  font-size: 15px;
 }
 
 /* Infinite Marquee */
@@ -759,4 +960,234 @@
   text-align: center;
   font-size: 13px;
   color: #888;
+}
+
+/* ==========================================
+   RESPONSIVE OVERRIDES & MEDIA QUERIES 
+   ========================================== */
+
+/* Tablet Viewports (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .neo-nav {
+    height: 75px;
+  }
+  
+  .neo-logo img {
+    height: 36px;
+  }
+
+  .neo-hero {
+    margin-top: 75px;
+    padding: 80px 24px;
+  }
+
+  .neo-hero-title {
+    font-size: 52px;
+  }
+
+  .neo-section-title {
+    font-size: 44px;
+  }
+
+  .neo-section-header {
+    margin-bottom: 60px;
+  }
+
+  .neo-problem-solution {
+    padding: 80px 24px;
+  }
+
+  .neo-features-section {
+    padding: 80px 24px;
+  }
+
+  .neo-how-it-works {
+    padding: 80px 24px;
+  }
+
+  .neo-personas {
+    padding: 80px 24px;
+  }
+
+  .neo-testimonials {
+    padding: 80px 24px;
+  }
+
+  .neo-cta {
+    padding: 80px 24px;
+  }
+
+  .neo-bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .neo-bento-card:nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .neo-testimonials-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .neo-testimonial-card:nth-child(3) {
+    grid-column: span 2;
+  }
+}
+
+/* Intermediate Tablet & Mobile Stacking Breakpoint (max-width: 968px) */
+@media (max-width: 968px) {
+  .neo-steps-container {
+    flex-direction: column;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .neo-steps-line {
+    display: none;
+  }
+
+  .neo-step {
+    max-width: 100%;
+  }
+
+  .neo-step-number {
+    width: 90px;
+    height: 90px;
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+}
+
+/* Mobile Viewports (max-width: 768px) */
+@media (max-width: 768px) {
+  .neo-nav {
+    height: 70px;
+  }
+
+  .neo-logo img {
+    height: 32px;
+  }
+
+  .neo-nav-actions {
+    gap: 12px;
+  }
+
+  .neo-lang-btn {
+    padding: 6px 10px;
+  }
+
+  .neo-btn {
+    padding: 0.8rem 1.4rem;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .neo-hero {
+    margin-top: 70px;
+    padding: 60px 16px;
+  }
+
+  .neo-hero-title {
+    font-size: 38px;
+    line-height: 1.05;
+    margin-bottom: 20px;
+  }
+
+  .neo-hero-subtitle {
+    font-size: 16px;
+    margin-bottom: 28px;
+  }
+
+  .neo-browser-content {
+    padding: 16px;
+  }
+
+  .neo-browser-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .neo-mockup-tabs {
+    display: flex;
+  }
+
+  .neo-mockup-col {
+    box-shadow: 4px 4px 0px 0px var(--neo-black);
+    padding: 16px;
+  }
+
+  .neo-mockup-tables-grid {
+    gap: 10px;
+  }
+
+  .neo-card {
+    padding: 32px 24px;
+  }
+
+  .neo-bento-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .neo-bento-card:nth-child(3) {
+    grid-column: span 1;
+  }
+
+  .neo-bento-card {
+    padding: 32px 24px;
+  }
+
+  .neo-testimonials-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .neo-testimonial-card:nth-child(3) {
+    grid-column: span 1;
+  }
+
+  .neo-testimonial-card {
+    padding: 32px 24px;
+  }
+
+  .neo-marquee-container {
+    padding: 16px 0;
+  }
+
+  .neo-marquee span {
+    font-size: 20px;
+    margin-right: 40px;
+  }
+}
+
+/* Extra Small Mobile Viewports (max-width: 480px) */
+@media (max-width: 480px) {
+  .neo-hero-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .neo-hero-actions .neo-btn {
+    width: 100%;
+  }
+
+  .neo-section-title {
+    font-size: 32px;
+  }
+
+  .neo-section-subtitle {
+    font-size: 16px;
+  }
+
+  .neo-cta-title {
+    font-size: 38px;
+    margin-bottom: 20px;
+  }
+
+  .neo-cta-subtitle {
+    font-size: 16px;
+    margin-bottom: 28px;
+  }
 }
