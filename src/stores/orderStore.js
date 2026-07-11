@@ -1,12 +1,14 @@
 // Order Store — cart state, order type, table assignment
 import { create } from 'zustand';
 import {
-  collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, where, limit, writeBatch, increment
+  collection, updateDoc, doc, getDoc, serverTimestamp, onSnapshot, query, where, limit, orderBy, increment, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { computeTax } from '../utils/taxUtils';
 import { useTableStore } from './tableStore';
 import { useAuthStore } from './authStore';
+import { useShiftStore } from './shiftStore';
+import { useGiftCardStore } from './giftCardStore';
 import toast from 'react-hot-toast';
 
 export const useOrderStore = create((set, get) => ({
@@ -35,9 +37,6 @@ export const useOrderStore = create((set, get) => ({
   // Discount
   discount: 0,
   discountType: 'fixed', // 'fixed' | 'percent'
-
-  // Shift Drawer Till
-  activeShift: null,
 
   // Tips
   tipAmount: 0,
@@ -95,14 +94,16 @@ export const useOrderStore = create((set, get) => ({
     upiRef: order.upiRef ?? ''
   }),
 
-  clearCart: () => set({
-    items: [], tokenNumber: null, tableId: null, tableName: null,
-    customerName: '', customerPhone: '', note: '', editingOrderId: null,
-    discount: 0, discountType: 'fixed', splitPayments: [],
-    customer: null, redeemingPoints: false,
-    giftCardCode: null, giftCardBalance: 0, giftCardDeduction: 0,
-    tipAmount: 0, upiRef: ''
-  }),
+  clearCart: () => {
+    set({
+      items: [], tokenNumber: null, tableId: null, tableName: null,
+      customerName: '', customerPhone: '', note: '', editingOrderId: null,
+      discount: 0, discountType: 'fixed', splitPayments: [],
+      customer: null, redeemingPoints: false,
+      tipAmount: 0, upiRef: ''
+    });
+    useGiftCardStore.getState().clearGiftCard();
+  },
 
   setOrderType:    (t) => set({ orderType: t }),
   setTable:        (id, name) => set({ tableId: id, tableName: name }),
@@ -117,32 +118,7 @@ export const useOrderStore = create((set, get) => ({
   setTip: (amt) => set({ tipAmount: Math.max(0, Math.round(amt * 100) / 100) }),
   setUpiRef: (upiRef) => set({ upiRef }),
 
-  // Gift Card Vouchers
-  giftCardCode: null,
-  giftCardBalance: 0,
-  giftCardDeduction: 0,
 
-  applyGiftCard: (code, balance, restaurant) => {
-    const subtotal = get().getSubtotal();
-    const discountAmt = get().getDiscountAmount();
-    const pointsDiscount = get().getPointsDiscountAmount();
-    const taxableAmount = Math.max(0, subtotal - discountAmt - pointsDiscount);
-    const { taxTotal } = computeTax(taxableAmount, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
-    const totalBeforeGiftCard = taxableAmount + taxTotal;
-
-    const deduction = Math.round(Math.min(balance, totalBeforeGiftCard) * 100) / 100;
-    set({
-      giftCardCode: code,
-      giftCardBalance: balance,
-      giftCardDeduction: deduction
-    });
-  },
-
-  removeGiftCard: () => set({
-    giftCardCode: null,
-    giftCardBalance: 0,
-    giftCardDeduction: 0
-  }),
 
   setItemCourse: (id, course) => set({
     items: get().items.map(i => i.id === id ? { ...i, course } : i)
@@ -344,14 +320,15 @@ export const useOrderStore = create((set, get) => ({
     const { taxTotal } = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
     const tipAmt = get().tipAmount ?? 0;
     const totalBeforeGiftCard = baseTaxable + taxTotal + serviceChargeAmt + tipAmt;
-    const giftCardDeduction = get().giftCardDeduction;
+    const giftCardDeduction = useGiftCardStore.getState().giftCardDeduction;
     return Math.max(0, Math.round((totalBeforeGiftCard - giftCardDeduction) * 100) / 100);
   },
 
   // ── Submit Order ─────────────────────────────────────────
   submitOrder: async (restaurant, staffId) => {
     await useAuthStore.getState().ensureAnonymousAuth();
-    const { items, orderType, tableId, tableName, tokenNumber, customerName, customerPhone, note, paymentMethod, splitPayments, discount, discountType, editingOrderId, customer, redeemingPoints, giftCardCode, giftCardDeduction, giftCardBalance, tipAmount, upiRef } = get();
+    const { items, orderType, tableId, tableName, tokenNumber, customerName, customerPhone, note, paymentMethod, splitPayments, discount, discountType, editingOrderId, customer, redeemingPoints, tipAmount, upiRef } = get();
+    const { giftCardCode, giftCardDeduction, giftCardBalance } = useGiftCardStore.getState();
     if (!items.length) return { ok: false, error: 'Cart is empty' };
 
     const subtotal = get().getSubtotal();
@@ -416,7 +393,7 @@ export const useOrderStore = create((set, get) => ({
       let orderId = editingOrderId;
       
       // Calculate shift updates
-      const activeShift = get().activeShift;
+      const activeShift = useShiftStore.getState().activeShift;
       let shiftUpdate = null;
       if (activeShift?.id && paymentMethod !== 'unpaid') {
         const val = total;
@@ -568,24 +545,13 @@ export const useOrderStore = create((set, get) => ({
             updatedAt: serverTimestamp()
           });
         }
-        
-        // Execute batched write atomically
+
         await batch.commit();
       }
 
       // Automatically set table status to occupied and store orderId
       if (orderType === 'dine-in' && tableId) {
         await useTableStore.getState().setTableStatus(restaurant.id, tableId, 'occupied', orderId);
-      }
-
-      const isOffline = (typeof window !== 'undefined' && (window.__simulateOffline || !navigator.onLine));
-      if (isOffline) {
-        toast.success(
-          editingOrderId 
-            ? 'Order updated locally (Offline Mode)' 
-            : 'Order queued locally (Offline Mode)', 
-          { icon: '💾', duration: 4000 }
-        );
       }
 
       get().clearCart();
@@ -600,17 +566,12 @@ export const useOrderStore = create((set, get) => ({
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
       where('status', 'in', ['pending', 'preparing', 'ready']),
+      orderBy('createdAt', 'desc'),
       limit(100)
     );
     let isInitial = true;
     return onSnapshot(q, snap => {
       const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Sort in-memory (descending by createdAt)
-      orders.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt ? new Date(b.createdAt) : 0);
-        return dateB - dateA;
-      });
       const online = orders.filter(o => o.type === 'online');
 
       // Play chime for newly added online pending orders
@@ -648,245 +609,11 @@ export const useOrderStore = create((set, get) => ({
     await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', orderId), { status });
   },
 
-  updateKDSItemStatus: async (restaurantId, order, itemIndex, newStatus) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    const toDate = (ts) => {
-      if (!ts) return new Date();
-      if (typeof ts.toDate === 'function') return ts.toDate();
-      return new Date(ts);
-    };
 
-    const updatedItems = order.items.map((item, idx) => {
-      if (idx === itemIndex) {
-        return { ...item, status: newStatus };
-      }
-      return item;
-    });
-
-    const hasPreparing = updatedItems.some(i => i.status === 'preparing' || i.status === 'ready');
-    const allReady = updatedItems.every(i => i.status === 'ready');
-
-    let overallStatus = order.status;
-    const updates = { items: updatedItems };
-
-    if (newStatus === 'preparing' && order.status === 'pending') {
-      overallStatus = 'preparing';
-      updates.status = 'preparing';
-      updates.prepStartedAt = new Date();
-    }
-
-    if (allReady) {
-      updates.status = 'ready';
-      updates.prepCompletedAt = new Date();
-      
-      const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
-      const durationSeconds = Math.floor((new Date() - startTime) / 1000);
-      updates.prepDuration = Math.max(0, durationSeconds);
-    } else if (hasPreparing && overallStatus === 'pending') {
-      updates.status = 'preparing';
-      updates.prepStartedAt = new Date();
-    }
-
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), updates);
-  },
-
-  updateKDSStationStatus: async (restaurantId, order, stationName, newStatus) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    const toDate = (ts) => {
-      if (!ts) return new Date();
-      if (typeof ts.toDate === 'function') return ts.toDate();
-      return new Date(ts);
-    };
-
-    const updatedItems = order.items.map(item => {
-      if (stationName === 'All' || item.station === stationName) {
-        return { ...item, status: newStatus };
-      }
-      return item;
-    });
-
-    const hasPreparing = updatedItems.some(i => i.status === 'preparing' || i.status === 'ready');
-    const allReady = updatedItems.every(i => i.status === 'ready');
-
-    let overallStatus = order.status;
-    const updates = { items: updatedItems };
-
-    if (newStatus === 'preparing' && order.status === 'pending') {
-      overallStatus = 'preparing';
-      updates.status = 'preparing';
-      updates.prepStartedAt = new Date();
-    }
-
-    if (allReady) {
-      updates.status = 'ready';
-      updates.prepCompletedAt = new Date();
-      
-      const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
-      const durationSeconds = Math.floor((new Date() - startTime) / 1000);
-      updates.prepDuration = Math.max(0, durationSeconds);
-    } else if (hasPreparing && overallStatus === 'pending') {
-      updates.status = 'preparing';
-      updates.prepStartedAt = new Date();
-    }
-
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), updates);
-  },
 
   markOnlineOrdersRead: () => set({ unreadOnlineCount: 0 }),
 
-  subscribeActiveShift: (restaurantId, onReady) => {
-    const q = query(
-      collection(db, 'restaurants', restaurantId, 'shifts'),
-      where('status', '==', 'open'),
-      limit(1)
-    );
-    return onSnapshot(q, snap => {
-      if (!snap.empty) {
-        set({ activeShift: { id: snap.docs[0].id, ...snap.docs[0].data() } });
-      } else {
-        set({ activeShift: null });
-      }
-      if (typeof onReady === 'function') onReady();
-    }, err => {
-      console.error("Shift subscription error:", err);
-      set({ activeShift: null });
-      if (typeof onReady === 'function') onReady();
-    });
-  },
 
-  checkActiveShift: async (restaurantId) => {
-    try {
-      const q = query(
-        collection(db, 'restaurants', restaurantId, 'shifts'),
-        where('status', '==', 'open'),
-        limit(1)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const docData = { id: snap.docs[0].id, ...snap.docs[0].data() };
-        set({ activeShift: docData });
-        return docData;
-      } else {
-        set({ activeShift: null });
-        return null;
-      }
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
-  },
-
-  openShift: async (restaurantId, staffId, staffName, startCash) => {
-    try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const payload = {
-        status: 'open',
-        openedAt: serverTimestamp(),
-        openedBy: staffName,
-        openedById: staffId,
-        startCash: parseFloat(startCash) || 0,
-        expectedCash: parseFloat(startCash) || 0,
-        cashSalesAmount: 0,
-        cashSalesCount: 0,
-        cardSalesAmount: 0,
-        cardSalesCount: 0,
-        upiSalesAmount: 0,
-        upiSalesCount: 0,
-        totalSalesAmount: 0,
-        cashDrops: [],
-        paidOuts: []
-      };
-      const ref = await addDoc(collection(db, 'restaurants', restaurantId, 'shifts'), payload);
-      const docData = { id: ref.id, ...payload };
-      set({ activeShift: docData });
-      return { ok: true, shift: docData };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  },
-
-  recordCashTransaction: async (restaurantId, shiftId, amount, type, reason) => {
-    try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return { ok: false, error: 'Shift not found' };
-      const data = snap.data();
-      
-      const numAmt = parseFloat(amount) || 0;
-      let newExpected = data.expectedCash ?? data.startCash;
-      
-      const txObj = {
-        amount: numAmt,
-        reason: reason || '',
-        timestamp: new Date()
-      };
-      
-      const updates = {};
-      if (type === 'drop') {
-        newExpected -= numAmt;
-        updates.cashDrops = [...(data.cashDrops ?? []), txObj];
-      } else if (type === 'paidout') {
-        newExpected -= numAmt;
-        updates.paidOuts = [...(data.paidOuts ?? []), txObj];
-      }
-      
-      updates.expectedCash = newExpected;
-      await updateDoc(docRef, updates);
-      
-      set({
-        activeShift: {
-          ...get().activeShift,
-          ...updates
-        }
-      });
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  },
-
-  closeShift: async (restaurantId, shiftId, countedCash, staffId, staffName) => {
-    try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return { ok: false, error: 'Shift not found' };
-      const data = snap.data();
-      
-      const numCounted = parseFloat(countedCash) || 0;
-      const expected = data.expectedCash ?? data.startCash;
-      const variance = numCounted - expected;
-      const closedAtDate = new Date(); // real JS Date for Z-Report rendering
-
-      const updates = {
-        status: 'closed',
-        closedAt: serverTimestamp(),  // Firestore server timestamp
-        closedBy: staffName,
-        closedById: staffId,
-        actualCash: numCounted,
-        variance: Math.round(variance * 100) / 100
-      };
-      
-      await updateDoc(docRef, updates);
-      set({ activeShift: null });
-
-      // Bug 6: Use closedAtDate (real JS Date) so Z-Report renders correctly.
-      // serverTimestamp() is a sentinel and can't be formatted until Firestore resolves it.
-      // Bug 8: Include id so Z-Report shows the shift ID.
-      return {
-        ok: true,
-        zReport: {
-          id: shiftId,
-          ...data,
-          ...updates,
-          closedAt: closedAtDate,
-        }
-      };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  },
 
   settleOrder: async (restaurantId, orderId, method, totalAmount, additionalFields = {}) => {
     try {
@@ -900,7 +627,7 @@ export const useOrderStore = create((set, get) => ({
         ...additionalFields
       });
 
-      const activeShift = get().activeShift;
+      const activeShift = useShiftStore.getState().activeShift;
       if (activeShift?.id) {
         const shiftRef = doc(db, 'restaurants', restaurantId, 'shifts', activeShift.id);
         const val = totalAmount || 0;

@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useOrderStore } from './orderStore';
+import { useGiftCardStore } from './giftCardStore';
 
 // Mock Firestore operations
 vi.mock('firebase/firestore', () => ({
@@ -57,7 +58,7 @@ describe('orderStore', () => {
     expect(state.items).toEqual([]);
     expect(state.discount).toBe(0);
     expect(state.orderType).toBe('dine-in');
-    expect(state.giftCardCode).toBeNull();
+    expect(useGiftCardStore.getState().giftCardCode).toBeNull();
   });
 
   it('should add items to the cart and increment quantities if added again', () => {
@@ -201,6 +202,7 @@ describe('orderStore', () => {
 
   it('should apply gift card deduction up to the limit of totalBeforeGiftCard', () => {
     const store = useOrderStore.getState();
+    const gcStore = useGiftCardStore.getState();
     store.addItem({ id: 'item-1', name: 'Burger', price: 100 }); // Subtotal = 100
 
     const restaurant = {
@@ -208,14 +210,14 @@ describe('orderStore', () => {
     };
 
     // Case 1: Gift card balance (50) is less than total (110)
-    store.applyGiftCard('GC-1', 50, restaurant);
-    expect(useOrderStore.getState().giftCardCode).toBe('GC-1');
-    expect(useOrderStore.getState().giftCardDeduction).toBe(50);
+    gcStore.applyGiftCard('GC-1', 50, restaurant);
+    expect(useGiftCardStore.getState().giftCardCode).toBe('GC-1');
+    expect(useGiftCardStore.getState().giftCardDeduction).toBe(50);
     expect(store.getTotal(restaurant)).toBe(60);
 
     // Case 2: Gift card balance (200) is more than total (110)
-    store.applyGiftCard('GC-2', 200, restaurant);
-    expect(useOrderStore.getState().giftCardDeduction).toBe(110);
+    gcStore.applyGiftCard('GC-2', 200, restaurant);
+    expect(useGiftCardStore.getState().giftCardDeduction).toBe(110);
     expect(store.getTotal(restaurant)).toBe(0);
   });
 });

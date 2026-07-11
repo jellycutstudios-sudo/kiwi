@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
+import { useShiftStore } from '../stores/shiftStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -30,8 +31,7 @@ export default function POS() {
     setPaymentMethod,
     editingOrderId,
     discount, discountType, setDiscount, getDiscountAmount,
-    customer, setCustomerProfile, setRedeemingPoints,
-    activeShift, openShift, closeShift, recordCashTransaction, subscribeActiveShift
+    customer, setCustomerProfile, setRedeemingPoints
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -62,7 +62,14 @@ export default function POS() {
       getDiscountAmount: state.getDiscountAmount,
       customer: state.customer,
       setCustomerProfile: state.setCustomerProfile,
-      setRedeemingPoints: state.setRedeemingPoints,
+      setRedeemingPoints: state.setRedeemingPoints
+    }))
+  );
+
+  const {
+    activeShift, openShift, closeShift, recordCashTransaction, subscribeActiveShift
+  } = useShiftStore(
+    useShallow((state) => ({
       activeShift: state.activeShift,
       openShift: state.openShift,
       closeShift: state.closeShift,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrderStore } from '../../stores/orderStore';
+import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake } from 'lucide-react';
@@ -23,10 +24,13 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   const { 
     paymentMethod, setPaymentMethod, getSubtotal, getDiscountAmount, 
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
-    getPointsDiscountAmount, giftCardCode, giftCardDeduction, 
-    applyGiftCard, removeGiftCard, tipAmount, setTip,
+    getPointsDiscountAmount, tipAmount, setTip,
     tableName, tokenNumber, upiRef, setUpiRef
   } = useOrderStore();
+
+  const {
+    giftCardCode, giftCardDeduction, applyGiftCard, removeGiftCard
+  } = useGiftCardStore();
 
   const subtotal = getSubtotal();
   const discountAmt = getDiscountAmount();

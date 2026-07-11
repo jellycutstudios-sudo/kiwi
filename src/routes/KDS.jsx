@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
+import { useKdsStore } from '../stores/kdsStore';
 import toast from 'react-hot-toast';
 import { ChefHat } from 'lucide-react';
 
@@ -10,7 +11,8 @@ const STATIONS = ['All', 'Kitchen', 'Grill', 'Fryer', 'Cold', 'Bar', 'Bakery'];
 export default function KDS() {
   const { t } = useTranslation();
   const { restaurant } = useAuthStore();
-  const { activeOrders, updateKDSItemStatus, updateKDSStationStatus } = useOrderStore();
+  const { activeOrders } = useOrderStore();
+  const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
   const [activeStation, setActiveStation] = useState('All');
   
   const prevCountRef = useRef(0);
