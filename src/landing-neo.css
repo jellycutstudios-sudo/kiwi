@@ -19,7 +19,7 @@
   --neo-bg-warm: #fdfcf9;
   --neo-black: #171e19; /* premium deep charcoal instead of plain black */
   --neo-gray-light: #f5f4f0;
-  --neo-primary: #6366f1; /* Vibrant indigo for primary buttons */
+  --neo-primary: var(--neo-sage); /* Using theme sage color for primary buttons */
   --neo-border-width: 2.5px;
 }
 
@@ -76,7 +76,7 @@
 
 .neo-btn-primary {
   background-color: var(--neo-primary);
-  color: var(--neo-white);
+  color: var(--neo-black);
   box-shadow: 6px 6px 0px 0px var(--neo-black);
 }
 
