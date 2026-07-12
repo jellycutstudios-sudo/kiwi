@@ -8,10 +8,14 @@ import { useAuthStore } from './authStore';
 export const useShiftStore = create((set, get) => ({
   activeShift: null,
 
-  subscribeActiveShift: (restaurantId, onReady) => {
+  subscribeActiveShift: (restaurantId, shiftMode, staffId, onReady) => {
+    let constraints = [where('status', '==', 'open')];
+    if (shiftMode === 'staff' && staffId) {
+      constraints.push(where('openedById', '==', staffId));
+    }
     const q = query(
       collection(db, 'restaurants', restaurantId, 'shifts'),
-      where('status', '==', 'open'),
+      ...constraints,
       limit(1)
     );
     return onSnapshot(q, snap => {
@@ -28,11 +32,15 @@ export const useShiftStore = create((set, get) => ({
     });
   },
 
-  checkActiveShift: async (restaurantId) => {
+  checkActiveShift: async (restaurantId, shiftMode, staffId) => {
     try {
+      let constraints = [where('status', '==', 'open')];
+      if (shiftMode === 'staff' && staffId) {
+        constraints.push(where('openedById', '==', staffId));
+      }
       const q = query(
         collection(db, 'restaurants', restaurantId, 'shifts'),
-        where('status', '==', 'open'),
+        ...constraints,
         limit(1)
       );
       const snap = await getDocs(q);

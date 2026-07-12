@@ -93,6 +93,7 @@ export default function POS() {
     }))
   );
 
+  const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
@@ -200,12 +201,12 @@ export default function POS() {
   // Subscribe to active shift in real-time
   useEffect(() => {
     if (restaurant?.id) {
-      const unsub = subscribeActiveShift(restaurant.id, () => {
+      const unsub = subscribeActiveShift(restaurant.id, restaurant.shiftMode, staffDoc?.id, () => {
         setCheckingShift(false);
       });
       return unsub;
     }
-  }, [restaurant?.id, subscribeActiveShift]);
+  }, [restaurant?.id, restaurant?.shiftMode, staffDoc?.id, subscribeActiveShift]);
 
   const handleOpenShiftSubmit = async () => {
     setOpenShiftError(null);
@@ -587,8 +588,10 @@ export default function POS() {
     );
   }
 
+  const isAdmin = ['admin', 'super_admin'].includes(staffDoc?.role);
+
   // If no active shift, overlay a starting float modal
-  if (!activeShift) {
+  if (!activeShift && !adminBypassShift) {
     return (
       <div style={{
         position: 'fixed',
@@ -685,6 +688,15 @@ export default function POS() {
           >
             ↩ Exit to Login
           </button>
+          {isAdmin && (
+            <button
+              className="btn btn-ghost"
+              onClick={() => setAdminBypassShift(true)}
+              style={{ width: '100%', height: 40, marginTop: 'var(--space-1)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}
+            >
+              Skip (Admin)
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1227,7 +1239,7 @@ export default function POS() {
         )}
 
         {/* Actions */}
-        {orderType === 'dine-in' ? (
+        {(orderType === 'dine-in' && modes.includes('kds')) ? (
           <div className="cart-action-buttons">
             <button
               className="btn btn-secondary cart-action-btn"

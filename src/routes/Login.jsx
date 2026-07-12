@@ -22,11 +22,11 @@ export default function Login() {
     return 'email';
   });
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(() => searchParams.get('demo') === 'admin' ? 'admin@demo.com' : '');
+  const [password, setPassword] = useState(() => searchParams.get('demo') === 'admin' ? 'password123' : '');
   const [showPw, setShowPw] = useState(false);
   const [pin, setPin] = useState('');
-  const [restaurantId, setRestaurantId] = useState('');
+  const [restaurantId, setRestaurantId] = useState(() => searchParams.get('demo') === 'staff' ? 'demo_rest' : '');
 
   // Registration states
   const [regName, setRegName] = useState('');

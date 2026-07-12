@@ -9,7 +9,8 @@ import {
   Globe, 
   Package, 
   Users, 
-  UtensilsCrossed
+  UtensilsCrossed,
+  X
 } from 'lucide-react';
 import '../landing-neo.css'; // Import the new styles
 
@@ -20,7 +21,8 @@ export default function LandingPage() {
   const isRtl = i18n.language === 'ar';
 
   const [isMobileView, setIsMobileView] = useState(false);
-  const [activeMockupTab, setActiveMockupTab] = useState('tables'); // 'tables' or 'cart'
+  const [activeMockupTab, setActiveMockupTab] = useState('menu'); // 'menu' or 'cart'
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -37,40 +39,34 @@ export default function LandingPage() {
   };
 
   // Mock POS State
-  const [selectedTable, setSelectedTable] = useState('T4');
-  const [tables, setTables] = useState({
-    T1: { id: 'T1', name: 'Table 1', status: 'occupied', items: [{ name: 'Spicy Ramen', qty: 2, price: 240 }, { name: 'Iced Matcha', qty: 1, price: 120 }] },
-    T2: { id: 'T2', name: 'Table 2', status: 'free', items: [] },
-    T3: { id: 'T3', name: 'Table 3', status: 'billed', items: [{ name: 'Margherita Pizza', qty: 1, price: 350 }, { name: 'Garlic Bread', qty: 1, price: 150 }] },
-    T4: { id: 'T4', name: 'Table 4', status: 'occupied', items: [{ name: 'Classic Cheeseburger', qty: 1, price: 180 }, { name: 'Truffle Fries', qty: 1, price: 110 }] },
-  });
+  const [activeCategory, setActiveCategory] = useState('Burgers');
+  const [mockCart, setMockCart] = useState([
+    { id: 'm1', name: 'Classic Cheeseburger', qty: 1, price: 180 },
+    { id: 'm4', name: 'Truffle Fries', qty: 1, price: 110 }
+  ]);
 
-  const handleTableClick = (id) => {
-    setSelectedTable(id);
-  };
+  const mockCategories = ['Burgers', 'Pizzas', 'Drinks'];
+  const mockMenu = [
+    { id: 'm1', name: 'Classic Cheeseburger', category: 'Burgers', price: 180 },
+    { id: 'm2', name: 'Double Bacon Burger', category: 'Burgers', price: 240 },
+    { id: 'm3', name: 'Margherita Pizza', category: 'Pizzas', price: 350 },
+    { id: 'm4', name: 'Truffle Fries', category: 'Burgers', price: 110 },
+    { id: 'm5', name: 'Iced Matcha', category: 'Drinks', price: 120 },
+    { id: 'm6', name: 'Cold Brew', category: 'Drinks', price: 140 },
+  ];
 
-  const toggleTableStatus = (id, newStatus) => {
-    setTables(prev => {
-      const target = prev[id];
-      let newItems = target.items;
-      if (newStatus === 'free') {
-        newItems = [];
-      } else if (newStatus === 'occupied' && target.items.length === 0) {
-        newItems = [{ name: 'Chef Special Platter', qty: 1, price: 450 }];
+  const handleAddToCart = (item) => {
+    setMockCart(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
       }
-      return {
-        ...prev,
-        [id]: {
-          ...target,
-          status: newStatus,
-          items: newItems
-        }
-      };
+      return [...prev, { ...item, qty: 1 }];
     });
   };
 
-  const getTableBillTotal = (tableItems) => {
-    return tableItems.reduce((acc, item) => acc + (item.qty * item.price), 0);
+  const getCartTotal = () => {
+    return mockCart.reduce((acc, item) => acc + (item.qty * item.price), 0);
   };
 
   return (
@@ -89,12 +85,18 @@ export default function LandingPage() {
               <span>{isMobileView ? (i18n.language === 'ar' ? 'EN' : 'AR') : (i18n.language === 'ar' ? 'English' : 'العربية')}</span>
             </button>
 
+            {!isAuth && (
+              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary" style={{ marginRight: '0.5rem', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
+                {t('tryDemoAccounts') || 'Try Demo'}
+              </button>
+            )}
+
             {isAuth ? (
               <Link to="/dashboard" className="neo-btn neo-btn-primary">
                 {isMobileView ? 'Dashboard' : t('goToDashboard')}
               </Link>
             ) : (
-              <Link to="/login" className="neo-btn neo-btn-secondary">
+              <Link to="/login" className="neo-btn neo-btn-primary">
                 {isMobileView ? 'Login' : t('signIn')}
               </Link>
             )}
@@ -146,35 +148,47 @@ export default function LandingPage() {
               {isMobileView && (
                 <div className="neo-mockup-tabs">
                   <button 
-                    onClick={() => setActiveMockupTab('tables')}
-                    className={`neo-mockup-tab ${activeMockupTab === 'tables' ? 'active' : ''}`}
+                    onClick={() => setActiveMockupTab('menu')}
+                    className={`neo-mockup-tab ${activeMockupTab === 'menu' ? 'active' : ''}`}
                   >
-                    {t('tables') || 'Tables'}
+                    Menu
                   </button>
                   <button 
                     onClick={() => setActiveMockupTab('cart')}
                     className={`neo-mockup-tab ${activeMockupTab === 'cart' ? 'active' : ''}`}
                   >
-                    {t('cart') || 'Cart'} ({tables[selectedTable].items.length})
+                    {t('cart') || 'Cart'} ({mockCart.reduce((acc, i) => acc + i.qty, 0)})
                   </button>
                 </div>
               )}
 
               <div className="neo-browser-grid">
-                {/* Tables Map */}
-                {(!isMobileView || activeMockupTab === 'tables') && (
+                {/* Menu Map */}
+                {(!isMobileView || activeMockupTab === 'menu') && (
                   <div className="neo-mockup-col neo-mockup-col-tables">
-                    <h4 className="neo-mockup-col-title">{t('tables')}</h4>
-                    <div className="neo-mockup-tables-grid">
-                      {Object.values(tables).map((tbl) => (
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
+                      {mockCategories.map(cat => (
                         <button
-                          key={tbl.id}
-                          onClick={() => handleTableClick(tbl.id)}
-                          className={`neo-mockup-table-btn ${tbl.id === selectedTable ? 'selected' : ''}`}
+                          key={cat}
+                          onClick={() => setActiveCategory(cat)}
+                          className={`neo-mockup-status-btn ${activeCategory === cat ? 'active' : ''}`}
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
                         >
-                          <span className="neo-mockup-table-name">{tbl.name}</span>
-                          <span className={`neo-mockup-table-status-badge status-${tbl.status}`}>
-                            {t(tbl.status)}
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="neo-mockup-tables-grid">
+                      {mockMenu.filter(m => m.category === activeCategory).map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleAddToCart(item)}
+                          className="neo-mockup-table-btn"
+                          style={{ justifyContent: 'center' }}
+                        >
+                          <span className="neo-mockup-table-name" style={{ textAlign: 'center' }}>{item.name}</span>
+                          <span className="neo-mockup-table-status-badge status-free" style={{ marginTop: '4px' }}>
+                            ₹{item.price}
                           </span>
                         </button>
                       ))}
@@ -182,30 +196,17 @@ export default function LandingPage() {
                   </div>
                 )}
 
-                {/* Bill Details */}
+                {/* Cart Details */}
                 {(!isMobileView || activeMockupTab === 'cart') && (
                   <div className="neo-mockup-col neo-mockup-col-cart">
                     <div className="neo-mockup-cart-upper">
                       <h4 className="neo-mockup-col-title">
-                        {tables[selectedTable].name} {t('cart')}
+                        Current Order
                       </h4>
-                      
-                      {/* Status update simulated */}
-                      <div className="neo-mockup-status-toggle">
-                        {['free', 'occupied', 'billed'].map((st) => (
-                          <button
-                            key={st}
-                            onClick={() => toggleTableStatus(selectedTable, st)}
-                            className={`neo-mockup-status-btn ${tables[selectedTable].status === st ? 'active' : ''}`}
-                          >
-                            {t(st)}
-                          </button>
-                        ))}
-                      </div>
 
-                      <div className="neo-mockup-cart-items">
-                        {tables[selectedTable].items.length > 0 ? (
-                          tables[selectedTable].items.map((item, idx) => (
+                      <div className="neo-mockup-cart-items" style={{ marginTop: '12px' }}>
+                        {mockCart.length > 0 ? (
+                          mockCart.map((item, idx) => (
                             <div key={idx} className="neo-mockup-cart-item">
                               <div>
                                 <span className="neo-mockup-item-name">{item.name}</span>
@@ -225,7 +226,7 @@ export default function LandingPage() {
 
                     <div className="neo-mockup-cart-footer">
                       <span>{t('total')}</span>
-                      <span>₹{getTableBillTotal(tables[selectedTable].items)}</span>
+                      <span>₹{getCartTotal()}</span>
                     </div>
                   </div>
                 )}
@@ -459,6 +460,61 @@ export default function LandingPage() {
           <span>&copy; {new Date().getFullYear()} {t('appName')}. All rights reserved.</span>
         </div>
       </footer>
+
+      {/* DEMO MODAL */}
+      {isDemoModalOpen && (
+        <div className="neo-demo-modal-overlay" onClick={() => setIsDemoModalOpen(false)}>
+          <div className="neo-demo-modal" onClick={e => e.stopPropagation()}>
+            <button className="neo-demo-close-btn" onClick={() => setIsDemoModalOpen(false)}>
+              <X size={24} />
+            </button>
+            <div className="neo-demo-header">
+              <h2>Try Demo Accounts</h2>
+              <p>Experience the platform with our pre-configured demo roles.</p>
+            </div>
+            
+            <div className="neo-demo-cards">
+              {/* Admin Demo Card */}
+              <div className="neo-demo-card">
+                <h3>Admin Access</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>Full access to dashboard, reports, and settings.</p>
+                <div className="neo-demo-credentials">
+                  <div className="neo-demo-cred-row">
+                    <span className="neo-demo-cred-label">Email</span>
+                    <span className="neo-demo-cred-val">admin@demo.com</span>
+                  </div>
+                  <div className="neo-demo-cred-row">
+                    <span className="neo-demo-cred-label">Password</span>
+                    <span className="neo-demo-cred-val">password123</span>
+                  </div>
+                </div>
+                <Link to="/login?mode=email&demo=admin" className="neo-demo-btn neo-demo-btn-primary">
+                  Login as Admin
+                </Link>
+              </div>
+
+              {/* Staff Demo Card */}
+              <div className="neo-demo-card">
+                <h3>Staff Access</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>Access to POS, Tables, and Kitchen Display.</p>
+                <div className="neo-demo-credentials">
+                  <div className="neo-demo-cred-row">
+                    <span className="neo-demo-cred-label">Restaurant ID</span>
+                    <span className="neo-demo-cred-val">demo_rest</span>
+                  </div>
+                  <div className="neo-demo-cred-row">
+                    <span className="neo-demo-cred-label">PIN</span>
+                    <span className="neo-demo-cred-val">1234</span>
+                  </div>
+                </div>
+                <Link to="/login?mode=pin&demo=staff" className="neo-demo-btn neo-demo-btn-primary">
+                  Login as Staff
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -391,6 +391,31 @@ export const useOrderStore = create((set, get) => ({
       orderData.splitPayments = splitPayments ?? [];
     }
 
+    // --- DEMO ACCOUNT MOCK ---
+    if (restaurant?.id === 'demo_rest') {
+      if (editingOrderId) {
+        set({
+          activeOrders: get().activeOrders.map(o => o.id === editingOrderId ? { ...o, ...orderData, updatedAt: new Date().toISOString() } : o)
+        });
+        get().clearCart();
+        return { ok: true, orderId: editingOrderId };
+      } else {
+        const newOrderId = 'demo_order_' + Date.now();
+        const newOrder = {
+          id: newOrderId,
+          ...orderData,
+          createdAt: new Date().toISOString()
+        };
+        set({ activeOrders: [newOrder, ...get().activeOrders] });
+        if (orderType === 'dine-in' && tableId) {
+          await useTableStore.getState().setTableStatus(restaurant.id, tableId, 'occupied', newOrderId);
+        }
+        get().clearCart();
+        return { ok: true, orderId: newOrderId };
+      }
+    }
+    // -------------------------
+
     try {
       let orderId = editingOrderId;
       
@@ -565,6 +590,14 @@ export const useOrderStore = create((set, get) => ({
 
   // ── Real-time Order Listeners ────────────────────────────
   subscribeActiveOrders: (restaurantId) => {
+    // --- DEMO ACCOUNT MOCK ---
+    if (restaurantId === 'demo_rest') {
+      // The orders are kept in local state, so we don't clear them here
+      // unless we want to reset them on mount, but let's keep them across navigation.
+      return () => {};
+    }
+    // -------------------------
+
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
       where('status', 'in', ['pending', 'preparing', 'ready']),
@@ -649,6 +682,15 @@ export const useOrderStore = create((set, get) => ({
   },
 
   updateOrderStatus: async (restaurantId, orderId, status) => {
+    // --- DEMO ACCOUNT MOCK ---
+    if (restaurantId === 'demo_rest') {
+      set({
+        activeOrders: get().activeOrders.map(o => o.id === orderId ? { ...o, status } : o)
+      });
+      return;
+    }
+    // -------------------------
+
     await useAuthStore.getState().ensureAnonymousAuth();
     await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', orderId), { status });
   },
@@ -660,6 +702,15 @@ export const useOrderStore = create((set, get) => ({
 
 
   settleOrder: async (restaurantId, orderId, method, totalAmount, additionalFields = {}) => {
+    // --- DEMO ACCOUNT MOCK ---
+    if (restaurantId === 'demo_rest') {
+      set({
+        activeOrders: get().activeOrders.map(o => o.id === orderId ? { ...o, status: 'billed', paymentMethod: method, paid: true, ...additionalFields } : o)
+      });
+      return { ok: true };
+    }
+    // -------------------------
+
     try {
       await useAuthStore.getState().ensureAnonymousAuth();
       const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);

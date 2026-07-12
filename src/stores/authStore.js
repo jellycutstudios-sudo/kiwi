@@ -24,6 +24,30 @@ export const useAuthStore = create(
       // Email/Password login (admin)
       loginWithEmail: async (email, password) => {
         set({ loading: true, error: null });
+
+        // --- DEMO ACCOUNT MOCK ---
+        if (email === 'admin@demo.com' && password === 'password123') {
+           const mockUid = 'demo_admin_uid';
+           const mockUser = { uid: mockUid, email: 'admin@demo.com', isMock: true };
+           const mockStaffDoc = { id: mockUid, email: 'admin@demo.com', role: 'admin', restaurantId: 'demo_rest' };
+           const mockRestDoc = { 
+             id: 'demo_rest', 
+             status: 'approved', 
+             name: 'Demo Restaurant', 
+             currency: 'USD',
+             modes: ['pos', 'table', 'online', 'delivery_hub', 'kds', 'payroll', 'inventory', 'customers', 'reservations']
+           };
+           
+           set({
+             user: mockUser,
+             staffDoc: mockStaffDoc,
+             restaurant: mockRestDoc,
+             loading: false
+           });
+           return { ok: true };
+        }
+        // -------------------------
+
         try {
           const cred = await signInWithEmailAndPassword(auth, email, password);
           await get().loadUserData(cred.user);
@@ -41,6 +65,31 @@ export const useAuthStore = create(
       loginWithPin: async (restaurantId, pin) => {
         isLoggingIn = true;
         set({ loading: true, error: null });
+
+        // --- DEMO ACCOUNT MOCK ---
+        if (restaurantId.trim() === 'demo_rest' && pin === '1234') {
+           const mockUid = 'demo_staff_uid';
+           const mockUser = { uid: mockUid, isPinLogin: true, isMock: true };
+           const mockStaffDoc = { id: mockUid, name: 'Demo Waiter', role: 'cashier', restaurantId: 'demo_rest', pin: '1234', active: true };
+           const mockRestDoc = { 
+             id: 'demo_rest', 
+             status: 'approved', 
+             name: 'Demo Restaurant', 
+             currency: 'USD',
+             modes: ['pos', 'table', 'online', 'delivery_hub', 'kds']
+           };
+           
+           set({
+             user: mockUser,
+             staffDoc: mockStaffDoc,
+             restaurant: mockRestDoc,
+             loading: false
+           });
+           isLoggingIn = false;
+           return { ok: true, role: 'cashier' };
+        }
+        // -------------------------
+
         try {
           const cleanRestId = restaurantId.trim();
           let actualRestId = cleanRestId;
@@ -180,6 +229,12 @@ export const useAuthStore = create(
             }
           } else {
             // No Firebase Auth session at all.
+            if (get().user?.isMock) {
+               // Preserve mock session, do nothing.
+               set({ loading: false });
+               return;
+            }
+            
             if (get().staffDoc?.pin) {
               // PIN session persisted in localStorage — re-authenticate anonymously
               // to restore Firestore write permissions (anonymous auth must be enabled

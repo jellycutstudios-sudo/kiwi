@@ -218,6 +218,20 @@ export default function Settings() {
                       </select>
                     </div>
                   </div>
+                  <div className="form-group" style={{ marginTop: 'var(--space-2)' }}>
+                    <label className="form-label">Cash Management Mode</label>
+                    <select 
+                      className="form-select" 
+                      value={settings.shiftMode || 'global'} 
+                      onChange={e => updateField('shiftMode', e.target.value)}
+                    >
+                      <option value="global">Single Till (Shared by all staff)</option>
+                      <option value="staff">Individual Staff Banks (Each staff member opens their own shift)</option>
+                    </select>
+                    <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
+                      Determines if cash shifts are shared across the restaurant or tracked individually per staff member.
+                    </span>
+                  </div>
                 </div>
               </div>
 
