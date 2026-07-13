@@ -50,7 +50,7 @@ export default function PendingApproval() {
               to make your subscription payment offline.
             </li>
             <li>Provide your <strong>Restaurant ID</strong> ({restaurant?.id || 'N/A'}) to the admin.</li>
-            <li>Once the payment is received, the Super Admin will approve your account, and you will gain immediate access to RestaurantOS.</li>
+            <li>Once the payment is received, the Super Admin will approve your account, and you will gain immediate access to DineOS.</li>
           </ol>
         </div>
 

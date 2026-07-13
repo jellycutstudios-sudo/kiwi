@@ -25,7 +25,7 @@ export default function Login() {
   // Demo credentials are only pre-filled in dev/demo builds.
   // Set VITE_ENABLE_DEMO=true in your .env to enable them.
   const isDemoMode = import.meta.env.VITE_ENABLE_DEMO === 'true';
-  const [email, setEmail] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'salman@kiwi.com' : '');
+  const [email, setEmail] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'demo@kiwi.com' : '');
   const [password, setPassword] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'password123' : '');
   const [showPw, setShowPw] = useState(false);
   const [pin, setPin] = useState('');

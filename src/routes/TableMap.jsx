@@ -103,7 +103,7 @@ export default function TableMap() {
   useEffect(() => {
     if (!upiOrderToSettle) return;
     const vpa = restaurant?.upiConfig?.vpa || 'demo@upi';
-    const name = restaurant?.upiConfig?.name || 'RestaurantOS Demo';
+    const name = restaurant?.upiConfig?.name || 'DineOS Demo';
     const tableInfo = selectedTable ? `Table ${selectedTable.name}` : 'Table Order';
     const sanitizedNote = tableInfo.replace(/[^a-zA-Z0-9]/g, '_');
     const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${(upiOrderToSettle.total ?? 0).toFixed(2)}&cu=${currency || 'INR'}&tn=${sanitizedNote}`;

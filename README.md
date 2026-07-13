@@ -1,6 +1,6 @@
-# RestaurantOS 🍽️
+# DineOS 🍽️
 
-RestaurantOS is a modern, high-performance, offline-first Point of Sale (POS) and Restaurant Management System. Built using **React + Vite**, it features real-time synchronization via **Firebase**, offline capability using modern persistence layers, multi-role routing, PWA integration, and multi-language support (English and Arabic RTL).
+DineOS is a modern, high-performance, offline-first Point of Sale (POS) and Restaurant Management System. Built using **React + Vite**, it features real-time synchronization via **Firebase**, offline capability using modern persistence layers, multi-role routing, PWA integration, and multi-language support (English and Arabic RTL).
 
 ---
 

@@ -59,7 +59,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   useEffect(() => {
     if (paymentMethod === 'upi') {
       const vpa = restaurant?.upiConfig?.vpa || 'demo@upi';
-      const name = restaurant?.upiConfig?.name || 'RestaurantOS Demo';
+      const name = restaurant?.upiConfig?.name || 'DineOS Demo';
       // Sanitize order ref note
       const noteBase = tableName ? `Table ${tableName}` : (tokenNumber ? `Token ${tokenNumber}` : 'POS Order');
       const sanitizedNote = noteBase.replace(/[^a-zA-Z0-9]/g, '_');
@@ -1109,7 +1109,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                   className="btn btn-secondary btn-xs"
                   onClick={() => {
                     const vpa = restaurant?.upiConfig?.vpa || 'demo@upi';
-                    const name = restaurant?.upiConfig?.name || 'RestaurantOS Demo';
+                    const name = restaurant?.upiConfig?.name || 'DineOS Demo';
                     const noteBase = tableName ? `Table ${tableName}` : (tokenNumber ? `Token ${tokenNumber}` : 'POS Order');
                     const sanitizedNote = noteBase.replace(/[^a-zA-Z0-9]/g, '_');
                     const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${total.toFixed(2)}&cu=${currency || 'INR'}&tn=${sanitizedNote}`;

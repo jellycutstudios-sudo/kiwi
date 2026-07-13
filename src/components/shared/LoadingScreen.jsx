@@ -11,18 +11,17 @@ export default function LoadingScreen() {
       gap: 'var(--space-4)',
     }}>
       <div style={{
-        width: 52,
-        height: 52,
-        background: 'var(--color-accent)',
-        borderRadius: 'var(--radius-xl)',
+        width: 56,
+        height: 56,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 28,
         animation: 'bounceIn 0.6s var(--ease-spring)',
-      }}>🍽️</div>
+      }}>
+        <img src="/ricon.svg" alt="Loading..." style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      </div>
       <div style={{ fontSize: 'var(--text-title3)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-label)' }}>
-        RestaurantOS
+        DineOS
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         {[0,1,2].map(i => (

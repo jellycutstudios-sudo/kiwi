@@ -237,7 +237,7 @@ export default function TokenDisplay() {
         </div>
       )}
 
-      <div className="token-display-brand" style={{ color: themeColors.brand }}>🍽️ RestaurantOS</div>
+      <div className="token-display-brand" style={{ color: themeColors.brand }}>🍽️ DineOS</div>
 
       <div style={{
         display: 'flex',

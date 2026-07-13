@@ -467,7 +467,7 @@ export default function Reports() {
   </div>
 
   <div class="divider" style="margin-top: 30px;"></div>
-  <div style="text-align: center; font-size: 10px; color: #555;">End of report. Generated via RestaurantOS.</div>
+  <div style="text-align: center; font-size: 10px; color: #555;">End of report. Generated via DineOS.</div>
 </body>
 </html>
     `);

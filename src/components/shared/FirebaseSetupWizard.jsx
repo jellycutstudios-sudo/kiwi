@@ -32,7 +32,7 @@ VITE_FIREBASE_APP_ID=your_app_id`;
           </div>
           <div>
             <h1 className="text-title2" style={{ fontWeight: 'var(--weight-bold)' }}>Firebase Setup Required</h1>
-            <p className="text-footnote text-secondary">Let's connect RestaurantOS to your Firebase backend.</p>
+            <p className="text-footnote text-secondary">Let's connect DineOS to your Firebase backend.</p>
           </div>
         </div>
 

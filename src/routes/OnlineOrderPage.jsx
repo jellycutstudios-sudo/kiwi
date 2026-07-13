@@ -30,7 +30,7 @@ export default function OnlineOrderPage() {
 
   // Active order tracking states
   const [activeOrderId, setActiveOrderId] = useState(() => {
-    return localStorage.getItem(`restaurantOS_${restaurantId}_active_order`) || null;
+    return localStorage.getItem(`dineOS_${restaurantId}_active_order`) || null;
   });
   const [activeOrder, setActiveOrder] = useState(null);
   const [viewMode, setViewMode] = useState('tracker'); // 'tracker' | 'menu'
@@ -106,12 +106,12 @@ export default function OnlineOrderPage() {
         const data = d.data();
         const type = data.orderType || data.type;
         if (data.status === 'cancelled' || data.status === 'voided') {
-          localStorage.removeItem(`restaurantOS_${restaurantId}_active_order`);
+          localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
           setActiveOrderId(null);
           setActiveOrder(null);
           toast.error('Your order has been cancelled.');
         } else if (type === 'dine-in' && data.status === 'billed') {
-          localStorage.removeItem(`restaurantOS_${restaurantId}_active_order`);
+          localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
           setActiveOrderId(null);
           setActiveOrder(null);
           toast.success('Your table bill has been settled. Thank you!');
@@ -119,7 +119,7 @@ export default function OnlineOrderPage() {
           setActiveOrder({ id: d.id, ...data });
         }
       } else {
-        localStorage.removeItem(`restaurantOS_${restaurantId}_active_order`);
+        localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
         setActiveOrderId(null);
         setActiveOrder(null);
       }
@@ -271,7 +271,7 @@ export default function OnlineOrderPage() {
       // Execute batch write atomically
       await batch.commit();
 
-      localStorage.setItem(`restaurantOS_${restaurantId}_active_order`, orderDocRef.id);
+      localStorage.setItem(`dineOS_${restaurantId}_active_order`, orderDocRef.id);
       setActiveOrderId(orderDocRef.id);
       setViewMode('tracker');
       toast.success('Order placed successfully!');
@@ -566,7 +566,7 @@ export default function OnlineOrderPage() {
               <button 
                 className="btn btn-primary" 
                 onClick={() => {
-                  localStorage.removeItem(`restaurantOS_${restaurantId}_active_order`);
+                  localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
                   setActiveOrderId(null);
                   setActiveOrder(null);
                   setCart([]);

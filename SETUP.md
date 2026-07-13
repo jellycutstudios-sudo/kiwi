@@ -1,4 +1,4 @@
-# RestaurantOS — Setup Guide
+# DineOS — Setup Guide
 
 ## 1. Firebase Setup
 1. Go to [Firebase Console](https://console.firebase.google.com)

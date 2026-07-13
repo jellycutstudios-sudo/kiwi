@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -10,7 +10,8 @@ import {
   Package, 
   Users, 
   UtensilsCrossed,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 import '../landing-neo.css'; // Import the new styles
 
@@ -23,6 +24,8 @@ export default function LandingPage() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeMockupTab, setActiveMockupTab] = useState('menu');
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [isBurgerOpen, setIsBurgerOpen] = useState(false);
+  const burgerRef = useRef(null);
   // Demo credentials are only shown when VITE_ENABLE_DEMO=true (never in production builds)
   const isDemoMode = import.meta.env.VITE_ENABLE_DEMO === 'true';
 
@@ -33,6 +36,17 @@ export default function LandingPage() {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close burger menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (burgerRef.current && !burgerRef.current.contains(e.target)) {
+        setIsBurgerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const toggleLanguage = () => {
@@ -77,31 +91,77 @@ export default function LandingPage() {
       {/* 1 — STICKY NAV BAR */}
       <nav className="neo-nav">
         <div className="neo-nav-inner">
+          {/* Logo — icon only */}
           <div className="neo-logo">
-            <img src="/logorupos.svg" alt="Logo" />
+            <img src="/ricon.svg" alt="DineOS Logo" style={{ height: '34px', width: '34px' }} />
           </div>
 
-          <div className="neo-nav-actions">
+          {/* DESKTOP NAV */}
+          <div className="neo-nav-actions neo-nav-desktop">
             <button onClick={toggleLanguage} className="neo-lang-btn" title="Toggle Language">
               <Globe size={16} />
-              <span>{isMobileView ? (i18n.language === 'ar' ? 'EN' : 'AR') : (i18n.language === 'ar' ? 'English' : 'العربية')}</span>
+              <span>{i18n.language === 'ar' ? 'English' : 'العربية'}</span>
             </button>
 
             {!isAuth && (
-              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary" style={{ marginRight: '0.5rem' }}>
+              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary">
                 {t('tryDemoAccounts') || 'Try Demo'}
               </button>
             )}
 
             {isAuth ? (
               <Link to="/dashboard" className="neo-btn neo-btn-primary">
-                {isMobileView ? 'Dashboard' : t('goToDashboard')}
+                {t('goToDashboard')}
               </Link>
             ) : (
               <Link to="/login" className="neo-btn neo-btn-primary">
-                {isMobileView ? 'Login' : t('signIn')}
+                {t('signIn') || 'Login'}
               </Link>
             )}
+          </div>
+
+          {/* MOBILE NAV */}
+          <div className="neo-nav-actions neo-nav-mobile">
+            {isAuth ? (
+              <Link to="/dashboard" className="neo-btn neo-btn-primary">
+                {t('goToDashboard')}
+              </Link>
+            ) : (
+              <Link to="/login" className="neo-btn neo-btn-primary">
+                {t('signIn') || 'Login'}
+              </Link>
+            )}
+
+            {/* Burger Menu — mobile only */}
+            <div className="neo-burger-wrap" ref={burgerRef}>
+              <button
+                className="neo-burger-btn"
+                onClick={() => setIsBurgerOpen(o => !o)}
+                aria-label="More options"
+              >
+                {isBurgerOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+
+              {isBurgerOpen && (
+                <div className="neo-burger-dropdown">
+                  {!isAuth && (
+                    <button
+                      className="neo-burger-item"
+                      onClick={() => { setIsDemoModalOpen(true); setIsBurgerOpen(false); }}
+                    >
+                      🎭 {t('tryDemoAccounts') || 'Try Demo Accounts'}
+                    </button>
+                  )}
+                  <button
+                    className="neo-burger-item"
+                    onClick={() => { toggleLanguage(); setIsBurgerOpen(false); }}
+                  >
+                    <Globe size={15} style={{ marginRight: 8 }} />
+                    {i18n.language === 'ar' ? 'Switch to English' : 'العربية'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -275,7 +335,7 @@ export default function LandingPage() {
           </div>
 
           <div className="neo-card neo-card-solution">
-            <h3>RestaurantOS Solution</h3>
+            <h3>DineOS Solution</h3>
             <ul>
               <li><span className="neo-icon-check">✓</span> Lightning-fast billing on any web browser</li>
               <li><span className="neo-icon-check">✓</span> Works on iPads, tablets, mobiles & laptops</li>
@@ -436,7 +496,10 @@ export default function LandingPage() {
       <footer className="neo-footer">
         <div className="neo-footer-inner">
           <div className="neo-footer-brand-col">
-            <img src="/logorupos.svg" alt="Logo" style={{ filter: 'brightness(0) invert(1)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <img src="/ricon.svg" alt="DineOS Logo" style={{ height: '36px', width: '36px', filter: 'brightness(0) invert(1)' }} />
+              <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: '22px', color: 'white' }}>DineOS</span>
+            </div>
             <p className="neo-footer-tagline">
               The modern POS built for efficient restaurant teams.
             </p>
@@ -483,7 +546,7 @@ export default function LandingPage() {
                 <div className="neo-demo-credentials">
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Email</span>
-                    <span className="neo-demo-cred-val">salman@kiwi.com</span>
+                    <span className="neo-demo-cred-val">demo@kiwi.com</span>
                   </div>
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Password</span>

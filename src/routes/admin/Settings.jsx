@@ -588,7 +588,7 @@ export default function Settings() {
                       <input
                         id="settings-upi-name"
                         className="form-input"
-                        placeholder="e.g. RestaurantOS India"
+                        placeholder="e.g. DineOS India"
                         value={settings.upiConfig?.name ?? ''}
                         onChange={e => updateField('upiConfig.name', e.target.value)}
                       />

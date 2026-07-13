@@ -38,7 +38,7 @@ function getCategoryForMenuItem(menuItemId) {
 
 // Compile receipt payload for ESC/POS
 function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig }) {
-  const { name: restName = 'RestaurantOS', address = '', phone = '' } = restaurant ?? {};
+  const { name: restName = 'DineOS', address = '', phone = '' } = restaurant ?? {};
   const { currency = 'INR' } = restaurant ?? {};
   
   const ESC = 27;
@@ -516,7 +516,7 @@ export function printTokenTicket({ token, orderType, customerName, restaurant })
 </style>
 </head>
 <body>
-<div class="brand">${restaurant?.name ?? 'RestaurantOS'}</div>
+<div class="brand">${restaurant?.name ?? 'DineOS'}</div>
 <div class="divider"></div>
 <div class="label">Your Token Number</div>
 <div class="token">${String(token).padStart(3, '0')}</div>

@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for RestaurantOS FCM",
+  "description": "Cloud Functions for DineOS FCM",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
