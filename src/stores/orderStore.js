@@ -515,6 +515,14 @@ export const useOrderStore = create((set, get) => ({
           }
         }
 
+        if (orderType === 'dine-in' && tableId) {
+          const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
+          batch.update(tableRef, {
+            status: 'occupied',
+            currentOrderId: orderId
+          });
+        }
+
         await batch.commit();
       } else {
         orderData.createdAt = serverTimestamp();
@@ -568,12 +576,15 @@ export const useOrderStore = create((set, get) => ({
           });
         }
 
-        await batch.commit();
-      }
+        if (orderType === 'dine-in' && tableId) {
+          const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
+          batch.update(tableRef, {
+            status: 'occupied',
+            currentOrderId: orderId
+          });
+        }
 
-      // Automatically set table status to occupied and store orderId
-      if (orderType === 'dine-in' && tableId) {
-        await useTableStore.getState().setTableStatus(restaurant.id, tableId, 'occupied', orderId);
+        await batch.commit();
       }
 
       get().clearCart();
