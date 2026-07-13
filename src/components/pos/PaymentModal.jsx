@@ -5,7 +5,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import toast from 'react-hot-toast';
@@ -1145,11 +1145,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           <button
             className="btn btn-success btn-lg"
             onClick={handleConfirm}
-            disabled={!canConfirm}
+            disabled={!canConfirm || loading}
             id="payment-confirm-btn"
-            style={{ minWidth: 150 }}
+            style={{ minWidth: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            {loading ? '...' : `✓ Confirm · ${formatCurrency(total, currency)}`}
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+            <span>Confirm &middot; {formatCurrency(total, currency)}</span>
           </button>
         </div>
       </div>
