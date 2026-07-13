@@ -21,7 +21,7 @@ jobs:
         run: npm ci
 
       - name: Install Functions Dependencies
-        run: cd functions && npm ci
+        run: cd functions && npm install
 
       - name: Build Web App
         run: npm run build
