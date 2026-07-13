@@ -464,7 +464,7 @@ export default function LandingPage() {
       </footer>
 
       {/* DEMO MODAL */}
-      {isDemoMode && isDemoModalOpen && (
+      {isDemoModalOpen && (
         <div className="neo-demo-modal-overlay" onClick={() => setIsDemoModalOpen(false)}>
           <div className="neo-demo-modal" onClick={e => e.stopPropagation()}>
             <button className="neo-demo-close-btn" onClick={() => setIsDemoModalOpen(false)}>
