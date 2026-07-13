@@ -36,11 +36,12 @@ export function useFocusTrap(ref, isOpen) {
       }
     }, 10);
     
-    ref.current.addEventListener('keydown', handleKeyDown);
+    const node = ref.current;
+    node.addEventListener('keydown', handleKeyDown);
     
     return () => {
-      if (ref.current) {
-        ref.current.removeEventListener('keydown', handleKeyDown);
+      if (node) {
+        node.removeEventListener('keydown', handleKeyDown);
       }
     };
   }, [isOpen, ref]);

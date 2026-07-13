@@ -161,6 +161,7 @@ export default function TokenDisplay() {
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentServing, lastCalledAt, voiceEnabled]);
 
   const enableVoice = () => {

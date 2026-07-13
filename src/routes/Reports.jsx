@@ -38,12 +38,16 @@ export default function Reports() {
 
   // Helper to trigger loading states when dependencies change
   useEffect(() => {
-    setLoading(true);
+    const id = setTimeout(() => setLoading(true), 0);
+    return () => clearTimeout(id);
   }, [restaurant?.id, period]);
 
   useEffect(() => {
-    if (activeTab === 'till_shifts') setLoadingShifts(true);
-    if (activeTab === 'void_audits') setLoadingVoids(true);
+    const id = setTimeout(() => {
+      if (activeTab === 'till_shifts') setLoadingShifts(true);
+      if (activeTab === 'void_audits') setLoadingVoids(true);
+    }, 0);
+    return () => clearTimeout(id);
   }, [restaurant?.id, activeTab]);
 
   // 1. Fetch completed orders for the selected period

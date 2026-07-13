@@ -23,7 +23,7 @@ export default function ActiveOrders() {
     try {
       await callSpecificToken(restaurant.id, tokenNumber);
       toast.success(`Calling Token #${tokenNumber} on TV Display!`, { icon: '📢' });
-    } catch (err) {
+    } catch {
       toast.error("Failed to call token number");
     }
   };

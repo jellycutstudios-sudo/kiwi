@@ -1,7 +1,7 @@
 // Order Store — cart state, order type, table assignment
 import { create } from 'zustand';
 import {
-  collection, updateDoc, doc, getDoc, serverTimestamp, onSnapshot, query, where, limit, orderBy, increment, writeBatch
+  collection, updateDoc, doc, getDoc, serverTimestamp, onSnapshot, query, where, limit, increment, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { computeTax } from '../utils/taxUtils';

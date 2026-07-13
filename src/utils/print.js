@@ -147,7 +147,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
 }
 
 // Compile kitchen station ticket for ESC/POS
-function compileEscPosKitchenTicket({ restaurant, order, items, staffName, printerConfig }) {
+function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) {
   const ESC = 27;
   const GS = 29;
   const LF = 10;

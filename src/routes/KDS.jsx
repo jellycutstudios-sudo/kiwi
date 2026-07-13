@@ -22,7 +22,7 @@ export default function KDS() {
     try {
       await callSpecificToken(restaurant.id, tokenNumber);
       toast.success(`Calling Token #${tokenNumber}!`, { icon: '📢' });
-    } catch (err) {
+    } catch {
       toast.error("Failed to call token");
     }
   };

@@ -236,7 +236,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               throw new Error('Stripe ConnectionToken backend endpoint not configured. Set up /api/stripe/connection-token on your server.');
             };
 
-            const terminalInstance = StripeTerminal.create({
+            StripeTerminal.create({
               onConnectionStatusChange: (status) => {
                 if (import.meta.env.DEV) console.info('[Stripe] ConnectionStatus:', status.status);
               },

@@ -14,14 +14,22 @@ service cloud.firestore {
     }
 
     // Role checks using Custom Claims to save on read costs and avoid loop/recursion issues
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(uid()));
+    }
+
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.role == 'super_admin';
+      return isSignedIn() && (
+        ('role' in request.auth.token && request.auth.token.role == 'super_admin') ||
+        (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.role == 'super_admin')
+      );
     }
 
     function isUserAdmin(restaurantId) {
       return isSignedIn() && (
         isSuperAdmin() || 
-        (request.auth.token.role == 'admin' && request.auth.token.restaurantId == restaurantId)
+        ('role' in request.auth.token && request.auth.token.role == 'admin' && 'restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
+        (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.role == 'admin' && getUserDoc().data.restaurantId == restaurantId)
       );
     }
     
@@ -29,10 +37,8 @@ service cloud.firestore {
     function belongsToRestaurant(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
-         request.auth.token.restaurantId == restaurantId ||
-         // Allow PIN login sessions (anonymous) if they were validated by the backend
-         // Alternatively, we could check if they have a custom claim for restaurantId
-         (request.auth.token.restaurantId == restaurantId)
+         ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
+         (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.restaurantId == restaurantId)
        );
     }
     
@@ -41,8 +47,9 @@ service cloud.firestore {
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
-         request.auth.token.restaurantId == restaurantId ||
-         request.auth.token.firebase.sign_in_provider == 'anonymous'
+         ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
+         ('firebase' in request.auth.token && 'sign_in_provider' in request.auth.token.firebase && request.auth.token.firebase.sign_in_provider == 'anonymous') ||
+         (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.restaurantId == restaurantId)
        );
     }
 

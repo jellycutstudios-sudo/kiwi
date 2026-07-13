@@ -1652,27 +1652,36 @@ export default function POS() {
       {/* Z-Report Modal */}
 
       {zReportToShow && (
-        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1001 }}>
-          <div className="modal-content" style={{ maxWidth: '400px', width: '100%', padding: 'var(--space-4)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-separator)', paddingBottom: '8px' }}>
-              <h3 style={{ fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)' }}>⎙ Z-Report Shift Closure</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => setZReportToShow(null)}>
-                <X size={16} />
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1001, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="modal-content" style={{ maxWidth: '420px', width: '100%', padding: '24px', borderRadius: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                <span style={{ fontSize: '1.2em' }}>🧾</span> Z-Report
+              </h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setZReportToShow(null)} style={{ borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg-secondary)' }}>
+                <X size={18} />
               </button>
             </div>
             
             <div style={{
-              background: 'var(--color-bg-tertiary)',
-              color: 'var(--color-label)',
-              padding: '16px',
-              fontFamily: 'monospace',
-              fontSize: '11px',
+              background: '#fffdf9',
+              color: '#1c1c1c',
+              padding: '28px 24px',
+              fontFamily: '"SF Mono", "Courier New", Courier, monospace',
+              fontSize: '13px',
+              lineHeight: '1.5',
               whiteSpace: 'pre',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-separator)',
-              maxHeight: '400px',
+              borderRadius: '2px',
+              border: '1px solid #e0dfd5',
+              borderTop: '2px dashed #d1d0c5',
+              borderBottom: '2px dashed #d1d0c5',
+              boxShadow: 'inset 0 0 20px rgba(0,0,0,0.02), 0 4px 10px rgba(0,0,0,0.05)',
+              maxHeight: '50vh',
               overflowY: 'auto',
-              marginBottom: '16px'
+              marginBottom: '24px',
+              display: 'flex',
+              justifyContent: 'center',
+              fontWeight: '500',
             }}>
               {(() => {
                 const openedDate = zReportToShow.openedAt ? new Date(zReportToShow.openedAt.seconds ? zReportToShow.openedAt.seconds * 1000 : zReportToShow.openedAt).toLocaleString() : '';
@@ -1716,11 +1725,11 @@ export default function POS() {
               })()}
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ flex: 1 }}
+                style={{ flex: 1, height: '48px', borderRadius: '12px', fontWeight: '600' }}
                 onClick={() => {
                   const printWin = window.open('', '_blank', 'width=600,height=600');
                   const openedDate = zReportToShow.openedAt ? new Date(zReportToShow.openedAt.seconds ? zReportToShow.openedAt.seconds * 1000 : zReportToShow.openedAt).toLocaleString() : '';
@@ -1773,7 +1782,7 @@ export default function POS() {
               <button
                 type="button"
                 className="btn btn-primary"
-                style={{ flex: 1 }}
+                style={{ flex: 1, height: '48px', borderRadius: '12px', fontWeight: '600' }}
                 onClick={() => setZReportToShow(null)}
               >
                 Close Report

@@ -6,42 +6,66 @@ import {
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';
 
-export const useTableStore = create((set, get) => ({
-  tables: [],
-  selectedTable: null,
+export const useTableStore = create((set, get) => {
+  let activeUnsub = null;
+  let subscribedRestId = null;
+  let subCount = 0;
 
-  subscribe: (restaurantId) => {
-    if (!restaurantId) return () => {};
+  return {
+    tables: [],
+    selectedTable: null,
 
-    // Check if already subscribed to this restaurant
-    if (get()._subscribedRestId === restaurantId && get()._activeUnsub) {
-      return () => {}; // Return no-op because subscription is managed globally
-    }
+    subscribe: (restaurantId) => {
+      if (!restaurantId) return () => {};
 
-    // Clean up previous subscription if any
-    if (get()._activeUnsub) {
-      get()._activeUnsub();
-    }
-
-    const unsub = onSnapshot(
-      collection(db, 'restaurants', restaurantId, 'tables'),
-      (snap) => {
-        set({ tables: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+      // Check if already subscribed to this restaurant
+      if (subscribedRestId === restaurantId && activeUnsub) {
+        subCount++;
+        return () => {
+          subCount--;
+          if (subCount <= 0 && activeUnsub) {
+            activeUnsub();
+            activeUnsub = null;
+            subscribedRestId = null;
+            subCount = 0;
+          }
+        };
       }
-    );
 
-    const cleanup = () => {
-      unsub();
-      set({ tables: [], _activeUnsub: null, _subscribedRestId: null });
-    };
+      // Clean up previous subscription if any
+      if (activeUnsub) {
+        activeUnsub();
+        activeUnsub = null;
+        subCount = 0;
+      }
 
-    set({ _activeUnsub: cleanup, _subscribedRestId: restaurantId });
-    return cleanup;
-  },
-  _activeUnsub: null,
-  _subscribedRestId: null,
+      subscribedRestId = restaurantId;
+      subCount = 1;
 
-  selectTable: (table) => set({ selectedTable: table }),
+      const unsub = onSnapshot(
+        collection(db, 'restaurants', restaurantId, 'tables'),
+        (snap) => {
+          set({ tables: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+        }
+      );
+
+      activeUnsub = () => {
+        unsub();
+        set({ tables: [] });
+      };
+
+      return () => {
+        subCount--;
+        if (subCount <= 0 && activeUnsub) {
+          activeUnsub();
+          activeUnsub = null;
+          subscribedRestId = null;
+          subCount = 0;
+        }
+      };
+    },
+
+    selectTable: (table) => set({ selectedTable: table }),
   clearSelection: () => set({ selectedTable: null }),
 
   addTable: async (restaurantId, tableData) => {
@@ -82,4 +106,5 @@ export const useTableStore = create((set, get) => ({
     await useAuthStore.getState().ensureAnonymousAuth();
     await get().setTableStatus(restaurantId, tableId, 'free', null);
   },
-}));
+  };
+});
