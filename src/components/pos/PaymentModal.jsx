@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useOrderStore } from '../../stores/orderStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,6 +22,8 @@ const METHODS = [
 export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   const { t } = useTranslation();
   const { restaurant } = useAuthStore();
+  const modalRef = useRef(null);
+  useFocusTrap(modalRef, true);
   const { 
     paymentMethod, setPaymentMethod, getSubtotal, getDiscountAmount, 
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
@@ -223,24 +226,26 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
       loadStripeSDK()
         .then((StripeTerminal) => {
           try {
-            console.log('[Stripe SDK Loaded]', StripeTerminal);
-            
+            // Token provider must call your backend to get a real Stripe ConnectionToken.
+            // See: https://stripe.com/docs/terminal/fleet/sdk-basics#connection-tokens
             const tokenProvider = async () => {
-              console.log('[Stripe SDK] Requesting ConnectionToken from backend...');
-              return 'pst_mock_token_' + Math.random().toString(36).slice(2);
+              // TODO: Replace with a real call to your backend endpoint:
+              // const resp = await fetch('/api/stripe/connection-token', { method: 'POST' });
+              // const { secret } = await resp.json();
+              // return secret;
+              throw new Error('Stripe ConnectionToken backend endpoint not configured. Set up /api/stripe/connection-token on your server.');
             };
 
             const terminalInstance = StripeTerminal.create({
               onConnectionStatusChange: (status) => {
-                console.log('[Stripe SDK ConnectionStatus]', status);
+                if (import.meta.env.DEV) console.info('[Stripe] ConnectionStatus:', status.status);
               },
               onPaymentStatusChange: (status) => {
-                console.log('[Stripe SDK PaymentStatus]', status);
+                if (import.meta.env.DEV) console.info('[Stripe] PaymentStatus:', status.status);
               },
               tokenProvider
             });
 
-            console.log('[Stripe SDK Instance Created]', terminalInstance);
             toast.success(`Connected to Stripe Reader: ${readerId}`);
             
             setTerminalStatus('waiting');
@@ -320,7 +325,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   if (terminalStatus) {
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-        <div className="modal animate-slide-up" style={{ maxWidth: 420, overflow: 'hidden' }}>
+        <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 420, overflow: 'hidden' }}>
           <div style={{
             background: 'var(--color-bg-secondary)',
             borderRadius: 'var(--radius-xl)',

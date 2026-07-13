@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { logError } from '../../utils/logger';
 
 /**
  * ErrorBoundary — catches unhandled JavaScript errors in the React tree
@@ -15,7 +16,14 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
+    // Log to console natively
     console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
+    
+    // Track telemetry
+    logError(error, {
+      componentStack: info.componentStack,
+      boundary: 'RootErrorBoundary'
+    });
   }
 
   render() {

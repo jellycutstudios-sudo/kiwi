@@ -21,8 +21,10 @@ export default function LandingPage() {
   const isRtl = i18n.language === 'ar';
 
   const [isMobileView, setIsMobileView] = useState(false);
-  const [activeMockupTab, setActiveMockupTab] = useState('menu'); // 'menu' or 'cart'
+  const [activeMockupTab, setActiveMockupTab] = useState('menu');
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  // Demo credentials are only shown when VITE_ENABLE_DEMO=true (never in production builds)
+  const isDemoMode = import.meta.env.VITE_ENABLE_DEMO === 'true';
 
   useEffect(() => {
     const handleResize = () => {
@@ -462,7 +464,7 @@ export default function LandingPage() {
       </footer>
 
       {/* DEMO MODAL */}
-      {isDemoModalOpen && (
+      {isDemoMode && isDemoModalOpen && (
         <div className="neo-demo-modal-overlay" onClick={() => setIsDemoModalOpen(false)}>
           <div className="neo-demo-modal" onClick={e => e.stopPropagation()}>
             <button className="neo-demo-close-btn" onClick={() => setIsDemoModalOpen(false)}>

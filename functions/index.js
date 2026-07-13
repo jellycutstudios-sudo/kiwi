@@ -1,4 +1,5 @@
-const functions = require('firebase-functions');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -25,9 +26,9 @@ async function verifyAuthToken(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 // FCM: Notify staff when a new online order arrives
 // ─────────────────────────────────────────────────────────────────────────────
-exports.sendNewOrderNotification = functions.firestore
-  .document('restaurants/{restaurantId}/orders/{orderId}')
-  .onCreate(async (snapshot, context) => {
+exports.sendNewOrderNotification = onDocumentCreated('restaurants/{restaurantId}/orders/{orderId}', async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return null;
     const order = snapshot.data();
 
     // Only send notification for incoming online orders
@@ -35,7 +36,7 @@ exports.sendNewOrderNotification = functions.firestore
       return null;
     }
 
-    const { restaurantId } = context.params;
+    const { restaurantId } = event.params;
 
     try {
       const staffRef = admin.firestore().collection('restaurants').doc(restaurantId).collection('staff');
@@ -110,7 +111,31 @@ exports.sendNewOrderNotification = functions.firestore
 // ─────────────────────────────────────────────────────────────────────────────
 // Webhook: Receive incoming orders from delivery platforms (Uber Eats, Zomato…)
 // ─────────────────────────────────────────────────────────────────────────────
-exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
+
+// Simple in-memory rate limiting stub (For production, use Cloud Armor or Redis)
+const rateLimitCache = new Map();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 30;
+
+exports.handleDeliveryWebhook = onRequest(async (req, res) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const now = Date.now();
+  
+  // Basic Rate Limiting
+  const clientLimit = rateLimitCache.get(ip) || { count: 0, startTime: now };
+  if (now - clientLimit.startTime > RATE_LIMIT_WINDOW_MS) {
+    clientLimit.count = 1;
+    clientLimit.startTime = now;
+  } else {
+    clientLimit.count++;
+  }
+  rateLimitCache.set(ip, clientLimit);
+
+  if (clientLimit.count > MAX_REQUESTS_PER_WINDOW) {
+    console.warn(`Rate limit exceeded for IP: ${ip}`);
+    return res.status(429).send('Too Many Requests');
+  }
+
   const { platform, restaurantId } = req.query;
 
   if (!platform || !restaurantId) {
@@ -147,6 +172,15 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
 
     // Validate Signature/Auth — NEVER bypass in production
     let isValid = false;
+    let timestamp = req.headers['x-uber-webhook-timestamp'] || Date.now(); // Platform specific timestamp logic
+    
+    // Replay Attack Protection (check if timestamp is within 5 minutes)
+    const MAX_AGE_MS = 5 * 60 * 1000;
+    if (Math.abs(Date.now() - timestamp) > MAX_AGE_MS) {
+        console.warn(`Webhook request is too old (possible replay attack) for platform: ${platform}`);
+        return res.status(401).send('Unauthorized: Request Expired');
+    }
+
     if (platform === 'ubereats') {
       const signature = req.headers['x-uber-signature'];
       const rawBody = req.rawBody || JSON.stringify(req.body);
@@ -215,7 +249,7 @@ exports.handleDeliveryWebhook = functions.https.onRequest(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTP: Menu sync + order accept/reject — SECURED with Firebase Auth token
 // ─────────────────────────────────────────────────────────────────────────────
-exports.syncDeliveryMenu = functions.https.onRequest(async (req, res) => {
+exports.syncDeliveryMenu = onRequest(async (req, res) => {
   // Require valid Firebase Auth Bearer token
   const decodedToken = await verifyAuthToken(req, res);
   if (!decodedToken) return;
@@ -253,5 +287,74 @@ exports.syncDeliveryMenu = functions.https.onRequest(async (req, res) => {
     return res.status(200).json(result);
   } catch (err) {
     return res.status(500).send(err.message);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth: Validate Staff PIN
+// ─────────────────────────────────────────────────────────────────────────────
+exports.validatePin = onCall(async (request) => {
+  const { restaurantId, pin } = request.data;
+  
+  if (!restaurantId || !pin) {
+    throw new HttpsError('invalid-argument', 'Missing restaurantId or pin');
+  }
+
+  try {
+    const db = admin.firestore();
+    let actualRestId = restaurantId;
+
+    // Support for customId or slug login
+    const restQuery = await db.collection('restaurants').where('customId', '==', restaurantId).get();
+    if (!restQuery.empty) {
+      actualRestId = restQuery.docs[0].id;
+    } else {
+      const slugQuery = await db.collection('restaurants').where('slug', '==', restaurantId).get();
+      if (!slugQuery.empty) {
+        actualRestId = slugQuery.docs[0].id;
+      }
+    }
+
+    // Lookup staff by PIN
+    const staffQuery = await db.collection('restaurants').doc(actualRestId).collection('staff')
+      .where('pin', '==', pin)
+      .where('active', '==', true)
+      .get();
+
+    if (staffQuery.empty) {
+      throw new HttpsError('unauthenticated', 'Invalid PIN');
+    }
+
+    const staffDoc = staffQuery.docs[0];
+    const staffData = staffDoc.data();
+    
+    // Check if restaurant is approved
+    const restDoc = await db.collection('restaurants').doc(actualRestId).get();
+    if (!restDoc.exists || restDoc.data().status !== 'approved') {
+       throw new HttpsError('permission-denied', 'Restaurant is pending approval or suspended');
+    }
+
+    // Create a custom token with custom claims
+    const uid = staffDoc.id; // Or a specific format like `staff_${staffDoc.id}`
+    const additionalClaims = {
+      role: staffData.role,
+      restaurantId: actualRestId,
+      isPinLogin: true
+    };
+    
+    const customToken = await admin.auth().createCustomToken(uid, additionalClaims);
+
+    return { 
+      token: customToken, 
+      staff: { id: staffDoc.id, ...staffData },
+      restaurantId: actualRestId
+    };
+
+  } catch (error) {
+    console.error('Error in validatePin:', error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError('internal', 'Internal server error during PIN validation');
   }
 });

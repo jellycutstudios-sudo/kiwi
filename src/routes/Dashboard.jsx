@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useMenuStore } from '../stores/menuStore';
 import { formatCurrency } from '../utils/formatCurrency';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
@@ -23,17 +23,17 @@ export default function Dashboard() {
   useEffect(() => {
     if (!restaurant?.id) return;
     const start = new Date();
-    start.setDate(start.getDate() - 7); // Last 7 days
+    start.setDate(start.getDate() - 7);
 
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', start)
+      where('createdAt', '>=', start),
+      where('status', '==', 'billed'),
+      limit(200)  // Cap analytics lookback — enough for insight calculations
     );
 
     getDocs(q).then(snap => {
-      const docs = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => d.status === 'billed');
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAnalyticsOrders(docs);
     }).catch(err => {
       console.error("Dashboard analytics query failed:", err);
@@ -189,10 +189,11 @@ export default function Dashboard() {
     const today = new Date();
     today.setHours(0,0,0,0);
     
-    // Subscribe to today's orders in real-time
+    // Subscribe to today's orders in real-time, capped to prevent OOM on busy restaurants
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', today)
+      where('createdAt', '>=', today),
+      limit(500)
     );
     
     const unsub = onSnapshot(q, snap => {

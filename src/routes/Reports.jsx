@@ -36,22 +36,15 @@ export default function Reports() {
   const [selectedShiftForZReport, setSelectedShiftForZReport] = useState(null);
   const currency = restaurant?.currency ?? 'INR';
 
-  const [prevRestIdAndPeriod, setPrevRestIdAndPeriod] = useState({ restId: restaurant?.id, period });
-  if (restaurant?.id !== prevRestIdAndPeriod.restId || period !== prevRestIdAndPeriod.period) {
-    setPrevRestIdAndPeriod({ restId: restaurant?.id, period });
+  // Helper to trigger loading states when dependencies change
+  useEffect(() => {
     setLoading(true);
-  }
+  }, [restaurant?.id, period]);
 
-  const [prevRestIdAndTab, setPrevRestIdAndTab] = useState({ restId: restaurant?.id, activeTab });
-  if (restaurant?.id !== prevRestIdAndTab.restId || activeTab !== prevRestIdAndTab.activeTab) {
-    setPrevRestIdAndTab({ restId: restaurant?.id, activeTab });
-    if (activeTab === 'till_shifts') {
-      setLoadingShifts(true);
-    }
-    if (activeTab === 'void_audits') {
-      setLoadingVoids(true);
-    }
-  }
+  useEffect(() => {
+    if (activeTab === 'till_shifts') setLoadingShifts(true);
+    if (activeTab === 'void_audits') setLoadingVoids(true);
+  }, [restaurant?.id, activeTab]);
 
   // 1. Fetch completed orders for the selected period
   useEffect(() => {
@@ -62,21 +55,20 @@ export default function Reports() {
     if (period === 'week')   start.setDate(now.getDate()-7);
     if (period === 'month')  start.setDate(now.getDate()-30);
 
+    // In production, an unbounded date query on a high-volume collection is dangerous.
+    // We limit it to the most recent 1000 orders to prevent OOM/timeouts.
+    // For older or full month data in high volume restaurants, a separate 
+    // aggregation service/cloud function is required.
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', start)
+      where('createdAt', '>=', start),
+      where('status', '==', 'billed'), // We have a composite index for status + createdAt
+      orderBy('createdAt', 'desc'),
+      limit(1000)
     );
     getDocs(q).then(snap => {
-      const docs = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => d.status === 'billed');
-      
-      // Sort in-memory descending by createdAt
-      docs.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt ? new Date(b.createdAt) : 0);
-        return dateB - dateA;
-      });
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Since we already orderBy('createdAt', 'desc') in the query, docs are sorted.
 
       setData(docs);
       setLoading(false);

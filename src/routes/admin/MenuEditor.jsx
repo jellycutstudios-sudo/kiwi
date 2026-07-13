@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -51,7 +52,8 @@ const compressImage = (file, maxDim = 200, quality = 0.7) => {
 };
 
 
-const generateId = () => Date.now().toString();
+// Use cryptographically random IDs — Date.now() is not unique under concurrent saves
+const generateId = () => crypto.randomUUID();
 
 export default function MenuEditor() {
   const { restaurant } = useAuthStore();
@@ -144,16 +146,26 @@ export default function MenuEditor() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingImage(true);
-    const toastId = toast.loading('Compressing image...');
+    const toastId = toast.loading('Compressing and uploading image...');
     try {
       // Compress client side to a lightweight base64 JPEG
-      const base64Data = await compressImage(file, 200, 0.7);
+      const base64Data = await compressImage(file, 400, 0.8); // Slightly better quality now that it's in storage
       
-      setItemForm(f => ({ ...f, imageUrl: base64Data }));
-      toast.success('Image optimized!', { id: toastId });
+      if (!storage) {
+         throw new Error("Firebase Storage is not configured.");
+      }
+      
+      const fileName = `menuImages/${restaurant.id}/${Date.now()}.jpg`;
+      const storageRef = ref(storage, fileName);
+      
+      await uploadString(storageRef, base64Data, 'data_url');
+      const downloadUrl = await getDownloadURL(storageRef);
+      
+      setItemForm(f => ({ ...f, imageUrl: downloadUrl }));
+      toast.success('Image uploaded!', { id: toastId });
     } catch (err) {
-      console.error('[Image Compression Error]', err);
-      toast.error('Failed to compress image: ' + err.message, { id: toastId });
+      console.error('[Image Upload Error]', err);
+      toast.error('Failed to upload image: ' + err.message, { id: toastId });
     } finally {
       e.target.value = ''; // Reset input to allow selecting same file again
       setUploadingImage(false);

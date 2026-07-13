@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch, serverTimestamp, increment, query, orderBy, limit, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { 
   Plus, Edit2, Trash2, X, AlertTriangle, Boxes, 
@@ -20,8 +20,15 @@ export default function Inventory() {
   const [suppliers, setSuppliers] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   
-  // Loading state
   const [loading, setLoading] = useState(true);
+  const [pageSize, setPageSize] = useState(200);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Modals / Forms visibility
   const [showForm, setShowForm] = useState(false); // Ingredient form
@@ -67,15 +74,38 @@ export default function Inventory() {
     setLoading(true);
   }
 
-  // 1. Fetch raw ingredients in real-time
+  // 1. Fetch raw ingredients in real-time (with pagination and search)
   useEffect(() => {
     if (!restaurant?.id) return;
-    const unsub = onSnapshot(collection(db, 'restaurants', restaurant.id, 'inventory'), snap => {
+    
+    let q;
+    const cleanSearch = debouncedSearch.trim();
+    
+    if (cleanSearch) {
+      q = query(
+        collection(db, 'restaurants', restaurant.id, 'inventory'),
+        where('name', '>=', cleanSearch),
+        where('name', '<=', cleanSearch + '\uf8ff'),
+        orderBy('name'),
+        limit(pageSize)
+      );
+    } else {
+      q = query(
+        collection(db, 'restaurants', restaurant.id, 'inventory'),
+        orderBy('name'),
+        limit(pageSize)
+      );
+    }
+    
+    const unsub = onSnapshot(q, snap => {
       setIngredients(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
-    }, () => setLoading(false));
+    }, (err) => {
+      console.error(err);
+      setLoading(false);
+    });
     return unsub;
-  }, [restaurant?.id]);
+  }, [restaurant?.id, pageSize, debouncedSearch]);
 
   // 2. Fetch suppliers list in real-time
   useEffect(() => {
@@ -403,9 +433,19 @@ export default function Inventory() {
           )}
 
           <div className="card">
-            <div className="card-header">
-              <span className="card-title">Active Ingredient Stock</span>
-              <span className="badge badge-gray">{ingredients.length} items</span>
+            <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+              <div>
+                <span className="card-title">Active Ingredient Stock</span>
+                <span className="badge badge-gray">{ingredients.length} items loaded</span>
+              </div>
+              <input
+                type="text"
+                className="input"
+                placeholder="Search ingredients..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                style={{ minWidth: 200 }}
+              />
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -478,6 +518,16 @@ export default function Inventory() {
                 </tbody>
               </table>
             </div>
+            {ingredients.length >= pageSize && (
+              <div style={{ padding: 'var(--space-4)', textAlign: 'center' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setPageSize(p => p + 200)}
+                >
+                  Load More
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

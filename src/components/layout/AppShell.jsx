@@ -32,7 +32,6 @@ export default function AppShell() {
   const { subscribeMenu, search, setSearch } = useMenuStore();
   const { subscribeStaff } = useStaffStore();
   const { subscribe: subscribeTables } = useTableStore();
-  const [isSimulatedOffline, setIsSimulatedOffline] = useState(!!window.__simulateOffline);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -43,12 +42,10 @@ export default function AppShell() {
     const id = setTimeout(() => setMobileSidebarOpen(false), 0);
     return () => clearTimeout(id);
   }, [location.pathname]);
-  const [isOnline, setIsOnline] = useState(navigator.onLine && !window.__simulateOffline);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => {
-      if (!window.__simulateOffline) setIsOnline(true);
-    };
+    const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -57,24 +54,6 @@ export default function AppShell() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  const toggleOfflineSimulation = () => {
-    const nextVal = !window.__simulateOffline;
-    window.__simulateOffline = nextVal;
-    setIsSimulatedOffline(nextVal);
-    if (nextVal) {
-      setIsOnline(false);
-      toast.error('Developer Mode: Simulating Offline Mode', { id: 'network-simulate' });
-    } else {
-      setIsOnline(navigator.onLine);
-      if (navigator.onLine) {
-        toast.success('Connected back to cloud', { id: 'network-simulate' });
-      } else {
-         toast.error('Still offline (no actual internet)', { id: 'network-simulate' });
-      }
-    }
-  };
-
 
   const pageTitle = t(PAGE_TITLES[location.pathname] ?? 'appName');
 
@@ -132,11 +111,6 @@ export default function AppShell() {
           70% { box-shadow: 0 0 0 8px rgba(52, 199, 89, 0); }
           100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
         }
-        @keyframes pulseSimOffline {
-          0% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0.7); }
-          70% { box-shadow: 0 0 0 8px rgba(255, 149, 0, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0); }
-        }
         @keyframes pulseOffline {
           0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
           70% { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
@@ -166,6 +140,8 @@ export default function AppShell() {
             onClick={() => setMobileSidebarOpen(true)}
             id="burger-menu-btn"
             title="Open menu"
+            aria-label="Open menu"
+            aria-expanded={mobileSidebarOpen}
           >
             <Menu size={20} />
           </button>
@@ -189,6 +165,7 @@ export default function AppShell() {
                 className={`btn btn-icon mobile-only ${search ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setIsSearchOpen(true)}
                 title="Search menu"
+                aria-label="Search menu"
                 style={{ height: '36px', width: '36px', marginRight: 'var(--space-2)' }}
               >
                 <Search size={18} />
@@ -199,27 +176,21 @@ export default function AppShell() {
           <div className="top-bar-actions" style={isPOS ? { marginLeft: 'auto' } : {}}>
             {/* Network status indicator (glowing dot) */}
             <div 
-              onClick={toggleOfflineSimulation}
               title={
-                isSimulatedOffline 
-                  ? "Offline Sim Mode Active (Click to go Online)" 
-                  : isOnline 
-                    ? "System Online & Connected (Click to simulate Offline)" 
-                    : "System Offline / Network Disconnected"
+                isOnline 
+                  ? "System Online & Connected" 
+                  : "System Offline / Network Disconnected"
               }
+              role="status"
+              aria-label={isOnline ? "System is online" : "System is offline"}
               style={{
-                cursor: 'pointer',
                 width: '12px',
                 height: '12px',
                 borderRadius: '50%',
-                background: isSimulatedOffline 
-                  ? '#ff9500' 
-                  : isOnline 
+                background: isOnline 
                     ? '#34c759' 
                     : '#ff3b30',
-                animation: isSimulatedOffline 
-                  ? 'pulseSimOffline 2s infinite' 
-                  : isOnline 
+                animation: isOnline 
                     ? 'pulseOnline 2s infinite' 
                     : 'pulseOffline 1.5s infinite',
                 margin: '0 var(--space-2)',
@@ -232,6 +203,7 @@ export default function AppShell() {
               className="btn btn-secondary btn-icon"
               onClick={toggleLang}
               title={i18n.language === 'ar' ? 'Switch to English' : 'تبديل إلى العربية'}
+              aria-label={i18n.language === 'ar' ? 'Switch to English' : 'Switch to Arabic'}
               id="lang-toggle-btn"
             >
               <Globe size={16} />
@@ -250,6 +222,8 @@ export default function AppShell() {
                   toast('You don\'t have any new notifications.', { icon: '📭' });
                 }
               }}
+              title="Notifications"
+              aria-label={`Notifications ${unreadOnlineCount > 0 ? `(${unreadOnlineCount} unread)` : ''}`}
               id="notification-bell-btn"
             >
               <Bell size={16} />

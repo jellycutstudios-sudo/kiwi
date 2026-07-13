@@ -7,6 +7,7 @@ import { Check, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { printReceipt } from '../utils/print';
 import { computeTax } from '../utils/taxUtils';
+import { auth } from '../firebase';
 
 const PLATFORM_BADGES = {
   zomato:      { label: 'Zomato',     color: '#000000', bg: '#f5f5f5', emoji: '🍕' },
@@ -32,9 +33,19 @@ export default function OnlineOrders() {
   const handleAccept = async (order) => {
     await updateOrderStatus(restaurant.id, order.id, 'preparing');
     if (order.source && order.source !== 'native') {
+      // Get a fresh ID token to authenticate the Cloud Function call
+      const getAuthToken = async () => {
+        const user = auth?.currentUser;
+        return user ? await user.getIdToken() : null;
+      };
       toast.promise(
-        fetch(`https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?action=accept&platform=${order.source}&orderId=${order.externalOrderId}&restaurantId=${restaurant.id}`)
-          .catch(() => {}),
+        getAuthToken().then(token => {
+          if (!token) return Promise.reject(new Error('Not authenticated'));
+          return fetch(
+            `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?action=accept&platform=${order.source}&orderId=${order.externalOrderId}&restaurantId=${restaurant.id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        }).catch(() => {}),
         {
           loading: `Sending acceptance to ${order.source}...`,
           success: `Notified ${order.source}!`,
@@ -47,11 +58,21 @@ export default function OnlineOrders() {
   };
 
   const handleReject = async (order) => {
-    await updateOrderStatus(restaurant.id, order.id, 'billed');
+    // 'cancelled' is the correct terminal status for rejected online orders
+    await updateOrderStatus(restaurant.id, order.id, 'cancelled');
     if (order.source && order.source !== 'native') {
+      const getAuthToken = async () => {
+        const user = auth?.currentUser;
+        return user ? await user.getIdToken() : null;
+      };
       toast.promise(
-        fetch(`https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?action=reject&platform=${order.source}&orderId=${order.externalOrderId}&restaurantId=${restaurant.id}`)
-          .catch(() => {}),
+        getAuthToken().then(token => {
+          if (!token) return Promise.reject(new Error('Not authenticated'));
+          return fetch(
+            `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?action=reject&platform=${order.source}&orderId=${order.externalOrderId}&restaurantId=${restaurant.id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        }).catch(() => {}),
         {
           loading: `Sending cancellation to ${order.source}...`,
           success: `Notified ${order.source} of cancellation!`,

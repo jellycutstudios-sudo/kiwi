@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, Check } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 function getInitialSelections(item) {
   if (!item?.modifierGroups) return {};
@@ -18,6 +19,9 @@ function getInitialSelections(item) {
 export default function ModifierModal({ item, currency, onConfirm, onClose }) {
   const [prevItem, setPrevItem] = useState(item);
   const [selections, setSelections] = useState(() => getInitialSelections(item));
+  const modalRef = useRef(null);
+  
+  useFocusTrap(modalRef, !!item);
 
   if (item !== prevItem) {
     setPrevItem(item);
@@ -105,7 +109,7 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" style={{ maxWidth: 500 }}>
+      <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 500 }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <span style={{ fontSize: 24 }}>{item.emoji ?? '🍽️'}</span>

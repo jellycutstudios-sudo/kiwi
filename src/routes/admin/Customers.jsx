@@ -198,9 +198,11 @@ export default function Customers() {
 
     const val = parseFloat(gcForm.initialValue);
     
-    // Generate a secure random card code
-    const r1 = Math.floor(1000 + Math.random() * 9000);
-    const r2 = Math.floor(1000 + Math.random() * 9000);
+    // Generate a cryptographically secure random card code
+    const arr = new Uint16Array(2);
+    crypto.getRandomValues(arr);
+    const r1 = 1000 + (arr[0] % 9000);
+    const r2 = 1000 + (arr[1] % 9000);
     const code = `GC-${r1}-${r2}`;
 
     const payload = {

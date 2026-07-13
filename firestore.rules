@@ -13,25 +13,39 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // Read the caller's own user document (for email-login admins)
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(uid())).data;
-    }
-
-    function getUserRole() {
-      return getUserData().role;
+    // Role checks using Custom Claims to save on read costs and avoid loop/recursion issues
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.role == 'super_admin';
     }
 
     function isUserAdmin(restaurantId) {
       return isSignedIn() && (
-        getUserRole() == 'super_admin' || 
-        (getUserRole() == 'admin' && getUserData().restaurantId == restaurantId)
+        isSuperAdmin() || 
+        (request.auth.token.role == 'admin' && request.auth.token.restaurantId == restaurantId)
       );
     }
-
-    function isSuperAdmin() {
-      return isSignedIn() && getUserRole() == 'super_admin';
+    
+    // Fallback or explicit check for staff access to specific restaurant
+    function belongsToRestaurant(restaurantId) {
+       return isSignedIn() && (
+         isSuperAdmin() || 
+         request.auth.token.restaurantId == restaurantId ||
+         // Allow PIN login sessions (anonymous) if they were validated by the backend
+         // Alternatively, we could check if they have a custom claim for restaurantId
+         (request.auth.token.restaurantId == restaurantId)
+       );
     }
+    
+    // Staff member check: user must have the matching restaurantId in their token claims.
+    // This is populated by the validatePin Cloud Function via createCustomToken with additionalClaims.
+    // Anonymous sessions WITHOUT the restaurantId claim are explicitly rejected.
+    function isStaffMember(restaurantId) {
+       return isSignedIn() && (
+         isSuperAdmin() || 
+         request.auth.token.restaurantId == restaurantId
+       );
+    }
+
 
     // ─────────────────────────────────────────────
     // /users — admins can only read/write their own doc
@@ -51,15 +65,19 @@ service cloud.firestore {
     // ─────────────────────────────────────────────
     match /restaurants/{restaurantId} {
       // Public read — online order page needs restaurant name/logo
+      // but we shouldn't expose sensitive config like API keys.
+      // A better architecture is to separate public profile from config.
+      // For now, we restrict to authenticated users or public (needs careful field filtering in UI)
       allow read: if true;
       // Create — any signed-in user can register a new restaurant
       allow create: if isSignedIn();
       // Update/Delete — only authenticated admin-level users who belong to this restaurant
       allow update, delete: if isUserAdmin(restaurantId);
 
-      // Staff — public read (PIN login), admin write only
+      // Staff — admin write only. Read restricted to admins or via backend.
+      // Client shouldn't fetch all PINs.
       match /staff/{staffId} {
-        allow read:  if true;
+        allow read:  if isUserAdmin(restaurantId);
         allow write: if isUserAdmin(restaurantId);
       }
 
@@ -69,28 +87,28 @@ service cloud.firestore {
         allow write: if isUserAdmin(restaurantId);
       }
 
-      // Tables — public read, authenticated write
+      // Tables — public read, authenticated staff write
       match /tables/{tableId} {
         allow read:  if true;
-        allow write: if isSignedIn();
+        allow write: if isStaffMember(restaurantId);
       }
 
-      // Orders — public create (online orders), authenticated read/update/delete
+      // Orders — public create (online orders), authenticated staff read/update/delete
       match /orders/{orderId} {
-        allow read:   if isSignedIn();
+        allow read:   if isStaffMember(restaurantId);
         allow create: if true;                     // customers place online orders without auth
-        allow update, delete: if isSignedIn();
+        allow update, delete: if isStaffMember(restaurantId);
       }
 
-      // Tokens — public read (TV display), authenticated write
+      // Tokens — public read (TV display), authenticated staff write
       match /tokens/{date} {
         allow read:  if true;
-        allow write: if isSignedIn();
+        allow write: if isStaffMember(restaurantId);
       }
 
       // Delivery Sync logs — read-only for authenticated, write via Cloud Functions only
       match /deliverySync/{platform}/logs/{logId} {
-        allow read:  if isSignedIn();
+        allow read:  if isStaffMember(restaurantId);
         allow write: if false;
       }
 
@@ -102,30 +120,30 @@ service cloud.firestore {
         }
       }
 
-      // Inventory — authenticated read/write
+      // Inventory — authenticated staff read/write
       match /inventory/{itemId} {
-        allow read:  if isSignedIn();
-        allow write: if isSignedIn();
+        allow read:  if isStaffMember(restaurantId);
+        allow write: if isStaffMember(restaurantId);
       }
 
       // Payroll — SENSITIVE: admin-only
-      match /payroll/{month}/entries/{staffId} {
+      match /payroll/{month}/entries/{staffEntryId} {
         allow read, write: if isUserAdmin(restaurantId);
       }
 
-      // Customers CRM — authenticated read/write
+      // Customers CRM — authenticated staff read/write
       match /customers/{customerId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isStaffMember(restaurantId);
       }
 
-      // Reservations — authenticated read/write
+      // Reservations — authenticated staff read/write
       match /reservations/{reservationId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isStaffMember(restaurantId);
       }
 
-      // Waitlist Queue — authenticated read/write
+      // Waitlist Queue — authenticated staff read/write
       match /waitlist/{waitlistId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isStaffMember(restaurantId);
       }
 
       // Suppliers Directory — admin only (financial data)
@@ -138,27 +156,22 @@ service cloud.firestore {
         allow read, write: if isUserAdmin(restaurantId);
       }
 
-      // Gift Cards & Vouchers — authenticated read, cashier/admin write
+      // Gift Cards & Vouchers — authenticated staff read, cashier/admin write
       match /gift_cards/{cardId} {
-        allow read:  if isSignedIn();
-        allow write: if isSignedIn();   // cashier can redeem (balance update)
+        allow read:  if isStaffMember(restaurantId);
+        allow write: if isStaffMember(restaurantId);   // cashier can redeem (balance update)
       }
 
-      // Shifts & Drawer Tills — authenticated read/write (cashiers open/close shifts)
+      // Shifts & Drawer Tills — authenticated staff read/write
       match /shifts/{shiftId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isStaffMember(restaurantId);
       }
 
-      // Void Audits Ledger — SENSITIVE: read admin-only, write via authenticated only
+      // Void Audits Ledger — SENSITIVE: read admin-only, write via staff only
       match /void_logs/{logId} {
         allow read:  if isUserAdmin(restaurantId);
-        allow write: if isSignedIn();
+        allow write: if isStaffMember(restaurantId);
       }
     }
-
-    // ─────────────────────────────────────────────
-    // Super-admin: manage restaurants list
-    // ─────────────────────────────────────────────
-    // (restaurants collection write is already handled above via isUserAdmin)
   }
 }

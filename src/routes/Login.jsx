@@ -22,11 +22,14 @@ export default function Login() {
     return 'email';
   });
 
-  const [email, setEmail] = useState(() => searchParams.get('demo') === 'admin' ? 'admin@demo.com' : '');
-  const [password, setPassword] = useState(() => searchParams.get('demo') === 'admin' ? 'password123' : '');
+  // Demo credentials are only pre-filled in dev/demo builds.
+  // Set VITE_ENABLE_DEMO=true in your .env to enable them.
+  const isDemoMode = import.meta.env.VITE_ENABLE_DEMO === 'true';
+  const [email, setEmail] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'admin@demo.com' : '');
+  const [password, setPassword] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'password123' : '');
   const [showPw, setShowPw] = useState(false);
   const [pin, setPin] = useState('');
-  const [restaurantId, setRestaurantId] = useState(() => searchParams.get('demo') === 'staff' ? 'demo_rest' : '');
+  const [restaurantId, setRestaurantId] = useState(() => isDemoMode && searchParams.get('demo') === 'staff' ? 'demo_rest' : '');
 
   // Registration states
   const [regName, setRegName] = useState('');

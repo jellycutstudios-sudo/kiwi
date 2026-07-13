@@ -391,31 +391,6 @@ export const useOrderStore = create((set, get) => ({
       orderData.splitPayments = splitPayments ?? [];
     }
 
-    // --- DEMO ACCOUNT MOCK ---
-    if (restaurant?.id === 'demo_rest') {
-      if (editingOrderId) {
-        set({
-          activeOrders: get().activeOrders.map(o => o.id === editingOrderId ? { ...o, ...orderData, updatedAt: new Date().toISOString() } : o)
-        });
-        get().clearCart();
-        return { ok: true, orderId: editingOrderId };
-      } else {
-        const newOrderId = 'demo_order_' + Date.now();
-        const newOrder = {
-          id: newOrderId,
-          ...orderData,
-          createdAt: new Date().toISOString()
-        };
-        set({ activeOrders: [newOrder, ...get().activeOrders] });
-        if (orderType === 'dine-in' && tableId) {
-          await useTableStore.getState().setTableStatus(restaurant.id, tableId, 'occupied', newOrderId);
-        }
-        get().clearCart();
-        return { ok: true, orderId: newOrderId };
-      }
-    }
-    // -------------------------
-
     try {
       let orderId = editingOrderId;
       
@@ -439,22 +414,42 @@ export const useOrderStore = create((set, get) => ({
           shiftUpdate.upiSalesCount = increment(1);
           shiftUpdate.upiSalesAmount = increment(val);
         } else if (paymentMethod === 'split') {
+          let cashCount = 0;
+          let cashAmt = 0;
+          let cardCount = 0;
+          let cardAmt = 0;
+          let upiCount = 0;
+          let upiAmt = 0;
+          
           const splits = splitPayments ?? [];
           splits.forEach(p => {
             const m = p.method ?? 'cash';
             const amt = p.amount ?? 0;
             if (m === 'cash') {
-              shiftUpdate.cashSalesCount = (shiftUpdate.cashSalesCount ?? increment(0)) + increment(1);
-              shiftUpdate.cashSalesAmount = (shiftUpdate.cashSalesAmount ?? increment(0)) + increment(amt);
-              shiftUpdate.expectedCash = (shiftUpdate.expectedCash ?? increment(0)) + increment(amt);
+              cashCount += 1;
+              cashAmt += amt;
             } else if (m === 'card' || m === 'terminal') {
-              shiftUpdate.cardSalesCount = (shiftUpdate.cardSalesCount ?? increment(0)) + increment(1);
-              shiftUpdate.cardSalesAmount = (shiftUpdate.cardSalesAmount ?? increment(0)) + increment(amt);
+              cardCount += 1;
+              cardAmt += amt;
             } else if (m === 'upi') {
-              shiftUpdate.upiSalesCount = (shiftUpdate.upiSalesCount ?? increment(0)) + increment(1);
-              shiftUpdate.upiSalesAmount = (shiftUpdate.upiSalesAmount ?? increment(0)) + increment(amt);
+              upiCount += 1;
+              upiAmt += amt;
             }
           });
+          
+          if (cashCount > 0) {
+            shiftUpdate.cashSalesCount = increment(cashCount);
+            shiftUpdate.cashSalesAmount = increment(cashAmt);
+            shiftUpdate.expectedCash = increment(cashAmt);
+          }
+          if (cardCount > 0) {
+            shiftUpdate.cardSalesCount = increment(cardCount);
+            shiftUpdate.cardSalesAmount = increment(cardAmt);
+          }
+          if (upiCount > 0) {
+            shiftUpdate.upiSalesCount = increment(upiCount);
+            shiftUpdate.upiSalesAmount = increment(upiAmt);
+          }
         }
       }
 
@@ -590,14 +585,6 @@ export const useOrderStore = create((set, get) => ({
 
   // ── Real-time Order Listeners ────────────────────────────
   subscribeActiveOrders: (restaurantId) => {
-    // --- DEMO ACCOUNT MOCK ---
-    if (restaurantId === 'demo_rest') {
-      // The orders are kept in local state, so we don't clear them here
-      // unless we want to reset them on mount, but let's keep them across navigation.
-      return () => {};
-    }
-    // -------------------------
-
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
       where('status', 'in', ['pending', 'preparing', 'ready']),
@@ -682,15 +669,6 @@ export const useOrderStore = create((set, get) => ({
   },
 
   updateOrderStatus: async (restaurantId, orderId, status) => {
-    // --- DEMO ACCOUNT MOCK ---
-    if (restaurantId === 'demo_rest') {
-      set({
-        activeOrders: get().activeOrders.map(o => o.id === orderId ? { ...o, status } : o)
-      });
-      return;
-    }
-    // -------------------------
-
     await useAuthStore.getState().ensureAnonymousAuth();
     await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', orderId), { status });
   },
@@ -702,15 +680,6 @@ export const useOrderStore = create((set, get) => ({
 
 
   settleOrder: async (restaurantId, orderId, method, totalAmount, additionalFields = {}) => {
-    // --- DEMO ACCOUNT MOCK ---
-    if (restaurantId === 'demo_rest') {
-      set({
-        activeOrders: get().activeOrders.map(o => o.id === orderId ? { ...o, status: 'billed', paymentMethod: method, paid: true, ...additionalFields } : o)
-      });
-      return { ok: true };
-    }
-    // -------------------------
-
     try {
       await useAuthStore.getState().ensureAnonymousAuth();
       const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
@@ -741,6 +710,43 @@ export const useOrderStore = create((set, get) => ({
         } else if (method === 'upi') {
           shiftUpdate.upiSalesCount = increment(1);
           shiftUpdate.upiSalesAmount = increment(val);
+        } else if (method === 'split' && additionalFields.splitPayments) {
+          let cashCount = 0;
+          let cashAmt = 0;
+          let cardCount = 0;
+          let cardAmt = 0;
+          let upiCount = 0;
+          let upiAmt = 0;
+          
+          const splits = additionalFields.splitPayments;
+          splits.forEach(p => {
+            const m = p.method ?? 'cash';
+            const amt = p.amount ?? 0;
+            if (m === 'cash') {
+              cashCount += 1;
+              cashAmt += amt;
+            } else if (m === 'card' || m === 'terminal') {
+              cardCount += 1;
+              cardAmt += amt;
+            } else if (m === 'upi') {
+              upiCount += 1;
+              upiAmt += amt;
+            }
+          });
+          
+          if (cashCount > 0) {
+            shiftUpdate.cashSalesCount = increment(cashCount);
+            shiftUpdate.cashSalesAmount = increment(cashAmt);
+            shiftUpdate.expectedCash = increment(cashAmt);
+          }
+          if (cardCount > 0) {
+            shiftUpdate.cardSalesCount = increment(cardCount);
+            shiftUpdate.cardSalesAmount = increment(cardAmt);
+          }
+          if (upiCount > 0) {
+            shiftUpdate.upiSalesCount = increment(upiCount);
+            shiftUpdate.upiSalesAmount = increment(upiAmt);
+          }
         }
         
         await updateDoc(shiftRef, shiftUpdate);
