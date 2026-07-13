@@ -21,7 +21,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
         ('role' in request.auth.token && request.auth.token.role == 'super_admin') ||
-        (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.role == 'super_admin')
+        (getUserDoc() != null && getUserDoc().data.role == 'super_admin')
       );
     }
 
@@ -29,7 +29,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isSuperAdmin() || 
         ('role' in request.auth.token && request.auth.token.role == 'admin' && 'restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-        (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.role == 'admin' && getUserDoc().data.restaurantId == restaurantId)
+        (getUserDoc() != null && getUserDoc().data.role == 'admin' && getUserDoc().data.restaurantId == restaurantId)
       );
     }
     
@@ -38,7 +38,7 @@ service cloud.firestore {
        return isSignedIn() && (
          isSuperAdmin() || 
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-         (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.restaurantId == restaurantId)
+         (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId)
        );
     }
     
@@ -49,7 +49,7 @@ service cloud.firestore {
          isSuperAdmin() || 
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
          ('firebase' in request.auth.token && 'sign_in_provider' in request.auth.token.firebase && request.auth.token.firebase.sign_in_provider == 'anonymous') ||
-         (exists(/databases/$(database)/documents/users/$(uid())) && getUserDoc().data.restaurantId == restaurantId)
+         (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId)
        );
     }
 
@@ -86,8 +86,7 @@ service cloud.firestore {
       // Staff: list and write restricted to admins.
       // Individual staff docs can be fetched by authenticated members.
       match /staff/{staffId} {
-        allow get:   if isStaffMember(restaurantId);
-        allow list:  if isUserAdmin(restaurantId);
+        allow read:  if isStaffMember(restaurantId);
         allow write: if isUserAdmin(restaurantId);
       }
 

@@ -124,20 +124,24 @@ export const useAuthStore = create(
 
       loadUserData: async (firebaseUser) => {
         try {
-          // Fetch user document by UID — role is read from Firestore, never derived client-side.
-          // To grant super_admin: set role:'super_admin' directly in Firebase Console → Firestore → /users/{uid}
+          console.log("loadUserData: start for uid", firebaseUser.uid);
           const userDocRef = doc(db, 'users', firebaseUser.uid);
+          console.log("loadUserData: fetching userDocRef");
           const userSnap = await getDoc(userDocRef);
+          console.log("loadUserData: userSnap exists:", userSnap.exists());
 
           if (userSnap.exists()) {
             const userData = { id: userSnap.id, ...userSnap.data() };
             let restData = null;
             if (userData.restaurantId) {
+              console.log("loadUserData: fetching restDoc", userData.restaurantId);
               const restDoc = await getDoc(doc(db, 'restaurants', userData.restaurantId));
+              console.log("loadUserData: restDoc exists:", restDoc.exists());
               if (restDoc.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
               }
             }
+            console.log("loadUserData: setting state");
             set({
               user: firebaseUser,
               staffDoc: userData,
@@ -145,10 +149,11 @@ export const useAuthStore = create(
               loading: false,
             });
           } else {
-            // No /users doc yet — user is authenticated but not set up in the system
+            console.log("loadUserData: user doc not found");
             set({ user: firebaseUser, loading: false });
           }
         } catch (e) {
+          console.error("loadUserData error:", e);
           set({ loading: false, error: e.message });
         }
       },
