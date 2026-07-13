@@ -1,13 +1,11 @@
 import toast from 'react-hot-toast';
+import { useMenuStore } from '../stores/menuStore';
 
 // A robust helper to translate Unicode strings to ASCII bytes with best-effort transliteration fallback
 function unicodeToEscPosBytes(text) {
-  // Mapping common Arabic/accented characters to readable equivalents
   const translitMap = {
-    // Accented European chars
     'é': 'e', 'è': 'e', 'à': 'a', 'ù': 'u', 'ç': 'c', 'â': 'a', 'ê': 'e', 'î': 'i', 'ô': 'o', 'û': 'u',
     'ë': 'e', 'ï': 'i', 'ü': 'u', 'ö': 'o', 'ä': 'a', 'ñ': 'n',
-    // Basic Arabic transliterations
     'ا': 'A', 'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'dh',
     'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a',
     'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ه': 'h', 'و': 'w', 'ي': 'y',
@@ -31,7 +29,15 @@ function unicodeToEscPosBytes(text) {
   return new Uint8Array(result);
 }
 
-function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName }) {
+// Lookup Category ID for a menu item ID
+function getCategoryForMenuItem(menuItemId) {
+  const categories = useMenuStore.getState().categories || [];
+  const cat = categories.find(c => (c.items ?? []).some(item => item.id === menuItemId));
+  return cat ? cat.id : null;
+}
+
+// Compile receipt payload for ESC/POS
+function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig }) {
   const { name: restName = 'RestaurantOS', address = '', phone = '' } = restaurant ?? {};
   const { currency = 'INR' } = restaurant ?? {};
   
@@ -61,11 +67,11 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName }) 
   
   writeBytes(INIT);
   
-  if (restaurant?.peripheralConfig?.soundAlerts) {
+  if (printerConfig?.soundAlerts) {
     writeBytes(BUZZER_BELL);
   }
   
-  if (restaurant?.peripheralConfig?.drawerKick && order.paymentMethod === 'cash') {
+  if (printerConfig?.drawerKick && order.paymentMethod === 'cash') {
     writeBytes(DRAWER_KICK);
   }
   
@@ -140,6 +146,92 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName }) 
   return new Uint8Array(buffer);
 }
 
+// Compile kitchen station ticket for ESC/POS
+function compileEscPosKitchenTicket({ restaurant, order, items, staffName, printerConfig }) {
+  const ESC = 27;
+  const GS = 29;
+  const LF = 10;
+  
+  const INIT = [ESC, 64];
+  const ALIGN_CENTER = [ESC, 97, 1];
+  const ALIGN_LEFT = [ESC, 97, 0];
+  const BOLD_ON = [ESC, 69, 1];
+  const BOLD_OFF = [ESC, 69, 0];
+  const CUT = [GS, 86, 65, 0];
+  const BUZZER_BELL = [7];
+  const DOUBLE_SIZE = [GS, 33, 17]; // Double height and double width
+  const NORMAL_SIZE = [GS, 33, 0];
+
+  let buffer = [];
+  
+  const writeBytes = (bytes) => {
+    buffer.push(...bytes);
+  };
+  
+  const writeTextLine = (text) => {
+    writeBytes(unicodeToEscPosBytes(text));
+    writeBytes([LF]);
+  };
+  
+  writeBytes(INIT);
+  
+  if (printerConfig?.soundAlerts) {
+    writeBytes(BUZZER_BELL);
+  }
+  
+  writeBytes(ALIGN_CENTER);
+  writeBytes(DOUBLE_SIZE);
+  writeBytes(BOLD_ON);
+  writeTextLine(`KITCHEN TICKET`);
+  writeBytes(NORMAL_SIZE);
+  writeBytes(BOLD_OFF);
+  
+  writeTextLine('--------------------------------');
+  writeBytes(ALIGN_LEFT);
+  writeTextLine(`Station: ${printerConfig.name}`);
+  writeTextLine(`Date: ${new Date().toLocaleString()}`);
+  
+  const orderTypeLabel =
+    order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
+    order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
+    `Online`;
+  
+  writeBytes(BOLD_ON);
+  writeTextLine(orderTypeLabel);
+  writeBytes(BOLD_OFF);
+  
+  if (order.customerName) writeTextLine(`Customer: ${order.customerName}`);
+  if (staffName) writeTextLine(`Staff: ${staffName}`);
+  
+  writeTextLine('--------------------------------');
+  
+  writeBytes(BOLD_ON);
+  writeTextLine('Item                     Qty');
+  writeBytes(BOLD_OFF);
+  
+  items.forEach(i => {
+    const itemLeft = i.name.slice(0, 24).padEnd(25, ' ');
+    const qtyRight = String(i.qty).padStart(3, ' ').padEnd(4, ' ');
+    writeTextLine(`${itemLeft}${qtyRight}`);
+    if (i.selectedModifiers && i.selectedModifiers.length > 0) {
+      writeTextLine(`  + ${i.selectedModifiers.map(m => m.name).join(', ')}`);
+    }
+  });
+  
+  writeTextLine('--------------------------------');
+  if (order.note) {
+    writeTextLine(`Note: ${order.note}`);
+    writeTextLine('--------------------------------');
+  }
+  writeTextLine(`Order ID: ${order.id?.slice(-8) ?? ''}`);
+  
+  writeBytes(LF);
+  writeBytes(LF);
+  writeBytes(CUT);
+  
+  return new Uint8Array(buffer);
+}
+
 async function sendToBluetoothPrinter(buffer) {
   console.log('[ESC/POS Bluetooth] Connecting to Bluetooth Printer...', buffer);
   toast.success('Pairing with Bluetooth Printer...');
@@ -192,21 +284,73 @@ async function sendToNetworkPrinter(ipAddress, buffer) {
   }
 }
 
+// Loop through all receipt printers and execute print
 export function printReceipt({ restaurant, order, items, taxInfo, staffName }) {
-  const { printerMode = 'browser', printerIp } = restaurant?.peripheralConfig ?? {};
-  
-  if (printerMode !== 'browser') {
-    const buffer = compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName });
-    if (printerMode === 'bluetooth') {
-      sendToBluetoothPrinter(buffer);
-    } else if (printerMode === 'serial') {
-      sendToSerialPrinter(buffer);
-    } else if (printerMode === 'network') {
-      sendToNetworkPrinter(printerIp || '192.168.1.100:9100', buffer);
-    }
+  const printers = restaurant?.peripheralConfig?.printers ?? [];
+  const receiptPrinters = printers.filter(p => p.type === 'receipt');
+
+  if (receiptPrinters.length === 0) {
+    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName });
     return;
   }
 
+  receiptPrinters.forEach(printer => {
+    if (printer.mode === 'browser') {
+      printReceiptBrowser({ restaurant, order, items, taxInfo, staffName });
+    } else {
+      const buffer = compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig: printer });
+      if (printer.mode === 'bluetooth') {
+        sendToBluetoothPrinter(buffer);
+      } else if (printer.mode === 'serial') {
+        sendToSerialPrinter(buffer);
+      } else if (printer.mode === 'network') {
+        sendToNetworkPrinter(printer.ipAddress, buffer);
+      }
+    }
+  });
+}
+
+// Loop through all kitchen printers, filter items by category, and send ticket
+export function printKitchenTickets({ restaurant, order, items, staffName }) {
+  const printers = restaurant?.peripheralConfig?.printers ?? [];
+  const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
+
+  if (kitchenPrinters.length === 0) {
+    console.log('[Print Engine] No kitchen printers configured to print tickets.');
+    return;
+  }
+
+  kitchenPrinters.forEach(printer => {
+    // Filter items routed to this printer
+    const printerCats = printer.categories ?? [];
+    const routedItems = items.filter(item => {
+      // If categories array is empty, route everything
+      if (printerCats.length === 0) return true;
+      const itemCatId = getCategoryForMenuItem(item.menuItemId || item.id);
+      return itemCatId && printerCats.includes(itemCatId);
+    });
+
+    if (routedItems.length === 0) {
+      console.log(`[Print Engine] No items to route to kitchen printer: ${printer.name}`);
+      return;
+    }
+
+    if (printer.mode === 'browser') {
+      printKitchenBrowser({ order, items: routedItems, printerName: printer.name });
+    } else {
+      const buffer = compileEscPosKitchenTicket({ restaurant, order, items: routedItems, staffName, printerConfig: printer });
+      if (printer.mode === 'bluetooth') {
+        sendToBluetoothPrinter(buffer);
+      } else if (printer.mode === 'serial') {
+        sendToSerialPrinter(buffer);
+      } else if (printer.mode === 'network') {
+        sendToNetworkPrinter(printer.ipAddress, buffer);
+      }
+    }
+  });
+}
+
+function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName }) {
   const { currency = 'INR', name: restName, address = '', phone = '' } = restaurant ?? {};
   const win = window.open('', '_blank', 'width=340,height=600');
   if (!win) { alert('Please allow popups to print receipts.'); return; }
@@ -294,6 +438,60 @@ ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 <div>Payment: ${(order.paymentMethod ?? 'cash').toUpperCase()}</div>
 ${order.upiRef ? `<div style="font-size:11px">UPI Ref: ${order.upiRef}</div>` : ''}
 <div class="footer">Thank you for dining with us!<br/>Order ID: ${order.id?.slice(-8) ?? ''}</div>
+</body>
+</html>
+`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
+}
+
+function printKitchenBrowser({ order, items, printerName }) {
+  const win = window.open('', '_blank', 'width=300,height=400');
+  if (!win) return;
+
+  const itemRows = items.map(i =>
+    `<tr>
+      <td style="font-size: 16px; font-weight: bold; vertical-align: top;">${i.name}</td>
+      <td style="font-size: 18px; font-weight: bold; text-align: right; vertical-align: top;">×${i.qty}</td>
+    </tr>
+    ${i.selectedModifiers && i.selectedModifiers.length > 0
+      ? `<tr><td colspan="2" style="font-size:12px; color:#333; padding-left:4mm; padding-bottom: 4px;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</td></tr>`
+      : ''}`
+  ).join('');
+
+  const orderTypeLabel =
+    order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
+    order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
+    `Online`;
+
+  win.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { width: 72mm; font-family: 'Courier New', monospace; font-size: 12px; padding: 4mm 3mm; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .large { font-size: 20px; }
+  .divider { border-top: 1px dashed #000; margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 0; }
+</style>
+</head>
+<body>
+<div class="center bold large">KITCHEN TICKET</div>
+<div class="center bold">Station: ${printerName}</div>
+<div class="divider"></div>
+<div style="font-size: 14px; font-weight: bold;">Order Type: ${orderTypeLabel}</div>
+<div>Date: ${new Date().toLocaleString()}</div>
+<div class="divider"></div>
+<table>
+  <tbody>${itemRows}</tbody>
+</table>
+<div class="divider"></div>
+${order.note ? `<div style="font-size:13px; font-style:italic;">Note: ${order.note}</div><div class="divider"></div>` : ''}
+<div class="center" style="font-size: 10px; color: #555;">Order ID: ${order.id?.slice(-8) ?? ''}</div>
 </body>
 </html>
 `);

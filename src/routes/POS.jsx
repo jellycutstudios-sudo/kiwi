@@ -10,7 +10,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { printReceipt, printTokenTicket } from '../utils/print';
+import { printReceipt, printTokenTicket, printKitchenTickets } from '../utils/print';
 import toast from 'react-hot-toast';
 import { ShoppingCart, Trash2, Plus, Minus, X, ChevronRight, Tag } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
@@ -551,25 +551,36 @@ export default function POS() {
     toast.success('Order placed!');
     setShowPayment(false);
 
+    const printOrder = {
+      id: res.orderId,
+      type: orderType,
+      tableName,
+      token,
+      customerName,
+      subtotal,
+      discount,
+      discountType,
+      discountAmount,
+      total,
+      paymentMethod,
+      currency,
+      note,
+    };
+
     // Print receipt
     printReceipt({
       restaurant,
-      order: {
-        id: res.orderId,
-        type: orderType,
-        tableName,
-        token,
-        customerName,
-        subtotal,
-        discount,
-        discountType,
-        discountAmount,
-        total,
-        paymentMethod,
-        currency,
-      },
+      order: printOrder,
       items,
       taxInfo,
+      staffName: staffDoc?.name,
+    });
+
+    // Print kitchen tickets
+    printKitchenTickets({
+      restaurant,
+      order: printOrder,
+      items,
       staffName: staffDoc?.name,
     });
 

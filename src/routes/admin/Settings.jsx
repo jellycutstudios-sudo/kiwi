@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
+import { useMenuStore } from '../../stores/menuStore';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
-import { Save, Copy, Check } from 'lucide-react';
+import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const MODES = [
@@ -40,6 +41,93 @@ export default function Settings() {
   const [copied, setCopied] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+
+  const { categories, subscribeMenu } = useMenuStore();
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const unsub = subscribeMenu(restaurant.id);
+    return () => unsub();
+  }, [restaurant?.id, subscribeMenu]);
+
+  const [showPrinterForm, setShowPrinterForm] = useState(false);
+  const [activePrinterIndex, setActivePrinterIndex] = useState(-1);
+  const [printerForm, setPrinterForm] = useState({
+    id: '',
+    name: '',
+    type: 'receipt', // receipt, kitchen
+    mode: 'browser', // browser, bluetooth, serial, network
+    ipAddress: '',
+    drawerKick: false,
+    soundAlerts: false,
+    categories: []
+  });
+
+  const handleAddPrinter = () => {
+    setPrinterForm({
+      id: crypto.randomUUID(),
+      name: '',
+      type: 'receipt',
+      mode: 'browser',
+      ipAddress: '',
+      drawerKick: false,
+      soundAlerts: false,
+      categories: []
+    });
+    setActivePrinterIndex(-1);
+    setShowPrinterForm(true);
+  };
+
+  const handleEditPrinter = (idx, printer) => {
+    setPrinterForm({
+      id: printer.id || crypto.randomUUID(),
+      name: printer.name || '',
+      type: printer.type || 'receipt',
+      mode: printer.mode || 'browser',
+      ipAddress: printer.ipAddress || '',
+      drawerKick: printer.drawerKick || false,
+      soundAlerts: printer.soundAlerts || false,
+      categories: printer.categories || []
+    });
+    setActivePrinterIndex(idx);
+    setShowPrinterForm(true);
+  };
+
+  const handleDeletePrinter = (idx) => {
+    if (!confirm('Are you sure you want to remove this printer?')) return;
+    const printers = [...(settings.peripheralConfig?.printers ?? [])];
+    printers.splice(idx, 1);
+    updateField('peripheralConfig.printers', printers);
+    toast.success('Printer removed');
+  };
+
+  const handleSavePrinter = () => {
+    if (!printerForm.name.trim()) {
+      toast.error('Printer name is required');
+      return;
+    }
+    if (printerForm.mode === 'network' && !printerForm.ipAddress.trim()) {
+      toast.error('Printer IP address is required for network mode');
+      return;
+    }
+    const printers = [...(settings.peripheralConfig?.printers ?? [])];
+    if (activePrinterIndex >= 0) {
+      printers[activePrinterIndex] = printerForm;
+    } else {
+      printers.push(printerForm);
+    }
+    updateField('peripheralConfig.printers', printers);
+    setShowPrinterForm(false);
+    toast.success(activePrinterIndex >= 0 ? 'Printer updated' : 'Printer added');
+  };
+
+  const handleToggleCategory = (catId) => {
+    const updatedCats = printerForm.categories.includes(catId)
+      ? printerForm.categories.filter(id => id !== catId)
+      : [...printerForm.categories, catId];
+    setPrinterForm({ ...printerForm, categories: updatedCats });
+  };
+
 
   useEffect(() => {
     if (copiedToken) {
@@ -812,86 +900,290 @@ export default function Settings() {
             <>
               {/* Hardware Peripherals */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>🔌 Hardware Peripherals</h3>
-                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Configure ESC/POS thermal printers, sound alerts, and cash drawer kick codes.
-                </p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
-                    <div className="form-group">
-                      <label className="form-label">Receipt Printer Mode</label>
-                      <select
-                        id="peripheral-printer-mode"
-                        className="form-select"
-                        value={settings.peripheralConfig?.printerMode ?? 'browser'}
-                        onChange={e => updateField('peripheralConfig.printerMode', e.target.value)}
-                      >
-                        <option value="browser">Browser Print Dialog (Default)</option>
-                        <option value="bluetooth">Web Bluetooth ESC/POS Printer</option>
-                        <option value="serial">Web Serial COM Port</option>
-                        <option value="network">Network IP / Print Server</option>
-                      </select>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                  <div>
+                    <h3 className="text-title3" style={{ marginBottom: '2px' }}>🔌 Printer & Hardware Peripherals</h3>
+                    <p className="text-secondary text-footnote">
+                      Manage receipts and kitchen tickets by configuring and routing multiple ESC/POS thermal printers.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleAddPrinter}
+                    style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Plus size={16} /> Add Printer
+                  </button>
+                </div>
+
+                {/* Printers list */}
+                {(!settings.peripheralConfig?.printers || settings.peripheralConfig.printers.length === 0) ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: 'var(--space-8) var(--space-4)',
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px dashed var(--color-separator)',
+                    color: 'var(--color-label-tertiary)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <Printer size={36} color="var(--color-label-quaternary)" />
+                    <div>
+                      <div style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-label-secondary)' }}>No Printers Configured</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Add physical receipt or kitchen printers to route order print jobs.</div>
                     </div>
-                    
-                    {settings.peripheralConfig?.printerMode === 'network' && (
-                      <div className="form-group">
-                        <label className="form-label">Printer IP Address / Port</label>
-                        <input
-                          id="peripheral-printer-ip"
-                          className="form-input"
-                          placeholder="e.g. 192.168.1.100:9100"
-                          value={settings.peripheralConfig?.printerIp ?? ''}
-                          onChange={e => updateField('peripheralConfig.printerIp', e.target.value)}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)', marginTop: 'var(--space-2)' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        id="peripheral-drawer-kick"
-                        checked={settings.peripheralConfig?.drawerKick ?? false}
-                        onChange={e => updateField('peripheralConfig.drawerKick', e.target.checked)}
-                      />
-                      <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)' }}>Auto-Open Cash Drawer</span>
-                    </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        id="peripheral-sound-alerts"
-                        checked={settings.peripheralConfig?.soundAlerts ?? false}
-                        onChange={e => updateField('peripheralConfig.soundAlerts', e.target.checked)}
-                      />
-                      <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)' }}>Kitchen Buzzer / Sound Alerts</span>
-                    </label>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        if (settings.peripheralConfig?.soundAlerts) {
-                          const audio = new Audio('/sounds/order-chime.wav');
-                          audio.play().catch(() => {});
-                        }
-                        toast.success('Triggering ESC/POS test printing logs... Check browser console!');
-                        console.log('%c[ESC/POS Print Engine Test]', 'color:#3b82f6;font-weight:bold;', {
-                          mode: settings.peripheralConfig?.printerMode ?? 'browser',
-                          ip: settings.peripheralConfig?.printerIp ?? 'N/A',
-                          drawerKick: settings.peripheralConfig?.drawerKick ? 'ENABLED (Pulse \\x1b\\x70\\x00\\x19\\x96)' : 'DISABLED',
-                          soundAlerts: settings.peripheralConfig?.soundAlerts ? 'ENABLED (Bell \\x07)' : 'DISABLED'
-                        });
-                      }}
+                      onClick={handleAddPrinter}
+                      style={{ marginTop: '4px' }}
                     >
-                      🖨️ Test Printer & Peripheral Connection
+                      Configure First Printer
                     </button>
                   </div>
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {settings.peripheralConfig.printers.map((printer, idx) => {
+                      const modeLabel = printer.mode === 'network' ? `Network: ${printer.ipAddress}` :
+                                        printer.mode === 'browser' ? 'Browser Print Dialog' :
+                                        printer.mode === 'bluetooth' ? 'Web Bluetooth' : 'Web Serial (COM)';
+                      
+                      const assignedCats = printer.categories && printer.categories.length > 0
+                        ? categories.filter(c => printer.categories.includes(c.id)).map(c => c.name).join(', ')
+                        : 'All Categories';
+
+                      return (
+                        <div
+                          key={printer.id || idx}
+                          style={{
+                            padding: 'var(--space-4)',
+                            background: 'var(--color-bg-secondary)',
+                            borderRadius: 'var(--radius-lg)',
+                            border: '1px solid var(--color-separator)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 'var(--space-4)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: 'var(--radius-md)',
+                              background: 'var(--color-accent-light)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--color-accent)'
+                            }}>
+                              <Printer size={20} />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-label-primary)' }}>
+                                  {printer.name}
+                                </span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 'var(--weight-heavy)',
+                                  textTransform: 'uppercase',
+                                  padding: '2px 8px',
+                                  borderRadius: 'var(--radius-full)',
+                                  background: printer.type === 'receipt' ? 'rgba(52, 199, 89, 0.1)' : 'rgba(0, 122, 255, 0.1)',
+                                  color: printer.type === 'receipt' ? 'var(--color-success)' : 'var(--color-accent)'
+                                }}>
+                                  {printer.type}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '4px' }}>
+                                {modeLabel} {printer.drawerKick && '• Drawer Kick'} {printer.soundAlerts && '• Sound Alerts'}
+                              </div>
+                              {printer.type === 'kitchen' && (
+                                <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>
+                                  Routing: <strong style={{ color: 'var(--color-label-secondary)' }}>{assignedCats}</strong>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                toast.success(`Simulating printer check for ${printer.name}...`);
+                                console.log(`%c[ESC/POS Print Engine Test: ${printer.name}]`, 'color:#3b82f6;font-weight:bold;', {
+                                  name: printer.name,
+                                  type: printer.type,
+                                  mode: printer.mode,
+                                  ip: printer.ipAddress || 'N/A',
+                                  drawerKick: printer.drawerKick ? 'ENABLED' : 'DISABLED',
+                                  soundAlerts: printer.soundAlerts ? 'ENABLED' : 'DISABLED',
+                                  categoriesRouted: printer.categories
+                                });
+                              }}
+                              style={{ padding: '0 var(--space-2)', height: '32px', fontSize: '11px' }}
+                            >
+                              Test
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-icon"
+                              onClick={() => handleEditPrinter(idx, printer)}
+                              style={{ width: '32px', height: '32px' }}
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-icon"
+                              onClick={() => handleDeletePrinter(idx)}
+                              style={{ width: '32px', height: '32px', color: 'var(--color-red)' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+
+              {/* Printer Modal Dialog */}
+              {showPrinterForm && (
+                <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowPrinterForm(false)}>
+                  <div className="modal animate-slide-up" style={{ maxWidth: 460 }}>
+                    <div className="modal-header">
+                      <h2 className="modal-title">
+                        {activePrinterIndex >= 0 ? '📝 Edit Printer Config' : '🔌 Add New Printer'}
+                      </h2>
+                      <button className="btn btn-secondary btn-icon" onClick={() => setShowPrinterForm(false)} type="button">
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                      <div className="form-group">
+                        <label className="form-label">Printer Name</label>
+                        <input
+                          className="form-input"
+                          placeholder="e.g. Front Cashier, Kitchen BBQ"
+                          value={printerForm.name}
+                          onChange={e => setPrinterForm({ ...printerForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                        <div className="form-group">
+                          <label className="form-label">Printer Type</label>
+                          <select
+                            className="form-select"
+                            value={printerForm.type}
+                            onChange={e => setPrinterForm({ ...printerForm, type: e.target.value, categories: e.target.value === 'receipt' ? [] : printerForm.categories })}
+                          >
+                            <option value="receipt">Receipt (Cashier/Customer)</option>
+                            <option value="kitchen">Kitchen / Station Ticket</option>
+                          </select>
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label">Connection Mode</label>
+                          <select
+                            className="form-select"
+                            value={printerForm.mode}
+                            onChange={e => setPrinterForm({ ...printerForm, mode: e.target.value, ipAddress: e.target.value !== 'network' ? '' : printerForm.ipAddress })}
+                          >
+                            <option value="browser">Browser Print Dialog</option>
+                            <option value="bluetooth">Web Bluetooth ESC/POS</option>
+                            <option value="serial">Web Serial COM Port</option>
+                            <option value="network">Network IP / Print Server</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {printerForm.mode === 'network' && (
+                        <div className="form-group">
+                          <label className="form-label">Printer IP Address / Port</label>
+                          <input
+                            className="form-input"
+                            placeholder="e.g. 192.168.1.100:9100"
+                            value={printerForm.ipAddress}
+                            onChange={e => setPrinterForm({ ...printerForm, ipAddress: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={printerForm.drawerKick}
+                            onChange={e => setPrinterForm({ ...printerForm, drawerKick: e.target.checked })}
+                          />
+                          <span style={{ fontSize: '13px', fontWeight: 'var(--weight-semibold)' }}>Open Cash Drawer</span>
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={printerForm.soundAlerts}
+                            onChange={e => setPrinterForm({ ...printerForm, soundAlerts: e.target.checked })}
+                          />
+                          <span style={{ fontSize: '13px', fontWeight: 'var(--weight-semibold)' }}>Sound Alerts (Buzzer)</span>
+                        </label>
+                      </div>
+
+                      {printerForm.type === 'kitchen' && (
+                        <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-3)' }}>
+                          <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
+                            Route Menu Categories
+                          </label>
+                          <p className="text-secondary text-footnote" style={{ marginBottom: '10px' }}>
+                            Select which categories print to this kitchen ticket. Leave empty to route all categories.
+                          </p>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                            gap: '8px',
+                            maxHeight: '160px',
+                            overflowY: 'auto',
+                            padding: '8px',
+                            background: 'var(--color-bg-secondary)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--color-separator)'
+                          }}>
+                            {categories.map(cat => (
+                              <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={printerForm.categories.includes(cat.id)}
+                                  onChange={() => handleToggleCategory(cat.id)}
+                                />
+                                <span style={{ fontSize: '12px' }}>{cat.emoji} {cat.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="modal-footer">
+                      <button className="btn btn-secondary" onClick={() => setShowPrinterForm(false)} type="button">
+                        Cancel
+                      </button>
+                      <button className="btn btn-primary" onClick={handleSavePrinter} type="button">
+                        Save Printer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
