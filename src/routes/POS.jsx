@@ -912,13 +912,13 @@ export default function POS() {
         {/* Service Details: Table and Customer/Loyalty Side-by-Side */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: orderType === 'dine-in' ? '1fr 1fr' : '1fr',
+          gridTemplateColumns: (orderType === 'dine-in' && restaurant?.features?.table) ? '1fr 1fr' : '1fr',
           gap: '8px',
           padding: 'var(--space-2) var(--space-4)',
           borderBottom: '1px solid var(--color-separator)',
           background: 'var(--color-bg-secondary)'
         }}>
-          {orderType === 'dine-in' && (
+          {orderType === 'dine-in' && restaurant?.features?.table && (
             <select
               value={tableId || ''}
               onChange={(e) => {
