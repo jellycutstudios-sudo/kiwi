@@ -76,8 +76,20 @@ service cloud.firestore {
 
       // Staff — admin write only. Read restricted to admins or via backend.
       // Client shouldn't fetch all PINs.
+      // Staff: list and write restricted to admins.
+      // Individual staff docs can be fetched by authenticated members.
       match /staff/{staffId} {
-        allow read:  if isSignedIn();
+        allow get:   if isStaffMember(restaurantId);
+        allow list:  if isUserAdmin(restaurantId);
+        allow write: if isUserAdmin(restaurantId);
+      }
+
+      // Secure client-side lookup collection:
+      // Permits get (reading individual docs if you know the exact PIN),
+      // but strictly denies listing/querying the entire collection.
+      match /pins/{pin} {
+        allow get:   if isSignedIn();
+        allow list:  if false;
         allow write: if isUserAdmin(restaurantId);
       }
 

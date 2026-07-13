@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
-import { collection, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, UserCheck, UserX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { useEffect } from 'react';
 
 const ROLES = ['cashier', 'waiter', 'kitchen', 'admin'];
 
@@ -24,39 +25,142 @@ export default function StaffManager() {
     overtimeRate: '1.5'
   });
 
+  // Self-healing migration: Ensure all active staff members have their lookup documents in the pins subcollection
+  useEffect(() => {
+    if (!restaurant?.id || staff.length === 0) return;
+
+    const migratePins = async () => {
+      try {
+        const batch = writeBatch(db);
+        let needsMigration = false;
+
+        for (const s of staff) {
+          if (s.active !== false && s.pin) {
+            const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', s.pin);
+            const pinSnap = await getDoc(pinRef);
+            if (!pinSnap.exists()) {
+              batch.set(pinRef, {
+                staffId: s.id,
+                name: s.name,
+                active: true
+              });
+              needsMigration = true;
+            }
+          }
+        }
+
+        if (needsMigration) {
+          await batch.commit();
+          console.info('[StaffManager] Secure PIN lookup index auto-migrated successfully.');
+        }
+      } catch (err) {
+        console.error('[StaffManager] PIN migration failed:', err);
+      }
+    };
+
+    migratePins();
+  }, [restaurant?.id, staff]);
+
   const saveStaff = async () => {
     if (!form.name.trim() || (!editId && form.pin.length < 4)) {
       toast.error('Name required and PIN must be 4 digits');
       return;
     }
-    if (editId) {
-      await updateDoc(doc(db, 'restaurants', restaurant.id, 'staff', editId), {
-        name: form.name.trim(),
-        role: form.role,
-        salaryType: form.salaryType,
-        salaryRate: Number(form.salaryRate) || 0,
-        overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-        ...(form.pin ? { pin: form.pin } : {}),
-      });
-      toast.success('Staff updated!');
-    } else {
-      // Check PIN uniqueness
-      if (staff.some(s => s.pin === form.pin)) {
-        toast.error('PIN already in use — choose a different PIN');
-        return;
+    try {
+      if (editId) {
+        const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
+        const staffSnap = await getDoc(staffRef);
+        if (!staffSnap.exists()) {
+          toast.error('Staff member not found');
+          return;
+        }
+        const existingStaff = staffSnap.data();
+        const batch = writeBatch(db);
+
+        // If PIN is changing
+        if (form.pin && form.pin !== existingStaff.pin) {
+          if (form.pin.length < 4) {
+            toast.error('New PIN must be 4 digits');
+            return;
+          }
+          // Validate new PIN uniqueness
+          const newPinRef = doc(db, 'restaurants', restaurant.id, 'pins', form.pin);
+          const newPinSnap = await getDoc(newPinRef);
+          if (newPinSnap.exists() && newPinSnap.data().staffId !== editId) {
+            toast.error('PIN already in use — choose a different PIN');
+            return;
+          }
+
+          // Delete old PIN document
+          if (existingStaff.pin) {
+            const oldPinRef = doc(db, 'restaurants', restaurant.id, 'pins', existingStaff.pin);
+            batch.delete(oldPinRef);
+          }
+
+          // Write new PIN document
+          if (existingStaff.active !== false) {
+            batch.set(newPinRef, {
+              staffId: editId,
+              name: form.name.trim(),
+              active: true
+            });
+          }
+        } else {
+          // If PIN didn't change, but active status is true, update name in lookup
+          if (existingStaff.active !== false && existingStaff.pin) {
+            const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', existingStaff.pin);
+            batch.update(pinRef, { name: form.name.trim() });
+          }
+        }
+
+        // Update staff doc
+        batch.update(staffRef, {
+          name: form.name.trim(),
+          role: form.role,
+          salaryType: form.salaryType,
+          salaryRate: Number(form.salaryRate) || 0,
+          overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
+          ...(form.pin ? { pin: form.pin } : {}),
+        });
+
+        await batch.commit();
+        toast.success('Staff updated!');
+      } else {
+        // Add new staff: validate PIN uniqueness first
+        const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', form.pin);
+        const pinSnap = await getDoc(pinRef);
+        if (pinSnap.exists()) {
+          toast.error('PIN already in use — choose a different PIN');
+          return;
+        }
+
+        const batch = writeBatch(db);
+        const staffDocRef = doc(collection(db, 'restaurants', restaurant.id, 'staff'));
+
+        batch.set(staffDocRef, {
+          name: form.name.trim(),
+          pin: form.pin,
+          role: form.role,
+          active: true,
+          email: form.email.trim() || null,
+          salaryType: form.salaryType,
+          salaryRate: Number(form.salaryRate) || 0,
+          overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
+          createdAt: new Date(),
+        });
+
+        batch.set(pinRef, {
+          staffId: staffDocRef.id,
+          name: form.name.trim(),
+          active: true
+        });
+
+        await batch.commit();
+        toast.success('Staff member added!');
       }
-      await addDoc(collection(db, 'restaurants', restaurant.id, 'staff'), {
-        name: form.name.trim(),
-        pin: form.pin,
-        role: form.role,
-        active: true,
-        email: form.email.trim() || null,
-        salaryType: form.salaryType,
-        salaryRate: Number(form.salaryRate) || 0,
-        overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-        createdAt: new Date(),
-      });
-      toast.success('Staff member added!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save staff: ' + err.message);
     }
     setShowForm(false);
     setEditId(null);
@@ -72,14 +176,68 @@ export default function StaffManager() {
   };
 
   const toggleActive = async (id, current) => {
-    await updateDoc(doc(db, 'restaurants', restaurant.id, 'staff', id), { active: !current });
-    toast(current ? 'Staff deactivated' : 'Staff activated', { icon: current ? '🔒' : '✅' });
+    try {
+      const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
+      const staffSnap = await getDoc(staffRef);
+      if (!staffSnap.exists()) return;
+      const s = staffSnap.data();
+
+      const batch = writeBatch(db);
+      const nextActive = !current;
+
+      // Update staff document
+      batch.update(staffRef, { active: nextActive });
+
+      if (s.pin) {
+        const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', s.pin);
+        if (nextActive) {
+          // Re-activating staff: verify PIN is still free
+          const pinSnap = await getDoc(pinRef);
+          if (pinSnap.exists() && pinSnap.data().staffId !== id) {
+            toast.error('PIN is currently in use by another active staff member. Update this staff member\'s PIN first.');
+            return;
+          }
+          batch.set(pinRef, {
+            staffId: id,
+            name: s.name,
+            active: true
+          });
+        } else {
+          // Deactivating staff: remove their PIN from the active lookup collection
+          batch.delete(pinRef);
+        }
+      }
+
+      await batch.commit();
+      toast(nextActive ? 'Staff activated' : 'Staff deactivated', { icon: nextActive ? '✅' : '🔒' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update active state: ' + err.message);
+    }
   };
 
   const deleteStaff = async (id) => {
     if (!confirm('Remove this staff member?')) return;
-    await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff', id));
-    toast.success('Removed');
+    try {
+      const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
+      const staffSnap = await getDoc(staffRef);
+      if (!staffSnap.exists()) return;
+      const s = staffSnap.data();
+
+      const batch = writeBatch(db);
+      batch.delete(staffRef);
+
+      if (s.pin) {
+        const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', s.pin);
+        batch.delete(pinRef);
+      }
+
+      await batch.commit();
+      toast.success('Removed');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to remove staff: ' + err.message);
+    }
   };
 
   const roleColors = { admin:'badge-purple', cashier:'badge-blue', waiter:'badge-teal', kitchen:'badge-orange' };

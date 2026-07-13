@@ -73,14 +73,22 @@ export const useAuthStore = create(
             }
           }
 
-          const staffRef = collection(db, 'restaurants', actualRestId, 'staff');
-          const q = query(staffRef, where('pin', '==', pin), where('active', '==', true));
-          const snap = await getDocs(q);
-          if (snap.empty) {
+          const staffRef = doc(db, 'restaurants', actualRestId, 'pins', pin);
+          const snap = await getDoc(staffRef);
+          if (!snap.exists()) {
             set({ loading: false, error: 'Invalid PIN' });
             return { ok: false, error: 'Invalid PIN' };
           }
-          const staffData = { id: snap.docs[0].id, ...snap.docs[0].data() };
+          const { staffId } = snap.data();
+
+          // Fetch actual staff member profile details securely by ID
+          const staffProfileRef = doc(db, 'restaurants', actualRestId, 'staff', staffId);
+          const staffProfileSnap = await getDoc(staffProfileRef);
+          if (!staffProfileSnap.exists() || staffProfileSnap.data().active === false) {
+            set({ loading: false, error: 'Invalid PIN or account deactivated' });
+            return { ok: false, error: 'Invalid PIN or account deactivated' };
+          }
+          const staffData = { id: staffId, ...staffProfileSnap.data() };
 
           // Load restaurant
           const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
