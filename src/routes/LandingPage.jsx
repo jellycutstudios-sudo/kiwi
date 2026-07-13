@@ -483,7 +483,7 @@ export default function LandingPage() {
                 <div className="neo-demo-credentials">
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Email</span>
-                    <span className="neo-demo-cred-val">admin@demo.com</span>
+                    <span className="neo-demo-cred-val">salman@kiwi.com</span>
                   </div>
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Password</span>
@@ -502,7 +502,7 @@ export default function LandingPage() {
                 <div className="neo-demo-credentials">
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Restaurant ID</span>
-                    <span className="neo-demo-cred-val">demo_rest</span>
+                    <span className="neo-demo-cred-val">kiwi</span>
                   </div>
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">PIN</span>
