@@ -88,7 +88,7 @@ export default function LandingPage() {
             </button>
 
             {!isAuth && (
-              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary" style={{ marginRight: '0.5rem', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
+              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary" style={{ marginRight: '0.5rem' }}>
                 {t('tryDemoAccounts') || 'Try Demo'}
               </button>
             )}
