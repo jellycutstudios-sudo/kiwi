@@ -52,6 +52,11 @@ export const useAuthStore = create(
               firebaseUser = cred.user;
             } catch (anonErr) {
               console.error('Anonymous auth failed:', anonErr.code);
+              if (anonErr.code === 'auth/unauthorized-domain') {
+                throw new Error("Domain not authorized. Please add this URL to Firebase Console > Authentication > Settings > Authorized Domains.");
+              } else {
+                throw new Error(`Anonymous auth failed: ${anonErr.message}`);
+              }
             }
           }
 
