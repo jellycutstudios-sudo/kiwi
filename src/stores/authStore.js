@@ -5,8 +5,9 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  signInAnonymously,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 let isLoggingIn = false;
@@ -37,49 +38,72 @@ export const useAuthStore = create(
         }
       },
 
-      // PIN login for staff — calls the secure Cloud Function which validates the PIN
-      // server-side and returns a custom Firebase Auth token with restaurantId claims.
-      // This ensures the PIN is NEVER sent to the client or exposed in Firestore rules.
+      // PIN login for staff (looks up PIN in Firestore)
       loginWithPin: async (restaurantId, pin) => {
         isLoggingIn = true;
         set({ loading: true, error: null });
 
         try {
-          const { httpsCallable } = await import('firebase/functions');
-          const { getFunctions } = await import('firebase/functions');
-          const { signInWithCustomToken } = await import('firebase/auth');
-          const { app } = await import('../firebase');
+          // Authenticate anonymously first so we pass Firestore security rules (allow read: if isSignedIn)
+          let firebaseUser = null;
+          if (auth) {
+            try {
+              const cred = await signInAnonymously(auth);
+              firebaseUser = cred.user;
+            } catch (anonErr) {
+              console.error('Anonymous auth failed:', anonErr.code);
+            }
+          }
 
-          const functions = getFunctions(app);
-          const validatePin = httpsCallable(functions, 'validatePin');
+          const cleanRestId = restaurantId.trim();
+          let actualRestId = cleanRestId;
 
-          const result = await validatePin({ restaurantId: restaurantId.trim(), pin });
-          const { token, staff: staffData, restaurantId: actualRestId } = result.data;
+          // 1. Try to find restaurant by customId
+          const restQuery = query(collection(db, 'restaurants'), where('customId', '==', cleanRestId));
+          const restSnap = await getDocs(restQuery);
+          
+          if (!restSnap.empty) {
+            actualRestId = restSnap.docs[0].id;
+          } else {
+            // Fallback: Try to find restaurant by slug
+            const slugQuery = query(collection(db, 'restaurants'), where('slug', '==', cleanRestId));
+            const slugSnap = await getDocs(slugQuery);
+            if (!slugSnap.empty) {
+              actualRestId = slugSnap.docs[0].id;
+            }
+          }
 
-          // Sign in with the custom token — this embeds restaurantId + role claims
-          const cred = await signInWithCustomToken(auth, token);
-          const firebaseUser = cred.user;
+          const staffRef = collection(db, 'restaurants', actualRestId, 'staff');
+          const q = query(staffRef, where('pin', '==', pin), where('active', '==', true));
+          const snap = await getDocs(q);
+          if (snap.empty) {
+            set({ loading: false, error: 'Invalid PIN' });
+            return { ok: false, error: 'Invalid PIN' };
+          }
+          const staffData = { id: snap.docs[0].id, ...snap.docs[0].data() };
 
-          // Load restaurant document
+          // Load restaurant
           const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
           if (!restDoc.exists()) {
             set({ loading: false, error: 'Restaurant not found' });
             return { ok: false, error: 'Restaurant not found' };
           }
           const restData = { id: actualRestId, ...restDoc.data() };
+          if (restData.status !== 'approved') {
+            set({ loading: false, error: 'Restaurant is pending approval or suspended' });
+            return { ok: false, error: 'Restaurant is pending approval or suspended' };
+          }
 
           set({
-            user: firebaseUser,
+            user: firebaseUser || { uid: staffData.id, isPinLogin: true },
             staffDoc: staffData,
             restaurant: restData,
             loading: false,
           });
           return { ok: true, role: staffData.role };
         } catch (e) {
-          // httpsCallable wraps errors as FirebaseError with code
-          const msg = e?.message?.replace('FirebaseError: ', '') ?? e.message;
-          set({ loading: false, error: msg });
-          return { ok: false, error: msg };
+          set({ loading: false, error: e.message });
+          return { ok: false, error: e.message };
         } finally {
           isLoggingIn = false;
         }
@@ -163,10 +187,24 @@ export const useAuthStore = create(
               await get().loadUserData(user);
             }
           } else {
-            // No Firebase Auth session at all — clear state and go to login screen.
-            // Custom token sessions (PIN logins) are persisted by Firebase Auth itself
-            // and will be handled by the isAnonymous=false branch above on re-load.
-            set({ user: null, staffDoc: null, loading: false });
+            // No Firebase Auth session at all.
+            if (get().staffDoc?.pin) {
+              // PIN session persisted in localStorage — re-authenticate anonymously
+              // to restore Firestore write permissions (anonymous auth must be enabled
+              // in Firebase Console → Authentication → Sign-in method → Anonymous).
+              try {
+                const cred = await signInAnonymously(auth);
+                set({ user: cred.user, loading: false });
+              } catch (e) {
+                console.error('PIN session anonymous re-auth failed:', e.code, e.message);
+                // Anonymous auth is likely disabled in Firebase Console.
+                // Staff stays "logged in" visually but Firestore writes will fail.
+                set({ loading: false });
+              }
+            } else {
+              // No PIN session — clear state and go to login screen.
+              set({ user: null, staffDoc: null, loading: false });
+            }
           }
         });
       },
@@ -174,13 +212,16 @@ export const useAuthStore = create(
       clearError: () => set({ error: null }),
 
       // Ensures a valid Firebase Auth session exists for Firestore writes.
-      // For custom token (PIN) sessions, Firebase Auth manages the token lifecycle.
-      // This is a no-op guard — kept for API compatibility with store callers.
+      // Call before any authenticated Firestore write (openShift, submitOrder, etc.)
       ensureAnonymousAuth: async () => {
         if (!auth) return;
-        if (auth.currentUser) return; // already signed in via custom token or email
-        // If we reach here without a session, the user needs to log in again.
-        console.warn('[ensureAnonymousAuth] No active session found. User may need to re-login.');
+        if (auth.currentUser) return; // already signed in
+        try {
+          const cred = await signInAnonymously(auth);
+          set({ user: cred.user });
+        } catch (e) {
+          console.error('ensureAnonymousAuth failed:', e.code, e.message);
+        }
       },
 
       // Helpers

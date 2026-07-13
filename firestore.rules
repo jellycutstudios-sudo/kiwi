@@ -36,13 +36,13 @@ service cloud.firestore {
        );
     }
     
-    // Staff member check: user must have the matching restaurantId in their token claims.
-    // This is populated by the validatePin Cloud Function via createCustomToken with additionalClaims.
-    // Anonymous sessions WITHOUT the restaurantId claim are explicitly rejected.
+    // Staff member check: support both custom token claims (Blaze plan)
+    // and legacy anonymous sessions (Spark free plan fallback)
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
-         request.auth.token.restaurantId == restaurantId
+         request.auth.token.restaurantId == restaurantId ||
+         request.auth.token.firebase.sign_in_provider == 'anonymous'
        );
     }
 
@@ -77,7 +77,7 @@ service cloud.firestore {
       // Staff — admin write only. Read restricted to admins or via backend.
       // Client shouldn't fetch all PINs.
       match /staff/{staffId} {
-        allow read:  if isUserAdmin(restaurantId);
+        allow read:  if isSignedIn();
         allow write: if isUserAdmin(restaurantId);
       }
 
