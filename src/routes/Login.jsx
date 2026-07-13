@@ -118,235 +118,191 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <div className="login-form-card">
-        <Link to="/" className="login-back-home">
-          ← Home
-        </Link>
-        <div className="login-card-header">
-          <img src="/logorupos.svg" alt="Logo" style={{ display: 'block', margin: '0 auto 16px', height: '40px' }} />
-          <h2 className="login-card-title">
-            {mode === 'email' ? t('adminLogin') : mode === 'pin' ? t('staffLogin') : 'Register Restaurant'}
-          </h2>
-          <p className="login-card-subtitle">
-            {mode === 'email' 
-              ? 'Sign in with your admin credentials' 
-              : mode === 'pin' 
-                ? 'Enter your restaurant ID and PIN' 
-                : 'Start your modern restaurant POS journey today'}
-          </p>
-        </div>
 
-        {/* Mode toggle */}
-        <div className="login-mode-toggle">
-          {[
-            { m: 'email', label: '📧 Admin' },
-            { m: 'pin', label: '🔢 Staff PIN' },
-            { m: 'register', label: '🚀 Register' }
-          ].map(item => (
-            <button
-              key={item.m}
-              id={`login-mode-${item.m}`}
-              onClick={() => { setMode(item.m); clearError(); setPin(''); }}
-              className={`login-mode-btn ${mode === item.m ? 'active' : ''}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        {error && (
-          <div className="login-error-msg">{error}</div>
-        )}
-
-        {mode === 'email' ? (
-          <form onSubmit={handleEmailLogin} className="login-form">
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                id="login-email"
-                className="form-input"
-                type="email"
-                placeholder={t('emailPlaceholder')}
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <div className="password-input-wrapper">
-                <input
-                  id="login-password"
-                  className="form-input password-input"
-                  type={showPw ? 'text' : 'password'}
-                  placeholder={t('passwordPlaceholder')}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="password-toggle-btn"
-                >
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-            <button
-              id="login-submit-btn"
-              className="btn btn-primary btn-lg login-submit-btn"
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? '...' : t('signIn')}
-            </button>
-          </form>
-        ) : mode === 'pin' ? (
-          <div className="login-form">
-            <div className="form-group login-rest-id-group">
-              <label className="form-label">Restaurant ID</label>
-              <input
-                id="login-restaurant-id"
-                className="form-input"
-                placeholder="e.g. my-restaurant or rest_abc123"
-                value={restaurantId}
-                onChange={e => setRestaurantId(e.target.value)}
-              />
-            </div>
-            {/* PIN dots */}
-            <div className="pin-dots">
-              {[0,1,2,3].map(i => (
-                <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
-              ))}
-            </div>
-            {/* PIN pad */}
-            <div className="pin-pad">
-              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
-                <button
-                  key={i}
-                  id={k ? `pin-key-${k}` : undefined}
-                  className={`pin-key ${k === '' ? 'empty' : ''}`}
-                  onClick={() => {
-                    if (k === '⌫') setPin(p => p.slice(0,-1));
-                    else if (k) handlePinKey(k);
-                  }}
-                  disabled={loading}
-                >
-                  {k}
-                </button>
-              ))}
-            </div>
-            {loading && (
-              <div className="login-verifying">
-                Verifying...
-              </div>
-            )}
+      {/* ── Left brand panel (desktop only) ── */}
+      <div className="login-brand-panel">
+        <div className="login-brand-content">
+          <div className="login-brand-logo-wrap">
+            <img src="/logorupos.svg" alt="RUPOS" />
           </div>
-        ) : (
-          <form onSubmit={handleRegister} className="login-form register-form">
-            <div className="form-row">
+          <h1 className="login-brand-title">The modern OS<br />for restaurants</h1>
+          <p className="login-brand-subtitle">
+            Everything your restaurant needs — POS, Tables, Kitchen Display, Reports &amp; more — in one seamless platform.
+          </p>
+          <div className="login-brand-features">
+            {[
+              { icon: '🏪', label: 'Multi-outlet ready' },
+              { icon: '📊', label: 'Real-time analytics' },
+              { icon: '🔒', label: 'Secure & role-based' },
+              { icon: '📱', label: 'Works on any device' },
+            ].map(f => (
+              <div key={f.label} className="login-brand-feature">
+                <span className="login-brand-feature-icon">{f.icon}</span>
+                {f.label}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="login-brand-footer">
+          © {new Date().getFullYear()} RUPOS. All rights reserved.
+        </div>
+        {/* Decorative circles */}
+        <div className="login-brand-deco login-brand-deco-1" />
+        <div className="login-brand-deco login-brand-deco-2" />
+      </div>
+
+      {/* ── Right form panel ── */}
+      <div className="login-form-panel">
+        <div className="login-form-card">
+          <Link to="/" className="login-back-home">← Home</Link>
+
+          <div className="login-card-header">
+            <div className="login-logo-wrap">
+              <img src="/logorupos.svg" alt="Logo" />
+            </div>
+            <h2 className="login-card-title">
+              {mode === 'email' ? t('adminLogin') : mode === 'pin' ? t('staffLogin') : 'Register Restaurant'}
+            </h2>
+            <p className="login-card-subtitle">
+              {mode === 'email'
+                ? 'Sign in with your admin credentials'
+                : mode === 'pin'
+                  ? 'Enter your restaurant ID and PIN'
+                  : 'Start your modern restaurant POS journey today'}
+            </p>
+          </div>
+
+          {/* Mode toggle */}
+          <div className="login-mode-toggle">
+            {[
+              { m: 'email', label: '📧 Admin' },
+              { m: 'pin',   label: '🔢 Staff PIN' },
+              { m: 'register', label: '🚀 Register' },
+            ].map(item => (
+              <button
+                key={item.m}
+                id={`login-mode-${item.m}`}
+                onClick={() => { setMode(item.m); clearError(); setPin(''); }}
+                className={`login-mode-btn ${mode === item.m ? 'active' : ''}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {error && <div className="login-error-msg">{error}</div>}
+
+          {/* ── Admin email login ── */}
+          {mode === 'email' ? (
+            <form onSubmit={handleEmailLogin} className="login-form">
               <div className="form-group">
-                <label className="form-label">Owner Name *</label>
-                <input
-                  id="reg-name"
-                  className="form-input"
-                  placeholder="Your Name"
-                  value={regName}
-                  onChange={e => setRegName(e.target.value)}
-                  required
-                />
+                <label className="form-label">Email</label>
+                <input id="login-email" className="form-input" type="email"
+                  placeholder={t('emailPlaceholder')} value={email}
+                  onChange={e => setEmail(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Owner Email *</label>
-                <input
-                  id="reg-email"
-                  className="form-input"
-                  type="email"
-                  placeholder="email@example.com"
-                  value={regEmail}
-                  onChange={e => setRegEmail(e.target.value)}
-                  required
-                />
+                <label className="form-label">Password</label>
+                <div className="password-input-wrapper">
+                  <input id="login-password" className="form-input password-input"
+                    type={showPw ? 'text' : 'password'} placeholder={t('passwordPlaceholder')}
+                    value={password} onChange={e => setPassword(e.target.value)} required />
+                  <button type="button" onClick={() => setShowPw(!showPw)} className="password-toggle-btn">
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
+              <button id="login-submit-btn" className="btn btn-primary btn-lg login-submit-btn"
+                type="submit" disabled={loading}>
+                {loading ? 'Signing in…' : t('signIn')}
+              </button>
+            </form>
+
+          /* ── Staff PIN login ── */
+          ) : mode === 'pin' ? (
+            <div className="login-form">
+              <div className="form-group login-rest-id-group">
+                <label className="form-label">Restaurant ID</label>
+                <input id="login-restaurant-id" className="form-input"
+                  placeholder="e.g. my-restaurant or rest_abc123"
+                  value={restaurantId} onChange={e => setRestaurantId(e.target.value)} />
+              </div>
+              <div className="pin-dots">
+                {[0,1,2,3].map(i => (
+                  <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
+                ))}
+              </div>
+              <div className="pin-pad">
+                {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
+                  <button key={i} id={k ? `pin-key-${k}` : undefined}
+                    className={`pin-key ${k === '' ? 'empty' : ''}`}
+                    onClick={() => { if (k === '⌫') setPin(p => p.slice(0,-1)); else if (k) handlePinKey(k); }}
+                    disabled={loading}>
+                    {k}
+                  </button>
+                ))}
+              </div>
+              {loading && <div className="login-verifying">Verifying…</div>}
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Password *</label>
-              <input
-                id="reg-password"
-                className="form-input"
-                type="password"
-                placeholder="Min 6 characters"
-                value={regPassword}
-                onChange={e => setRegPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <hr className="form-divider" />
-
-            <div className="form-row unequal">
-              <div className="form-group">
-                <label className="form-label">Restaurant Name *</label>
-                <input
-                  id="reg-rest-name"
-                  className="form-input"
-                  placeholder="Delicious Cafe"
-                  value={regRestName}
-                  onChange={e => setRegRestName(e.target.value)}
-                  required
-                />
+          /* ── Registration ── */
+          ) : (
+            <form onSubmit={handleRegister} className="login-form register-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Owner Name *</label>
+                  <input id="reg-name" className="form-input" placeholder="Your Name"
+                    value={regName} onChange={e => setRegName(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Owner Email *</label>
+                  <input id="reg-email" className="form-input" type="email" placeholder="email@example.com"
+                    value={regEmail} onChange={e => setRegEmail(e.target.value)} required />
+                </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Currency *</label>
-                <select
-                  id="reg-rest-currency"
-                  className="form-select"
-                  value={regCurrency}
-                  onChange={e => setRegCurrency(e.target.value)}
-                  required
-                >
-                  {CURRENCY_OPTIONS.map(c => (
-                    <option key={c.code} value={c.code}>{c.code}</option>
-                  ))}
-                </select>
+                <label className="form-label">Password *</label>
+                <input id="reg-password" className="form-input" type="password" placeholder="Min 6 characters"
+                  value={regPassword} onChange={e => setRegPassword(e.target.value)} required />
               </div>
-            </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Phone</label>
-                <input
-                  id="reg-phone"
-                  className="form-input"
-                  placeholder="+91..."
-                  value={regPhone}
-                  onChange={e => setRegPhone(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Address</label>
-                <input
-                  id="reg-address"
-                  className="form-input"
-                  placeholder="City, Area"
-                  value={regAddress}
-                  onChange={e => setRegAddress(e.target.value)}
-                />
-              </div>
-            </div>
+              <div className="form-section-divider"><span>Restaurant Details</span></div>
 
-            <button
-              id="reg-submit-btn"
-              className="btn btn-primary btn-lg login-submit-btn"
-              type="submit"
-              disabled={registering}
-            >
-              {registering ? 'Registering...' : 'Register Restaurant'}
-            </button>
-          </form>
-        )}
+              <div className="form-row unequal">
+                <div className="form-group">
+                  <label className="form-label">Restaurant Name *</label>
+                  <input id="reg-rest-name" className="form-input" placeholder="Delicious Cafe"
+                    value={regRestName} onChange={e => setRegRestName(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Currency *</label>
+                  <select id="reg-rest-currency" className="form-select"
+                    value={regCurrency} onChange={e => setRegCurrency(e.target.value)} required>
+                    {CURRENCY_OPTIONS.map(c => (
+                      <option key={c.code} value={c.code}>{c.code}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Phone</label>
+                  <input id="reg-phone" className="form-input" placeholder="+91..."
+                    value={regPhone} onChange={e => setRegPhone(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Address</label>
+                  <input id="reg-address" className="form-input" placeholder="City, Area"
+                    value={regAddress} onChange={e => setRegAddress(e.target.value)} />
+                </div>
+              </div>
+              <button id="reg-submit-btn" className="btn btn-primary btn-lg login-submit-btn"
+                type="submit" disabled={registering}>
+                {registering ? 'Registering…' : 'Register Restaurant'}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

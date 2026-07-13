@@ -1216,11 +1216,19 @@
   border-radius: 12px;
   width: 100%;
   max-width: 600px;
-  padding: 2.5rem;
+  padding: 1.5rem;
   box-shadow: 8px 8px 0px 0px var(--neo-black);
   position: relative;
   transform: translateY(20px);
   animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .neo-demo-modal {
+    padding: 2.5rem;
+  }
 }
 
 [data-theme='dark'] .neo-demo-modal,
@@ -1261,26 +1269,48 @@
 }
 
 .neo-demo-header h2 {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--neo-black);
   margin-bottom: 0.5rem;
 }
 
-.neo-demo-header p {
-  color: var(--text-muted);
-  font-size: 1rem;
+@media (min-width: 640px) {
+  .neo-demo-header h2 {
+    font-size: 1.75rem;
+  }
 }
+
+.neo-demo-header p {
+  color: var(--neo-black);
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+@media (min-width: 640px) {
+  .neo-demo-header p {
+    font-size: 1rem;
+  }
+}
+
+[data-theme='dark'] .neo-demo-header h2,
+:root.dark .neo-demo-header h2,
+[data-theme='dark'] .neo-demo-header p,
+:root.dark .neo-demo-header p {
+  color: var(--neo-white);
+}
+
 
 .neo-demo-cards {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 @media (min-width: 640px) {
   .neo-demo-cards {
     flex-direction: row;
+    gap: 1.5rem;
   }
 }
 
@@ -1289,11 +1319,17 @@
   background: var(--neo-white);
   border: var(--neo-border-width) solid var(--neo-black);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   box-shadow: 4px 4px 0px 0px var(--neo-black);
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .neo-demo-card {
+    padding: 1.5rem;
+  }
 }
 
 :root.dark .neo-demo-card {
@@ -1309,11 +1345,16 @@
 .neo-demo-card h3 {
   font-size: 1.25rem;
   font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  color: var(--neo-black);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+[data-theme='dark'] .neo-demo-card h3,
+:root.dark .neo-demo-card h3 {
+  color: var(--neo-white);
 }
 
 .neo-demo-credentials {

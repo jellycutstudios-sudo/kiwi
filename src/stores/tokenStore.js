@@ -34,19 +34,6 @@ export const useTokenStore = create((set) => ({
     }
   },
 
-  // Call the next token (cashier action)
-  callNextToken: async (restaurantId) => {
-    const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(tokenRef);
-      if (!snap.exists()) return;
-      const current = snap.data().current ?? 0;
-      tx.update(tokenRef, { 
-        current: current + 1,
-        lastCalledAt: serverTimestamp() 
-      });
-    });
-  },
 
   // Call a specific token number directly (cashier/KDS action)
   callSpecificToken: async (restaurantId, tokenNumber) => {
@@ -63,19 +50,43 @@ export const useTokenStore = create((set) => ({
 
   // Subscribe to real-time token state (for TV display and cashier)
   subscribe: (restaurantId) => {
-    const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
-    return onSnapshot(tokenRef, (snap) => {
-      if (snap.exists()) {
-        const { current = 0, latest = 0, lastCalledAt = null } = snap.data();
-        const callTime = lastCalledAt?.toDate ? lastCalledAt.toDate().getTime() : Date.now();
-        const queue = Array.from(
-          { length: Math.max(0, latest - current) },
-          (_, i) => current + i + 1
-        ).slice(0, 10);
-        set({ currentServing: current, latestIssued: latest, queue, lastCalledAt: callTime });
-      } else {
-        set({ currentServing: 0, latestIssued: 0, queue: [], lastCalledAt: null });
-      }
-    });
+    let currentUnsub = null;
+    let timeoutId = null;
+
+    const setupSubscription = () => {
+      if (currentUnsub) currentUnsub();
+      
+      const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
+      currentUnsub = onSnapshot(tokenRef, (snap) => {
+        if (snap.exists()) {
+          const { current = 0, latest = 0, lastCalledAt = null } = snap.data();
+          const callTime = lastCalledAt?.toDate ? lastCalledAt.toDate().getTime() : Date.now();
+          const queue = Array.from(
+            { length: Math.max(0, latest - current) },
+            (_, i) => current + i + 1
+          ).slice(0, 10);
+          set({ currentServing: current, latestIssued: latest, queue, lastCalledAt: callTime });
+        } else {
+          set({ currentServing: 0, latestIssued: 0, queue: [], lastCalledAt: null });
+        }
+      });
+
+      // Calculate time until midnight to reset subscription
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const msUntilMidnight = tomorrow - now;
+      
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setupSubscription(); // Re-subscribe when the day changes
+      }, msUntilMidnight + 1000); // Add 1 second buffer
+    };
+
+    setupSubscription();
+
+    return () => {
+      if (currentUnsub) currentUnsub();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   },
 }));

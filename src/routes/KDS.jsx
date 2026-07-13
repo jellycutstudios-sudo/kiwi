@@ -12,6 +12,7 @@ const STATIONS = ['All', 'Kitchen', 'Grill', 'Fryer', 'Cold', 'Bar', 'Bakery'];
 export default function KDS() {
   const { t } = useTranslation();
   const { restaurant } = useAuthStore();
+  const modes = restaurant?.modes || [];
   const { activeOrders } = useOrderStore();
   const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
   const { callSpecificToken } = useTokenStore();
