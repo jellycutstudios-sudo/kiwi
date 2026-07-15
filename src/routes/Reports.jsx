@@ -7,6 +7,15 @@ import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake } from 'lucide-react';
 import toast from 'react-hot-toast';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
 
 export default function Reports() {
   const { restaurant } = useAuthStore();
@@ -66,15 +75,14 @@ export default function Reports() {
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
       where('createdAt', '>=', start),
-      where('status', '==', 'billed'), // We have a composite index for status + createdAt
       orderBy('createdAt', 'desc'),
       limit(1000)
     );
     getDocs(q).then(snap => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Since we already orderBy('createdAt', 'desc') in the query, docs are sorted.
+      const salesDocs = docs.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
 
-      setData(docs);
+      setData(salesDocs);
       setLoading(false);
     }).catch(err => {
       console.error("Reports stats query failed:", err);
@@ -551,7 +559,7 @@ export default function Reports() {
             <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               📈 Revenue Trend
             </h3>
-            <div style={{ height: 220, position: 'relative', width: '100%', marginTop: 'var(--space-3)' }}>
+            <div style={{ height: 260, position: 'relative', width: '100%', marginTop: 'var(--space-3)' }}>
               {loading ? (
                 <div className="skeleton" style={{ height: '100%', borderRadius: 'var(--radius-lg)' }} />
               ) : trendData.length === 0 ? (
@@ -559,52 +567,56 @@ export default function Reports() {
                   No data available for trend
                 </div>
               ) : (
-                <svg viewBox="0 0 600 220" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                  <defs>
-                    <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0.00" />
-                    </linearGradient>
-                  </defs>
-                  
-                  {/* Grid Lines */}
-                  {Array.from({ length: 5 }).map((_, idx) => {
-                    const yVal = paddingTop + idx * (chartHeight / 4);
-                    const labelVal = maxSales - (idx * maxSales) / 4;
-                    return (
-                      <g key={idx}>
-                        <line x1={paddingLeft} y1={yVal} x2={paddingLeft + chartWidth} y2={yVal} stroke="var(--color-separator)" strokeDasharray="3 3" />
-                        <text x={paddingLeft - 8} y={yVal + 3} textAnchor="end" style={{ fontSize: 9, fill: 'var(--color-label-secondary)', fontFamily: 'var(--font-family)', fontWeight: 'var(--weight-semibold)' }}>
-                          {Math.round(labelVal)}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Gradient Area Fill */}
-                  {areaD && <path d={areaD} fill="url(#chart-gradient)" />}
-
-                  {/* Smooth Line Curve */}
-                  {pathD && <path d={pathD} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
-
-                  {/* Nodes & Tooltips */}
-                  {points.map((p, idx) => {
-                    const showLabel = period === 'today' ? (idx % 3 === 0) : period === 'week' ? true : (idx % 5 === 0 || idx === points.length - 1);
-                    return (
-                      <g key={idx}>
-                        <circle cx={p.x} cy={p.y} r="3.5" fill="var(--color-bg-elevated)" stroke="var(--color-accent)" strokeWidth="1.8" />
-                        {showLabel && (
-                          <text x={p.x} y={paddingTop + chartHeight + 16} textAnchor="middle" style={{ fontSize: 9, fill: 'var(--color-label-secondary)', fontFamily: 'var(--font-family)' }}>
-                            {p.label}
-                          </text>
-                        )}
-                        <circle cx={p.x} cy={p.y} r="8" fill="transparent" style={{ cursor: 'pointer' }}>
-                          <title>{p.label}: {formatCurrency(p.sales, currency)}</title>
-                        </circle>
-                      </g>
-                    );
-                  })}
-                </svg>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="reports-chart-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-separator)" />
+                    <XAxis 
+                      dataKey="label" 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fill: 'var(--color-label-tertiary)', fontSize: 10, fontWeight: 600 }}
+                    />
+                    <YAxis 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tickFormatter={val => Math.round(val)}
+                      tick={{ fill: 'var(--color-label-tertiary)', fontSize: 10, fontWeight: 600 }}
+                    />
+                    <Tooltip content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div style={{
+                            background: 'var(--color-bg-elevated)',
+                            border: '1px solid var(--color-separator)',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-md)',
+                            boxShadow: 'var(--shadow-lg)'
+                          }}>
+                            <p style={{ margin: 0, fontWeight: 700, fontSize: '13px' }}>{payload[0].payload.label || 'Details'}</p>
+                            <p style={{ margin: '4px 0 0 0', color: 'var(--color-accent)', fontWeight: 700, fontSize: '13px' }}>
+                              {formatCurrency(payload[0].value, currency)}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="sales" 
+                      stroke="var(--color-accent)" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#reports-chart-gradient)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>

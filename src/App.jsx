@@ -35,6 +35,8 @@ const DeliveryHub    = lazy(() => import('./routes/admin/DeliveryHub'));
 const PendingApproval= lazy(() => import('./routes/PendingApproval'));
 const ActiveOrders   = lazy(() => import('./routes/ActiveOrders'));
 const LandingPage    = lazy(() => import('./routes/LandingPage'));
+const PosterManager   = lazy(() => import('./routes/admin/PosterManager'));
+const PosterDisplay   = lazy(() => import('./routes/PosterDisplay'));
 
 export default function App() {
   const { i18n } = useTranslation();
@@ -86,6 +88,7 @@ export default function App() {
           <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={isSuperAdmin ? "/admin/restaurants" : "/dashboard"} replace /> : <Navigate to="/pending-approval" replace />) : <LandingPage />} />
           <Route path="/landing"                      element={<LandingPage />} />
           <Route path="/display/tokens/:restaurantId" element={<TokenDisplay />} />
+          <Route path="/display/slides/:restaurantId/:slideshowId" element={<PosterDisplay />} />
           <Route path="/order/:restaurantId"          element={<OnlineOrderPage />} />
           <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to="/" replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />
           <Route path="/pending-approval"             element={isAuth ? (!isApproved ? <PendingApproval /> : <Navigate to="/" replace />) : <Navigate to="/login" replace />} />
@@ -112,6 +115,7 @@ export default function App() {
                 <Route path="/admin/floor"        element={<FloorPlanEditor />} />
                 <Route path="/admin/settings"     element={<Settings />} />
                 <Route path="/admin/delivery-hub" element={<DeliveryHub />} />
+                <Route path="/admin/posters"      element={<PosterManager />} />
               </Route>
 
               {/* Super-admin only */}

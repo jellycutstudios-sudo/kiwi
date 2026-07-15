@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebase';
+import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-const compressImage = (file, maxDim = 200, quality = 0.7) => {
+// Compress image client-side to a small base64 JPEG for inline storage
+const compressImage = (file, maxDim = 400, quality = 0.82) => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
@@ -18,36 +18,21 @@ const compressImage = (file, maxDim = 200, quality = 0.7) => {
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-
       if (width > height) {
-        if (width > maxDim) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        }
+        if (width > maxDim) { height = Math.round((height * maxDim) / width); width = maxDim; }
       } else {
-        if (height > maxDim) {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
-        }
+        if (height > maxDim) { width = Math.round((width * maxDim) / height); height = maxDim; }
       }
-
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
-      try {
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      } catch (err) {
-        reject(err);
-      }
+      try { resolve(canvas.toDataURL('image/jpeg', quality)); }
+      catch (err) { reject(err); }
     };
-    img.onerror = (err) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(err);
-    };
+    img.onerror = (err) => { URL.revokeObjectURL(objectUrl); reject(err); };
   });
 };
 
@@ -146,28 +131,17 @@ export default function MenuEditor() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingImage(true);
-    const toastId = toast.loading('Compressing and uploading image...');
+    const toastId = toast.loading('Processing image...');
     try {
-      // Compress client side to a lightweight base64 JPEG
-      const base64Data = await compressImage(file, 400, 0.8); // Slightly better quality now that it's in storage
-      
-      if (!storage) {
-         throw new Error("Firebase Storage is not configured.");
-      }
-      
-      const fileName = `menuImages/${restaurant.id}/${Date.now()}.jpg`;
-      const storageRef = ref(storage, fileName);
-      
-      await uploadString(storageRef, base64Data, 'data_url');
-      const downloadUrl = await getDownloadURL(storageRef);
-      
-      setItemForm(f => ({ ...f, imageUrl: downloadUrl }));
-      toast.success('Image uploaded!', { id: toastId });
+      // Compress inline — image stored as base64 in Firestore, bypassing Storage CORS
+      const dataUrl = await compressImage(file, 400, 0.82);
+      setItemForm(f => ({ ...f, imageUrl: dataUrl }));
+      toast.success('Image ready! Save the item to apply.', { id: toastId });
     } catch (err) {
-      console.error('[Image Upload Error]', err);
-      toast.error('Failed to upload image: ' + err.message, { id: toastId });
+      console.error('[Image Error]', err);
+      toast.error('Failed to process image: ' + err.message, { id: toastId });
     } finally {
-      e.target.value = ''; // Reset input to allow selecting same file again
+      e.target.value = '';
       setUploadingImage(false);
     }
   };

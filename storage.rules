@@ -21,8 +21,26 @@ service firebase.storage {
         )
         // Enforce image content type
         && request.resource.contentType.matches('image/.*')
-        // Enforce max file size: 2 MB
-        && request.resource.size <= 2 * 1024 * 1024;
+        // Enforce max file size: 8 MB (covers both menu images and TV poster uploads)
+        && request.resource.size <= 8 * 1024 * 1024;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // TV Slideshow posters — authenticated restaurant admins only
+    // Stored at: posters/{restaurantId}/{filename}
+    // ─────────────────────────────────────────────────────────
+    match /posters/{restaurantId}/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && (
+          request.auth.token.role == 'super_admin'
+          || (
+            (request.auth.token.role == 'admin')
+            && request.auth.token.restaurantId == restaurantId
+          )
+        )
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 8 * 1024 * 1024;
     }
 
     // ─────────────────────────────────────────────────────────

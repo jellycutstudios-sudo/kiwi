@@ -40,6 +40,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
+  const [copiedSlideshowId, setCopiedSlideshowId] = useState(null);
+  const [slideshowList, setSlideshowList] = useState([]);
   const [activeTab, setActiveTab] = useState('general');
 
   const { categories, subscribeMenu } = useMenuStore();
@@ -141,6 +143,29 @@ export default function Settings() {
     setCopiedToken(true);
     toast.success('TV display URL copied!');
   };
+
+  const copySlideshowLink = (slideshowId) => {
+    navigator.clipboard.writeText(`${window.location.origin}/display/slides/${restaurant?.id}/${slideshowId}`);
+    setCopiedSlideshowId(slideshowId);
+    toast.success('TV Slideshow URL copied!');
+  };
+
+  useEffect(() => {
+    if (copiedSlideshowId) {
+      const timer = setTimeout(() => setCopiedSlideshowId(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedSlideshowId]);
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const q = collection(db, 'restaurants', restaurant.id, 'slideshows');
+    getDocs(q).then(snap => {
+      setSlideshowList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }).catch(err => {
+      console.error("Error fetching slideshows in Settings:", err);
+    });
+  }, [restaurant?.id]);
 
   useEffect(() => {
     if (!restaurant?.id) return;
@@ -423,6 +448,56 @@ export default function Settings() {
                   </div>
                 </div>
               )}
+
+              {/* TV Slideshow Links */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div>
+                  <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>📺 TV Poster Board Links</h3>
+                  <p className="text-secondary text-footnote">
+                    Open these URLs on TVs or monitors around the restaurant to show your offer boards or menu slideshows.
+                  </p>
+                </div>
+                {slideshowList.length === 0 ? (
+                  <p className="text-secondary text-caption2">
+                    No TV Screen channels created yet. Go to <a href="/admin/posters" style={{color:'var(--accent)', fontWeight:600}}>TV Poster Boards</a> to create a screen.
+                  </p>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+                    {slideshowList.map(s => (
+                      <div key={s.id} style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+                        <span className="text-caption2" style={{ fontWeight: 600 }}>{s.name}</span>
+                        <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+                          <input
+                            className="form-input"
+                            readOnly
+                            value={`${window.location.origin}/display/slides/${restaurant?.id}/${s.id}`}
+                            style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
+                          />
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ minWidth: '85px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                            onClick={() => copySlideshowLink(s.id)} 
+                            type="button"
+                          >
+                            {copiedSlideshowId === s.id ? <Check size={16}/> : <Copy size={16}/>}
+                            {copiedSlideshowId === s.id ? 'Copied!' : 'Copy'}
+                          </button>
+                          <a 
+                            href={`/display/slides/${restaurant?.id}/${s.id}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary btn-icon"
+                            title="Open in new window"
+                            style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}
+                          >
+                            🔗
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Service Charge & Gratuity */}
               <div className="card card-padded">

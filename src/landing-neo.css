@@ -983,11 +983,12 @@ body {
 
 .neo-demo-cards {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
 }
 
 .neo-demo-card {
-  flex: 1;
+  flex: 1 1 220px;
   background: var(--neo-bg-warm);
   border-radius: 16px;
   padding: 1.5rem;
@@ -997,13 +998,17 @@ body {
 .neo-demo-cred-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 0.5rem 0;
   border-bottom: 1px dashed rgba(0,0,0,0.1);
   font-size: 0.9rem;
 }
 
 .neo-demo-cred-val {
+  display: inline-block;
   background: var(--neo-yellow);
+  color: var(--neo-white);
   padding: 2px 8px;
   border-radius: 50px;
   font-weight: 700;

@@ -9,7 +9,7 @@ import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,6 +32,7 @@ const ADMIN_NAV = [
   { key: 'customers',   path: '/admin/customers',    icon: Contact,          label: 'customers', requiredMode: 'customers' },
   { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
   { key: 'floor',       path: '/admin/floor',        icon: Map,              label: 'floorPlan', requiredMode: 'table' },
+  { key: 'posters',     path: '/admin/posters',     icon: Tv,               label: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];

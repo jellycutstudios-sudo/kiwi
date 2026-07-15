@@ -124,6 +124,17 @@ service cloud.firestore {
         allow write: if isStaffMember(restaurantId);
       }
 
+      // Slideshows & Posters — public read (TV display), admin write
+      match /slideshows/{slideshowId} {
+        allow read:  if true;
+        allow write: if isUserAdmin(restaurantId);
+
+        match /posters/{posterId} {
+          allow read:  if true;
+          allow write: if isUserAdmin(restaurantId);
+        }
+      }
+
       // Delivery Sync logs — read-only for authenticated, write via Cloud Functions only
       match /deliverySync/{platform}/logs/{logId} {
         allow read:  if isStaffMember(restaurantId);
