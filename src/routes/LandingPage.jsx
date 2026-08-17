@@ -714,16 +714,18 @@ export default function LandingPage() {
 
           {/* Card 6 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#ffedd5', color: '#c2410c' }}><Award size={24} /></div>
-            <span className="neo-bento-badge-tag">Guest Retention</span>
+            <div className="neo-bento-card-top">
+              <div className="neo-feature-icon" style={{ background: '#ffedd5', color: '#c2410c' }}><Award size={24} /></div>
+              <span className="neo-bento-badge-tag">Guest Retention</span>
+            </div>
+            <h3>Loyalty, CRM & Gift Cards</h3>
+            <p>Turn first-time diners into lifelong regulars. Track customer preferences, issue branded prepaid gift cards, and award spend points.</p>
+            <ul className="neo-bento-bullets">
+              <li><Check size={14} color="#16a34a" /> Customer taste & birthday profiles</li>
+              <li><Check size={14} color="#16a34a" /> Digital gift card issuance & balance</li>
+              <li><Check size={14} color="#16a34a" /> Automated point redemptions at POS</li>
+            </ul>
           </div>
-          <h3>Loyalty, CRM & Gift Cards</h3>
-          <p>Turn first-time diners into lifelong regulars. Track customer preferences, issue branded prepaid gift cards, and award spend points.</p>
-          <ul className="neo-bento-bullets">
-            <li><Check size={14} color="#16a34a" /> Customer taste & birthday profiles</li>
-            <li><Check size={14} color="#16a34a" /> Digital gift card issuance & balance</li>
-            <li><Check size={14} color="#16a34a" /> Automated point redemptions at POS</li>
-          </ul>
         </div>
       </section>
 
