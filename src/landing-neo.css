@@ -1631,61 +1631,142 @@ body {
   gap: 8px;
 }
 
-/* Comparison Section */
+/* Modern Compare Grid (No HTML Table Quirks) */
 .neo-comparison-section {
   padding: 100px 24px;
   background: #fafaf7;
 }
 
-.neo-comparison-table-wrapper {
-  max-width: 900px;
+.neo-compare-grid-wrapper {
+  max-width: 960px;
   margin: 0 auto;
   background: var(--neo-white);
   border-radius: 24px;
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: var(--soft-shadow-lg);
   overflow: hidden;
 }
 
-.neo-comparison-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.neo-comparison-table th,
-.neo-comparison-table td {
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-
-.neo-comparison-table th {
-  background: #fdfdfc;
-  font-size: 15px;
+.neo-compare-header-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 1.4fr;
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 18px 24px;
   font-weight: 700;
+  font-size: 15px;
 }
 
-.neo-comparison-feature-name {
-  font-weight: 600;
-  font-size: 14px;
+.neo-compare-col-header.dineos-col {
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neo-compare-col-header.legacy-col {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neo-compare-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 1.4fr;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  align-items: center;
+  gap: 16px;
+  transition: background 0.15s ease;
+}
+
+.neo-compare-row:last-child {
+  border-bottom: none;
+}
+
+.neo-compare-row:hover {
+  background: #fcfcfb;
+}
+
+.neo-compare-cell-title {
+  font-weight: 700;
+  font-size: 14.5px;
   color: var(--neo-black);
+  margin-bottom: 2px;
 }
 
-.neo-comparison-dineos {
-  font-size: 14px;
-  font-weight: 600;
-  color: #16a34a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.neo-comparison-legacy {
-  font-size: 14px;
+.neo-compare-cell-subtitle {
+  font-size: 12px;
   color: #888;
+}
+
+.neo-compare-cell.dineos-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #15803d;
+  line-height: 1.5;
+}
+
+.neo-badge-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #dcfce7;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.neo-compare-cell.legacy-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.neo-badge-cross {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fee2e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+@media (max-width: 768px) {
+  .neo-compare-header-row {
+    display: none;
+  }
+  .neo-compare-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 20px 16px;
+  }
+  .neo-compare-cell.feature-cell {
+    border-bottom: 1px dashed rgba(0,0,0,0.06);
+    padding-bottom: 6px;
+  }
+  .neo-compare-cell.dineos-cell {
+    background: #f0fdf4;
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+  .neo-compare-cell.legacy-cell {
+    background: #f8fafc;
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
 }
 
 /* Audience / Persona Section */

@@ -727,54 +727,83 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Comparison Table Section */}
+      {/* Comparison Section (Grid-based, Zero HTML Table Quirks) */}
       <section className="neo-comparison-section" id="compare">
         <div className="neo-section-header">
-          <h2 className="neo-section-title">Why restaurants replace old POS systems</h2>
-          <p className="neo-section-subtitle">See how DineOS compares to traditional clunky restaurant software.</p>
+          <h2 className="neo-section-title">Why restaurants switch to DineOS</h2>
+          <p className="neo-section-subtitle">See how DineOS compares directly to legacy POS hardware and third-party apps.</p>
         </div>
-        <div className="neo-comparison-table-wrapper">
-          <table className="neo-comparison-table">
-            <thead>
-              <tr>
-                <th style={{ width: '40%' }}>Feature / Capability</th>
-                <th style={{ width: '30%', color: '#000' }}>⚡ DineOS</th>
-                <th style={{ width: '30%', color: '#888' }}>Legacy POS Systems</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="neo-comparison-feature-name">Hardware Flexibility</td>
-                <td className="neo-comparison-dineos"><Check size={16} /> Runs on any iPad, Mac, PC, Phone</td>
-                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Expensive proprietary terminals</td>
-              </tr>
-              <tr>
-                <td className="neo-comparison-feature-name">Online Order Commissions</td>
-                <td className="neo-comparison-dineos"><Check size={16} /> 0% (Keep 100% of profit)</td>
-                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> 15% – 30% cut per order</td>
-              </tr>
-              <tr>
-                <td className="neo-comparison-feature-name">Staff Training Time</td>
-                <td className="neo-comparison-dineos"><Check size={16} /> ~5 minutes (Zero jargon)</td>
-                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Days of training & thick manuals</td>
-              </tr>
-              <tr>
-                <td className="neo-comparison-feature-name">Kitchen Display System</td>
-                <td className="neo-comparison-dineos"><Check size={16} /> Built-in real-time color KDS</td>
-                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Expensive add-on or paper only</td>
-              </tr>
-              <tr>
-                <td className="neo-comparison-feature-name">Recipe Stock Auto-Deduction</td>
-                <td className="neo-comparison-dineos"><Check size={16} /> Included out of the box</td>
-                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Paid 3rd party integration</td>
-              </tr>
-              <tr>
-                <td className="neo-comparison-feature-name">Built-in Owner's Guide</td>
-                <td className="neo-comparison-dineos"><Check size={16} /> 1-Click interactive drawer</td>
-                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Slow ticket support</td>
-              </tr>
-            </tbody>
-          </table>
+
+        <div className="neo-compare-grid-wrapper">
+          {/* Header Row */}
+          <div className="neo-compare-header-row">
+            <div className="neo-compare-col-header feature-col">Feature & Capability</div>
+            <div className="neo-compare-col-header dineos-col">
+              <span className="neo-live-dot" /> ⚡ DineOS (Modern OS)
+            </div>
+            <div className="neo-compare-col-header legacy-col">
+              ❌ Old POS & Delivery Apps
+            </div>
+          </div>
+
+          {/* Comparison Rows */}
+          {[
+            {
+              title: "Hardware Flexibility",
+              desc: "What devices you can run it on",
+              dineos: "Runs on any iPad, Mac, PC, Android tablet, or smartphone you already own",
+              legacy: "Locked into expensive proprietary $1,500+ POS hardware terminals"
+            },
+            {
+              title: "Online Order Commissions",
+              desc: "Fees per takeaway & delivery order",
+              dineos: "0% commission (You keep 100% of revenue on your branded web store)",
+              legacy: "15% to 30% commission cut on every single delivery order"
+            },
+            {
+              title: "Staff Training Speed",
+              desc: "How long staff take to learn billing",
+              dineos: "~5 minutes. Intuitive tap-and-pay UI designed with zero jargon",
+              legacy: "Days of painful training with complex menus and thick manuals"
+            },
+            {
+              title: "Kitchen Display (KDS)",
+              desc: "Order routing to chefs and baristas",
+              dineos: "Built-in paperless KDS screen with cook timers and audio alerts",
+              legacy: "Expensive add-on module or paper tickets that get lost in the kitchen"
+            },
+            {
+              title: "Recipe Stock Auto-Deduction",
+              desc: "Ingredient tracking as dishes sell",
+              dineos: "Automatic gram/ml deduction with instant low-stock warning badges",
+              legacy: "Requires costly third-party software integration and manual math"
+            },
+            {
+              title: "Built-in Owner's Guide",
+              desc: "Help and feature instructions",
+              dineos: "1-Click instant interactive guide drawer directly inside the app",
+              legacy: "Slow email ticketing or expensive per-hour support contracts"
+            }
+          ].map((row, idx) => (
+            <div key={idx} className="neo-compare-row">
+              <div className="neo-compare-cell feature-cell">
+                <div className="neo-compare-cell-title">{row.title}</div>
+                <div className="neo-compare-cell-subtitle">{row.desc}</div>
+              </div>
+              <div className="neo-compare-cell dineos-cell">
+                <div className="neo-badge-check">
+                  <Check size={14} color="#16a34a" strokeWidth={3} />
+                </div>
+                <span>{row.dineos}</span>
+              </div>
+              <div className="neo-compare-cell legacy-cell">
+                <div className="neo-badge-cross">
+                  <XIcon size={14} color="#ef4444" strokeWidth={3} />
+                </div>
+                <span>{row.legacy}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
