@@ -48,7 +48,7 @@ export default function MenuEditor() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '' });
+  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false });
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -100,6 +100,7 @@ export default function MenuEditor() {
       recipe: itemForm.recipe ?? [],
       station: itemForm.station ?? 'Kitchen',
       imageUrl: itemForm.imageUrl ?? '',
+      highMargin: itemForm.highMargin || false,
     };
     const items = editItem
       ? cat.items.map(i => i.id === editItem.id ? newItem : i)
@@ -107,7 +108,7 @@ export default function MenuEditor() {
     await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCatId), { items });
     setShowItemForm(false);
     setEditItem(null);
-    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '' });
+    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false });
     toast.success(editItem ? 'Item updated!' : 'Item added!');
 
   };
@@ -216,7 +217,7 @@ export default function MenuEditor() {
               <span className="card-title">{activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}</span>
             </div>
             {activeCatId && (
-              <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen', imageUrl:'' }); setActiveTab('general'); setShowItemForm(true); }}>
+              <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen', imageUrl:'', highMargin: false }); setActiveTab('general'); setShowItemForm(true); }}>
                 <Plus size={14}/> Add Item
               </button>
             )}
@@ -237,7 +238,10 @@ export default function MenuEditor() {
                   <div style={{ fontSize: 28, flexShrink: 0 }}>{item.emoji ?? '🍽️'}</div>
                 )}
                 <div style={{ flex: 1, minWidth: 150 }}>
-                  <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)' }}>{item.name}</div>
+                  <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {item.name}
+                    {item.highMargin && <span title="High Margin">⭐</span>}
+                  </div>
                   {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
                 </div>
                 
@@ -254,7 +258,7 @@ export default function MenuEditor() {
                     >
                       {item.available !== false ? 'Available' : 'Unavailable'}
                     </button>
-                    <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '' }); setActiveTab('general'); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
+                    <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '', highMargin: item.highMargin || false }); setActiveTab('general'); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
                       <Edit2 size={12}/>
                     </button>
                     <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteItem(activeCatId, item.id)} id={`delete-item-${item.id}`}>
@@ -387,56 +391,66 @@ export default function MenuEditor() {
                     />
                   </div>
                   
-                  {/* Compact Availability Switch */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--space-3)',
-                    padding: '8px var(--space-4)',
-                    background: 'var(--color-bg-secondary)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1.5px solid var(--color-separator-opaque)',
-                    height: 40,
-                    marginBottom: 2
-                  }}>
-                    <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)', whiteSpace: 'nowrap' }}>
-                      Available
-                    </span>
-                    
-                    <label style={{
-                      position: 'relative',
-                      display: 'inline-block',
-                      width: 44,
-                      height: 22,
-                      cursor: 'pointer'
+                  {/* Compact Availability & Highlight Switches */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-3)',
+                      padding: '8px var(--space-4)',
+                      background: 'var(--color-bg-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1.5px solid var(--color-separator-opaque)',
+                      height: 40,
                     }}>
-                      <input
-                        type="checkbox"
-                        checked={itemForm.available}
-                        onChange={e => setItemForm(f => ({ ...f, available: e.target.checked }))}
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span style={{
-                        position: 'absolute',
-                        cursor: 'pointer',
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: itemForm.available ? 'var(--color-separator-opaque)' : '#ccc',
-                        transition: '0.2s',
-                        borderRadius: 22,
-                        border: '1.5px solid var(--color-separator-opaque)'
+                      <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)', whiteSpace: 'nowrap' }}>
+                        Available
+                      </span>
+                      
+                      <label style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        width: 44,
+                        height: 22,
+                        cursor: 'pointer'
                       }}>
+                        <input
+                          type="checkbox"
+                          checked={itemForm.available}
+                          onChange={e => setItemForm(f => ({ ...f, available: e.target.checked }))}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
                         <span style={{
                           position: 'absolute',
-                          content: '""',
-                          height: 12, width: 12,
-                          left: itemForm.available ? 24 : 4,
-                          bottom: 2,
-                          backgroundColor: 'white',
+                          cursor: 'pointer',
+                          top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: itemForm.available ? 'var(--color-separator-opaque)' : '#ccc',
                           transition: '0.2s',
-                          borderRadius: '50%',
-                          border: '1px solid var(--color-separator-opaque)'
-                        }} />
-                      </span>
+                          borderRadius: 22,
+                          border: '1.5px solid var(--color-separator-opaque)'
+                        }}>
+                          <span style={{
+                            position: 'absolute',
+                            content: '""',
+                            height: 12, width: 12,
+                            left: itemForm.available ? 24 : 4,
+                            bottom: 2,
+                            backgroundColor: 'white',
+                            transition: '0.2s',
+                            borderRadius: '50%',
+                            border: '1px solid var(--color-separator-opaque)'
+                          }} />
+                        </span>
+                      </label>
+                    </div>
+                    
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', paddingLeft: 'var(--space-1)' }}>
+                      <input
+                        type="checkbox"
+                        checked={itemForm.highMargin}
+                        onChange={(e) => setItemForm({ ...itemForm, highMargin: e.target.checked })}
+                      />
+                      ⭐ Mark as High Margin
                     </label>
                   </div>
                 </div>
@@ -742,6 +756,10 @@ export default function MenuEditor() {
                       alignItems: 'center',
                       gap: 'var(--space-2)'
                     }}>
+                      <div style={{ fontWeight: 600 }}>
+                        {itemForm.name}
+                        {itemForm.highMargin && <span style={{ marginLeft: 6, fontSize: 12 }} title="High Margin">⭐</span>}
+                      </div>
                       <div style={{ fontSize: 24 }}>⚙️</div>
                       <span style={{ fontWeight: 'var(--weight-semibold)' }}>No modifier groups configured</span>
                       <span>Add modifier groups to customize item sizing or extras.</span>

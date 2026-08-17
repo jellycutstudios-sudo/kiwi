@@ -57,7 +57,15 @@ export default function PosterManager() {
     if (!restaurant?.id || !selectedSlideshowId) return;
     const unsub = subscribePosters(restaurant.id, selectedSlideshowId);
     
-    // Set local settings state when slideshow changes
+    // We don't set local settings state here to avoid cascading renders,
+    // we'll do it in a separate effect that only runs when selectedSlideshowId changes
+    
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [restaurant?.id, selectedSlideshowId, subscribePosters]);
+
+  useEffect(() => {
     const current = slideshows.find(s => s.id === selectedSlideshowId);
     if (current) {
       setSlideshowSettings({
@@ -66,11 +74,7 @@ export default function PosterManager() {
         defaultDuration: current.defaultDuration || 6
       });
     }
-
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [restaurant?.id, selectedSlideshowId, subscribePosters, slideshows]);
+  }, [selectedSlideshowId, slideshows]);
 
   const handleCreateScreen = async (e) => {
     e.preventDefault();

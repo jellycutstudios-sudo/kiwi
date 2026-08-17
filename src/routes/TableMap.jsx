@@ -569,6 +569,37 @@ export default function TableMap() {
                   </div>
                 </div>
 
+                {/* Payment Status Badge */}
+                {(() => {
+                  const isPaid = selectedOrder.paymentMethod && selectedOrder.paymentMethod !== 'unpaid';
+                  const methodLabel = isPaid
+                    ? selectedOrder.paymentMethod.toUpperCase()
+                    : null;
+                  const methodEmoji = { CASH: '💵', CARD: '💳', UPI: '📱' };
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '12px',
+                      fontWeight: 'var(--weight-bold)',
+                      letterSpacing: '0.02em',
+                      ...(isPaid
+                        ? { background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }
+                        : { background: '#fffbeb', color: '#d97706', border: '1px solid #fcd34d' })
+                    }}>
+                      <span style={{ fontSize: '15px' }}>{isPaid ? '✅' : '⏳'}</span>
+                      <span>
+                        {isPaid
+                          ? `Paid via ${methodEmoji[methodLabel] ?? ''} ${methodLabel}`
+                          : 'Awaiting Payment'}
+                      </span>
+                    </div>
+                  );
+                })()}
+
                 <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)' }}>
                   {/* Status updates */}
                   {selectedOrder.status !== 'ready' && selectedOrder.status !== 'served' && (

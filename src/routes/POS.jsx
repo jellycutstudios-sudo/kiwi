@@ -140,6 +140,22 @@ export default function POS() {
 
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [sevenDayAvg, setSevenDayAvg] = useState(0);
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const past7Days = new Date();
+    past7Days.setDate(past7Days.getDate() - 7);
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'orders'),
+      where('createdAt', '>=', past7Days)
+    );
+    getDocs(q).then(snap => {
+      let totalSales = 0;
+      snap.docs.forEach(d => totalSales += (d.data().total || 0));
+      setSevenDayAvg(snap.docs.length > 0 ? totalSales / snap.docs.length : 0);
+    }).catch(console.error);
+  }, [restaurant?.id]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -795,7 +811,10 @@ export default function POS() {
                     }
                   </div>
                   <div className="menu-item-body">
-                    <div className="menu-item-name">{item.name}</div>
+                    <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {item.name}
+                      {item.highMargin && <span title="High Margin — push this item" style={{ fontSize: '11px' }}>⭐</span>}
+                    </div>
                     <div className="menu-item-price">{formatCurrency(item.price, currency)}</div>
                   </div>
 
@@ -1197,6 +1216,28 @@ export default function POS() {
               </div>
             )}
 
+            {/* Upsell Nudge */}
+            {sevenDayAvg > 0 && total > 0 && total < sevenDayAvg && (
+              <div style={{
+                background: 'var(--color-orange-light)',
+                color: 'var(--color-orange)',
+                padding: 'var(--space-2)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '11px',
+                fontWeight: 'var(--weight-semibold)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '6px',
+                marginTop: 'var(--space-2)',
+                border: '1px solid var(--color-orange)'
+              }}>
+                <span style={{ fontSize: '14px' }}>💡</span>
+                <div style={{ lineHeight: '1.4' }}>
+                  This order is below your {formatCurrency(sevenDayAvg, currency)} average. Consider suggesting a side or drink.
+                </div>
+              </div>
+            )}
+
             {/* Discount Row */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0', borderBottom: '1px dashed var(--color-separator)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1268,7 +1309,7 @@ export default function POS() {
               disabled={!items.length}
               type="button"
             >
-              💳 Pay & Free
+              💳 Checkout
             </button>
           </div>
         ) : (

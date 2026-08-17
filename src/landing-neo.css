@@ -893,15 +893,84 @@ body {
 }
 
 .neo-footer-bottom {
-  max-width: 1100px;
-  margin: 60px auto 0;
+  border-top: 1px solid rgba(0,0,0,0.05);
   padding-top: 32px;
-  border-top: 1px solid rgba(0,0,0,0.06);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 14px;
+  text-align: center;
+}
+
+.neo-footer-copyright {
   color: #888;
+  font-size: 14px;
+}
+
+/* Mobile First Responsive Adjustments */
+@media (max-width: 768px) {
+  /* Hero */
+  .neo-hero-title {
+    font-size: 44px;
+  }
+  .neo-hero-subtitle {
+    font-size: 18px;
+  }
+  .neo-browser {
+    display: none; /* Hide complex animation block on mobile entirely for performance */
+  }
+
+  /* Typography */
+  .neo-section-title {
+    font-size: 36px;
+  }
+  
+  .neo-section-header {
+    margin-bottom: 40px;
+  }
+
+  /* How it works */
+  .neo-steps-container {
+    flex-direction: column;
+    gap: 40px;
+  }
+  .neo-step {
+    max-width: 100%;
+  }
+  .neo-steps-line {
+    display: none;
+  }
+
+  /* Grids */
+  .neo-bento-grid,
+  .neo-testimonials-grid,
+  .neo-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Padding */
+  .neo-how-it-works,
+  .neo-personas,
+  .neo-testimonials,
+  .neo-cta,
+  .neo-features-section {
+    padding: 60px 24px;
+  }
+  
+  .neo-bento-card,
+  .neo-testimonial-card,
+  .neo-feature-card {
+    padding: 32px 24px;
+  }
+
+  /* Footer */
+  .neo-footer-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 32px;
+  }
+  .neo-footer-links-col {
+    text-align: center !important;
+  }
+  .neo-footer-socials {
+    justify-content: center;
+  }
 }
 
 .neo-footer-legal {

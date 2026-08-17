@@ -115,7 +115,7 @@ export default function TokenDisplay() {
     // 1. Play chime
     try {
       const chime = new Audio('/sounds/order-chime.wav');
-      chime.play().catch(e => console.log('Chime playback blocked:', e));
+      chime.play().catch(() => {});
       
       // 2. Wait 800ms before TTS
       setTimeout(() => {

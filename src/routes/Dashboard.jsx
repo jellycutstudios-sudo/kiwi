@@ -7,8 +7,9 @@ import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/f
 import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
-  Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar
+  Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle
 } from 'lucide-react';
+import InfoTooltip from '../components/shared/InfoTooltip';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -23,9 +24,10 @@ export default function Dashboard() {
   const { restaurant, staffDoc } = useAuthStore();
   const { activeOrders, unreadOnlineCount } = useOrderStore();
   const { categories } = useMenuStore();
-  const [todayStats, setTodayStats] = useState({ sales: 0, orders: 0, avg: 0 });
+  const [todayStats, setTodayStats] = useState({ sales: 0, orders: 0, avg: 0, avgCookTime: 0, tableTurnover: 0, topItem: null, paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 } });
   const [loading, setLoading] = useState(true);
   const [analyticsOrders, setAnalyticsOrders] = useState([]);
+  const [tablesCount, setTablesCount] = useState(0);
   const currency = restaurant?.currency ?? 'INR';
 
   // Fetch completed orders for the last 7 days for Business Insights
@@ -233,12 +235,54 @@ export default function Dashboard() {
       limit(500)
     );
     
+    // Also get total tables count for turnover calculation
+    getDocs(collection(db, 'restaurants', restaurant.id, 'tables')).then(snap => {
+      setTablesCount(snap.size || 0);
+    }).catch(e => console.error(e));
+
     const unsub = onSnapshot(q, snap => {
       const docs = snap.docs.map(d => d.data());
       const todayBilled = docs.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
       const sales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
       const orders = todayBilled.length;
-      setTodayStats({ sales, orders, avg: orders ? sales / orders : 0 });
+      
+      // Calculate Avg Cook Time
+      const ordersWithPrep = todayBilled.filter(d => d.prepDuration > 0);
+      const avgCookTime = ordersWithPrep.length 
+        ? Math.round(ordersWithPrep.reduce((s, d) => s + d.prepDuration, 0) / ordersWithPrep.length / 60) 
+        : 0;
+
+      // Calculate Payment Split
+      const paymentSplit = { cash: 0, card: 0, upi: 0, split: 0 };
+      todayBilled.forEach(d => {
+        if (d.paymentMethod) {
+          paymentSplit[d.paymentMethod] = (paymentSplit[d.paymentMethod] || 0) + 1;
+        }
+      });
+
+      // Top Item Today
+      const itemCounts = {};
+      todayBilled.forEach(o => {
+        (o.items || []).forEach(i => {
+          if (!itemCounts[i.name]) itemCounts[i.name] = { name: i.name, qty: 0, emoji: i.emoji || '🍽️' };
+          itemCounts[i.name].qty += (i.qty || 1);
+        });
+      });
+      const topItem = Object.values(itemCounts).sort((a,b) => b.qty - a.qty)[0] || null;
+
+      // Table Turnover (Orders per table today)
+      // Note: we'll use tablesCount from state inside the render or effect, 
+      // but we calculate it dynamically below.
+      
+      setTodayStats({ 
+        sales, 
+        orders, 
+        avg: orders ? sales / orders : 0,
+        avgCookTime,
+        paymentSplit,
+        topItem,
+        tableTurnover: 0 // Will be computed in render using tablesCount
+      });
       setLoading(false);
     }, err => {
       console.error("Dashboard stats subscription failed:", err);
@@ -267,9 +311,9 @@ export default function Dashboard() {
   const stats = [
     { label: "Today's Sales", value: formatCurrency(todayStats.sales, currency), icon: TrendingUp, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', desc: 'Gross revenue today', highlight: true },
     { label: 'Orders Today', value: todayStats.orders, icon: ShoppingCart, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', desc: 'Completed orders' },
-    { label: 'Avg. Order',   value: formatCurrency(todayStats.avg, currency), icon: CheckCircle2, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', desc: 'Order ticket average' },
-    { label: 'Active Now',   value: activeOrders.length, icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', desc: 'POS orders in progress' },
-    { label: 'Online Pending', value: unreadOnlineCount, icon: Globe, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)', desc: 'Unread online orders' },
+    { label: 'Avg. Bill Size',   value: formatCurrency(todayStats.avg, currency), icon: CheckCircle2, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', desc: 'Order ticket average', tooltip: 'The typical amount a customer spends per order' },
+    { label: 'Orders Cooking',   value: activeOrders.length, icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', desc: 'POS orders in progress', tooltip: 'Orders currently being prepared in the kitchen' },
+    { label: 'Waiting Online Orders', value: unreadOnlineCount, icon: Globe, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)', desc: 'Unread online orders', tooltip: 'Orders from Zomato/Swiggy waiting to be accepted' },
   ];
 
   const orderStatusColors = {
@@ -376,9 +420,12 @@ export default function Dashboard() {
                 fontWeight: 700, 
                 textTransform: 'uppercase', 
                 letterSpacing: '0.5px',
-                color: s.highlight ? 'rgba(255,255,255,0.8)' : 'var(--color-label-secondary)'
+                color: s.highlight ? 'rgba(255,255,255,0.8)' : 'var(--color-label-secondary)',
+                display: 'flex',
+                alignItems: 'center'
               }}>
                 {s.label}
+                {s.tooltip && <InfoTooltip text={s.tooltip} size={12} />}
               </span>
               <div style={{ 
                 background: s.highlight ? 'rgba(255,255,255,0.2)' : s.bg, 
@@ -410,6 +457,124 @@ export default function Dashboard() {
             </span>
           </div>
         ))}
+      </div>
+
+      {/* Today's 3 Action Items */}
+      <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', border: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label)' }}>
+          <Lightbulb size={16} color="var(--color-orange)" /> Today's Action Items
+          <InfoTooltip text="Smart tips based on your live restaurant data today." />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {todayStats.avgCookTime > 20 && (
+            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-red)' }}>
+              <AlertCircle size={16} color="var(--color-red)" style={{ flexShrink: 0, marginTop: 2 }} />
+              <div><strong>Kitchen is slow:</strong> Average kitchen time is {todayStats.avgCookTime} mins. Your target should be under 20 mins. Check if any station is backed up.</div>
+            </div>
+          )}
+          {todayStats.paymentSplit.upi > (todayStats.orders * 0.5) && (
+            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-green)' }}>
+              <Sparkles size={16} color="var(--color-green)" style={{ flexShrink: 0, marginTop: 2 }} />
+              <div><strong>UPI is popular today:</strong> Over half your orders are paid via UPI. Consider putting a QR code stand right on the tables to speed up checkout.</div>
+            </div>
+          )}
+          {todayStats.tableTurnover < 2 && tablesCount > 0 && todayStats.orders > 5 && (
+            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-orange)' }}>
+              <Clock size={16} color="var(--color-orange)" style={{ flexShrink: 0, marginTop: 2 }} />
+              <div><strong>Tables are turning slowly:</strong> Customers are staying longer. Ask staff to clear empty plates faster to free up tables for new walk-ins.</div>
+            </div>
+          )}
+          {(!todayStats.avgCookTime || todayStats.avgCookTime <= 20) && (!todayStats.paymentSplit.upi || todayStats.paymentSplit.upi <= (todayStats.orders * 0.5)) && (todayStats.tableTurnover >= 2 || tablesCount === 0 || todayStats.orders <= 5) && (
+            <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontStyle: 'italic', padding: '4px' }}>
+              Everything looks good so far today! Keep it up.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Restaurant Performance Section */}
+      <div>
+        <h3 className="text-title3" style={{ marginBottom: 'var(--space-3)', fontWeight: 700, color: 'var(--color-label)' }}>
+          Restaurant Performance
+        </h3>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 'var(--space-4)'
+        }}>
+          {/* Avg Kitchen Time */}
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <Clock size={14} /> Avg Kitchen Time
+              <InfoTooltip text="How long it takes the kitchen to prepare an order on average today" />
+            </div>
+            <div style={{ fontSize: '24px', fontWeight: 800 }}>
+              {todayStats.avgCookTime > 0 ? `${todayStats.avgCookTime} mins` : 'N/A'}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Based on today's kitchen workflow</div>
+          </div>
+
+          {/* Times per Table */}
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <TrendingUp size={14} /> Times per Table
+              <InfoTooltip text="How many groups of customers sat at each table today on average" />
+            </div>
+            <div style={{ fontSize: '24px', fontWeight: 800 }}>
+              {tablesCount > 0 ? (todayStats.orders / tablesCount).toFixed(1) : '0'} 
+              <span style={{ fontSize: '14px', color: 'var(--color-label-secondary)', fontWeight: 600, marginLeft: 4 }}>orders/table</span>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Average turns per table today</div>
+          </div>
+
+          {/* How Customers Paid */}
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <Percent size={14} /> How Customers Paid
+              <InfoTooltip text="Percentage breakdown of payment methods used today" />
+            </div>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+              {(() => {
+                const total = todayStats.orders || 1;
+                const p = todayStats.paymentSplit || { cash: 0, card: 0, upi: 0 };
+                return (
+                  <>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#059669' }}>{Math.round((p.cash / total) * 100)}%</div>
+                      <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)' }}>CASH</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#2563eb' }}>{Math.round((p.card / total) * 100)}%</div>
+                      <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)' }}>CARD</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#7c3aed' }}>{Math.round((p.upi / total) * 100)}%</div>
+                      <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)' }}>UPI</div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Top Item Today */}
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <Flame size={14} color="#d97706" /> Top Item Today
+            </div>
+            {todayStats.topItem ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '2px' }}>
+                <div style={{ fontSize: '28px' }}>{todayStats.topItem.emoji}</div>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 800 }}>{todayStats.topItem.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>{todayStats.topItem.qty} orders today</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: '14px', color: 'var(--color-label-tertiary)', marginTop: '8px' }}>No items sold yet</div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Two Column Layout: Main Ops vs Insights */}

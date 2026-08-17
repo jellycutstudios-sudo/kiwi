@@ -27,6 +27,7 @@ export default function OnlineOrderPage() {
   const [step, setStep] = useState('menu'); // 'menu' | 'details' | 'done'
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [sevenDayAvg, setSevenDayAvg] = useState(0);
 
   // Active order tracking states
   const [activeOrderId, setActiveOrderId] = useState(() => {
@@ -95,6 +96,22 @@ export default function OnlineOrderPage() {
       if (unsubMenu) unsubMenu();
     };
   }, [restaurantId]);
+
+  // Fetch 7-day average
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const past7Days = new Date();
+    past7Days.setDate(past7Days.getDate() - 7);
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'orders'),
+      where('createdAt', '>=', past7Days)
+    );
+    getDocs(q).then(snap => {
+      let totalSales = 0;
+      snap.docs.forEach(d => totalSales += (d.data().total || 0));
+      setSevenDayAvg(snap.docs.length > 0 ? totalSales / snap.docs.length : 0);
+    }).catch(console.error);
+  }, [restaurant?.id]);
 
   // Real-time listener for customer active order details
   useEffect(() => {
@@ -715,6 +732,28 @@ export default function OnlineOrderPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Upsell Nudge */}
+              {sevenDayAvg > 0 && subtotal > 0 && subtotal < sevenDayAvg && (
+                <div style={{
+                  background: 'var(--color-orange-light)',
+                  color: 'var(--color-orange)',
+                  padding: 'var(--space-3)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  fontWeight: 'var(--weight-semibold)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  marginBottom: 'var(--space-4)',
+                  border: '1px solid var(--color-orange)'
+                }}>
+                  <span style={{ fontSize: '16px' }}>💡</span>
+                  <div style={{ lineHeight: '1.4' }}>
+                    This order is below the {formatCurrency(sevenDayAvg, currency)} average. Consider adding a side, dessert, or drink to complete your meal!
+                  </div>
+                </div>
+              )}
 
               {/* Order Mode Toggle */}
               {!tableId && (

@@ -297,28 +297,104 @@ export default function LandingPage() {
       </header>
 
       {/* Rest of Landing Page Structure */}
-      <section className="neo-features-section" id="features">
+      {/* How It Works Section */}
+      <section className="neo-how-it-works">
         <div className="neo-section-header">
-          <h2 className="neo-section-title">{t('featuresTitle')}</h2>
-          <p className="neo-section-subtitle">{t('featuresSubtitle')}</p>
+          <h2 className="neo-section-title">As easy as 1, 2, 3</h2>
+          <p className="neo-section-subtitle">You don't need an IT degree to use DineOS. We built it so anyone can learn it in 5 minutes.</p>
         </div>
-        <div className="neo-features-grid">
-          <div className="neo-feature-card">
-            <div className="neo-feature-icon"><Laptop size={24} /></div>
-            <h3>{t('featurePosTitle')}</h3>
-            <p>{t('featurePosDesc')}</p>
+        <div className="neo-steps-container">
+          <div className="neo-steps-line" />
+          <div className="neo-step">
+            <div className="neo-step-number">1</div>
+            <h3 className="neo-step-title">Set up your menu</h3>
+            <p className="neo-step-desc">Add your items, prices, and photos. No complicated spreadsheets needed.</p>
           </div>
-          <div className="neo-feature-card">
-            <div className="neo-feature-icon"><Map size={24} /></div>
-            <h3>{t('featureTablesTitle')}</h3>
-            <p>{t('featureTablesDesc')}</p>
+          <div className="neo-step">
+            <div className="neo-step-number">2</div>
+            <h3 className="neo-step-title">Take your first order</h3>
+            <p className="neo-step-desc">Tap, tap, paid. Orders flow instantly to the kitchen display.</p>
           </div>
-          <div className="neo-feature-card">
-            <div className="neo-feature-icon"><Globe size={24} /></div>
-            <h3>{t('featureOnlineTitle')}</h3>
-            <p>{t('featureOnlineDesc')}</p>
+          <div className="neo-step">
+            <div className="neo-step-number">3</div>
+            <h3 className="neo-step-title">Watch profits grow</h3>
+            <p className="neo-step-desc">Use live insights to see what's selling and where you're making the most money.</p>
           </div>
         </div>
+      </section>
+
+      {/* Core Features Bento Grid */}
+      <section className="neo-personas">
+        <div className="neo-section-header">
+          <h2 className="neo-section-title">Everything you need</h2>
+          <p className="neo-section-subtitle">From taking orders to tracking ingredients, we've got you covered.</p>
+        </div>
+        <div className="neo-bento-grid">
+          <div className="neo-bento-card">
+            <div className="neo-feature-icon" style={{ background: '#e0f2fe', color: '#0369a1' }}><Laptop size={24} /></div>
+            <h3>Lightning Fast POS</h3>
+            <p>Built for speed. Serve customers faster with an interface that takes 0 clicks to understand.</p>
+          </div>
+          <div className="neo-bento-card">
+            <div className="neo-feature-icon" style={{ background: '#fce7f3', color: '#be185d' }}><ChefHat size={24} /></div>
+            <h3>Kitchen Display</h3>
+            <p>Ditch the paper tickets. Send orders straight to the kitchen screen instantly.</p>
+          </div>
+          <div className="neo-bento-card">
+            <div className="neo-feature-icon" style={{ background: '#dcfce7', color: '#15803d' }}><Globe size={24} /></div>
+            <h3>Online Orders</h3>
+            <p>Get a direct ordering link for your restaurant. No 30% commissions.</p>
+          </div>
+          <div className="neo-bento-card">
+            <div className="neo-feature-icon" style={{ background: '#fef3c7', color: '#b45309' }}><Package size={24} /></div>
+            <h3>Auto Inventory</h3>
+            <p>Stock deducts automatically as you sell. Get alerted before you run out of ingredients.</p>
+          </div>
+          <div className="neo-bento-card">
+            <div className="neo-feature-icon" style={{ background: '#e0e7ff', color: '#4338ca' }}><Map size={24} /></div>
+            <h3>Visual Table Map</h3>
+            <p>See your entire dining room at a glance. Know exactly which tables are waiting.</p>
+          </div>
+          <div className="neo-bento-card">
+            <div className="neo-feature-icon" style={{ background: '#ffedd5', color: '#c2410c' }}><Receipt size={24} /></div>
+            <h3>Smart Reports</h3>
+            <p>Stop guessing. See your best-selling items, busiest hours, and daily profits clearly.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="neo-testimonials">
+        <div className="neo-section-header">
+          <h2 className="neo-section-title">Loved by owners</h2>
+          <p className="neo-section-subtitle">Join thousands of restaurants running smoother than ever.</p>
+        </div>
+        <div className="neo-testimonials-grid">
+          <div className="neo-testimonial-card">
+            <div className="neo-stars">★★★★★</div>
+            <p className="neo-testimonial-text">"My staff learned to use it in literally 10 minutes. It's so clean and fast."</p>
+            <div className="neo-testimonial-author">Sarah M. — Cafe Owner</div>
+          </div>
+          <div className="neo-testimonial-card">
+            <div className="neo-stars">★★★★★</div>
+            <p className="neo-testimonial-text">"The kitchen display changed everything for us. No more lost paper tickets on busy Friday nights."</p>
+            <div className="neo-testimonial-author">David K. — Burger Joint</div>
+          </div>
+          <div className="neo-testimonial-card">
+            <div className="neo-stars">★★★★★</div>
+            <p className="neo-testimonial-text">"Finally a POS that doesn't look like it was built in 1995. Love the modern design."</p>
+            <div className="neo-testimonial-author">Elena R. — Pizzeria</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="neo-cta">
+        <h2 className="neo-cta-title">Ready to upgrade your restaurant?</h2>
+        <p className="neo-cta-subtitle">Get started in less than 2 minutes. No credit card required.</p>
+        <Link to="/login?mode=register" className="neo-btn neo-btn-primary neo-shadow-lg" style={{ fontSize: '18px', padding: '16px 32px' }}>
+          Get Started Now
+        </Link>
       </section>
 
       <footer className="neo-footer">

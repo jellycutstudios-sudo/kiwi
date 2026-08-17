@@ -23,7 +23,7 @@ export const logError = (error, context = {}) => {
 
 export const logEvent = (eventName, data = {}) => {
   if (import.meta.env.DEV) {
-    console.log(`[Event Tracker] ${eventName}`, data);
+    // Event Tracker disabled for performance
   }
   // Hook up Mixpanel, PostHog, or Firebase Analytics here
 };

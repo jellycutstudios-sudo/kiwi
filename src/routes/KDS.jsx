@@ -5,9 +5,54 @@ import { useOrderStore } from '../stores/orderStore';
 import { useKdsStore } from '../stores/kdsStore';
 import { useTokenStore } from '../stores/tokenStore';
 import toast from 'react-hot-toast';
-import { ChefHat } from 'lucide-react';
+import { ChefHat, Info } from 'lucide-react';
 
 const STATIONS = ['All', 'Kitchen', 'Grill', 'Fryer', 'Cold', 'Bar', 'Bakery'];
+
+// Dark-theme tooltip for KDS
+function KdsTooltip({ text, children }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div style={{
+          position: 'absolute',
+          bottom: '110%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(20,20,30,0.97)',
+          color: 'rgba(255,255,255,0.9)',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          fontSize: '11px',
+          fontWeight: 500,
+          whiteSpace: 'nowrap',
+          zIndex: 200,
+          border: '1px solid rgba(255,255,255,0.12)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          pointerEvents: 'none',
+          lineHeight: '1.4'
+        }}>
+          {text}
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            borderWidth: '4px',
+            borderStyle: 'solid',
+            borderColor: 'rgba(20,20,30,0.97) transparent transparent transparent'
+          }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function KDS() {
   const { t } = useTranslation();
@@ -123,6 +168,9 @@ export default function KDS() {
             fontSize: 13,
             fontWeight: 600,
           }}>{kdsOrders.length} active</span>
+          <KdsTooltip text="Number of orders currently waiting or being cooked">
+            <Info size={14} color="rgba(255,255,255,0.3)" style={{ cursor: 'help', marginLeft: 4 }} />
+          </KdsTooltip>
         </div>
         <div style={{ color: 'var(--color-on-dark-soft)', fontSize: 13 }}>
           {new Date().toLocaleTimeString()}
@@ -145,6 +193,7 @@ export default function KDS() {
             <button
               key={station}
               onClick={() => setActiveStation(station)}
+              title={station === 'All' ? 'Show all orders from every station' : `Show only orders for the ${station} station`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -236,18 +285,23 @@ export default function KDS() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{
-                      padding: '3px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      background: order.status === 'pending' ? 'rgba(255,176,132,0.2)' : 'rgba(184,164,237,0.2)',
-                      color: order.status === 'pending' ? 'var(--color-brand-peach)' : 'var(--color-brand-lavender)',
-                    }}>
-                      {order.status.toUpperCase()}
-                    </div>
+                    <KdsTooltip text={order.status === 'pending' ? 'Waiting — kitchen has not started yet' : 'Being cooked right now'}>
+                      <div style={{
+                        padding: '3px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'help',
+                        background: order.status === 'pending' ? 'rgba(255,176,132,0.2)' : 'rgba(184,164,237,0.2)',
+                        color: order.status === 'pending' ? 'var(--color-brand-peach)' : 'var(--color-brand-lavender)',
+                      }}>
+                        {order.status === 'pending' ? '⏳ Waiting' : '🍳 Cooking'}
+                      </div>
+                    </KdsTooltip>
                     <div className="kds-order-time" style={{ marginTop: 4 }}>
-                      {getElapsed(order.createdAt)}
+                      <KdsTooltip text="How long ago this order was placed">
+                        <span style={{ cursor: 'help' }}>{getElapsed(order.createdAt)}</span>
+                      </KdsTooltip>
                     </div>
                   </div>
                 </div>
@@ -328,19 +382,22 @@ export default function KDS() {
                                       {item.station ?? 'Kitchen'}
                                     </span>
                                   )}
+                                <KdsTooltip text={isReady ? 'Done — tap to reset to pending' : (isPreparing ? 'Being cooked — tap to mark ready' : 'Waiting to cook — tap to start')}>
                                   <span style={{
                                     fontSize: 9,
                                     padding: '2px 5px',
                                     borderRadius: 'var(--radius-full)',
                                     fontWeight: 'var(--weight-bold)',
+                                    cursor: 'help',
                                     background: isReady ? 'rgba(164,212,197,0.20)' : (isPreparing ? 'rgba(184,164,237,0.20)' : 'rgba(255,176,132,0.20)'),
                                     color: isReady ? 'var(--color-brand-mint)' : (isPreparing ? 'var(--color-brand-lavender)' : 'var(--color-brand-peach)'),
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 2
                                   }}>
-                                    {isReady ? '✓' : (isPreparing ? '🍳' : '⏳')}
+                                    {isReady ? '✓ Done' : (isPreparing ? '🍳 Cooking' : '⏳ Waiting')}
                                   </span>
+                                </KdsTooltip>
                                 </div>
                               </div>
                             );
@@ -365,21 +422,25 @@ export default function KDS() {
                   ) : (
                     <>
                       {anyStationPending && (
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => handleStartPreparing(order, activeStation)}
-                          style={{ flex: 1, background: 'rgba(184,164,237,0.15)', color: 'var(--color-brand-lavender)', border: '1px solid rgba(184,164,237,0.3)', padding: '8px', fontSize: 12 }}
-                        >
-                          🍳 Prepare {activeStation === 'All' ? 'All' : activeStation}
-                        </button>
+                        <KdsTooltip text="Tap to mark all items in this station as being cooked">
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => handleStartPreparing(order, activeStation)}
+                            style={{ flex: 1, background: 'rgba(184,164,237,0.15)', color: 'var(--color-brand-lavender)', border: '1px solid rgba(184,164,237,0.3)', padding: '8px', fontSize: 12 }}
+                          >
+                            🍳 Start Cooking
+                          </button>
+                        </KdsTooltip>
                       )}
-                      <button
-                        className="kds-ready-btn"
-                        onClick={() => handleMarkReady(order, activeStation)}
-                        style={{ flex: anyStationPending ? 0.8 : 1, padding: '8px', fontSize: 12 }}
-                      >
-                        ✓ Ready {activeStation === 'All' ? 'All' : activeStation}
-                      </button>
+                      <KdsTooltip text="Tap when all items for this order are cooked and plated">
+                        <button
+                          className="kds-ready-btn"
+                          onClick={() => handleMarkReady(order, activeStation)}
+                          style={{ flex: anyStationPending ? 0.8 : 1, padding: '8px', fontSize: 12 }}
+                        >
+                          ✓ Food is Ready
+                        </button>
+                      </KdsTooltip>
                     </>
                   )}
                 </div>

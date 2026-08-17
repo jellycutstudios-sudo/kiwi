@@ -32,6 +32,7 @@ const FloorPlanEditor= lazy(() => import('./routes/admin/FloorPlanEditor'));
 const Settings       = lazy(() => import('./routes/admin/Settings'));
 const Restaurants    = lazy(() => import('./routes/admin/Restaurants'));
 const DeliveryHub    = lazy(() => import('./routes/admin/DeliveryHub'));
+const Transactions   = lazy(() => import('./routes/admin/Transactions'));
 const PendingApproval= lazy(() => import('./routes/PendingApproval'));
 const ActiveOrders   = lazy(() => import('./routes/ActiveOrders'));
 const LandingPage    = lazy(() => import('./routes/LandingPage'));
@@ -113,6 +114,7 @@ export default function App() {
                 <Route path="/admin/customers"    element={<Customers />} />
                 <Route path="/admin/reservations" element={<Reservations />} />
                 <Route path="/admin/floor"        element={<FloorPlanEditor />} />
+                <Route path="/admin/transactions" element={<Transactions />} />
                 <Route path="/admin/settings"     element={<Settings />} />
                 <Route path="/admin/delivery-hub" element={<DeliveryHub />} />
                 <Route path="/admin/posters"      element={<PosterManager />} />

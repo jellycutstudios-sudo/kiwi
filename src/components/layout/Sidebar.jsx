@@ -9,9 +9,10 @@ import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import HelpGuide from '../shared/HelpGuide';
 
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
@@ -32,6 +33,7 @@ const ADMIN_NAV = [
   { key: 'customers',   path: '/admin/customers',    icon: Contact,          label: 'customers', requiredMode: 'customers' },
   { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
   { key: 'floor',       path: '/admin/floor',        icon: Map,              label: 'floorPlan', requiredMode: 'table' },
+  { key: 'transactions', path: '/admin/transactions', icon: Receipt,          label: 'transactions' },
   { key: 'posters',     path: '/admin/posters',     icon: Tv,               label: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
@@ -44,6 +46,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const role = staffDoc?.role ?? 'cashier';
 
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     if (!restaurant?.id) return;
@@ -212,6 +215,14 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         <div style={{ display: 'flex', flexDirection: isCollapsed ? 'column' : 'row', gap: 'var(--space-2)', width: '100%', alignItems: 'center', justifyContent: 'center' }}>
           <button
             className="btn btn-secondary btn-icon"
+            onClick={() => setShowGuide(true)}
+            title="Help & Guide"
+            style={{ width: '36px', height: '36px', flexShrink: 0 }}
+          >
+            <BookOpen size={16} />
+          </button>
+          <button
+            className="btn btn-secondary btn-icon"
             onClick={handleSignOut}
             title="Sign out"
             style={{ width: '36px', height: '36px', flexShrink: 0 }}
@@ -233,6 +244,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           </button>
         </div>
       </div>
+
+      {showGuide && <HelpGuide onClose={() => setShowGuide(false)} />}
     </aside>
   );
 }

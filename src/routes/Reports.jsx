@@ -5,7 +5,8 @@ import { useStaffStore } from '../stores/staffStore';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake, Receipt, UtensilsCrossed, FileText } from 'lucide-react';
+import InfoTooltip from '../components/shared/InfoTooltip';
 import toast from 'react-hot-toast';
 import {
   ResponsiveContainer,
@@ -20,7 +21,7 @@ import {
 export default function Reports() {
   const { restaurant } = useAuthStore();
   const [period, setPeriod] = useState('today');
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'menu' | 'staff'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'menu' | 'staff' | 'tips' | 'till_shifts' | 'void_audits'
   const [data, setData] = useState([]);
   const { categories } = useMenuStore();
   const { staff } = useStaffStore();
@@ -484,13 +485,6 @@ export default function Reports() {
     setTimeout(() => { win.print(); win.close(); }, 500);
   };
 
-  const stats = [
-    { label: 'Total Sales',   value: formatCurrency(totalSales, currency), icon: TrendingUp, color: 'var(--color-green)', bg: 'var(--color-green-light)' },
-    { label: 'Total Orders',  value: totalOrders,                           icon: ShoppingCart, color: 'var(--color-accent)', bg: 'var(--color-accent-light)' },
-    { label: 'Avg. Order',    value: formatCurrency(avgOrder, currency),    icon: BarChart3, color: 'var(--color-orange)', bg: 'var(--color-orange-light)' },
-    { label: 'Avg. Prep Time', value: avgPrepTime > 0 ? `${avgPrepTime}m` : 'N/A', icon: Clock, color: 'var(--color-purple)', bg: 'var(--color-purple-light)' },
-  ];
-
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
       {/* Page Header */}
@@ -513,21 +507,6 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="stat-grid">
-        {stats.map((s,i) => (
-          <div key={i} className="stat-card">
-            <div className="stat-card-icon" style={{ background: s.bg }}>
-              <s.icon size={20} color={s.color} />
-            </div>
-            <div className="stat-card-value">
-              {loading ? <div className="skeleton" style={{height:28,width:80,borderRadius:6}}/> : s.value}
-            </div>
-            <div className="stat-card-label">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
       {/* Dashboard Sub-navigation Tabs */}
       <div className="reports-tabs">
         {[
@@ -535,8 +514,8 @@ export default function Reports() {
           { key: 'menu', label: 'Menu Performance', icon: PieChart },
           { key: 'staff', label: 'Staff Leaderboard', icon: Users },
           { key: 'tips', label: 'Tips & Gratuities', icon: HeartHandshake },
-          { key: 'till_shifts', label: 'Till Shifts', icon: History },
-          { key: 'void_audits', label: 'Void Audit Ledger', icon: ShieldAlert }
+          { key: 'till_shifts', label: 'Cash Shift History', icon: Receipt },
+          { key: 'void_audits', label: 'Cancelled Items Log', icon: FileText }
         ].map(t => (
           <button
             key={t.key}
@@ -554,6 +533,38 @@ export default function Reports() {
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          {/* Key Performance Indicators */}
+          <div className="card card-padded">
+            <h3 className="text-title3" style={{ marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center' }}>
+              Key Performance Indicators
+              <InfoTooltip text="High-level summary of your restaurant's performance for the selected time period" />
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-4)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 'var(--weight-bold)' }}>Total Revenue</span>
+                <span className="text-title1" style={{ color: 'var(--color-green)' }}>{formatCurrency(totalSales, currency)}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 'var(--weight-bold)' }}>Total Orders</span>
+                <span className="text-title1">{totalOrders}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 'var(--weight-bold)', display: 'flex', alignItems: 'center' }}>
+                  Avg. Bill Size
+                  <InfoTooltip text="The typical amount a customer spends per order" size={12} />
+                </span>
+                <span className="text-title1" style={{ color: 'var(--color-orange)' }}>{formatCurrency(avgOrder, currency)}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 'var(--weight-bold)', display: 'flex', alignItems: 'center' }}>
+                  Avg Kitchen Time
+                  <InfoTooltip text="How long it takes the kitchen to prepare an order on average" size={12} />
+                </span>
+                <span className="text-title1">{avgPrepTime > 0 ? `${avgPrepTime}m` : 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+
           {/* SVG Trend Chart */}
           <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -885,10 +896,10 @@ export default function Reports() {
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span className="card-title">Cash Till Shifts History</span>
-              <p style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                Audit opened and closed till drawers, expected vs actual cash balances, and variance records.
-              </p>
+              <span className="card-title" style={{ display: 'flex', alignItems: 'center' }}>
+                Cash Shift History
+                <InfoTooltip text="Audit opened and closed till drawers, expected vs actual cash balances, and variance records." />
+              </span>
             </div>
             {loadingShifts && <div className="skeleton" style={{ width: 60, height: 20, borderRadius: 4 }} />}
           </div>
@@ -961,10 +972,10 @@ export default function Reports() {
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span className="card-title">Void Audit Ledger</span>
-              <p style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                Chronological register of manager-authorized voids, cancellations, and spillage write-offs.
-              </p>
+              <span className="card-title" style={{ display: 'flex', alignItems: 'center' }}>
+                Cancelled Items Log
+                <InfoTooltip text="Chronological register of manager-authorized voids, cancellations, and spillage write-offs." />
+              </span>
             </div>
             {loadingVoids && <div className="skeleton" style={{ width: 60, height: 20, borderRadius: 4 }} />}
           </div>

@@ -124,24 +124,24 @@ export const useAuthStore = create(
 
       loadUserData: async (firebaseUser) => {
         try {
-          console.log("loadUserData: start for uid", firebaseUser.uid);
+          // loadUserData: start
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          console.log("loadUserData: fetching userDocRef");
+          // fetching userDocRef
           const userSnap = await getDoc(userDocRef);
-          console.log("loadUserData: userSnap exists:", userSnap.exists());
+          // check if user exists
 
           if (userSnap.exists()) {
             const userData = { id: userSnap.id, ...userSnap.data() };
             let restData = null;
             if (userData.restaurantId) {
-              console.log("loadUserData: fetching restDoc", userData.restaurantId);
+              // fetching restDoc
               const restDoc = await getDoc(doc(db, 'restaurants', userData.restaurantId));
-              console.log("loadUserData: restDoc exists:", restDoc.exists());
+              // check if restDoc exists
               if (restDoc.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
               }
             }
-            console.log("loadUserData: setting state");
+            // set state
             set({
               user: firebaseUser,
               staffDoc: userData,
@@ -149,7 +149,7 @@ export const useAuthStore = create(
               loading: false,
             });
           } else {
-            console.log("loadUserData: user doc not found");
+            // user doc not found
             set({ user: firebaseUser, loading: false });
           }
         } catch (e) {

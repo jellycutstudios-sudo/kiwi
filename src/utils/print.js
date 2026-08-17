@@ -233,7 +233,7 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
 }
 
 async function sendToBluetoothPrinter(buffer) {
-  console.log('[ESC/POS Bluetooth] Connecting to Bluetooth Printer...', buffer);
+  // [ESC/POS Bluetooth] Connecting to Bluetooth Printer
   toast.success('Pairing with Bluetooth Printer...');
   try {
     if (!navigator.bluetooth) {
@@ -243,15 +243,13 @@ async function sendToBluetoothPrinter(buffer) {
       filters: [{ services: ['printer_service'] }, { namePrefix: 'Receipt' }]
     });
     await device.gatt.connect();
-    console.log('[ESC/POS Bluetooth] Success pairing, transmitting bytes:', buffer.length);
   } catch (e) {
     console.warn('[ESC/POS Bluetooth Emulator Fallback] Web Bluetooth not completed in this context:', e.message);
-    console.log('%c[Bluetooth ESC/POS Hex Output]', 'font-family:monospace;color:#10b981;', Array.from(buffer).map(b => b.toString(16).padStart(2,'0')).join(' '));
   }
 }
 
 async function sendToSerialPrinter(buffer) {
-  console.log('[ESC/POS Serial] Writing to COM Port...', buffer);
+  // [ESC/POS Serial] Writing to COM Port
   toast.success('Accessing Serial Printer Port...');
   try {
     if (!navigator.serial) {
@@ -265,12 +263,12 @@ async function sendToSerialPrinter(buffer) {
     await port.close();
   } catch (e) {
     console.warn('[ESC/POS Serial Emulator Fallback] Web Serial not completed in this context:', e.message);
-    console.log('%c[Serial ESC/POS Hex Output]', 'font-family:monospace;color:#f59e0b;', Array.from(buffer).map(b => b.toString(16).padStart(2,'0')).join(' '));
+    // Debug hex output
   }
 }
 
 async function sendToNetworkPrinter(ipAddress, buffer) {
-  console.log(`[ESC/POS Network] Sending raw print job to ${ipAddress}...`, buffer);
+  // [ESC/POS Network] Sending raw print job
   toast.success(`Sending print job to network printer ${ipAddress}...`);
   try {
     await fetch(`http://${ipAddress}/print`, {
@@ -280,7 +278,7 @@ async function sendToNetworkPrinter(ipAddress, buffer) {
     });
   } catch (e) {
     console.warn('[ESC/POS Network Emulator Fallback] Network post bypassed:', e.message);
-    console.log(`%c[Network Print Server Output to ${ipAddress}]`, 'font-family:monospace;color:#3b82f6;', Array.from(buffer).map(b => b.toString(16).padStart(2,'0')).join(' '));
+    // Debug network transmission
   }
 }
 
@@ -316,7 +314,7 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
   const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
 
   if (kitchenPrinters.length === 0) {
-    console.log('[Print Engine] No kitchen printers configured to print tickets.');
+    // No kitchen printers configured
     return;
   }
 
@@ -331,7 +329,7 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
     });
 
     if (routedItems.length === 0) {
-      console.log(`[Print Engine] No items to route to kitchen printer: ${printer.name}`);
+      // No items to route to kitchen printer
       return;
     }
 
