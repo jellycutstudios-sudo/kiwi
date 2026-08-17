@@ -261,6 +261,13 @@ export const useAuthStore = create(
           restaurant: s.restaurant 
         };
       },
+      onRehydrateStorage: () => (state) => {
+        // Immediately dismiss the loading screen once localStorage is read.
+        // This gives instant app startup (0ms), while Firebase verifies the session in the background.
+        if (state) {
+          state.loading = false;
+        }
+      }
     }
   )
 );
