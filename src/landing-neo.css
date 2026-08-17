@@ -1367,3 +1367,448 @@ body {
   .neo-mock-cart { width: 100%; border-left: none; border-top: 1px solid rgba(0,0,0,0.06); flex: none; }
   .neo-mock-grid { grid-template-columns: 1fr 1fr; overflow: visible; }
 }
+
+/* --- PREMIUM EXTENSIONS: SHOWCASE, COMPARISON, FAQ, METRICS --- */
+
+/* Hero Glow & Trust Pills */
+.neo-hero {
+  position: relative;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 0, 0, 0.03), transparent 70%);
+}
+
+.neo-hero-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--neo-white);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 8px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--neo-black);
+  margin-bottom: 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.neo-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.neo-trust-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.neo-trust-pill {
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Interactive Showcase Switcher */
+.neo-showcase-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.neo-showcase-tabs {
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  border-radius: 100px;
+  margin-bottom: 24px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.neo-showcase-tabs::-webkit-scrollbar { display: none; }
+
+.neo-showcase-tab-btn {
+  padding: 10px 20px;
+  border-radius: 100px;
+  border: none;
+  background: transparent;
+  font-family: 'Geist', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.neo-showcase-tab-btn:hover {
+  color: var(--neo-black);
+}
+
+.neo-showcase-tab-btn.active {
+  background: var(--neo-white);
+  color: var(--neo-black);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Metric / Impact Bar */
+.neo-metrics-bar {
+  max-width: 1100px;
+  margin: 40px auto 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding: 0 24px;
+}
+
+.neo-metric-card {
+  background: var(--neo-white);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--soft-shadow-sm);
+  transition: transform 0.2s ease;
+}
+.neo-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--soft-shadow-lg);
+}
+
+.neo-metric-val {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--neo-black);
+  margin-bottom: 4px;
+}
+
+.neo-metric-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Enhanced Bento Cards */
+.neo-bento-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.neo-bento-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--neo-white);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 24px;
+  padding: 36px 28px;
+  box-shadow: var(--soft-shadow-sm);
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+.neo-bento-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--soft-shadow-xl);
+  border-color: rgba(0,0,0,0.12);
+}
+
+.neo-bento-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.neo-bento-badge-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.05);
+  color: #555;
+}
+
+.neo-bento-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--neo-black);
+  margin-bottom: 10px;
+}
+
+.neo-bento-card p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.neo-bento-bullets {
+  list-style: none;
+  padding: 0;
+  margin: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(0,0,0,0.04);
+  padding-top: 16px;
+}
+
+.neo-bento-bullets li {
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Comparison Section */
+.neo-comparison-section {
+  padding: 100px 24px;
+  background: #fafaf7;
+}
+
+.neo-comparison-table-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  background: var(--neo-white);
+  border-radius: 24px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: var(--soft-shadow-lg);
+  overflow: hidden;
+}
+
+.neo-comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.neo-comparison-table th,
+.neo-comparison-table td {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.neo-comparison-table th {
+  background: #fdfdfc;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.neo-comparison-feature-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--neo-black);
+}
+
+.neo-comparison-dineos {
+  font-size: 14px;
+  font-weight: 600;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neo-comparison-legacy {
+  font-size: 14px;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Audience / Persona Section */
+.neo-persona-section {
+  padding: 100px 24px;
+}
+
+.neo-persona-grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.neo-persona-card {
+  background: var(--neo-white);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 20px;
+  padding: 30px 24px;
+  box-shadow: var(--soft-shadow-sm);
+  transition: all 0.2s ease;
+}
+.neo-persona-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--soft-shadow-lg);
+}
+
+.neo-persona-emoji {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.neo-persona-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.neo-persona-desc {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* FAQ Section */
+.neo-faq-section {
+  padding: 100px 24px;
+  background: #fafaf7;
+}
+
+.neo-faq-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.neo-faq-item {
+  background: var(--neo-white);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--soft-shadow-sm);
+}
+
+.neo-faq-question {
+  width: 100%;
+  padding: 20px 24px;
+  border: none;
+  background: transparent;
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--neo-black);
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.neo-faq-answer {
+  padding: 0 24px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #555;
+}
+
+/* CTA Section High Polish */
+.neo-cta-box {
+  max-width: 1000px;
+  margin: 60px auto 100px;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 32px;
+  padding: 60px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
+}
+
+.neo-cta-box::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.25), transparent 70%);
+  pointer-events: none;
+}
+
+.neo-cta-box h2 {
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.neo-cta-box p {
+  font-size: 17px;
+  color: #94a3b8;
+  max-width: 550px;
+  margin: 0 auto 32px;
+  line-height: 1.6;
+}
+
+.neo-btn-white {
+  background: #ffffff;
+  color: #0f172a;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 100px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(255,255,255,0.2);
+}
+.neo-btn-white:hover {
+  transform: translateY(-2px);
+  background: #f8fafc;
+  box-shadow: 0 6px 20px rgba(255,255,255,0.3);
+}
+
+/* Responsive updates for new sections */
+@media (max-width: 1024px) {
+  .neo-bento-grid { grid-template-columns: repeat(2, 1fr); }
+  .neo-metrics-bar { grid-template-columns: repeat(2, 1fr); }
+  .neo-persona-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .neo-bento-grid { grid-template-columns: 1fr; }
+  .neo-metrics-bar { grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px; }
+  .neo-metric-val { font-size: 24px; }
+  .neo-persona-grid { grid-template-columns: 1fr; }
+  .neo-comparison-table th, .neo-comparison-table td { padding: 14px 16px; font-size: 13px; }
+  .neo-cta-box { padding: 40px 20px; border-radius: 24px; margin: 40px 16px; }
+  .neo-cta-box h2 { font-size: 28px; }
+  .neo-cta-box p { font-size: 15px; }
+}

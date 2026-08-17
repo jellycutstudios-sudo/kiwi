@@ -1,12 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { 
   Laptop, Map, ChefHat, Globe, Package, Users, 
-  UtensilsCrossed, X, Menu, LayoutDashboard, LayoutGrid, 
-  Receipt, Users as UsersIcon, Settings, Search, Bell, 
-  MousePointer2, CheckCircle2, Loader2
+  UtensilsCrossed, X, LayoutDashboard, LayoutGrid, 
+  Receipt, Settings, Search, 
+  MousePointer2, CheckCircle2, Loader2,
+  Check, X as XIcon, ChevronDown, ChevronUp,
+  Sparkles, ArrowRight,
+  BarChart3, Award, QrCode
 } from 'lucide-react';
 import '../landing-neo.css';
 
@@ -18,22 +21,14 @@ export default function LandingPage() {
 
   const [isMobileView, setIsMobileView] = useState(false);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
-  const [isBurgerOpen, setIsBurgerOpen] = useState(false);
-  const burgerRef = useRef(null);
+  const [openFaq, setOpenFaq] = useState(null);
+  const [showcaseTab, setShowcaseTab] = useState('pos'); // 'pos', 'kds', 'tables', 'insights', 'online'
 
   useEffect(() => {
     const handleResize = () => setIsMobileView(window.innerWidth <= 768);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (burgerRef.current && !burgerRef.current.contains(e.target)) setIsBurgerOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const toggleLanguage = () => {
@@ -65,12 +60,12 @@ export default function LandingPage() {
   const getCartTotal = () => mockCart.reduce((acc, item) => acc + (item.qty * item.price), 0);
 
   useEffect(() => {
+    if (showcaseTab !== 'pos') return;
     let isActive = true;
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     const runAnimation = async () => {
-      while (isActive) {
-        // Reset
+      while (isActive && showcaseTab === 'pos') {
         setMockCart([]);
         setActiveCategory('All Items');
         setCheckoutStatus('idle');
@@ -78,7 +73,6 @@ export default function LandingPage() {
         await sleep(1500);
         if (!isActive) break;
 
-        // Move cursor in
         setCursorPos({ x: 50, y: 90, opacity: 1, click: false });
         await sleep(500);
 
@@ -92,7 +86,7 @@ export default function LandingPage() {
         setCursorPos({ x: 22, y: 15, opacity: 1, click: false });
         await sleep(600);
 
-        // 2. Click Double Bacon Burger (index 1 in Burgers)
+        // 2. Click Double Bacon Burger
         setCursorPos({ x: 38, y: 45, opacity: 1, click: false });
         await sleep(800);
         if (!isActive) break;
@@ -112,7 +106,7 @@ export default function LandingPage() {
         setCursorPos({ x: 45, y: 15, opacity: 1, click: false });
         await sleep(600);
 
-        // 4. Click Iced Matcha (index 0 in Beverages)
+        // 4. Click Iced Matcha
         setCursorPos({ x: 20, y: 45, opacity: 1, click: false });
         await sleep(800);
         if (!isActive) break;
@@ -135,7 +129,6 @@ export default function LandingPage() {
         setCheckoutStatus('success');
         await sleep(2500);
 
-        // Fade out
         setCursorPos(prev => ({ ...prev, opacity: 0 }));
         await sleep(1000);
       }
@@ -145,220 +138,667 @@ export default function LandingPage() {
       runAnimation();
     }
     return () => { isActive = false; };
-  }, [isMobileView]);
+  }, [isMobileView, showcaseTab]);
+
+  const faqs = [
+    {
+      q: "Do I need to buy expensive proprietary POS hardware?",
+      a: "No! DineOS runs seamlessly on any device with a modern browser — including iPads, Android tablets, Windows PCs, Macs, and smartphones. Use the hardware you already own."
+    },
+    {
+      q: "Does DineOS work with receipt and kitchen ticket printers?",
+      a: "Yes! DineOS supports standard ESC/POS 80mm and 58mm thermal printers across USB, Network (Ethernet/LAN), and Bluetooth, as well as digital KDS screens."
+    },
+    {
+      q: "Are there any hidden transaction fees or commissions on online orders?",
+      a: "Zero. You get a direct, branded ordering link for your restaurant. You keep 100% of your earnings without giving away 30% to third-party aggregator apps."
+    },
+    {
+      q: "What happens if our restaurant internet disconnects during a rush?",
+      a: "DineOS features intelligent local caching. Your team can continue taking orders and printing receipts offline, and all records automatically sync back to the cloud as soon as connection restores."
+    },
+    {
+      q: "Can I manage staff roles and track cash shift drawers?",
+      a: "Yes! You can assign granular permissions for Admins, Cashiers, Waiters, and Cooks. Every cash drawer open, close, and discrepancy is logged with one-click end-of-shift reports."
+    },
+    {
+      q: "How fast can we get our restaurant set up?",
+      a: "Most owners get their entire menu, categories, and table layout configured in less than 10 minutes. Our built-in Owner's Guide guides you through every step in plain English."
+    }
+  ];
 
   return (
     <div className="neo-landing" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+      {/* Top Navigation */}
       <nav className="neo-nav">
         <div className="neo-nav-inner">
           <div className="neo-logo">
             <img src="/ricon.svg" alt="DineOS Logo" />
+            <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.03em' }}>DineOS</span>
           </div>
+
           <div className="neo-nav-actions neo-nav-desktop">
+            <a href="#showcase" style={{ color: '#666', textDecoration: 'none', fontSize: '14px', fontWeight: 600, margin: '0 8px' }}>
+              Features
+            </a>
+            <a href="#compare" style={{ color: '#666', textDecoration: 'none', fontSize: '14px', fontWeight: 600, margin: '0 8px' }}>
+              Why DineOS
+            </a>
+            <a href="#faq" style={{ color: '#666', textDecoration: 'none', fontSize: '14px', fontWeight: 600, margin: '0 8px' }}>
+              FAQ
+            </a>
+
             <button onClick={toggleLanguage} className="neo-lang-btn" title="Toggle Language">
               <Globe size={16} />
               <span>{i18n.language === 'ar' ? 'English' : 'العربية'}</span>
             </button>
 
-            <Link to={isAuth ? "/dashboard" : "/login"} className="neo-btn neo-btn-primary">
+            <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary" style={{ padding: '8px 16px', fontSize: '13px' }}>
+              ⚡ Live Demo
+            </button>
+
+            <Link to={isAuth ? "/dashboard" : "/login"} className="neo-btn neo-btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>
               {isAuth ? t('goToDashboard') : (t('signIn') || 'Login')}
             </Link>
           </div>
         </div>
       </nav>
 
+      {/* Hero Section */}
       <header className="neo-hero">
         <div className="neo-hero-inner">
           <div className="neo-hero-content">
+            <div className="neo-hero-badge-live">
+              <span className="neo-live-dot" />
+              <span>DineOS 2.0 · Intelligent Restaurant Operating System</span>
+            </div>
+
             <h1 className="neo-hero-title">
-              {t('landingTitle') ? (
-                t('landingTitle').split(' ').map((word, i) => 
-                  i === 1 ? <span key={i} className="stroke-text">{word} </span> : word + ' '
-                )
-              ) : (
-                <>Run your <span className="stroke-text">Restaurant</span> like magic</>
-              )}
+              Run your restaurant.<br />
+              <span className="stroke-text">Not spreadsheets.</span>
             </h1>
-            <p className="neo-hero-subtitle">{t('landingSubtitle')}</p>
+
+            <p className="neo-hero-subtitle">
+              The modern POS, visual table manager, kitchen display (KDS), and commission-free online ordering platform engineered to maximize speed and protect your profit margins.
+            </p>
+
             <div className="neo-hero-actions">
-              <Link to="/login?mode=register" className="neo-btn neo-btn-primary neo-shadow-lg">
-                {t('getStartedFree')}
+              <Link to="/login?mode=register" className="neo-btn neo-btn-primary neo-shadow-lg" style={{ gap: '8px', padding: '14px 28px', fontSize: '16px' }}>
+                Start Free Trial <ArrowRight size={18} />
               </Link>
-              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary neo-shadow-sm">
-                {t('tryDemoAccounts') || 'Try Demo Accounts'}
+              <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary neo-shadow-sm" style={{ padding: '14px 24px', fontSize: '16px' }}>
+                ⚡ Explore Live Demo
               </button>
+            </div>
+
+            <div className="neo-trust-pills">
+              <span className="neo-trust-pill"><Check size={16} color="#16a34a" /> 0% Commission on Orders</span>
+              <span className="neo-trust-pill"><Check size={16} color="#16a34a" /> Runs on any Tablet or PC</span>
+              <span className="neo-trust-pill"><Check size={16} color="#16a34a" /> Zero Hardware Lock-in</span>
+              <span className="neo-trust-pill"><Check size={16} color="#16a34a" /> Thermal & KOT Ready</span>
             </div>
           </div>
 
-          <div className="neo-browser">
-            <div className="neo-browser-header">
-              <div className="neo-browser-dots">
-                <span className="neo-browser-dot red"></span>
-                <span className="neo-browser-dot yellow"></span>
-                <span className="neo-browser-dot green"></span>
-              </div>
-              <span className="neo-browser-status">ACTIVE POS TERMINAL</span>
+          {/* Interactive Feature Showcase Browser */}
+          <div className="neo-showcase-container" id="showcase">
+            <div className="neo-showcase-tabs">
+              <button 
+                className={`neo-showcase-tab-btn ${showcaseTab === 'pos' ? 'active' : ''}`}
+                onClick={() => setShowcaseTab('pos')}
+              >
+                <Laptop size={16} /> 1. POS Terminal
+              </button>
+              <button 
+                className={`neo-showcase-tab-btn ${showcaseTab === 'kds' ? 'active' : ''}`}
+                onClick={() => setShowcaseTab('kds')}
+              >
+                <ChefHat size={16} /> 2. Kitchen KDS
+              </button>
+              <button 
+                className={`neo-showcase-tab-btn ${showcaseTab === 'tables' ? 'active' : ''}`}
+                onClick={() => setShowcaseTab('tables')}
+              >
+                <Map size={16} /> 3. Live Table Map
+              </button>
+              <button 
+                className={`neo-showcase-tab-btn ${showcaseTab === 'insights' ? 'active' : ''}`}
+                onClick={() => setShowcaseTab('insights')}
+              >
+                <BarChart3 size={16} /> 4. Margins & Reports
+              </button>
+              <button 
+                className={`neo-showcase-tab-btn ${showcaseTab === 'online' ? 'active' : ''}`}
+                onClick={() => setShowcaseTab('online')}
+              >
+                <QrCode size={16} /> 5. QR & Direct Web
+              </button>
             </div>
-            
-            <div className="neo-browser-body">
-              {/* Fake Cursor */}
-              {!isMobileView && (
-                <div 
-                  className={`neo-fake-cursor ${cursorPos.click ? 'clicking' : ''}`}
-                  style={{ left: `${cursorPos.x}%`, top: `${cursorPos.y}%`, opacity: cursorPos.opacity }}
-                >
-                  <MousePointer2 size={28} fill="currentColor" />
-                </div>
-              )}
 
-              {/* Sidebar */}
-              <div className="neo-mock-sidebar">
-                <LayoutDashboard className="neo-mock-sidebar-icon" />
-                <LayoutGrid className="neo-mock-sidebar-icon active" />
-                <Receipt className="neo-mock-sidebar-icon" />
-                <Map className="neo-mock-sidebar-icon" />
-                <UsersIcon className="neo-mock-sidebar-icon" />
-                <Settings className="neo-mock-sidebar-icon" style={{ marginTop: 'auto', marginBottom: '20px' }} />
+            {/* Browser Window Wrapper */}
+            <div className="neo-browser">
+              <div className="neo-browser-header">
+                <div className="neo-browser-dots">
+                  <span className="neo-browser-dot red"></span>
+                  <span className="neo-browser-dot yellow"></span>
+                  <span className="neo-browser-dot green"></span>
+                </div>
+                <span className="neo-browser-status">
+                  {showcaseTab === 'pos' && 'LIVE POS TERMINAL — INSTANT BILLING'}
+                  {showcaseTab === 'kds' && 'KITCHEN DISPLAY SCREEN (KDS) — REALTIME TICKETS'}
+                  {showcaseTab === 'tables' && 'FLOOR MAP & TABLE TURNOVER MONITOR'}
+                  {showcaseTab === 'insights' && 'PROFIT & BEST-SELLER MARGIN INTELLIGENCE'}
+                  {showcaseTab === 'online' && 'COMMISSION-FREE DIRECT ORDERING LINK'}
+                </span>
               </div>
+              
+              <div className="neo-browser-body">
+                {/* TAB 1: POS TERMINAL */}
+                {showcaseTab === 'pos' && (
+                  <>
+                    {!isMobileView && (
+                      <div 
+                        className={`neo-fake-cursor ${cursorPos.click ? 'clicking' : ''}`}
+                        style={{ left: `${cursorPos.x}%`, top: `${cursorPos.y}%`, opacity: cursorPos.opacity }}
+                      >
+                        <MousePointer2 size={28} fill="currentColor" />
+                      </div>
+                    )}
 
-              {/* Main Area */}
-              <div className="neo-mock-main">
-                <div className="neo-mock-topbar">
-                  <div className="neo-mock-search">
-                    <Search size={16} /> Search menu...
-                  </div>
-                  <Bell size={20} color="#ccc" />
-                </div>
-
-                <div className="neo-mock-categories">
-                  {mockCategories.map(cat => (
-                    <div key={cat} className={`neo-mock-cat-btn ${activeCategory === cat ? 'active' : ''}`}>
-                      {cat}
+                    <div className="neo-mock-sidebar">
+                      <LayoutDashboard className="neo-mock-sidebar-icon" />
+                      <LayoutGrid className="neo-mock-sidebar-icon active" />
+                      <Receipt className="neo-mock-sidebar-icon" />
+                      <Map className="neo-mock-sidebar-icon" />
+                      <Settings className="neo-mock-sidebar-icon" style={{ marginTop: 'auto', marginBottom: '20px' }} />
                     </div>
-                  ))}
-                </div>
 
-                <div className="neo-mock-grid">
-                  {displayItems.map(item => (
-                    <div key={item.id} className="neo-mock-item">
-                      <div className="neo-mock-item-img">{item.emoji}</div>
-                      <div className="neo-mock-item-info">
-                        <div className="neo-mock-item-name">{item.name}</div>
-                        <div className="neo-mock-item-price">₹{item.price}</div>
+                    <div className="neo-mock-main">
+                      <div className="neo-mock-topbar">
+                        <div className="neo-mock-search">
+                          <Search size={16} /> Search dishes, tags, barcodes...
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e', background: '#dcfce7', padding: '4px 10px', borderRadius: '50px' }}>
+                          ● Shift Active (Drawer: ₹4,500)
+                        </div>
+                      </div>
+
+                      <div className="neo-mock-categories">
+                        {mockCategories.map(cat => (
+                          <div 
+                            key={cat} 
+                            onClick={() => setActiveCategory(cat)}
+                            className={`neo-mock-cat-btn ${activeCategory === cat ? 'active' : ''}`}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {cat}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="neo-mock-grid">
+                        {displayItems.map(item => (
+                          <div 
+                            key={item.id} 
+                            className="neo-mock-item"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setMockCart(prev => {
+                              const exists = prev.find(p => p.id === item.id);
+                              if (exists) return prev.map(p => p.id === item.id ? { ...p, qty: p.qty + 1 } : p);
+                              return [...prev, { id: item.id, name: item.name, price: item.price, qty: 1 }];
+                            })}
+                          >
+                            <div className="neo-mock-item-img">{item.emoji}</div>
+                            <div className="neo-mock-item-info">
+                              <div className="neo-mock-item-name">{item.name}</div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="neo-mock-item-price">₹{item.price}</div>
+                                {item.price > 200 && (
+                                  <span style={{ fontSize: '10px', color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>⭐ High Margin</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Cart Panel */}
-              <div className="neo-mock-cart">
-                <div className="neo-mock-cart-header">
-                  <UtensilsCrossed size={18} /> Current Order
-                </div>
-                
-                <div className="neo-mock-cart-toggle">
-                  <div className="neo-mock-cart-toggle-btn active">Dine In</div>
-                  <div className="neo-mock-cart-toggle-btn">Takeaway</div>
-                </div>
-
-                <div className="neo-mock-cart-items">
-                  {mockCart.length > 0 ? mockCart.map((item, idx) => (
-                    <div key={idx} className="neo-mock-cart-item">
-                      <div className="neo-mock-item-row">
-                        <span className="neo-mock-cart-name">{item.name}</span>
-                        <span style={{ fontSize: '12px', color: '#888' }}>x{item.qty}</span>
+                    <div className="neo-mock-cart">
+                      <div className="neo-mock-cart-header">
+                        <UtensilsCrossed size={18} /> Table 04 · Dine In
                       </div>
-                      <span className="neo-mock-cart-price">₹{item.price * item.qty}</span>
-                    </div>
-                  )) : (
-                    <div className="neo-mockup-cart-empty">
-                      Cart is empty
-                    </div>
-                  )}
-                </div>
+                      
+                      <div className="neo-mock-cart-toggle">
+                        <div className="neo-mock-cart-toggle-btn active">Dine In</div>
+                        <div className="neo-mock-cart-toggle-btn">Takeaway</div>
+                        <div className="neo-mock-cart-toggle-btn">Online</div>
+                      </div>
 
-                <div className="neo-mock-cart-footer">
-                  <div className="neo-mock-cart-total">
-                    <span>Total</span>
-                    <span>₹{getCartTotal()}</span>
+                      <div className="neo-mock-cart-items">
+                        {mockCart.length > 0 ? mockCart.map((item, idx) => (
+                          <div key={idx} className="neo-mock-cart-item">
+                            <div className="neo-mock-item-row">
+                              <span className="neo-mock-cart-name">{item.name}</span>
+                              <span style={{ fontSize: '12px', color: '#888' }}>x{item.qty}</span>
+                            </div>
+                            <span className="neo-mock-cart-price">₹{item.price * item.qty}</span>
+                          </div>
+                        )) : (
+                          <div className="neo-mockup-cart-empty">
+                            Tap any item to add to order
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="neo-mock-cart-footer">
+                        <div className="neo-mock-cart-total">
+                          <span>Total (Incl. Tax)</span>
+                          <span>₹{getCartTotal()}</span>
+                        </div>
+                        
+                        <button 
+                          className={`neo-mock-checkout-btn ${checkoutStatus}`}
+                          onClick={() => {
+                            setCheckoutStatus('processing');
+                            setTimeout(() => setCheckoutStatus('success'), 1000);
+                            setTimeout(() => { setCheckoutStatus('idle'); setMockCart([]); }, 3000);
+                          }}
+                        >
+                          {checkoutStatus === 'idle' && '💳 Instant Checkout'}
+                          {checkoutStatus === 'processing' && <><Loader2 size={18} className="animate-spin" /> Processing...</>}
+                          {checkoutStatus === 'success' && <><CheckCircle2 size={18} /> Paid · KOT Sent 🍳</>}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* TAB 2: KITCHEN DISPLAY (KDS) */}
+                {showcaseTab === 'kds' && (
+                  <div style={{ width: '100%', height: '100%', padding: '24px', background: '#0f172a', color: '#fff', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, fontSize: '16px' }}>🍳 Kitchen Display System (KDS)</span>
+                        <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '50px', fontSize: '11px' }}>Station: All Hot & Cold</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8' }}>3 Active Orders · Avg Cook Time: 8.5m</div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                      <div style={{ background: '#1e293b', borderRadius: '16px', padding: '16px', border: '1px solid #ef4444', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, fontSize: '15px' }}>Table 02</span>
+                          <span style={{ background: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>⏳ 12:40 (Urgent)</span>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div>• 2x Double Bacon Burger (No Onion)</div>
+                          <div>• 1x Truffle Fries (Extra Mayo)</div>
+                        </div>
+                        <button style={{ marginTop: 'auto', background: '#22c55e', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                          ✅ Mark Ready to Serve
+                        </button>
+                      </div>
+
+                      <div style={{ background: '#1e293b', borderRadius: '16px', padding: '16px', border: '1px solid #eab308', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, fontSize: '15px' }}>Table 05</span>
+                          <span style={{ background: '#eab308', color: '#000', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>🍳 04:15 Cooking</span>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div>• 1x Margherita Pizza 12"</div>
+                          <div>• 1x Veggie Supreme 12"</div>
+                        </div>
+                        <button style={{ marginTop: 'auto', background: '#3b82f6', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                          🍳 Finish Cooking
+                        </button>
+                      </div>
+
+                      <div style={{ background: '#1e293b', borderRadius: '16px', padding: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, fontSize: '15px' }}>Online #108</span>
+                          <span style={{ background: '#3b82f6', color: '#fff', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>🛵 01:20 New</span>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div>• 2x Iced Matcha Latte</div>
+                          <div>• 1x Cold Brew Coffee</div>
+                        </div>
+                        <button style={{ marginTop: 'auto', background: '#334155', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                          ▶ Start Prep
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <button className={`neo-mock-checkout-btn ${checkoutStatus}`}>
-                    {checkoutStatus === 'idle' && 'Checkout'}
-                    {checkoutStatus === 'processing' && <><Loader2 size={18} className="animate-spin" /> Processing...</>}
-                    {checkoutStatus === 'success' && <><CheckCircle2 size={18} /> Paid</>}
-                  </button>
-                </div>
+                )}
+
+                {/* TAB 3: TABLE MAP */}
+                {showcaseTab === 'tables' && (
+                  <div style={{ width: '100%', height: '100%', padding: '24px', background: '#fafaf9', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 700, fontSize: '15px' }}>🗺️ Main Dining Room (12 Tables · 75% Occupancy)</div>
+                      <div style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} /> Occupied (6)</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308' }} /> Billed (2)</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#e2e8f0' }} /> Free (4)</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', flex: 1 }}>
+                      {[
+                        { name: 'Table 1', guests: '4 Guests', status: 'Occupied', bill: '₹1,450', time: '38m', color: '#dcfce7', border: '#86efac' },
+                        { name: 'Table 2', guests: '2 Guests', status: 'Billed', bill: '₹890', time: '52m', color: '#fef9c3', border: '#fde047' },
+                        { name: 'Table 3', guests: '6 Guests', status: 'Free', bill: '—', time: 'Ready', color: '#ffffff', border: '#e2e8f0' },
+                        { name: 'Table 4', guests: '2 Guests', status: 'Occupied', bill: '₹620', time: '14m', color: '#dcfce7', border: '#86efac' },
+                        { name: 'Table 5', guests: '4 Guests', status: 'Occupied', bill: '₹2,100', time: '45m', color: '#dcfce7', border: '#86efac' },
+                        { name: 'Table 6', guests: '8 Guests', status: 'Free', bill: '—', time: 'Ready', color: '#ffffff', border: '#e2e8f0' },
+                        { name: 'Table 7', guests: '2 Guests', status: 'Billed', bill: '₹1,280', time: '1h 05m', color: '#fef9c3', border: '#fde047' },
+                        { name: 'Table 8', guests: '4 Guests', status: 'Free', bill: '—', time: 'Ready', color: '#ffffff', border: '#e2e8f0' },
+                      ].map((t, idx) => (
+                        <div key={idx} style={{ background: t.color, border: `1px solid ${t.border}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 800, fontSize: '14px' }}>{t.name}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>{t.guests}</span>
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, margin: '8px 0' }}>{t.bill}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{t.status}</span>
+                            <span>⏱️ {t.time}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: INSIGHTS & MARGINS */}
+                {showcaseTab === 'insights' && (
+                  <div style={{ width: '100%', height: '100%', padding: '24px', background: '#fff', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                      <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>TODAY'S GROSS REVENUE</div>
+                        <div style={{ fontSize: '28px', fontWeight: 800, margin: '4px 0' }}>₹48,920</div>
+                        <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>↑ +24% vs last Tuesday</div>
+                      </div>
+                      <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>AVG TABLE TURN TIME</div>
+                        <div style={{ fontSize: '28px', fontWeight: 800, margin: '4px 0' }}>32 mins</div>
+                        <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>↓ 14% faster cook speed</div>
+                      </div>
+                      <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>TOP MARGIN DISH</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, margin: '4px 0' }}>Truffle Fries ⭐</div>
+                        <div style={{ fontSize: '12px', color: '#b45309', fontWeight: 600 }}>78% Profit Margin</div>
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '16px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <Sparkles size={24} color="#d97706" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '14px', color: '#92400e' }}>Smart Action Item Generated</div>
+                        <div style={{ fontSize: '13px', color: '#b45309' }}>"UPI is 72% of payments today. Ensure QR stands are placed on Tables 1-8 to speed up turnover."</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 5: QR & ONLINE */}
+                {showcaseTab === 'online' && (
+                  <div style={{ width: '100%', height: '100%', padding: '24px', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '32px' }}>
+                    <div style={{ maxWidth: '360px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ background: '#22c55e', color: '#fff', display: 'inline-flex', padding: '4px 10px', borderRadius: '50px', fontSize: '12px', fontWeight: 700, width: 'fit-content' }}>
+                        0% Commission Always
+                      </div>
+                      <h3 style={{ fontSize: '22px', fontWeight: 800 }}>Direct Customer Ordering Link & QR Standees</h3>
+                      <p style={{ fontSize: '14px', color: '#64748b', lineHeight: 1.6 }}>
+                        Generate your own shareable URL (<code>dineos.app/order/my-cafe</code>) and place QR codes on tables. Orders print straight to the kitchen instantly.
+                      </p>
+                    </div>
+
+                    <div style={{ width: '260px', background: '#fff', borderRadius: '24px', padding: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+                      <div style={{ textAlign: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ fontWeight: 800, fontSize: '14px' }}>DineOS Cafe & Bistro</div>
+                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>Scan or Order Online</div>
+                      </div>
+                      <div style={{ padding: '12px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                          <span>🍔 Classic Cheeseburger</span>
+                          <span style={{ fontWeight: 700 }}>₹180</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                          <span>🍟 Truffle Fries</span>
+                          <span style={{ fontWeight: 700 }}>₹180</span>
+                        </div>
+                      </div>
+                      <button style={{ width: '100%', background: '#000', color: '#fff', padding: '8px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '12px' }}>
+                        Place Order (₹360)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Rest of Landing Page Structure */}
+      {/* Metrics Impact Bar */}
+      <section className="neo-metrics-bar">
+        <div className="neo-metric-card">
+          <div className="neo-metric-val">35%</div>
+          <div className="neo-metric-label">Faster table turnover during peak lunch & dinner rush</div>
+        </div>
+        <div className="neo-metric-card">
+          <div className="neo-metric-val">0%</div>
+          <div className="neo-metric-label">Commission fees on direct QR dine-in & web delivery</div>
+        </div>
+        <div className="neo-metric-card">
+          <div className="neo-metric-val">&lt; 1.2s</div>
+          <div className="neo-metric-label">Order-to-kitchen ticket transmission speed</div>
+        </div>
+        <div className="neo-metric-card">
+          <div className="neo-metric-val">15+ hrs</div>
+          <div className="neo-metric-label">Saved per week on cashier reconciliation & inventory math</div>
+        </div>
+      </section>
+
       {/* How It Works Section */}
-      <section className="neo-how-it-works">
+      <section className="neo-how-it-works" id="how-it-works">
         <div className="neo-section-header">
-          <h2 className="neo-section-title">As easy as 1, 2, 3</h2>
-          <p className="neo-section-subtitle">You don't need an IT degree to use DineOS. We built it so anyone can learn it in 5 minutes.</p>
+          <h2 className="neo-section-title">Up and running in 3 steps</h2>
+          <p className="neo-section-subtitle">No IT consultants. No tedious training courses. Your staff will master DineOS in 5 minutes.</p>
         </div>
         <div className="neo-steps-container">
           <div className="neo-steps-line" />
           <div className="neo-step">
             <div className="neo-step-number">1</div>
-            <h3 className="neo-step-title">Set up your menu</h3>
-            <p className="neo-step-desc">Add your items, prices, and photos. No complicated spreadsheets needed.</p>
+            <h3 className="neo-step-title">Add your menu</h3>
+            <p className="neo-step-desc">Input categories, dish photos, modifier add-ons, and mark high-margin dishes with gold stars.</p>
           </div>
           <div className="neo-step">
             <div className="neo-step-number">2</div>
-            <h3 className="neo-step-title">Take your first order</h3>
-            <p className="neo-step-desc">Tap, tap, paid. Orders flow instantly to the kitchen display.</p>
+            <h3 className="neo-step-title">Take live orders</h3>
+            <p className="neo-step-desc">Staff tap to bill on any tablet or phone. Orders route instantly to kitchen displays or thermal printers.</p>
           </div>
           <div className="neo-step">
             <div className="neo-step-number">3</div>
-            <h3 className="neo-step-title">Watch profits grow</h3>
-            <p className="neo-step-desc">Use live insights to see what's selling and where you're making the most money.</p>
+            <h3 className="neo-step-title">Track stock & profits</h3>
+            <p className="neo-step-desc">Ingredients auto-deduct, cash drawers balance, and smart insights show your top money-makers.</p>
           </div>
         </div>
       </section>
 
-      {/* Core Features Bento Grid */}
+      {/* Comprehensive Bento Grid */}
       <section className="neo-personas">
         <div className="neo-section-header">
-          <h2 className="neo-section-title">Everything you need</h2>
-          <p className="neo-section-subtitle">From taking orders to tracking ingredients, we've got you covered.</p>
+          <h2 className="neo-section-title">Engineered for real restaurant operations</h2>
+          <p className="neo-section-subtitle">Everything you need to serve guests faster, manage your kitchen, and keep margins healthy.</p>
         </div>
         <div className="neo-bento-grid">
+          {/* Card 1 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#e0f2fe', color: '#0369a1' }}><Laptop size={24} /></div>
+            <div className="neo-bento-card-top">
+              <div className="neo-feature-icon" style={{ background: '#e0f2fe', color: '#0369a1' }}><Laptop size={24} /></div>
+              <span className="neo-bento-badge-tag">Front of House</span>
+            </div>
             <h3>Lightning Fast POS</h3>
-            <p>Built for speed. Serve customers faster with an interface that takes 0 clicks to understand.</p>
+            <p>2-tap rapid checkout designed for high throughput. Split bills, apply discounts, and accept Cash, Card, and UPI instantly.</p>
+            <ul className="neo-bento-bullets">
+              <li><Check size={14} color="#16a34a" /> Offline-safe local cache billing</li>
+              <li><Check size={14} color="#16a34a" /> Starred high-margin upsell nudges</li>
+              <li><Check size={14} color="#16a34a" /> Thermal ESC/POS receipt auto-print</li>
+            </ul>
           </div>
+
+          {/* Card 2 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#fce7f3', color: '#be185d' }}><ChefHat size={24} /></div>
-            <h3>Kitchen Display</h3>
-            <p>Ditch the paper tickets. Send orders straight to the kitchen screen instantly.</p>
+            <div className="neo-bento-card-top">
+              <div className="neo-feature-icon" style={{ background: '#fce7f3', color: '#be185d' }}><ChefHat size={24} /></div>
+              <span className="neo-bento-badge-tag">Kitchen Floor</span>
+            </div>
+            <h3>Paperless Kitchen KDS</h3>
+            <p>Ditch lost paper tickets. Large, legible digital cards with color-coded wait timers keep cooks synchronized during intense rushes.</p>
+            <ul className="neo-bento-bullets">
+              <li><Check size={14} color="#16a34a" /> Grill / Bar / Pastry station routing</li>
+              <li><Check size={14} color="#16a34a" /> Audio chimes & TV token callouts</li>
+              <li><Check size={14} color="#16a34a" /> Real-time prep time tracking</li>
+            </ul>
           </div>
+
+          {/* Card 3 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#dcfce7', color: '#15803d' }}><Globe size={24} /></div>
-            <h3>Online Orders</h3>
-            <p>Get a direct ordering link for your restaurant. No 30% commissions.</p>
+            <div className="neo-bento-card-top">
+              <div className="neo-feature-icon" style={{ background: '#dcfce7', color: '#15803d' }}><Globe size={24} /></div>
+              <span className="neo-bento-badge-tag">Zero Commission</span>
+            </div>
+            <h3>Direct QR & Web Ordering</h3>
+            <p>Give customers their own direct link and table QR standees. Keep 100% of your margins without giving 30% cuts to food aggregators.</p>
+            <ul className="neo-bento-bullets">
+              <li><Check size={14} color="#16a34a" /> Branded web link with real-time menu</li>
+              <li><Check size={14} color="#16a34a" /> Table QR dine-in contact-free order</li>
+              <li><Check size={14} color="#16a34a" /> Automated pickup & delivery dispatch</li>
+            </ul>
           </div>
+
+          {/* Card 4 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#fef3c7', color: '#b45309' }}><Package size={24} /></div>
-            <h3>Auto Inventory</h3>
-            <p>Stock deducts automatically as you sell. Get alerted before you run out of ingredients.</p>
+            <div className="neo-bento-card-top">
+              <div className="neo-feature-icon" style={{ background: '#fef3c7', color: '#b45309' }}><Package size={24} /></div>
+              <span className="neo-bento-badge-tag">Cost Control</span>
+            </div>
+            <h3>Recipe-Linked Inventory</h3>
+            <p>Ingredients deduct automatically as dishes sell. Get warned before you run out of crucial items on a busy Friday night.</p>
+            <ul className="neo-bento-bullets">
+              <li><Check size={14} color="#16a34a" /> Gram & millilitre recipe mapping</li>
+              <li><Check size={14} color="#16a34a" /> Low-stock automatic alert badges</li>
+              <li><Check size={14} color="#16a34a" /> Purchase order & supplier ledger</li>
+            </ul>
           </div>
+
+          {/* Card 5 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#e0e7ff', color: '#4338ca' }}><Map size={24} /></div>
-            <h3>Visual Table Map</h3>
-            <p>See your entire dining room at a glance. Know exactly which tables are waiting.</p>
+            <div className="neo-bento-card-top">
+              <div className="neo-feature-icon" style={{ background: '#e0e7ff', color: '#4338ca' }}><Users size={24} /></div>
+              <span className="neo-bento-badge-tag">Team & Security</span>
+            </div>
+            <h3>Staff Shifts & Cash Control</h3>
+            <p>Prevent theft and balance drawers effortlessly. Role-based PIN quick-switch lets waiters take orders without accessing sensitive financials.</p>
+            <ul className="neo-bento-bullets">
+              <li><Check size={14} color="#16a34a" /> 4-digit fast PIN staff switching</li>
+              <li><Check size={14} color="#16a34a" /> Shift open/close drawer audit logs</li>
+              <li><Check size={14} color="#16a34a" /> Hourly wage & payroll calculation</li>
+            </ul>
           </div>
+
+          {/* Card 6 */}
           <div className="neo-bento-card">
-            <div className="neo-feature-icon" style={{ background: '#ffedd5', color: '#c2410c' }}><Receipt size={24} /></div>
-            <h3>Smart Reports</h3>
-            <p>Stop guessing. See your best-selling items, busiest hours, and daily profits clearly.</p>
+            <div className="neo-feature-icon" style={{ background: '#ffedd5', color: '#c2410c' }}><Award size={24} /></div>
+            <span className="neo-bento-badge-tag">Guest Retention</span>
+          </div>
+          <h3>Loyalty, CRM & Gift Cards</h3>
+          <p>Turn first-time diners into lifelong regulars. Track customer preferences, issue branded prepaid gift cards, and award spend points.</p>
+          <ul className="neo-bento-bullets">
+            <li><Check size={14} color="#16a34a" /> Customer taste & birthday profiles</li>
+            <li><Check size={14} color="#16a34a" /> Digital gift card issuance & balance</li>
+            <li><Check size={14} color="#16a34a" /> Automated point redemptions at POS</li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Comparison Table Section */}
+      <section className="neo-comparison-section" id="compare">
+        <div className="neo-section-header">
+          <h2 className="neo-section-title">Why restaurants replace old POS systems</h2>
+          <p className="neo-section-subtitle">See how DineOS compares to traditional clunky restaurant software.</p>
+        </div>
+        <div className="neo-comparison-table-wrapper">
+          <table className="neo-comparison-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40%' }}>Feature / Capability</th>
+                <th style={{ width: '30%', color: '#000' }}>⚡ DineOS</th>
+                <th style={{ width: '30%', color: '#888' }}>Legacy POS Systems</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="neo-comparison-feature-name">Hardware Flexibility</td>
+                <td className="neo-comparison-dineos"><Check size={16} /> Runs on any iPad, Mac, PC, Phone</td>
+                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Expensive proprietary terminals</td>
+              </tr>
+              <tr>
+                <td className="neo-comparison-feature-name">Online Order Commissions</td>
+                <td className="neo-comparison-dineos"><Check size={16} /> 0% (Keep 100% of profit)</td>
+                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> 15% – 30% cut per order</td>
+              </tr>
+              <tr>
+                <td className="neo-comparison-feature-name">Staff Training Time</td>
+                <td className="neo-comparison-dineos"><Check size={16} /> ~5 minutes (Zero jargon)</td>
+                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Days of training & thick manuals</td>
+              </tr>
+              <tr>
+                <td className="neo-comparison-feature-name">Kitchen Display System</td>
+                <td className="neo-comparison-dineos"><Check size={16} /> Built-in real-time color KDS</td>
+                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Expensive add-on or paper only</td>
+              </tr>
+              <tr>
+                <td className="neo-comparison-feature-name">Recipe Stock Auto-Deduction</td>
+                <td className="neo-comparison-dineos"><Check size={16} /> Included out of the box</td>
+                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Paid 3rd party integration</td>
+              </tr>
+              <tr>
+                <td className="neo-comparison-feature-name">Built-in Owner's Guide</td>
+                <td className="neo-comparison-dineos"><Check size={16} /> 1-Click interactive drawer</td>
+                <td className="neo-comparison-legacy"><XIcon size={16} color="#ef4444" /> Slow ticket support</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Audience Persona Section */}
+      <section className="neo-persona-section">
+        <div className="neo-section-header">
+          <h2 className="neo-section-title">Built for every food & beverage concept</h2>
+          <p className="neo-section-subtitle">Whether you run a single espresso bar or a busy multi-station pizzeria.</p>
+        </div>
+        <div className="neo-persona-grid">
+          <div className="neo-persona-card">
+            <div className="neo-persona-emoji">☕</div>
+            <h3 className="neo-persona-title">Cafes & Bakeries</h3>
+            <p className="neo-persona-desc">Rapid counter queueing, milk/syrup modifier add-ons, prepaid loyalty cards, and morning rush optimization.</p>
+          </div>
+          <div className="neo-persona-card">
+            <div className="neo-persona-emoji">🍕</div>
+            <h3 className="neo-persona-title">Full Service & Pizzerias</h3>
+            <p className="neo-persona-desc">Visual drag-and-drop table layouts, course firing, guest tab transfers, and split payment calculations.</p>
+          </div>
+          <div className="neo-persona-card">
+            <div className="neo-persona-emoji">🍔</div>
+            <h3 className="neo-persona-title">QSR & Food Trucks</h3>
+            <p className="neo-persona-desc">2-tap billing, sound alerts, TV token queue display, and compact setup on mobile phones or tablets.</p>
+          </div>
+          <div className="neo-persona-card">
+            <div className="neo-persona-emoji">🍱</div>
+            <h3 className="neo-persona-title">Cloud Kitchens</h3>
+            <p className="neo-persona-desc">Multi-brand order routing, custom delivery zones, rider assignment, and central inventory cost tracking.</p>
           </div>
         </div>
       </section>
@@ -366,61 +806,91 @@ export default function LandingPage() {
       {/* Testimonials */}
       <section className="neo-testimonials">
         <div className="neo-section-header">
-          <h2 className="neo-section-title">Loved by owners</h2>
-          <p className="neo-section-subtitle">Join thousands of restaurants running smoother than ever.</p>
+          <h2 className="neo-section-title">Trusted by independent restaurants</h2>
+          <p className="neo-section-subtitle">Hear why owners made the switch to DineOS.</p>
         </div>
         <div className="neo-testimonials-grid">
           <div className="neo-testimonial-card">
             <div className="neo-stars">★★★★★</div>
-            <p className="neo-testimonial-text">"My staff learned to use it in literally 10 minutes. It's so clean and fast."</p>
-            <div className="neo-testimonial-author">Sarah M. — Cafe Owner</div>
+            <p className="neo-testimonial-text">"My staff learned how to bill and manage tables in 10 minutes flat. Our Friday night kitchen wait times dropped by almost 15 minutes."</p>
+            <div className="neo-testimonial-author">Sarah M. · The Corner Bistro (Mumbai)</div>
           </div>
           <div className="neo-testimonial-card">
             <div className="neo-stars">★★★★★</div>
-            <p className="neo-testimonial-text">"The kitchen display changed everything for us. No more lost paper tickets on busy Friday nights."</p>
-            <div className="neo-testimonial-author">David K. — Burger Joint</div>
+            <p className="neo-testimonial-text">"The direct QR ordering link saved us over ₹35,000 in aggregator commissions in our first month alone. Absolutely essential software."</p>
+            <div className="neo-testimonial-author">David K. · Smokey's Burger Joint (Dubai)</div>
           </div>
           <div className="neo-testimonial-card">
             <div className="neo-stars">★★★★★</div>
-            <p className="neo-testimonial-text">"Finally a POS that doesn't look like it was built in 1995. Love the modern design."</p>
-            <div className="neo-testimonial-author">Elena R. — Pizzeria</div>
+            <p className="neo-testimonial-text">"Finally a POS that looks like it was built in 2026. The high-margin star recommendations helped our team increase average check size by 18%."</p>
+            <div className="neo-testimonial-author">Elena R. · Bella Italia Pizzeria (London)</div>
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="neo-cta">
-        <h2 className="neo-cta-title">Ready to upgrade your restaurant?</h2>
-        <p className="neo-cta-subtitle">Get started in less than 2 minutes. No credit card required.</p>
-        <Link to="/login?mode=register" className="neo-btn neo-btn-primary neo-shadow-lg" style={{ fontSize: '18px', padding: '16px 32px' }}>
-          Get Started Now
-        </Link>
+      {/* FAQ Accordion Section */}
+      <section className="neo-faq-section" id="faq">
+        <div className="neo-section-header">
+          <h2 className="neo-section-title">Frequently asked questions</h2>
+          <p className="neo-section-subtitle">Everything you need to know about setting up and running DineOS.</p>
+        </div>
+        <div className="neo-faq-container">
+          {faqs.map((faq, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <div key={idx} className="neo-faq-item">
+                <button 
+                  className="neo-faq-question" 
+                  onClick={() => setOpenFaq(isOpen ? null : idx)}
+                >
+                  <span>{faq.q}</span>
+                  {isOpen ? <ChevronUp size={18} color="#666" /> : <ChevronDown size={18} color="#666" />}
+                </button>
+                {isOpen && (
+                  <div className="neo-faq-answer">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
+      {/* High-Converting CTA Box */}
+      <section className="neo-cta-box">
+        <h2>Ready to run your restaurant like magic?</h2>
+        <p>Join hundreds of restaurants using DineOS to eliminate kitchen chaos, speed up tables, and keep 100% of their earnings.</p>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link to="/login?mode=register" className="neo-btn-white">
+            Get Started Free <ArrowRight size={18} />
+          </Link>
+          <button onClick={() => setIsDemoModalOpen(true)} style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '14px 28px', borderRadius: '100px', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>
+            ⚡ Launch Live Demo
+          </button>
+        </div>
+        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '20px' }}>
+          ✓ No credit card required · Instant 5-minute setup · Free forever tier
+        </div>
+      </section>
+
+      {/* Footer */}
       <footer className="neo-footer">
         <div className="neo-footer-inner">
           <div className="neo-footer-brand-col">
             <div className="neo-footer-brand">
               <img src="/ricon.svg" alt="DineOS Logo" />
-              <span>DineOS</span>
+              <span style={{ fontWeight: 800, fontSize: '18px' }}>DineOS</span>
             </div>
-            <p className="neo-footer-tagline">The modern POS built for efficient restaurant teams.</p>
-            <div className="neo-footer-socials">
-              <a href="#" aria-label="Twitter">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
-              </a>
-              <a href="#" aria-label="GitHub">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.8c0-1.2-.4-2.4-1.2-3.3 3.1-.3 6.4-1.5 6.4-7 0-1.5-.5-2.8-1.5-3.8.1-.4.7-1.8-.1-3.8 0 0-1.2-.4-3.9 1.4-1.2-.3-2.4-.5-3.6-.5-1.2 0-2.4.2-3.6.5-2.7-1.8-3.9-1.4-3.9-1.4-.8 2-.2 3.4-.1 3.8-1 1-1.5 2.3-1.5 3.8 0 5.5 3.3 6.7 6.4 7-.8.8-1.1 2-1.2 3.2V22"/></svg>
-              </a>
-              <a href="#" aria-label="LinkedIn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
-              </a>
-            </div>
+            <p className="neo-footer-tagline">The modern, intuitive operating system for independent restaurants and bars.</p>
           </div>
           
           <div className="neo-footer-links-col" style={{ textAlign: 'right' }}>
-            <h4 className="neo-footer-col-title">{t('admin')}</h4>
+            <h4 className="neo-footer-col-title">Navigation</h4>
             <ul className="neo-footer-links">
+              <li><a href="#showcase">Interactive Preview</a></li>
+              <li><a href="#compare">Why DineOS</a></li>
+              <li><a href="#faq">FAQ</a></li>
               <li><Link to="/login">{t('signIn')}</Link></li>
             </ul>
           </div>
@@ -428,7 +898,7 @@ export default function LandingPage() {
         
         <div className="neo-footer-bottom">
           <div className="neo-footer-copyright">
-            &copy; {new Date().getFullYear()} {t('appName')}. All rights reserved.
+            &copy; {new Date().getFullYear()} DineOS. All rights reserved. Built with precision for restaurant owners.
           </div>
         </div>
       </footer>
@@ -438,17 +908,17 @@ export default function LandingPage() {
         <div className="neo-demo-modal-overlay" onClick={() => setIsDemoModalOpen(false)}>
           <div className="neo-demo-modal" onClick={e => e.stopPropagation()}>
             <button className="neo-demo-close-btn" onClick={() => setIsDemoModalOpen(false)}>
-              <X size={24} />
+              <X size={20} />
             </button>
             <div className="neo-demo-header">
-              <h2>Try Demo Accounts</h2>
-              <p>Experience the platform with our pre-configured demo roles.</p>
+              <h2>⚡ Explore Live Demo Accounts</h2>
+              <p>Experience the full software with pre-loaded menus, active orders, and table maps.</p>
             </div>
             
             <div className="neo-demo-cards">
               <div className="neo-demo-card">
-                <h3>Admin Access</h3>
-                <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '1rem' }}>Full access to dashboard, reports, and settings.</p>
+                <h3>👑 Admin / Owner Access</h3>
+                <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: '1rem' }}>Full access to financial analytics, payroll, menu customization, and restaurant settings.</p>
                 <div className="neo-demo-credentials">
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Email</span>
@@ -459,14 +929,14 @@ export default function LandingPage() {
                     <span className="neo-demo-cred-val">password123</span>
                   </div>
                 </div>
-                <Link to="/login?mode=email&demo=admin" className="neo-btn neo-btn-primary" style={{ width: '100%', marginTop: '16px' }}>
-                  Login as Admin
+                <Link to="/login?mode=email&demo=admin" className="neo-btn neo-btn-primary" style={{ width: '100%', marginTop: '16px', fontSize: '13px' }}>
+                  Login as Admin →
                 </Link>
               </div>
 
               <div className="neo-demo-card">
-                <h3>Staff Access</h3>
-                <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '1rem' }}>Access to POS, Tables, and Kitchen Display.</p>
+                <h3>🧑‍🍳 Staff / Waiter Access</h3>
+                <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: '1rem' }}>Fast POS checkout, table map dining orders, and real-time kitchen display (KDS).</p>
                 <div className="neo-demo-credentials">
                   <div className="neo-demo-cred-row">
                     <span className="neo-demo-cred-label">Restaurant ID</span>
@@ -477,8 +947,8 @@ export default function LandingPage() {
                     <span className="neo-demo-cred-val">1234</span>
                   </div>
                 </div>
-                <Link to="/login?mode=pin&demo=staff" className="neo-btn neo-btn-primary" style={{ width: '100%', marginTop: '16px' }}>
-                  Login as Staff
+                <Link to="/login?mode=pin&demo=staff" className="neo-btn neo-btn-primary" style={{ width: '100%', marginTop: '16px', fontSize: '13px' }}>
+                  Login as Staff PIN →
                 </Link>
               </div>
             </div>
