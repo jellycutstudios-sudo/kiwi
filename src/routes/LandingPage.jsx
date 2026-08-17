@@ -245,32 +245,37 @@ export default function LandingPage() {
               <button 
                 className={`neo-showcase-tab-btn ${showcaseTab === 'pos' ? 'active' : ''}`}
                 onClick={() => setShowcaseTab('pos')}
+                type="button"
               >
-                <Laptop size={16} /> 1. POS Terminal
+                <Laptop size={15} /> <span>POS Billing</span>
               </button>
               <button 
                 className={`neo-showcase-tab-btn ${showcaseTab === 'kds' ? 'active' : ''}`}
                 onClick={() => setShowcaseTab('kds')}
+                type="button"
               >
-                <ChefHat size={16} /> 2. Kitchen KDS
+                <ChefHat size={15} /> <span>Kitchen KDS</span>
               </button>
               <button 
                 className={`neo-showcase-tab-btn ${showcaseTab === 'tables' ? 'active' : ''}`}
                 onClick={() => setShowcaseTab('tables')}
+                type="button"
               >
-                <Map size={16} /> 3. Live Table Map
+                <Map size={15} /> <span>Table Map</span>
               </button>
               <button 
                 className={`neo-showcase-tab-btn ${showcaseTab === 'insights' ? 'active' : ''}`}
                 onClick={() => setShowcaseTab('insights')}
+                type="button"
               >
-                <BarChart3 size={16} /> 4. Margins & Reports
+                <BarChart3 size={15} /> <span>Insights</span>
               </button>
               <button 
                 className={`neo-showcase-tab-btn ${showcaseTab === 'online' ? 'active' : ''}`}
                 onClick={() => setShowcaseTab('online')}
+                type="button"
               >
-                <QrCode size={16} /> 5. QR & Direct Web
+                <QrCode size={15} /> <span>QR & Web</span>
               </button>
             </div>
 
