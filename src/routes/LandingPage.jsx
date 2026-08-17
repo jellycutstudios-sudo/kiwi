@@ -546,35 +546,80 @@ export default function LandingPage() {
 
                 {/* TAB 5: QR & ONLINE */}
                 {showcaseTab === 'online' && (
-                  <div style={{ width: '100%', height: '100%', padding: '24px', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '32px' }}>
-                    <div style={{ maxWidth: '360px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ background: '#22c55e', color: '#fff', display: 'inline-flex', padding: '4px 10px', borderRadius: '50px', fontSize: '12px', fontWeight: 700, width: 'fit-content' }}>
-                        0% Commission Always
+                  <div className="neo-showcase-online-view">
+                    <div className="neo-showcase-online-info">
+                      <div className="neo-bento-badge-tag" style={{ background: '#dcfce7', color: '#15803d', width: 'fit-content' }}>
+                        ✨ 0% Commission Always
                       </div>
-                      <h3 style={{ fontSize: '22px', fontWeight: 800 }}>Direct Customer Ordering Link & QR Standees</h3>
-                      <p style={{ fontSize: '14px', color: '#64748b', lineHeight: 1.6 }}>
-                        Generate your own shareable URL (<code>dineos.app/order/my-cafe</code>) and place QR codes on tables. Orders print straight to the kitchen instantly.
+                      <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', lineHeight: 1.25, margin: '12px 0 8px 0' }}>
+                        Your Own Branded Web Ordering & Table QR Menu
+                      </h3>
+                      <p style={{ fontSize: '14px', color: '#64748b', lineHeight: 1.6, margin: 0 }}>
+                        Give dine-in guests contactless QR ordering at their table, and accept direct pickup & delivery orders online. Keep 100% of your margins.
                       </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>
+                          <Check size={16} color="#16a34a" /> Instant PWA web menu — zero app download required
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>
+                          <Check size={16} color="#16a34a" /> Orders print directly to kitchen / KDS
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>
+                          <Check size={16} color="#16a34a" /> UPI, Credit Cards, and Cash on Delivery
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ width: '260px', background: '#fff', borderRadius: '24px', padding: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
-                      <div style={{ textAlign: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
-                        <div style={{ fontWeight: 800, fontSize: '14px' }}>DineOS Cafe & Bistro</div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>Scan or Order Online</div>
-                      </div>
-                      <div style={{ padding: '12px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                          <span>🍔 Classic Cheeseburger</span>
-                          <span style={{ fontWeight: 700 }}>₹180</span>
+                    {/* Smartphone Mockup */}
+                    <div className="neo-phone-mockup">
+                      <div className="neo-phone-screen">
+                        <div className="neo-phone-notch" />
+                        <div className="neo-phone-topbar">
+                          <span style={{ fontWeight: 700, fontSize: '11px' }}>9:41</span>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>📶 🔋</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                          <span>🍟 Truffle Fries</span>
-                          <span style={{ fontWeight: 700 }}>₹180</span>
+                        
+                        <div className="neo-phone-header">
+                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>The Corner Bistro</div>
+                          <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>● Open Now · Table 04</div>
+                        </div>
+
+                        <div className="neo-phone-pills">
+                          <span className="active">All</span>
+                          <span>Burgers</span>
+                          <span>Sides</span>
+                          <span>Drinks</span>
+                        </div>
+
+                        <div className="neo-phone-items">
+                          <div className="neo-phone-item-card">
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '20px' }}>🍔</span>
+                              <div>
+                                <div style={{ fontSize: '12px', fontWeight: 700 }}>Double Bacon Burger</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>₹240</div>
+                              </div>
+                            </div>
+                            <span className="neo-phone-add-btn">+</span>
+                          </div>
+
+                          <div className="neo-phone-item-card">
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '20px' }}>🍟</span>
+                              <div>
+                                <div style={{ fontSize: '12px', fontWeight: 700 }}>Truffle Fries</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>₹180</div>
+                              </div>
+                            </div>
+                            <span className="neo-phone-add-btn">+</span>
+                          </div>
+                        </div>
+
+                        <div className="neo-phone-cart-bar">
+                          <span>🛒 2 Items · ₹420</span>
+                          <span>Order Now →</span>
                         </div>
                       </div>
-                      <button style={{ width: '100%', background: '#000', color: '#fff', padding: '8px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '12px' }}>
-                        Place Order (₹360)
-                      </button>
                     </div>
                   </div>
                 )}
