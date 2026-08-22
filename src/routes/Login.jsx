@@ -8,6 +8,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { CURRENCY_OPTIONS } from '../utils/formatCurrency';
+import { notifyAdminOfNewTrial } from '../utils/sendTrialNotification';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -108,6 +109,17 @@ export default function Login() {
         role: 'admin',
         restaurantId: newRestId,
         createdAt: serverTimestamp(),
+      });
+
+      // 5. Send automated email notification to admin
+      notifyAdminOfNewTrial({
+        restaurantName: regRestName.trim(),
+        ownerName: regName.trim(),
+        email: regEmail.trim(),
+        phone: regPhone.trim(),
+        address: regAddress.trim(),
+        currency: regCurrency,
+        restaurantId: newRestId,
       });
 
       toast.success('Registration successful! Awaiting Super Admin approval.');

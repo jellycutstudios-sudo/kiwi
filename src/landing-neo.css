@@ -149,11 +149,77 @@ body {
   gap: 12px;
 }
 
-.neo-nav-desktop { display: flex; }
-.neo-nav-mobile { display: none; }
+/* Show mobile actions only on mobile */
+.neo-nav-mobile-actions { display: none; }
 
 @media (max-width: 768px) {
-  /* We want to show the login button and language toggle on mobile */
+  .neo-nav-desktop { display: none !important; }
+  .neo-nav-mobile-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+/* Mobile Slide-Down Menu */
+.neo-mobile-menu {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px 16px;
+  gap: 2px;
+  z-index: 999;
+  animation: slideDownMenu 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes slideDownMenu {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.neo-mobile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 12px;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Geist', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.neo-mobile-menu-item:hover,
+.neo-mobile-menu-item:active {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.neo-mobile-menu-lang {
+  color: #555;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.neo-mobile-menu-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 6px 0;
+  border-radius: 1px;
 }
 
 .neo-lang-btn {
@@ -2071,3 +2137,524 @@ body {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MOBILE PREMIUM OVERHAUL  — Complete mobile-first rewrite
+   Targets: ≤768px (tablet/phone), ≤480px (phone), ≤380px (small phone)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── NAV ─────────────────────────────────────────────────────── */
+  .neo-nav {
+    height: 60px;
+    background-color: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .neo-nav-inner {
+    padding: 0 16px;
+    gap: 10px;
+  }
+
+  .neo-logo img {
+    height: 30px;
+    width: 30px;
+  }
+
+  .neo-logo span {
+    font-size: 17px !important;
+  }
+
+  /* Burger button sizing */
+  .neo-burger-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  /* ── HERO ─────────────────────────────────────────────────────── */
+  .neo-hero {
+    margin-top: 60px;
+    padding: 40px 20px 48px;
+  }
+
+  .neo-hero-inner {
+    gap: 0;
+  }
+
+  .neo-hero-content {
+    width: 100%;
+  }
+
+  .neo-hero-badge-live {
+    font-size: 11px;
+    padding: 6px 14px;
+    margin-bottom: 20px;
+    max-width: 95%;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .neo-hero-title {
+    font-size: 36px;
+    line-height: 1.08;
+    margin-bottom: 18px;
+    letter-spacing: -0.03em;
+  }
+
+  .neo-hero-subtitle {
+    font-size: 15px;
+    line-height: 1.65;
+    margin-bottom: 28px;
+    color: #555;
+    padding: 0;
+  }
+
+  /* Hero CTA buttons — stacked, full width, beautiful */
+  .neo-hero-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .neo-hero-actions .neo-btn {
+    width: 100% !important;
+    justify-content: center;
+    padding: 16px 24px !important;
+    font-size: 15px !important;
+    border-radius: 14px !important;
+    min-height: 52px;
+  }
+
+  /* Primary CTA: bold black pill */
+  .neo-hero-actions .neo-btn-primary {
+    background: #0f172a;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.22);
+  }
+
+  /* Secondary CTA: clean outlined */
+  .neo-hero-actions .neo-btn-secondary {
+    border: 1.5px solid rgba(0,0,0,0.12);
+    background: #fff;
+  }
+
+  /* Trust pills: 2-column clean grid */
+  .neo-trust-pills {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
+    margin-top: 0;
+    width: 100%;
+  }
+
+  .neo-trust-pill {
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1.3;
+  }
+
+  /* ── SHOWCASE — hidden on mobile (too complex for small screens) ── */
+  .neo-showcase-container {
+    display: none;
+  }
+
+  /* ── METRICS BAR ──────────────────────────────────────────────── */
+  .neo-metrics-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 0 16px;
+    margin-top: 32px;
+  }
+
+  .neo-metric-card {
+    padding: 18px 14px;
+    border-radius: 16px;
+  }
+
+  .neo-metric-val {
+    font-size: 26px;
+  }
+
+  .neo-metric-label {
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+
+  /* ── SECTION HEADERS ──────────────────────────────────────────── */
+  .neo-section-header {
+    margin-bottom: 32px;
+    padding: 0 4px;
+  }
+
+  .neo-section-title {
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .neo-section-subtitle {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+
+  /* ── HOW IT WORKS ─────────────────────────────────────────────── */
+  .neo-how-it-works {
+    padding: 52px 20px;
+  }
+
+  .neo-steps-container {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .neo-step {
+    max-width: 100%;
+    padding: 24px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+    text-align: left;
+  }
+
+  .neo-step:last-child {
+    border-bottom: none;
+  }
+
+  .neo-step-number {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .neo-step-title {
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .neo-step-desc {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #666;
+  }
+
+  /* ── BENTO / FEATURE CARDS ────────────────────────────────────── */
+  .neo-personas {
+    padding: 52px 20px;
+  }
+
+  .neo-bento-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .neo-bento-card {
+    padding: 24px 20px;
+    border-radius: 18px;
+  }
+
+  .neo-bento-card h3 {
+    font-size: 18px;
+  }
+
+  .neo-bento-card p {
+    font-size: 13.5px;
+  }
+
+  /* ── COMPARISON SECTION ───────────────────────────────────────── */
+  .neo-comparison-section {
+    padding: 52px 16px;
+  }
+
+  .neo-compare-grid-wrapper {
+    border-radius: 16px;
+  }
+
+  .neo-compare-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 16px 14px;
+  }
+
+  .neo-compare-cell-title {
+    font-size: 14px;
+  }
+
+  .neo-compare-cell.dineos-cell,
+  .neo-compare-cell.legacy-cell {
+    font-size: 13px;
+  }
+
+  /* ── PERSONA GRID ──────────────────────────────────────────────── */
+  .neo-persona-section {
+    padding: 52px 20px;
+  }
+
+  .neo-persona-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .neo-persona-card {
+    padding: 22px 18px;
+    border-radius: 18px;
+  }
+
+  .neo-persona-emoji {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+
+  .neo-persona-title {
+    font-size: 15px;
+  }
+
+  .neo-persona-desc {
+    font-size: 12.5px;
+  }
+
+  /* ── TESTIMONIALS ─────────────────────────────────────────────── */
+  .neo-testimonials {
+    padding: 52px 20px;
+  }
+
+  .neo-testimonials-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .neo-testimonial-card {
+    padding: 24px 20px;
+    border-radius: 18px;
+  }
+
+  /* ── FAQ ──────────────────────────────────────────────────────── */
+  .neo-faq-section {
+    padding: 52px 16px;
+  }
+
+  .neo-faq-question {
+    padding: 16px 18px;
+    font-size: 14.5px;
+    line-height: 1.45;
+  }
+
+  .neo-faq-answer {
+    padding: 0 18px 16px;
+    font-size: 13.5px;
+  }
+
+  /* ── CTA BOX ──────────────────────────────────────────────────── */
+  .neo-cta-box {
+    margin: 40px 16px 60px;
+    padding: 40px 22px;
+    border-radius: 24px;
+  }
+
+  .neo-cta-box h2 {
+    font-size: 26px;
+    margin-bottom: 12px;
+  }
+
+  .neo-cta-box p {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .neo-cta-box > div {
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+  }
+
+  .neo-btn-white {
+    width: 100%;
+    justify-content: center;
+    padding: 15px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  .neo-cta-box > div > button {
+    width: 100%;
+    border-radius: 12px !important;
+    padding: 15px 24px !important;
+    font-size: 15px !important;
+  }
+
+  /* ── FOOTER ───────────────────────────────────────────────────── */
+  .neo-footer {
+    padding: 40px 20px 28px;
+  }
+
+  .neo-footer-inner {
+    flex-direction: column;
+    gap: 28px;
+    text-align: center;
+    align-items: center;
+  }
+
+  .neo-footer-bottom {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+    padding-top: 20px;
+    margin-top: 20px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+
+  .neo-footer-tagline {
+    font-size: 13px;
+    line-height: 1.6;
+    max-width: 280px;
+  }
+
+  .neo-footer-links-col {
+    text-align: center !important;
+  }
+
+  /* ── DEMO MODAL ───────────────────────────────────────────────── */
+  .neo-demo-modal {
+    padding: 28px 20px;
+    border-radius: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .neo-demo-header h2 {
+    font-size: 20px;
+  }
+
+  .neo-demo-cards {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .neo-demo-card {
+    flex: none;
+    width: 100%;
+  }
+}
+
+/* ── EXTRA SMALL PHONES (≤ 480px) ─────────────────────────────── */
+@media (max-width: 480px) {
+
+  .neo-hero-title {
+    font-size: 32px;
+  }
+
+  .neo-hero-subtitle {
+    font-size: 14px;
+  }
+
+  .neo-hero-badge-live {
+    font-size: 10.5px;
+    padding: 5px 12px;
+  }
+
+  .neo-trust-pill {
+    font-size: 11.5px;
+  }
+
+  .neo-section-title {
+    font-size: 26px;
+  }
+
+  .neo-metric-val {
+    font-size: 22px;
+  }
+
+  .neo-metric-label {
+    font-size: 11px;
+  }
+
+  .neo-persona-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .neo-persona-card {
+    padding: 18px 14px;
+  }
+
+  .neo-persona-title {
+    font-size: 14px;
+  }
+
+  .neo-persona-desc {
+    font-size: 12px;
+  }
+
+  .neo-cta-box {
+    margin: 32px 14px 48px;
+    padding: 32px 18px;
+  }
+
+  .neo-cta-box h2 {
+    font-size: 23px;
+  }
+}
+
+/* ── VERY SMALL PHONES (≤ 380px) ──────────────────────────────── */
+@media (max-width: 380px) {
+  .neo-nav-inner {
+    padding: 0 12px;
+  }
+
+  .neo-hero {
+    padding: 32px 16px 40px;
+  }
+
+  .neo-hero-title {
+    font-size: 30px;
+  }
+
+  .neo-trust-pills {
+    gap: 8px 12px;
+  }
+
+  .neo-trust-pill {
+    font-size: 11px;
+  }
+
+  .neo-metrics-bar {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .neo-metric-val {
+    font-size: 20px;
+  }
+
+  .neo-section-title {
+    font-size: 24px;
+  }
+
+  .neo-bento-card {
+    padding: 20px 16px;
+  }
+
+  .neo-bento-card h3 {
+    font-size: 16px;
+  }
+
+  .neo-persona-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .neo-persona-emoji {
+    font-size: 24px;
+  }
+}

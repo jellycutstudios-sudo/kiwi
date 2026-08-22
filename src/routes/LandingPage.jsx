@@ -9,7 +9,7 @@ import {
   MousePointer2, CheckCircle2, Loader2,
   Check, X as XIcon, ChevronDown, ChevronUp,
   Sparkles, ArrowRight,
-  BarChart3, Award, QrCode
+  BarChart3, Award, QrCode, Menu
 } from 'lucide-react';
 import '../landing-neo.css';
 
@@ -21,6 +21,7 @@ export default function LandingPage() {
 
   const [isMobileView, setIsMobileView] = useState(false);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [showcaseTab, setShowcaseTab] = useState('pos'); // 'pos', 'kds', 'tables', 'insights', 'online'
 
@@ -170,13 +171,14 @@ export default function LandingPage() {
   return (
     <div className="neo-landing" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
       {/* Top Navigation */}
-      <nav className="neo-nav">
+      <nav className="neo-nav" style={{ position: 'fixed', zIndex: 1000 }}>
         <div className="neo-nav-inner">
           <div className="neo-logo">
             <img src="/ricon.svg" alt="DineOS Logo" />
             <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.03em' }}>DineOS</span>
           </div>
 
+          {/* Desktop nav */}
           <div className="neo-nav-actions neo-nav-desktop">
             <a href="#showcase" style={{ color: '#666', textDecoration: 'none', fontSize: '14px', fontWeight: 600, margin: '0 8px' }}>
               Features
@@ -201,7 +203,54 @@ export default function LandingPage() {
               {isAuth ? t('goToDashboard') : (t('signIn') || 'Login')}
             </Link>
           </div>
+
+          {/* Mobile nav: Login + Burger */}
+          <div className="neo-nav-mobile-actions">
+            <Link
+              to={isAuth ? '/dashboard' : '/login'}
+              className="neo-btn neo-btn-primary"
+              style={{ padding: '8px 18px', fontSize: '13px', minHeight: '38px' }}
+            >
+              {isAuth ? t('goToDashboard') : (t('signIn') || 'Login')}
+            </Link>
+            <button
+              className="neo-burger-btn"
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile slide-down menu */}
+        {isMobileMenuOpen && (
+          <div className="neo-mobile-menu">
+            <a href="#showcase" className="neo-mobile-menu-item" onClick={() => setIsMobileMenuOpen(false)}>
+              ✦ Features
+            </a>
+            <a href="#compare" className="neo-mobile-menu-item" onClick={() => setIsMobileMenuOpen(false)}>
+              ✦ Why DineOS
+            </a>
+            <a href="#faq" className="neo-mobile-menu-item" onClick={() => setIsMobileMenuOpen(false)}>
+              ✦ FAQ
+            </a>
+            <div className="neo-mobile-menu-divider" />
+            <button
+              className="neo-mobile-menu-item"
+              onClick={() => { setIsMobileMenuOpen(false); setIsDemoModalOpen(true); }}
+            >
+              ⚡ Explore Live Demo
+            </button>
+            <button
+              className="neo-mobile-menu-item neo-mobile-menu-lang"
+              onClick={() => { toggleLanguage(); setIsMobileMenuOpen(false); }}
+            >
+              <Globe size={16} />
+              {i18n.language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -210,7 +259,7 @@ export default function LandingPage() {
           <div className="neo-hero-content">
             <div className="neo-hero-badge-live">
               <span className="neo-live-dot" />
-              <span>DineOS 2.0 · Intelligent Restaurant Operating System</span>
+              <span>DineOS 2.5</span>
             </div>
 
             <h1 className="neo-hero-title">

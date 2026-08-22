@@ -358,3 +358,135 @@ exports.validatePin = onCall(async (request) => {
     throw new HttpsError('internal', 'Internal server error during PIN validation');
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Email Notification: Notify Admin when someone registers / requests free trial
+// ─────────────────────────────────────────────────────────────────────────────
+const nodemailer = require('nodemailer');
+
+exports.sendNewTrialRequestNotification = onDocumentCreated('restaurants/{restaurantId}', async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return null;
+  const restData = snapshot.data();
+  const { restaurantId } = event.params;
+
+  try {
+    const db = admin.firestore();
+    let ownerName = 'N/A';
+    let ownerEmail = 'N/A';
+
+    if (restData.ownerUid) {
+      const userSnap = await db.collection('users').doc(restData.ownerUid).get();
+      if (userSnap.exists) {
+        const userData = userSnap.data();
+        ownerName = userData.name || ownerName;
+        ownerEmail = userData.email || ownerEmail;
+      }
+    }
+
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'smanpk@gmail.com';
+    const gmailUser = process.env.GMAIL_USER || adminEmail;
+    const gmailPass = process.env.GMAIL_APP_PASS || process.env.GMAIL_PASS;
+
+    if (!gmailPass) {
+      console.warn(
+        '⚠️ GMAIL_APP_PASS is not set in environment variables. Email notification skipped for new trial request:',
+        { restaurantId, restaurantName: restData.name, ownerEmail }
+      );
+      return null;
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailPass.replace(/\s+/g, ''),
+      },
+    });
+
+    const restName = restData.name || 'Untitled Restaurant';
+    const phone = restData.phone || 'Not provided';
+    const address = restData.address || 'Not provided';
+    const currency = restData.currency || 'USD';
+    const status = restData.status || 'pending';
+    const createdAt = new Date().toLocaleString('en-US', { timeZone: 'UTC' }) + ' UTC';
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 28px 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em;">🎉 New Free Trial Request!</h1>
+          <p style="color: #94a3b8; margin: 6px 0 0 0; font-size: 14px;">A new restaurant owner just signed up for DineOS</p>
+        </div>
+        
+        <div style="padding: 24px;">
+          <div style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; padding: 18px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600; width: 130px;">Restaurant Name</td>
+                <td style="padding: 6px 0; color: #0f172a; font-size: 15px; font-weight: 700;">${restName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Owner Name</td>
+                <td style="padding: 6px 0; color: #0f172a; font-size: 14px; font-weight: 600;">${ownerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Email Address</td>
+                <td style="padding: 6px 0;"><a href="mailto:${ownerEmail}" style="color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 600;">${ownerEmail}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Phone Number</td>
+                <td style="padding: 6px 0;"><a href="tel:${phone}" style="color: #0f172a; text-decoration: none; font-size: 14px;">${phone}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Location / Address</td>
+                <td style="padding: 6px 0; color: #0f172a; font-size: 14px;">${address}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Currency</td>
+                <td style="padding: 6px 0; color: #0f172a; font-size: 14px; font-weight: 600;">${currency}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Status</td>
+                <td style="padding: 6px 0;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase;">${status}</span></td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Restaurant ID</td>
+                <td style="padding: 6px 0; color: #64748b; font-size: 12px; font-family: monospace;">${restaurantId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px; font-weight: 600;">Submitted At</td>
+                <td style="padding: 6px 0; color: #64748b; font-size: 13px;">${createdAt}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="mailto:${ownerEmail}?subject=Welcome%20to%20DineOS%20-%20Free%20Trial%20Access" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+              ✉️ Reply to ${ownerName}
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f1f5f9; padding: 14px 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+          DineOS Automated Notification System · Sent to ${adminEmail}
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"DineOS Alerts" <${gmailUser}>`,
+      to: adminEmail,
+      subject: `🚨 New Free Trial Request: ${restName} (${ownerName})`,
+      text: `New Free Trial Request!\n\nRestaurant: ${restName}\nOwner: ${ownerName}\nEmail: ${ownerEmail}\nPhone: ${phone}\nAddress: ${address}\nCurrency: ${currency}\nRestaurant ID: ${restaurantId}\nSubmitted At: ${createdAt}`,
+      html: htmlContent,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Trial request email sent successfully to ${adminEmail}:`, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending trial request email notification:', error);
+    return null;
+  }
+});
+
