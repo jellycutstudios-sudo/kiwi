@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useOrderStore } from '../../stores/orderStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2 } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, ChevronUp, Sparkles, Coins } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import toast from 'react-hot-toast';
@@ -42,10 +42,28 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   const [tipPreset, setTipPreset] = useState('none'); // 'none' | '15' | '18' | '20' | 'custom'
   const [customTip, setCustomTip] = useState('');
 
+  // Collapsible voucher drawer state
+  const [isVoucherOpen, setIsVoucherOpen] = useState(() => Boolean(giftCardCode));
+
   // Compute subtotal for tip base
   const tipBaseAmount = subtotal - getDiscountAmount() - getPointsDiscountAmount();
   const [cashTendered, setCashTendered] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Quick cash options for 1-tap fast cashier checkout
+  const quickCashOptions = useMemo(() => {
+    if (total <= 0) return [];
+    const exact = Math.round(total * 100) / 100;
+    const opts = [exact];
+    const next100 = Math.ceil(total / 100) * 100;
+    if (next100 > total && !opts.includes(next100)) opts.push(next100);
+    const next500 = Math.ceil(total / 500) * 500;
+    if (next500 > total && !opts.includes(next500)) opts.push(next500);
+    const next1000 = Math.ceil(total / 1000) * 1000;
+    if (next1000 > total && !opts.includes(next1000) && opts.length < 4) opts.push(next1000);
+    if (opts.length < 4 && !opts.includes(exact + 500)) opts.push(exact + 500);
+    return opts.slice(0, 4);
+  }, [total]);
 
   // Terminal Simulator states
   const [terminalStatus, setTerminalStatus] = useState(null); // null | 'connecting' | 'waiting' | 'processing' | 'success' | 'declined'
@@ -499,37 +517,75 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" style={{ maxWidth: 480 }}>
-        <div className="modal-header">
-          <h2 className="modal-title">💳 {t('payment')}</h2>
-          <button className="btn btn-secondary btn-icon" onClick={onClose} id="payment-modal-close">
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.65)' }}>
+      <div className="modal animate-slide-up" style={{ maxWidth: 510, maxHeight: '92vh', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div className="modal-header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+            }}>
+              <CreditCard size={18} />
+            </div>
+            <div>
+              <h2 className="modal-title" style={{ fontSize: 17, fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
+                {t('payment')}
+              </h2>
+              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
+                {tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Direct Register Checkout')}
+              </div>
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-icon" onClick={onClose} id="payment-modal-close" style={{ width: 30, height: 30, borderRadius: '50%' }}>
             <X size={16} />
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
-          {/* Amount due */}
+        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(92vh - 130px)', overflowY: 'auto', padding: '14px 18px 20px 18px' }}>
+          {/* Apple Pay / Stripe Luxury Fintech Amount Due Card */}
           <div style={{
-            background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-indigo) 100%)',
-            borderRadius: 'var(--radius-xl)',
-            padding: 'var(--space-5) var(--space-6)',
+            background: 'linear-gradient(135deg, #090d16 0%, #0f172a 55%, #1e293b 100%)',
+            borderRadius: 16,
+            padding: '16px 20px',
             textAlign: 'center',
-            color: '#fff',
+            color: '#ffffff',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            <div style={{ fontSize: 'var(--text-footnote)', opacity: 0.85, marginBottom: 'var(--space-1)', fontWeight: 'var(--weight-semibold)', letterSpacing: '0.05em' }}>
-              AMOUNT DUE
+            {/* Ambient emerald sheen */}
+            <div style={{
+              position: 'absolute',
+              top: -24,
+              right: -24,
+              width: 90,
+              height: 90,
+              background: 'radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)',
+              pointerEvents: 'none'
+            }} />
+
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Amount Due
             </div>
-            <div style={{ fontSize: 'var(--text-largeTitle)', fontWeight: 'var(--weight-heavy)', letterSpacing: '-0.02em' }}>
+            <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', color: '#ffffff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>
               {formatCurrency(total, currency)}
             </div>
             {(discountAmt > 0 || getPointsDiscountAmount() > 0 || giftCardDeduction > 0 || tipAmount > 0) && (
-              <div style={{ fontSize: 11, opacity: 0.85, marginTop: 4, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span>Subtotal: {formatCurrency(subtotal, currency)}</span>
-                {discountAmt > 0 && <span>• Discount: -{formatCurrency(discountAmt, currency)}</span>}
-                {getPointsDiscountAmount() > 0 && <span>• Points Disc: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
-                {tipAmount > 0 && <span>• Tip: +{formatCurrency(tipAmount, currency)}</span>}
-                {giftCardDeduction > 0 && <span>• Gift Card: -{formatCurrency(giftCardDeduction, currency)}</span>}
+              <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 8, display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ opacity: 0.8 }}>Subtotal: {formatCurrency(subtotal, currency)}</span>
+                {discountAmt > 0 && <span style={{ color: '#34d399', fontWeight: 700 }}>• Disc: -{formatCurrency(discountAmt, currency)}</span>}
+                {getPointsDiscountAmount() > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}>• Points: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
+                {tipAmount > 0 && <span style={{ color: '#38bdf8', fontWeight: 700 }}>• Tip: +{formatCurrency(tipAmount, currency)}</span>}
+                {giftCardDeduction > 0 && <span style={{ color: '#a78bfa', fontWeight: 700 }}>• Card: -{formatCurrency(giftCardDeduction, currency)}</span>}
               </div>
             )}
           </div>
@@ -537,21 +593,20 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           {/* Loyalty Points Redemption Toggle */}
           {customer && customer.points > 0 && (
             <div style={{
-              marginTop: 'var(--space-3)',
-              marginBottom: 'var(--space-3)',
-              padding: 'var(--space-3) var(--space-4)',
+              marginTop: 12,
+              padding: '10px 14px',
               background: 'var(--color-bg-secondary)',
-              borderRadius: 'var(--radius-lg)',
+              borderRadius: 12,
               border: '1px solid var(--color-separator)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)' }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>
                   Redeem Loyalty Points
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
                   Available: <strong>{customer.points} pts</strong> (Value: {formatCurrency(customer.points / 10, currency)})
                 </span>
               </div>
@@ -566,84 +621,107 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
             </div>
           )}
 
-          {/* Gift Card Verification Panel */}
+          {/* Collapsible Gift Card / Voucher Drawer */}
           <div style={{
-            marginTop: 'var(--space-3)',
-            marginBottom: 'var(--space-4)',
-            padding: 'var(--space-3) var(--space-4)',
+            marginTop: 12,
+            padding: '10px 14px',
             background: 'var(--color-bg-secondary)',
-            borderRadius: 'var(--radius-lg)',
+            borderRadius: 14,
             border: '1px solid var(--color-separator)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10
+            transition: 'all 0.2s ease'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-label-secondary)' }}>
-              <Ticket size={14} color="var(--color-accent)" />
-              <span>Redeem Gift Card / Voucher</span>
+            <div 
+              onClick={() => setIsVoucherOpen(!isVoucherOpen)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700, color: 'var(--color-label)' }}>
+                <Ticket size={15} color="var(--color-accent)" />
+                <span>Have a Gift Card or Voucher?</span>
+                {giftCardCode && (
+                  <span style={{ background: '#10b981', color: '#ffffff', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 800 }}>
+                    Applied
+                  </span>
+                )}
+              </div>
+              <div style={{ color: 'var(--color-label-secondary)' }}>
+                {isVoucherOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
             </div>
 
-            {giftCardCode ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--color-green-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-green-opaque)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-bold)', color: 'var(--color-green)' }}>
-                    🎫 {giftCardCode} Applied
-                  </span>
-                  <span style={{ fontSize: 10, color: 'var(--color-label-secondary)' }}>
-                    Deduction: <strong>-{formatCurrency(giftCardDeduction, currency)}</strong>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-xs"
-                  onClick={removeGiftCard}
-                  style={{ color: 'var(--color-red)', padding: '2px 6px', fontSize: 10 }}
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  className="form-input"
-                  placeholder="Enter Gift Card code (e.g. GC-XXXX)"
-                  value={gcInput}
-                  onChange={e => setGcInput(e.target.value)}
-                  style={{ height: 32, fontSize: 'var(--text-footnote)', flex: 1, textTransform: 'uppercase' }}
-                  id="gift-card-redeem-input"
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={handleVerifyGiftCard}
-                  disabled={verifyingGc || !gcInput.trim()}
-                  style={{ height: 32, padding: '0 12px' }}
-                  id="gift-card-redeem-btn"
-                >
-                  {verifyingGc ? '...' : 'Apply'}
-                </button>
+            {isVoucherOpen && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--color-separator)' }}>
+                {giftCardCode ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(16, 185, 129, 0.12)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#059669' }}>
+                        🎫 {giftCardCode} Applied
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                        Deduction: <strong>-{formatCurrency(giftCardDeduction, currency)}</strong>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      onClick={removeGiftCard}
+                      style={{ color: '#dc2626', padding: '4px 8px', fontSize: 11, fontWeight: 700 }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="form-input"
+                      placeholder="Enter gift card code (e.g. GC-XXXX)"
+                      value={gcInput}
+                      onChange={e => setGcInput(e.target.value)}
+                      style={{ height: 36, fontSize: 13, flex: 1, textTransform: 'uppercase', borderRadius: 8 }}
+                      id="gift-card-redeem-input"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={handleVerifyGiftCard}
+                      disabled={verifyingGc || !gcInput.trim()}
+                      style={{ height: 36, padding: '0 14px', borderRadius: 8, fontWeight: 700 }}
+                      id="gift-card-redeem-btn"
+                    >
+                      {verifyingGc ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* ── Tip / Gratuity Section ── */}
+          {/* ── Tip / Gratuity Section (Segmented Luxury Bar) ── */}
           <div style={{
-            marginTop: 'var(--space-3)',
-            marginBottom: 'var(--space-4)',
-            padding: 'var(--space-3) var(--space-4)',
+            marginTop: 12,
+            padding: '12px 14px',
             background: 'var(--color-bg-secondary)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--color-separator)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10
+            borderRadius: 14,
+            border: '1px solid var(--color-separator)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-label-secondary)' }}>
-              <HeartHandshake size={14} color="var(--color-orange)" />
-              <span>Tip / Gratuity</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                <HeartHandshake size={14} color="#f59e0b" />
+                <span>Tip / Gratuity</span>
+              </div>
+              {tipAmount > 0 && (
+                <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 800 }}>
+                  +{formatCurrency(tipAmount, currency)}
+                </div>
+              )}
             </div>
 
-            {/* Preset buttons */}
+            {/* Apple-style segmented tip chips */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
               {[
                 { key: 'none', label: 'No Tip' },
@@ -668,26 +746,26 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                         setTip((tipBaseAmount * pct) / 100);
                         setCustomTip('');
                       } else {
-                        // Keep existing tip for custom but let user edit
                         setCustomTip(tipAmount > 0 ? tipAmount.toFixed(2) : '');
                       }
                     }}
                     style={{
-                      padding: '6px 4px',
-                      borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${isSelected ? 'var(--color-orange)' : 'var(--color-separator-opaque)'}`,
-                      background: isSelected ? 'rgba(255,149,0,0.1)' : 'transparent',
-                      color: isSelected ? 'var(--color-orange)' : 'var(--color-label-secondary)',
-                      fontWeight: 'var(--weight-bold)',
-                      fontSize: 11,
+                      padding: '8px 4px',
+                      borderRadius: 10,
+                      border: isSelected ? '1.5px solid #f59e0b' : '1px solid var(--color-separator-opaque)',
+                      background: isSelected ? '#f59e0b' : '#ffffff',
+                      color: isSelected ? '#000000' : 'var(--color-label)',
+                      fontWeight: 800,
+                      fontSize: 12,
                       cursor: 'pointer',
                       fontFamily: 'var(--font-family)',
-                      transition: 'all 0.15s',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 2px 6px rgba(245, 158, 11, 0.3)' : 'none'
                     }}
                   >
-                    {preset.label}
+                    <div>{preset.label}</div>
                     {preset.key !== 'none' && preset.key !== 'custom' && (
-                      <div style={{ fontSize: 9, opacity: 0.8, marginTop: 1 }}>
+                      <div style={{ fontSize: 9, opacity: 0.85, marginTop: 2, fontWeight: 700 }}>
                         {formatCurrency((tipBaseAmount * parseFloat(preset.key)) / 100, currency)}
                       </div>
                     )}
@@ -698,12 +776,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
             {/* Custom tip input */}
             {tipPreset === 'custom' && (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <input
                   id="tip-custom-input"
                   type="number"
                   className="form-input"
-                  placeholder="Enter tip amount"
+                  placeholder="Enter custom tip"
                   value={customTip}
                   min="0"
                   step="0.01"
@@ -713,65 +791,64 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                     if (!isNaN(val) && val >= 0) setTip(val);
                     else { setCustomTip(''); setTip(0); }
                   }}
-                  style={{ flex: 1, height: 32, fontSize: 'var(--text-footnote)' }}
+                  style={{ flex: 1, height: 36, fontSize: 13, borderRadius: 8 }}
                 />
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  style={{ height: 32, padding: '0 12px' }}
+                  style={{ height: 36, padding: '0 14px', borderRadius: 8 }}
                   onClick={() => {
                     const val = parseFloat(customTip);
                     if (!isNaN(val) && val >= 0) setTip(val);
                     else { setCustomTip(''); setTip(0); }
                   }}
                 >
-                  Apply
+                  Set Tip
                 </button>
-              </div>
-            )}
-
-            {/* Active tip indicator */}
-            {tipAmount > 0 && (
-              <div style={{ fontSize: 11, color: 'var(--color-orange)', fontWeight: 'var(--weight-semibold)', textAlign: 'right' }}>
-                Tip: +{formatCurrency(tipAmount, currency)}
               </div>
             )}
           </div>
 
-          {/* Payment methods */}
-          <div>
-            <div className="form-label" style={{ marginBottom: 'var(--space-3)' }}>{t('paymentMethod')}</div>
-            <div className="payment-methods" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-2)' }}>
-              {METHODS.map(m => (
-                <button
-                  key={m.key}
-                  id={`payment-method-${m.key}`}
-                  className={`payment-method-card ${paymentMethod === m.key ? 'selected' : ''}`}
-                  onClick={() => setPaymentMethod(m.key)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 'var(--space-3) var(--space-2)',
-                    borderRadius: 'var(--radius-lg)',
-                    border: `2px solid ${paymentMethod === m.key ? m.color : 'var(--color-separator-opaque)'}`,
-                    background: paymentMethod === m.key ? 'rgba(128,128,128,0.08)' : 'transparent',
-                    boxShadow: paymentMethod === m.key ? `0 8px 16px -4px rgba(0,0,0,0.1), 0 4px 8px -4px ${m.color}` : 'none',
-                    transform: paymentMethod === m.key ? 'translateY(-2px)' : 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    fontFamily: 'var(--font-family)',
-                  }}
-                >
-                  <div style={{ marginBottom: 6, transform: paymentMethod === m.key ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.2s ease' }}>
-                    <m.icon size={20} color={paymentMethod === m.key ? m.color : 'var(--color-label-secondary)'} />
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 'var(--weight-bold)', color: paymentMethod === m.key ? 'var(--color-label)' : 'var(--color-label-secondary)' }}>
-                    {m.label}
-                  </div>
-                </button>
-              ))}
+          {/* Payment Methods (Balanced 5-Card Single Row) */}
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              {t('paymentMethod')}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {METHODS.map(m => {
+                const isSelected = paymentMethod === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    id={`payment-method-${m.key}`}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.key)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '12px 6px',
+                      borderRadius: 14,
+                      border: isSelected ? '2px solid #0f172a' : '1px solid var(--color-separator)',
+                      background: isSelected ? '#0f172a' : '#ffffff',
+                      color: isSelected ? '#ffffff' : 'var(--color-label)',
+                      boxShadow: isSelected ? '0 6px 18px rgba(15, 23, 42, 0.25)' : 'none',
+                      transform: isSelected ? 'translateY(-2px)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                      fontFamily: 'var(--font-family)',
+                    }}
+                  >
+                    <div style={{ marginBottom: 4 }}>
+                      <m.icon size={20} color={isSelected ? '#38bdf8' : 'var(--color-label-secondary)'} />
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 800 }}>
+                      {m.label}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -994,41 +1071,130 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
           {/* Cash tendered field */}
           {paymentMethod === 'cash' && (
-            <div className="form-group">
-              <label className="form-label">Cash Tendered</label>
-              <input
-                id="cash-tendered-input"
-                className="form-input"
-                type="number"
-                placeholder={`0.00`}
-                value={cashTendered}
-                onChange={e => setCashTendered(e.target.value)}
-                style={{ fontSize: 'var(--text-title3)', fontWeight: 'var(--weight-bold)' }}
-              />
+            <div style={{
+              marginTop: 14,
+              padding: '14px 16px',
+              background: 'var(--color-bg-secondary)',
+              borderRadius: 14,
+              border: '1px solid var(--color-separator)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Cash Tendered
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                  Due: <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(total, currency)}</strong>
+                </span>
+              </div>
+
+              {/* Input row */}
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <input
+                  id="cash-tendered-input"
+                  className="form-input"
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  value={cashTendered}
+                  onChange={e => setCashTendered(e.target.value)}
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    height: 48,
+                    borderRadius: 10,
+                    paddingLeft: 38,
+                    letterSpacing: '-0.02em',
+                    fontVariantNumeric: 'tabular-nums'
+                  }}
+                />
+                <span style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: 'var(--color-label-secondary)',
+                  pointerEvents: 'none'
+                }}>
+                  {currency === 'INR' ? '₹' : (currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₹')}
+                </span>
+              </div>
+
+              {/* 1-Tap Quick Cash Denomination Chips */}
+              {quickCashOptions.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${quickCashOptions.length}, 1fr)`, gap: 6, marginBottom: 10 }}>
+                  {quickCashOptions.map((opt, idx) => {
+                    const isSelected = parseFloat(cashTendered) === opt;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCashTendered(opt.toString())}
+                        style={{
+                          padding: '7px 4px',
+                          background: isSelected ? 'var(--color-accent)' : 'var(--color-bg-primary)',
+                          color: isSelected ? '#ffffff' : 'var(--color-label)',
+                          border: `1.5px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          lineHeight: 1.2,
+                          boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: 9, opacity: 0.8, textTransform: 'uppercase', fontWeight: 800 }}>
+                          {idx === 0 ? 'Exact' : 'Round'}
+                        </span>
+                        <span>{formatCurrency(opt, currency)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Live Change / Remaining Bal Display */}
               {change !== null && change >= 0 && (
                 <div style={{
-                  marginTop: 'var(--space-2)',
-                  padding: 'var(--space-3) var(--space-4)',
-                  background: 'var(--color-green-light)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--color-green)',
-                  fontWeight: 'var(--weight-semibold)',
-                  fontSize: 'var(--text-subhead)',
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                  borderRadius: 10,
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  color: '#059669',
+                  animation: 'fadeIn 0.2s ease'
                 }}>
-                  Change: {formatCurrency(change, currency)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700 }}>
+                    <Coins size={16} />
+                    <span>Change to Return</span>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(change, currency)}
+                  </div>
                 </div>
               )}
               {change !== null && change < 0 && (
                 <div style={{
-                  marginTop: 'var(--space-2)',
-                  padding: 'var(--space-3) var(--space-4)',
-                  background: 'var(--color-red-light)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--color-red)',
-                  fontWeight: 'var(--weight-semibold)',
-                  fontSize: 'var(--text-subhead)',
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%)',
+                  borderRadius: 10,
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  color: '#dc2626'
                 }}>
-                  Insufficient amount
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>Remaining Due</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(Math.abs(change), currency)}
+                  </span>
                 </div>
               )}
             </div>
@@ -1155,8 +1321,22 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           )}
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose} id="payment-cancel-btn">
+        <div className="modal-footer" style={{
+          padding: '12px 18px',
+          borderTop: '1px solid var(--color-separator)',
+          display: 'flex',
+          gap: 12,
+          background: 'var(--color-bg-primary)',
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
+          flexShrink: 0
+        }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={onClose} 
+            id="payment-cancel-btn"
+            style={{ flex: '0 0 auto', padding: '0 20px', height: 44, borderRadius: 12, fontWeight: 700 }}
+          >
             {t('cancel')}
           </button>
           <button
@@ -1164,10 +1344,28 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
             onClick={handleConfirm}
             disabled={!canConfirm || loading}
             id="payment-confirm-btn"
-            style={{ minWidth: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            style={{
+              flex: 1,
+              height: 44,
+              borderRadius: 12,
+              fontWeight: 800,
+              fontSize: 15,
+              letterSpacing: '-0.01em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              background: canConfirm ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#334155',
+              color: canConfirm ? '#ffffff' : '#94a3b8',
+              border: 'none',
+              boxShadow: canConfirm ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
+              cursor: canConfirm ? 'pointer' : 'not-allowed',
+              opacity: canConfirm ? 1 : 0.7,
+              transition: 'all 0.15s ease'
+            }}
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-            <span>Confirm &middot; {formatCurrency(total, currency)}</span>
+            <span>Complete Payment &middot; {formatCurrency(total, currency)}</span>
           </button>
         </div>
       </div>
