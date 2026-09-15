@@ -47,10 +47,17 @@ function getCategoryForMenuItem(menuItemId) {
   return cat ? cat.id : null;
 }
 
+// Helper to get line width in characters: 32 for 58mm (2-inch), 48 for 80mm (3-inch)
+function getPrinterLineWidth(printerConfig) {
+  return printerConfig?.paperSize === '58mm' ? 32 : 48;
+}
+
 // Compile receipt payload for ESC/POS
 function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig }) {
   const { name: restName = 'DineOS', address = '', phone = '' } = restaurant ?? {};
   const { currency = 'INR' } = restaurant ?? {};
+  const lineWidth = getPrinterLineWidth(printerConfig);
+  const is58mm = lineWidth === 32;
   
   const ESC = 27;
   const GS = 29;
@@ -75,6 +82,8 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     writeBytes(unicodeToEscPosBytes(text));
     writeBytes([LF]);
   };
+
+  const divider = '-'.repeat(lineWidth);
   
   writeBytes(INIT);
   
@@ -86,6 +95,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     writeBytes(DRAWER_KICK);
   }
   
+  // Header
   writeBytes(ALIGN_CENTER);
   writeBytes(BOLD_ON);
   writeTextLine(restName);
@@ -96,7 +106,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   if (restaurant?.gstin) writeTextLine(`GSTIN: ${restaurant.gstin}`);
   if (restaurant?.fssai) writeTextLine(`FSSAI Lic: ${restaurant.fssai}`);
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   
   writeBytes(ALIGN_LEFT);
   writeTextLine(`Date: ${new Date().toLocaleString()}`);
@@ -109,41 +119,61 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   if (order.customerName) writeTextLine(`Customer: ${order.customerName}`);
   if (staffName) writeTextLine(`Staff: ${staffName}`);
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   
+  // Table Header
   writeBytes(BOLD_ON);
-  writeTextLine('Item            Qty          Amt');
+  if (is58mm) {
+    // 32 chars: Item (16) + Qty (6) + Amt (10)
+    writeTextLine('Item            Qty          Amt');
+  } else {
+    // 48 chars: Item (26) + Qty (8) + Amt (14)
+    writeTextLine('Item                        Qty              Amt');
+  }
   writeBytes(BOLD_OFF);
   
+  // Items
   items.forEach(i => {
-    const itemLeft = i.name.slice(0, 15).padEnd(16, ' ');
-    const qtyMid = String(i.qty).padStart(3, ' ').padEnd(8, ' ');
-    const amtRight = (i.price * i.qty).toFixed(2).padStart(8, ' ');
-    writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
+    if (is58mm) {
+      const itemLeft = i.name.slice(0, 15).padEnd(16, ' ');
+      const qtyMid = String(i.qty).padStart(3, ' ').padEnd(6, ' ');
+      const amtRight = (i.price * i.qty).toFixed(2).padStart(10, ' ');
+      writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
+    } else {
+      const itemLeft = i.name.slice(0, 25).padEnd(26, ' ');
+      const qtyMid = String(i.qty).padStart(4, ' ').padEnd(8, ' ');
+      const amtRight = (i.price * i.qty).toFixed(2).padStart(14, ' ');
+      writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
+    }
     if (i.selectedModifiers && i.selectedModifiers.length > 0) {
       writeTextLine(`  + ${i.selectedModifiers.map(m => m.name).join(', ')}`);
     }
   });
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   
-  writeTextLine(`Subtotal:      ${(order.subtotal ?? 0).toFixed(2).padStart(17, ' ')}`);
+  // Totals breakdown
+  const formatTotalLine = (label, valueStr) => {
+    const space = lineWidth - label.length - valueStr.length;
+    return label + ' '.repeat(Math.max(1, space)) + valueStr;
+  };
+
+  writeTextLine(formatTotalLine('Subtotal:', (order.subtotal ?? 0).toFixed(2)));
   
   if (order.discountAmount && order.discountAmount > 0) {
     const discLabel = `Discount${order.discountType === 'percent' ? `(${order.discount}%)` : ''}:`;
-    writeTextLine(`${discLabel.padEnd(15, ' ')}-${(order.discountAmount).toFixed(2).padStart(16, ' ')}`);
+    writeTextLine(formatTotalLine(discLabel, `-${(order.discountAmount).toFixed(2)}`));
   }
   
   (taxInfo?.lines ?? []).forEach(l => {
-    const label = `${l.label}:`.padEnd(15, ' ');
-    writeTextLine(`${label}${l.amount.toFixed(2).padStart(17, ' ')}`);
+    writeTextLine(formatTotalLine(`${l.label}:`, l.amount.toFixed(2)));
   });
   
   writeBytes(BOLD_ON);
-  writeTextLine(`TOTAL (${currency}): ${(order.total ?? 0).toFixed(2).padStart(15, ' ')}`);
+  writeTextLine(formatTotalLine(`TOTAL (${currency}):`, (order.total ?? 0).toFixed(2)));
   writeBytes(BOLD_OFF);
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   writeBytes(ALIGN_CENTER);
   writeTextLine(`Payment: ${(order.paymentMethod ?? 'cash').toUpperCase()}`);
   if (order.upiRef) {
@@ -152,8 +182,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   writeTextLine('Thank you for dining with us!');
   writeTextLine(`Order ID: ${order.id?.slice(-8) ?? ''}`);
   
-  writeBytes(LF);
-  writeBytes(LF);
+  writeBytes([LF, LF]);
   writeBytes(CUT);
   
   return new Uint8Array(buffer);
@@ -161,6 +190,9 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
 
 // Compile kitchen station ticket for ESC/POS
 function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) {
+  const lineWidth = getPrinterLineWidth(printerConfig);
+  const is58mm = lineWidth === 32;
+
   const ESC = 27;
   const GS = 29;
   const LF = 10;
@@ -185,6 +217,8 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
     writeBytes(unicodeToEscPosBytes(text));
     writeBytes([LF]);
   };
+
+  const divider = '-'.repeat(lineWidth);
   
   writeBytes(INIT);
   
@@ -199,9 +233,9 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
   writeBytes(NORMAL_SIZE);
   writeBytes(BOLD_OFF);
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   writeBytes(ALIGN_LEFT);
-  writeTextLine(`Station: ${printerConfig.name}`);
+  writeTextLine(`Station: ${printerConfig?.name || 'Kitchen'}`);
   writeTextLine(`Date: ${new Date().toLocaleString()}`);
   
   const orderTypeLabel =
@@ -216,53 +250,166 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
   if (order.customerName) writeTextLine(`Customer: ${order.customerName}`);
   if (staffName) writeTextLine(`Staff: ${staffName}`);
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   
   writeBytes(BOLD_ON);
-  writeTextLine('Item                     Qty');
+  if (is58mm) {
+    // 32 chars: Item (26) + Qty (6)
+    writeTextLine('Item                          Qty');
+  } else {
+    // 48 chars: Item (40) + Qty (8)
+    writeTextLine('Item                                         Qty');
+  }
   writeBytes(BOLD_OFF);
   
   items.forEach(i => {
-    const itemLeft = i.name.slice(0, 24).padEnd(25, ' ');
-    const qtyRight = String(i.qty).padStart(3, ' ').padEnd(4, ' ');
-    writeTextLine(`${itemLeft}${qtyRight}`);
+    if (is58mm) {
+      const itemLeft = i.name.slice(0, 25).padEnd(26, ' ');
+      const qtyRight = String(i.qty).padStart(4, ' ').padEnd(6, ' ');
+      writeTextLine(`${itemLeft}${qtyRight}`);
+    } else {
+      const itemLeft = i.name.slice(0, 39).padEnd(40, ' ');
+      const qtyRight = String(i.qty).padStart(5, ' ').padEnd(8, ' ');
+      writeTextLine(`${itemLeft}${qtyRight}`);
+    }
     if (i.selectedModifiers && i.selectedModifiers.length > 0) {
       writeTextLine(`  + ${i.selectedModifiers.map(m => m.name).join(', ')}`);
     }
   });
   
-  writeTextLine('--------------------------------');
+  writeTextLine(divider);
   if (order.note) {
     writeTextLine(`Note: ${order.note}`);
-    writeTextLine('--------------------------------');
+    writeTextLine(divider);
   }
   writeTextLine(`Order ID: ${order.id?.slice(-8) ?? ''}`);
   
-  writeBytes(LF);
-  writeBytes(LF);
+  writeBytes([LF, LF]);
   writeBytes(CUT);
   
   return new Uint8Array(buffer);
 }
 
-async function sendToBluetoothPrinter(buffer) {
-  // [ESC/POS Bluetooth] Connecting to Bluetooth Printer
-  toast.success('Pairing with Bluetooth Printer...');
+// Global cached Bluetooth printer connection
+let cachedBleDevice = null;
+let cachedBleCharacteristic = null;
+
+// Universal Web Bluetooth Thermal ESC/POS Driver
+export async function pairBluetoothPrinter() {
+  if (!navigator.bluetooth) {
+    toast.error('Web Bluetooth is not supported on this browser. Please use Chrome or Edge.');
+    return null;
+  }
+
   try {
-    if (!navigator.bluetooth) {
-      throw new Error('Web Bluetooth is not supported on this browser / device.');
-    }
+    toast.loading('Searching for Bluetooth Thermal Printers...', { id: 'ble-pair' });
+    
+    // Standard thermal printer service UUIDs (Chinese POS, ESC/POS, Star, Epson, Rongta, MPT, Sunmi)
+    const printerServices = [
+      '000018f0-0000-1000-8000-00805f9b34fb', // Standard ESC/POS
+      '0000ffe0-0000-1000-8000-00805f9b34fb', // HMSoft / Common 58mm/80mm BLE
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC transparent UART
+      'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+      '0000fee7-0000-1000-8000-00805f9b34fb',
+      '0000af30-0000-1000-8000-00805f9b34fb'
+    ];
+
     const device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: ['printer_service'] }, { namePrefix: 'Receipt' }]
+      acceptAllDevices: true,
+      optionalServices: printerServices
     });
-    await device.gatt.connect();
+
+    device.addEventListener('gattserverdisconnected', () => {
+      console.warn('[Web Bluetooth] Printer disconnected:', device.name);
+      cachedBleDevice = null;
+      cachedBleCharacteristic = null;
+    });
+
+    const server = await device.gatt.connect();
+    
+    // Scan services to find writable characteristic
+    let writeChar = null;
+    for (const serviceUuid of printerServices) {
+      try {
+        const service = await server.getPrimaryService(serviceUuid);
+        const chars = await service.getCharacteristics();
+        for (const c of chars) {
+          if (c.properties.write || c.properties.writeWithoutResponse) {
+            writeChar = c;
+            break;
+          }
+        }
+        if (writeChar) break;
+      } catch {
+        // Continue to next service
+      }
+    }
+
+    if (!writeChar) {
+      // Fallback: search all available services
+      const services = await server.getPrimaryServices();
+      for (const s of services) {
+        try {
+          const chars = await s.getCharacteristics();
+          for (const c of chars) {
+            if (c.properties.write || c.properties.writeWithoutResponse) {
+              writeChar = c;
+              break;
+            }
+          }
+          if (writeChar) break;
+        } catch {}
+      }
+    }
+
+    if (!writeChar) {
+      throw new Error('Connected to Bluetooth device, but could not find a writable printer characteristic.');
+    }
+
+    cachedBleDevice = device;
+    cachedBleCharacteristic = writeChar;
+    toast.success(`Connected to ${device.name || 'Bluetooth Thermal Printer'}!`, { id: 'ble-pair' });
+    return device;
+  } catch (err) {
+    console.error('[Web Bluetooth Pair Error]', err);
+    if (err.name !== 'NotFoundError') {
+      toast.error(err.message || 'Failed to pair Bluetooth printer', { id: 'ble-pair' });
+    } else {
+      toast.dismiss('ble-pair');
+    }
+    return null;
+  }
+}
+
+async function sendToBluetoothPrinter(buffer) {
+  try {
+    // Check if we have an active connected characteristic
+    if (!cachedBleDevice || !cachedBleDevice.gatt.connected || !cachedBleCharacteristic) {
+      const device = await pairBluetoothPrinter();
+      if (!device || !cachedBleCharacteristic) return;
+    }
+
+    // Packet chunking: send in 50-byte chunks to avoid Bluetooth buffer overflow
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
+      const chunk = buffer.slice(i, i + CHUNK_SIZE);
+      if (cachedBleCharacteristic.properties.writeWithoutResponse) {
+        await cachedBleCharacteristic.writeValueWithoutResponse(chunk);
+      } else {
+        await cachedBleCharacteristic.writeValue(chunk);
+      }
+      await new Promise(r => setTimeout(r, 20));
+    }
+    toast.success('Printed via Bluetooth! 🖨️');
   } catch (e) {
-    console.warn('[ESC/POS Bluetooth Emulator Fallback] Web Bluetooth not completed in this context:', e.message);
+    console.warn('[ESC/POS Bluetooth Error]', e);
+    toast.error('Bluetooth print failed: ' + (e.message || 'Disconnected'));
+    cachedBleDevice = null;
+    cachedBleCharacteristic = null;
   }
 }
 
 async function sendToSerialPrinter(buffer) {
-  // [ESC/POS Serial] Writing to COM Port
   toast.success('Accessing Serial Printer Port...');
   try {
     if (!navigator.serial) {
@@ -275,13 +422,11 @@ async function sendToSerialPrinter(buffer) {
     writer.releaseLock();
     await port.close();
   } catch (e) {
-    console.warn('[ESC/POS Serial Emulator Fallback] Web Serial not completed in this context:', e.message);
-    // Debug hex output
+    console.warn('[ESC/POS Serial Error]', e.message);
   }
 }
 
 async function sendToNetworkPrinter(ipAddress, buffer) {
-  // [ESC/POS Network] Sending raw print job
   toast.success(`Sending print job to network printer ${ipAddress}...`);
   try {
     await fetch(`http://${ipAddress}/print`, {
@@ -290,8 +435,7 @@ async function sendToNetworkPrinter(ipAddress, buffer) {
       body: buffer
     });
   } catch (e) {
-    console.warn('[ESC/POS Network Emulator Fallback] Network post bypassed:', e.message);
-    // Debug network transmission
+    console.warn('[ESC/POS Network Error]', e.message);
   }
 }
 
@@ -301,13 +445,13 @@ export function printReceipt({ restaurant, order, items, taxInfo, staffName }) {
   const receiptPrinters = printers.filter(p => p.type === 'receipt');
 
   if (receiptPrinters.length === 0) {
-    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName });
+    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: '80mm' });
     return;
   }
 
   receiptPrinters.forEach(printer => {
     if (printer.mode === 'browser') {
-      printReceiptBrowser({ restaurant, order, items, taxInfo, staffName });
+      printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: printer.paperSize || '80mm' });
     } else {
       const buffer = compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig: printer });
       if (printer.mode === 'bluetooth') {
@@ -342,14 +486,13 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
     });
 
     if (routedItems.length === 0) {
-      // No items to route to kitchen printer
       return;
     }
 
     if (printer.mode === 'browser') {
-      printKitchenBrowser({ order, items: routedItems, printerName: printer.name });
+      printKitchenBrowser({ order, items: routedItems, printerName: printer.name, paperSize: printer.paperSize || '80mm' });
     } else {
-      const buffer = compileEscPosKitchenTicket({ restaurant, order, items: routedItems, staffName, printerConfig: printer });
+      const buffer = compileEscPosKitchenTicket({ order, items: routedItems, staffName, printerConfig: printer });
       if (printer.mode === 'bluetooth') {
         sendToBluetoothPrinter(buffer);
       } else if (printer.mode === 'serial') {
@@ -361,17 +504,56 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
   });
 }
 
-function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName }) {
+// Dedicated single station ticket for KDS on-demand reprints
+export function printSingleKitchenTicket({ restaurant, order, items, staffName, printerId }) {
+  const printers = restaurant?.peripheralConfig?.printers ?? [];
+  const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
+  const targetPrinter = (printerId ? kitchenPrinters.find(p => p.id === printerId) : null) || kitchenPrinters[0];
+
+  const orderItems = items || order?.items || [];
+  if (orderItems.length === 0) {
+    toast.error('No items to print on kitchen ticket');
+    return;
+  }
+
+  if (!targetPrinter || targetPrinter.mode === 'browser') {
+    printKitchenBrowser({
+      order,
+      items: orderItems,
+      printerName: targetPrinter?.name || 'Kitchen / KDS Station',
+      paperSize: targetPrinter?.paperSize || '80mm'
+    });
+    return;
+  }
+
+  const buffer = compileEscPosKitchenTicket({
+    order,
+    items: orderItems,
+    staffName: staffName || order?.staffName,
+    printerConfig: targetPrinter
+  });
+
+  if (targetPrinter.mode === 'bluetooth') {
+    sendToBluetoothPrinter(buffer);
+  } else if (targetPrinter.mode === 'serial') {
+    sendToSerialPrinter(buffer);
+  } else if (targetPrinter.mode === 'network') {
+    sendToNetworkPrinter(targetPrinter.ipAddress, buffer);
+  }
+}
+
+function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize = '80mm' }) {
   const { currency = 'INR', name: restName, address = '', phone = '' } = restaurant ?? {};
-  const win = window.open('', '_blank', 'width=340,height=600');
+  const is58mm = paperSize === '58mm';
+  const win = window.open('', '_blank', 'width=360,height=600');
   if (!win) { alert('Please allow popups to print receipts.'); return; }
 
   const itemRows = items.map(i =>
     `<tr>
       <td>
-        <div>${i.name}</div>
+        <div style="font-weight: ${is58mm ? 'bold' : 'normal'};">${i.name}</div>
         ${i.selectedModifiers && i.selectedModifiers.length > 0
-          ? `<div style="font-size:10px; color:#555; padding-left:2mm;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</div>`
+          ? `<div style="font-size:9px; color:#555; padding-left:1mm;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</div>`
           : ''}
       </td>
       <td style="text-align:center; vertical-align:top;">${i.qty}</td>
@@ -392,29 +574,39 @@ function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName }) {
     ? `<tr><td colspan="2">Discount${order.discountType === 'percent' ? ` (${order.discount}%)` : ''}</td><td style="text-align:right">-${order.discountAmount.toFixed(2)}</td></tr>`
     : '';
 
+  const bodyWidth = is58mm ? '52mm' : '76mm';
+  const baseFontSize = is58mm ? '10.5px' : '12px';
+  const titleSize = is58mm ? '14px' : '17px';
+
   win.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8"/>
+<title>Receipt - ${order.id?.slice(-8) ?? ''}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    width: 80mm;
+    width: ${bodyWidth};
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: ${baseFontSize};
     color: #000;
-    padding: 4mm 3mm;
+    padding: ${is58mm ? '2mm 1mm' : '4mm 3mm'};
+    line-height: 1.25;
   }
   .center { text-align: center; }
   .bold   { font-weight: bold; }
-  .large  { font-size: 16px; }
+  .large  { font-size: ${titleSize}; letter-spacing: -0.5px; }
   .divider { border-top: 1px dashed #000; margin: 4px 0; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2px 0; vertical-align: top; }
   td:last-child { white-space: nowrap; }
-  .total-row td { font-weight: bold; font-size: 14px; border-top: 1px solid #000; }
-  .footer { margin-top: 8px; font-size: 11px; text-align: center; color: #555; }
+  .total-row td { font-weight: bold; font-size: ${is58mm ? '12px' : '14px'}; border-top: 1px solid #000; padding-top: 3px; }
+  .footer { margin-top: 8px; font-size: 10px; text-align: center; color: #444; }
+  @media print {
+    body { width: 100%; }
+    @page { margin: 0; size: auto; }
+  }
 </style>
 </head>
 <body>
@@ -425,7 +617,7 @@ ${restaurant?.gstin ? `<div class="center bold">GSTIN: ${restaurant.gstin}</div>
 ${restaurant?.fssai ? `<div class="center">FSSAI Lic: ${restaurant.fssai}</div>` : ''}
 <div class="divider"></div>
 <div>Date: ${new Date().toLocaleString()}</div>
-<div>${orderTypeLabel}</div>
+<div class="bold">${orderTypeLabel}</div>
 ${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
 ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 <div class="divider"></div>
@@ -449,27 +641,28 @@ ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 </table>
 <div class="divider"></div>
 <div>Payment: ${(order.paymentMethod ?? 'cash').toUpperCase()}</div>
-${order.upiRef ? `<div style="font-size:11px">UPI Ref: ${order.upiRef}</div>` : ''}
+${order.upiRef ? `<div style="font-size:10px">UPI Ref: ${order.upiRef}</div>` : ''}
 <div class="footer">Thank you for dining with us!<br/>Order ID: ${order.id?.slice(-8) ?? ''}</div>
 </body>
 </html>
 `);
   win.document.close();
   win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 500);
+  setTimeout(() => { win.print(); win.close(); }, 400);
 }
 
-function printKitchenBrowser({ order, items, printerName }) {
-  const win = window.open('', '_blank', 'width=300,height=400');
+function printKitchenBrowser({ order, items, printerName, paperSize = '80mm' }) {
+  const is58mm = paperSize === '58mm';
+  const win = window.open('', '_blank', 'width=360,height=480');
   if (!win) return;
 
   const itemRows = items.map(i =>
     `<tr>
-      <td style="font-size: 16px; font-weight: bold; vertical-align: top;">${i.name}</td>
-      <td style="font-size: 18px; font-weight: bold; text-align: right; vertical-align: top;">×${i.qty}</td>
+      <td style="font-size: ${is58mm ? '13px' : '16px'}; font-weight: bold; vertical-align: top; padding-right: 6px;">${i.name}</td>
+      <td style="font-size: ${is58mm ? '15px' : '18px'}; font-weight: 900; text-align: right; vertical-align: top;">×${i.qty}</td>
     </tr>
     ${i.selectedModifiers && i.selectedModifiers.length > 0
-      ? `<tr><td colspan="2" style="font-size:12px; color:#333; padding-left:4mm; padding-bottom: 4px;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</td></tr>`
+      ? `<tr><td colspan="2" style="font-size:11px; color:#222; font-weight:bold; padding-left:2mm; padding-bottom: 4px;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</td></tr>`
       : ''}`
   ).join('');
 
@@ -478,39 +671,55 @@ function printKitchenBrowser({ order, items, printerName }) {
     order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
     `Online`;
 
+  const bodyWidth = is58mm ? '52mm' : '76mm';
+
   win.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8"/>
+<title>Kitchen Ticket - ${order.tableName || order.token || ''}</title>
 <style>
-  body { width: 72mm; font-family: 'Courier New', monospace; font-size: 12px; padding: 4mm 3mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: ${bodyWidth};
+    font-family: 'Courier New', monospace;
+    font-size: ${is58mm ? '11px' : '13px'};
+    padding: ${is58mm ? '3mm 2mm' : '4mm 3mm'};
+    line-height: 1.25;
+  }
   .center { text-align: center; }
   .bold { font-weight: bold; }
-  .large { font-size: 20px; }
-  .divider { border-top: 1px dashed #000; margin: 6px 0; }
+  .large { font-size: ${is58mm ? '16px' : '20px'}; }
+  .divider { border-top: 1.5px dashed #000; margin: 5px 0; }
   table { width: 100%; border-collapse: collapse; }
-  td { padding: 4px 0; }
+  td { padding: 3px 0; }
+  @media print {
+    body { width: 100%; }
+    @page { margin: 0; size: auto; }
+  }
 </style>
 </head>
 <body>
 <div class="center bold large">KITCHEN TICKET</div>
-<div class="center bold">Station: ${printerName}</div>
+<div class="center bold" style="font-size: ${is58mm ? '12px' : '14px'};">Station: ${printerName}</div>
 <div class="divider"></div>
-<div style="font-size: 14px; font-weight: bold;">Order Type: ${orderTypeLabel}</div>
-<div>Date: ${new Date().toLocaleString()}</div>
+<div style="font-size: ${is58mm ? '13px' : '15px'}; font-weight: 900;">${orderTypeLabel}</div>
+<div>Time: ${new Date().toLocaleTimeString()}</div>
+${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
 <div class="divider"></div>
 <table>
   <tbody>${itemRows}</tbody>
 </table>
 <div class="divider"></div>
-${order.note ? `<div style="font-size:13px; font-style:italic;">Note: ${order.note}</div><div class="divider"></div>` : ''}
-<div class="center" style="font-size: 10px; color: #555;">Order ID: ${order.id?.slice(-8) ?? ''}</div>
+${order.note ? `<div style="font-size:${is58mm ? '12px' : '14px'}; font-weight:bold; background:#eee; padding:2px 4px; margin: 2px 0;">⚠️ Note: ${order.note}</div><div class="divider"></div>` : ''}
+<div class="center" style="font-size: 10px; color: #444;">Order #${order.id?.slice(-6) ?? ''}</div>
 </body>
 </html>
 `);
   win.document.close();
   win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 500);
+  setTimeout(() => { win.print(); win.close(); }, 400);
 }
 
 export function printTokenTicket({ token, orderType, customerName, restaurant }) {
@@ -520,12 +729,18 @@ export function printTokenTicket({ token, orderType, customerName, restaurant })
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8"/>
+<title>Token #${token}</title>
 <style>
-  body { width: 72mm; font-family: 'Courier New', monospace; text-align: center; padding: 6mm 3mm; }
-  .token { font-size: 64px; font-weight: bold; margin: 8px 0; }
-  .label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #555; }
-  .divider { border-top: 1px dashed #000; margin: 6px 0; }
-  .brand { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+  body { width: 68mm; font-family: 'Courier New', monospace; text-align: center; padding: 6mm 3mm; margin: 0 auto; }
+  .token { font-size: 58px; font-weight: 900; margin: 6px 0; letter-spacing: -1px; }
+  .label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #444; font-weight: bold; }
+  .divider { border-top: 1.5px dashed #000; margin: 6px 0; }
+  .brand { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
+  @media print {
+    body { width: 100%; }
+    @page { margin: 0; size: auto; }
+  }
 </style>
 </head>
 <body>
@@ -534,9 +749,9 @@ export function printTokenTicket({ token, orderType, customerName, restaurant })
 <div class="label">Your Token Number</div>
 <div class="token">${String(token).padStart(3, '0')}</div>
 <div class="divider"></div>
-<div class="label">${orderType === 'dine-in' ? '🍽 Dine In' : '🛍 Pickup'}</div>
-${customerName ? `<div style="margin-top:4px;font-size:12px">${customerName}</div>` : ''}
-<div style="font-size:11px;color:#888;margin-top:6px">${new Date().toLocaleTimeString()}</div>
+<div class="label">${orderType === 'dine-in' ? '🍽 Dine In' : '🛍 Takeaway / Pickup'}</div>
+${customerName ? `<div style="margin-top:4px;font-size:12px;font-weight:bold;">${customerName}</div>` : ''}
+<div style="font-size:10px;color:#666;margin-top:6px">${new Date().toLocaleTimeString()}</div>
 </body>
 </html>
 `);

@@ -5,8 +5,9 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'fireb
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
-import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell } from 'lucide-react';
+import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
+import { pairBluetoothPrinter, printReceipt, printSingleKitchenTicket } from '../../utils/print';
 import toast from 'react-hot-toast';
 
 const MODES = [
@@ -62,6 +63,7 @@ export default function Settings() {
     name: '',
     type: 'receipt', // receipt, kitchen
     mode: 'browser', // browser, bluetooth, serial, network
+    paperSize: '80mm', // 80mm (3-inch) or 58mm (2-inch)
     ipAddress: '',
     drawerKick: false,
     soundAlerts: false,
@@ -74,6 +76,7 @@ export default function Settings() {
       name: '',
       type: 'receipt',
       mode: 'browser',
+      paperSize: '80mm',
       ipAddress: '',
       drawerKick: false,
       soundAlerts: false,
@@ -89,6 +92,7 @@ export default function Settings() {
       name: printer.name || '',
       type: printer.type || 'receipt',
       mode: printer.mode || 'browser',
+      paperSize: printer.paperSize || '80mm',
       ipAddress: printer.ipAddress || '',
       drawerKick: printer.drawerKick || false,
       soundAlerts: printer.soundAlerts || false,
@@ -1375,7 +1379,18 @@ export default function Settings() {
                                   background: printer.type === 'receipt' ? 'rgba(52, 199, 89, 0.1)' : 'rgba(0, 122, 255, 0.1)',
                                   color: printer.type === 'receipt' ? 'var(--color-success)' : 'var(--color-accent)'
                                 }}>
-                                  {printer.type}
+                                  {printer.type === 'receipt' ? 'Receipt' : 'Kitchen / KDS'}
+                                </span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 'var(--weight-bold)',
+                                  padding: '2px 8px',
+                                  borderRadius: 'var(--radius-full)',
+                                  background: 'var(--color-bg-tertiary)',
+                                  color: 'var(--color-label-secondary)',
+                                  border: '1px solid var(--color-separator-opaque)'
+                                }}>
+                                  {printer.paperSize === '58mm' ? '2" (58mm)' : '3" (80mm)'}
                                 </span>
                               </div>
                               <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '4px' }}>
@@ -1394,20 +1409,40 @@ export default function Settings() {
                               type="button"
                               className="btn btn-secondary btn-sm"
                               onClick={() => {
-                                toast.success(`Simulating printer check for ${printer.name}...`);
-                                console.log(`%c[ESC/POS Print Engine Test: ${printer.name}]`, 'color:#3b82f6;font-weight:bold;', {
-                                  name: printer.name,
-                                  type: printer.type,
-                                  mode: printer.mode,
-                                  ip: printer.ipAddress || 'N/A',
-                                  drawerKick: printer.drawerKick ? 'ENABLED' : 'DISABLED',
-                                  soundAlerts: printer.soundAlerts ? 'ENABLED' : 'DISABLED',
-                                  categoriesRouted: printer.categories
-                                });
+                                toast.success(`Sending test print to ${printer.name}... 🖨️`);
+                                const testOrder = {
+                                  id: 'TEST-' + Math.floor(1000 + Math.random() * 9000),
+                                  type: printer.type === 'kitchen' ? 'dine-in' : 'takeaway',
+                                  tableName: 'T1',
+                                  token: '99',
+                                  subtotal: 350,
+                                  total: 350,
+                                  paymentMethod: 'cash'
+                                };
+                                const testItems = [
+                                  { name: 'Test Sample Burger', qty: 1, price: 250 },
+                                  { name: 'Iced Lemonade', qty: 1, price: 100 }
+                                ];
+                                if (printer.type === 'kitchen') {
+                                  printSingleKitchenTicket({
+                                    restaurant: settings,
+                                    order: testOrder,
+                                    items: testItems,
+                                    staffName: 'Admin',
+                                    printerId: printer.id
+                                  });
+                                } else {
+                                  printReceipt({
+                                    restaurant: settings,
+                                    order: testOrder,
+                                    items: testItems,
+                                    staffName: 'Admin'
+                                  });
+                                }
                               }}
                               style={{ padding: '0 var(--space-2)', height: '32px', fontSize: '11px' }}
                             >
-                              Test
+                              Test Print
                             </button>
                             <button
                               type="button"
@@ -1459,31 +1494,80 @@ export default function Settings() {
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                         <div className="form-group">
-                          <label className="form-label">Printer Type</label>
+                          <label className="form-label">Printer Role</label>
                           <select
                             className="form-select"
                             value={printerForm.type}
                             onChange={e => setPrinterForm({ ...printerForm, type: e.target.value, categories: e.target.value === 'receipt' ? [] : printerForm.categories })}
                           >
-                            <option value="receipt">Receipt (Cashier/Customer)</option>
-                            <option value="kitchen">Kitchen / Station Ticket</option>
+                            <option value="receipt">Receipt (Cashier / Customer)</option>
+                            <option value="kitchen">Kitchen / KDS Station Ticket</option>
                           </select>
                         </div>
 
                         <div className="form-group">
-                          <label className="form-label">Connection Mode</label>
+                          <label className="form-label">Thermal Paper Size</label>
                           <select
                             className="form-select"
-                            value={printerForm.mode}
-                            onChange={e => setPrinterForm({ ...printerForm, mode: e.target.value, ipAddress: e.target.value !== 'network' ? '' : printerForm.ipAddress })}
+                            value={printerForm.paperSize || '80mm'}
+                            onChange={e => setPrinterForm({ ...printerForm, paperSize: e.target.value })}
                           >
-                            <option value="browser">Browser Print Dialog</option>
-                            <option value="bluetooth">Web Bluetooth ESC/POS</option>
-                            <option value="serial">Web Serial COM Port</option>
-                            <option value="network">Network IP / Print Server</option>
+                            <option value="80mm">3-inch (80mm) — Standard Counter / Kitchen (48 cols)</option>
+                            <option value="58mm">2-inch (58mm) — Mobile / Portable Bluetooth (32 cols)</option>
                           </select>
                         </div>
                       </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Connection Mode</label>
+                        <select
+                          className="form-select"
+                          value={printerForm.mode}
+                          onChange={e => setPrinterForm({ ...printerForm, mode: e.target.value, ipAddress: e.target.value !== 'network' ? '' : printerForm.ipAddress })}
+                        >
+                          <option value="browser">Browser Print Dialog (System Default)</option>
+                          <option value="bluetooth">Web Bluetooth ESC/POS (Direct Wireless)</option>
+                          <option value="serial">Web Serial COM Port (USB / RS232)</option>
+                          <option value="network">Network IP / Ethernet Print Server</option>
+                        </select>
+                      </div>
+
+                      {printerForm.mode === 'bluetooth' && (
+                        <div style={{
+                          padding: '10px 14px',
+                          background: 'rgba(0, 122, 255, 0.08)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid rgba(0, 122, 255, 0.25)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Bluetooth size={18} color="var(--color-accent)" />
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)' }}>
+                                Wireless Bluetooth Setup
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                                Pair 2" (58mm) or 3" (80mm) thermal printer via browser
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={async () => {
+                              const dev = await pairBluetoothPrinter();
+                              if (dev) {
+                                setPrinterForm(f => ({ ...f, name: f.name || dev.name || 'Bluetooth Thermal' }));
+                              }
+                            }}
+                            style={{ height: 32, fontSize: 11, padding: '0 12px' }}
+                          >
+                            Pair Device
+                          </button>
+                        </div>
+                      )}
 
                       {printerForm.mode === 'network' && (
                         <div className="form-group">

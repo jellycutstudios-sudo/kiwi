@@ -16,8 +16,10 @@ import {
   Volume2, 
   VolumeX, 
   Check, 
-  Timer
+  Timer,
+  Printer
 } from 'lucide-react';
+import { printSingleKitchenTicket } from '../utils/print';
 
 const STATIONS = ['All', 'Kitchen', 'Grill', 'Fryer', 'Cold', 'Bar', 'Bakery'];
 
@@ -644,17 +646,51 @@ export default function KDS() {
                       </div>
                     </div>
                     
-                    {/* Status Pill */}
-                    <div style={{
-                      padding: '4px 10px',
-                      borderRadius: 8,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      background: order.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(168, 85, 247, 0.25)',
-                      color: order.status === 'pending' ? '#f59e0b' : '#c084fc',
-                      border: order.status === 'pending' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(168, 85, 247, 0.5)'
-                    }}>
-                      {order.status === 'pending' ? '⏳ WAITING' : '🍳 COOKING'}
+                    {/* Action & Status Pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          printSingleKitchenTicket({
+                            restaurant,
+                            order,
+                            items: order.items,
+                            staffName: order.staffName
+                          });
+                        }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.18)',
+                          color: '#e2e8f0',
+                          borderRadius: 8,
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          transition: 'all 0.15s ease'
+                        }}
+                        title="Print Kitchen Ticket to Thermal Printer"
+                      >
+                        <Printer size={13} />
+                        <span>Print</span>
+                      </button>
+
+                      {/* Status Pill */}
+                      <div style={{
+                        padding: '4px 10px',
+                        borderRadius: 8,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        background: order.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(168, 85, 247, 0.25)',
+                        color: order.status === 'pending' ? '#f59e0b' : '#c084fc',
+                        border: order.status === 'pending' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(168, 85, 247, 0.5)'
+                      }}>
+                        {order.status === 'pending' ? '⏳ WAITING' : '🍳 COOKING'}
+                      </div>
                     </div>
                   </div>
 
