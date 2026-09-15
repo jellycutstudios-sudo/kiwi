@@ -124,24 +124,24 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   // Table Header
   writeBytes(BOLD_ON);
   if (is58mm) {
-    // 32 chars: Item (16) + Qty (6) + Amt (10)
-    writeTextLine('Item            Qty          Amt');
+    // 32 chars: Item(16) + Qty(6) + Amt(10) = 32
+    writeTextLine('Item            Qty       Amt');
   } else {
-    // 48 chars: Item (26) + Qty (8) + Amt (14)
-    writeTextLine('Item                        Qty              Amt');
+    // 48 chars: Item(26) + Qty(8) + Amt(14) = 48
+    writeTextLine('Item                      Qty         Amt   ');
   }
   writeBytes(BOLD_OFF);
   
-  // Items
+  // Items — columns: 58mm: 16+6+10=32, 80mm: 26+8+14=48
   items.forEach(i => {
     if (is58mm) {
-      const itemLeft = i.name.slice(0, 15).padEnd(16, ' ');
-      const qtyMid = String(i.qty).padStart(3, ' ').padEnd(6, ' ');
+      const itemLeft = i.name.slice(0, 16).padEnd(16, ' ');
+      const qtyMid = String(i.qty).padStart(6, ' ');
       const amtRight = (i.price * i.qty).toFixed(2).padStart(10, ' ');
       writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
     } else {
-      const itemLeft = i.name.slice(0, 25).padEnd(26, ' ');
-      const qtyMid = String(i.qty).padStart(4, ' ').padEnd(8, ' ');
+      const itemLeft = i.name.slice(0, 26).padEnd(26, ' ');
+      const qtyMid = String(i.qty).padStart(8, ' ');
       const amtRight = (i.price * i.qty).toFixed(2).padStart(14, ' ');
       writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
     }
@@ -254,22 +254,23 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
   
   writeBytes(BOLD_ON);
   if (is58mm) {
-    // 32 chars: Item (26) + Qty (6)
-    writeTextLine('Item                          Qty');
+    // 32 chars: Item(26) + Qty(6) = 32
+    writeTextLine('Item                      Qty   ');
   } else {
-    // 48 chars: Item (40) + Qty (8)
-    writeTextLine('Item                                         Qty');
+    // 48 chars: Item(40) + Qty(8) = 48
+    writeTextLine('Item                                    Qty     ');
   }
   writeBytes(BOLD_OFF);
   
+  // Items — columns: 58mm: 26+6=32, 80mm: 40+8=48
   items.forEach(i => {
     if (is58mm) {
-      const itemLeft = i.name.slice(0, 25).padEnd(26, ' ');
-      const qtyRight = String(i.qty).padStart(4, ' ').padEnd(6, ' ');
+      const itemLeft = i.name.slice(0, 26).padEnd(26, ' ');
+      const qtyRight = String(i.qty).padStart(6, ' ');
       writeTextLine(`${itemLeft}${qtyRight}`);
     } else {
-      const itemLeft = i.name.slice(0, 39).padEnd(40, ' ');
-      const qtyRight = String(i.qty).padStart(5, ' ').padEnd(8, ' ');
+      const itemLeft = i.name.slice(0, 40).padEnd(40, ' ');
+      const qtyRight = String(i.qty).padStart(8, ' ');
       writeTextLine(`${itemLeft}${qtyRight}`);
     }
     if (i.selectedModifiers && i.selectedModifiers.length > 0) {
@@ -293,6 +294,9 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
 // Global cached Bluetooth printer connection
 let cachedBleDevice = null;
 let cachedBleCharacteristic = null;
+
+// Global cached Serial port connection
+let cachedSerialPort = null;
 
 // Universal Web Bluetooth Thermal ESC/POS Driver
 export async function pairBluetoothPrinter() {
@@ -410,19 +414,26 @@ async function sendToBluetoothPrinter(buffer) {
 }
 
 async function sendToSerialPrinter(buffer) {
-  toast.success('Accessing Serial Printer Port...');
   try {
     if (!navigator.serial) {
       throw new Error('Web Serial is not supported on this browser.');
     }
-    const port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 9600 });
-    const writer = port.writable.getWriter();
+    // Reuse cached port if still open, otherwise request a new one
+    if (!cachedSerialPort || !cachedSerialPort.readable === null) {
+      cachedSerialPort = await navigator.serial.requestPort();
+    }
+    if (!cachedSerialPort.readable) {
+      // Port not open yet — open it
+      await cachedSerialPort.open({ baudRate: 9600 });
+    }
+    const writer = cachedSerialPort.writable.getWriter();
     await writer.write(buffer);
     writer.releaseLock();
-    await port.close();
+    toast.success('Printed via Serial! 🖨️');
   } catch (e) {
     console.warn('[ESC/POS Serial Error]', e.message);
+    cachedSerialPort = null; // Reset on error
+    toast.error('Serial print failed: ' + (e.message || 'Port error'));
   }
 }
 
@@ -450,19 +461,30 @@ export function printReceipt({ restaurant, order, items, taxInfo, staffName }) {
   }
 
   receiptPrinters.forEach(printer => {
-    if (printer.mode === 'browser') {
-      printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: printer.paperSize || '80mm' });
-    } else {
-      const buffer = compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig: printer });
-      if (printer.mode === 'bluetooth') {
-        sendToBluetoothPrinter(buffer);
-      } else if (printer.mode === 'serial') {
-        sendToSerialPrinter(buffer);
-      } else if (printer.mode === 'network') {
-        sendToNetworkPrinter(printer.ipAddress, buffer);
-      }
-    }
+    _sendReceiptToPrinter({ restaurant, order, items, taxInfo, staffName, printer });
   });
+}
+
+// Internal: send receipt to a single specific printer (used by both printReceipt and test-print)
+function _sendReceiptToPrinter({ restaurant, order, items, taxInfo, staffName, printer }) {
+  if (printer.mode === 'browser') {
+    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: printer.paperSize || '80mm' });
+  } else {
+    const buffer = compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig: printer });
+    if (printer.mode === 'bluetooth') {
+      sendToBluetoothPrinter(buffer);
+    } else if (printer.mode === 'serial') {
+      sendToSerialPrinter(buffer);
+    } else if (printer.mode === 'network') {
+      sendToNetworkPrinter(printer.ipAddress, buffer);
+    }
+  }
+}
+
+// Send a test receipt to exactly one specific printer by its config object
+export function printReceiptSingle({ restaurant, order, items, taxInfo, staffName, printer }) {
+  if (!printer) return;
+  _sendReceiptToPrinter({ restaurant, order, items, taxInfo, staffName, printer });
 }
 
 // Loop through all kitchen printers, filter items by category, and send ticket
@@ -723,6 +745,14 @@ ${order.note ? `<div style="font-size:${is58mm ? '12px' : '14px'}; font-weight:b
 }
 
 export function printTokenTicket({ token, orderType, customerName, restaurant }) {
+  // Detect paper size from first receipt printer config, default to 80mm
+  const printers = restaurant?.peripheralConfig?.printers ?? [];
+  const receiptPrinter = printers.find(p => p.type === 'receipt');
+  const paperSize = receiptPrinter?.paperSize || '80mm';
+  const is58mm = paperSize === '58mm';
+  const bodyWidth = is58mm ? '52mm' : '72mm';
+  const tokenFontSize = is58mm ? '42px' : '58px';
+
   const win = window.open('', '_blank', 'width=280,height=300');
   if (!win) return;
   win.document.write(`
@@ -732,8 +762,8 @@ export function printTokenTicket({ token, orderType, customerName, restaurant })
 <meta charset="UTF-8"/>
 <title>Token #${token}</title>
 <style>
-  body { width: 68mm; font-family: 'Courier New', monospace; text-align: center; padding: 6mm 3mm; margin: 0 auto; }
-  .token { font-size: 58px; font-weight: 900; margin: 6px 0; letter-spacing: -1px; }
+  body { width: ${bodyWidth}; font-family: 'Courier New', monospace; text-align: center; padding: 6mm 3mm; margin: 0 auto; }
+  .token { font-size: ${tokenFontSize}; font-weight: 900; margin: 6px 0; letter-spacing: -1px; }
   .label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #444; font-weight: bold; }
   .divider { border-top: 1.5px dashed #000; margin: 6px 0; }
   .brand { font-size: 15px; font-weight: bold; margin-bottom: 2px; }

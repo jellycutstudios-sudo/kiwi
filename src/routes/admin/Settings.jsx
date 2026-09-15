@@ -7,7 +7,7 @@ import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
-import { pairBluetoothPrinter, printReceipt, printSingleKitchenTicket } from '../../utils/print';
+import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket } from '../../utils/print';
 import toast from 'react-hot-toast';
 
 const MODES = [
@@ -1432,11 +1432,13 @@ export default function Settings() {
                                     printerId: printer.id
                                   });
                                 } else {
-                                  printReceipt({
+                                  // Use printReceiptSingle to target only THIS printer, not all receipt printers
+                                  printReceiptSingle({
                                     restaurant: settings,
                                     order: testOrder,
                                     items: testItems,
-                                    staffName: 'Admin'
+                                    staffName: 'Admin',
+                                    printer
                                   });
                                 }
                               }}
