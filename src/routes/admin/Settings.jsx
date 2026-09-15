@@ -5,7 +5,8 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'fireb
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
-import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X } from 'lucide-react';
+import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell } from 'lucide-react';
+import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import toast from 'react-hot-toast';
 
 const MODES = [
@@ -32,7 +33,7 @@ const TABS = [
   { id: 'general',       label: 'General Settings',   icon: '⚙️' },
   { id: 'tax-pay',       label: 'Taxes & Payments',  icon: '💳' },
   { id: 'online-del',    label: 'Online & Delivery', icon: '📱' },
-  { id: 'notifications', label: 'Email & Reports',   icon: '✉️' },
+  { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔' },
   { id: 'hardware',      label: 'Peripherals',       icon: '🖨️' },
 ];
 
@@ -1027,9 +1028,170 @@ export default function Settings() {
             </>
           )}
 
-          {/* Email & Reports Tab */}
+          {/* Notifications & Reports Tab */}
           {activeTab === 'notifications' && (
             <>
+              {/* Live Kitchen & Service Notifications */}
+              <div className="card card-padded" style={{ marginBottom: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'var(--space-2)' }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    color: '#f59e0b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-title3" style={{ margin: 0 }}>🔔 Kitchen & Service Live Alerts</h3>
+                    <p className="text-secondary text-footnote" style={{ margin: 0, marginTop: 2 }}>
+                      Configure sound alerts, tone presets, and waiter popups when kitchen marks food as ready.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+                  {/* Cashier Chime Toggle */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Cashier Food Ready Alert</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Play audible chime and top toast on cashier terminal (no slide popup so checkout is never interrupted)
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.notifications?.cashierFoodReadyChime ?? true}
+                      onChange={e => updateField('notifications', { ...(settings.notifications || {}), cashierFoodReadyChime: e.target.checked })}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  {/* Waiter Chime Toggle */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Waiter Food Ready Sound Alert</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Play audible chime on waiter device when food is ready to serve
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.notifications?.waiterFoodReadyChime ?? true}
+                      onChange={e => updateField('notifications', { ...(settings.notifications || {}), waiterFoodReadyChime: e.target.checked })}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  {/* Waiter Slide-to-Serve Popup Toggle */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Assigned Waiter Slide-to-Serve Popup</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Exclusively shows interactive slide-to-serve card on the assigned waiter's device
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.notifications?.waiterSlidePopupEnabled ?? true}
+                      onChange={e => updateField('notifications', { ...(settings.notifications || {}), waiterSlidePopupEnabled: e.target.checked })}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  {/* Device Vibration Toggle */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Vibrate Mobile & Tablet Devices</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Trigger haptic vibration pulse on mobile waiter devices when food is ready
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.notifications?.vibrateOnReady ?? true}
+                      onChange={e => updateField('notifications', { ...(settings.notifications || {}), vibrateOnReady: e.target.checked })}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  {/* Chime Tone Selector with Live Preview */}
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-separator-opaque)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    marginTop: 4
+                  }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-label)' }}>
+                      Ready Chime Tone Preset
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <select
+                        className="form-input"
+                        value={settings.notifications?.readySoundTone ?? 'reception-bell'}
+                        onChange={e => updateField('notifications', { ...(settings.notifications || {}), readySoundTone: e.target.value })}
+                        style={{ flex: 1, minWidth: 200 }}
+                      >
+                        {TONE_PRESETS.map(tone => (
+                          <option key={tone.id} value={tone.id}>
+                            {tone.name} — {tone.desc}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => playNotificationTone(settings.notifications?.readySoundTone ?? 'reception-bell', 0.6)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40 }}
+                        title="Click to preview the selected chime sound"
+                      >
+                        <Volume2 size={16} /> Test Sound
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="card card-padded">
                 <h3 className="text-title3" style={{ marginBottom: 'var(--space-2)' }}>✉️ Daily Sales Email & Admin Notifications</h3>
                 <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>

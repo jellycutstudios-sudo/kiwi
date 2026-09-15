@@ -9,6 +9,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { Bell, Globe, Menu, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
@@ -345,6 +346,9 @@ export default function AppShell() {
           </div>
         </div>
       )}
+
+      {/* Interactive Waiter Ready Slide Popup */}
+      <WaiterReadySlidePopup />
     </div>
   );
 }

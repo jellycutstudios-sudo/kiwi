@@ -9,6 +9,7 @@ import { useTableStore } from './tableStore';
 import { useAuthStore } from './authStore';
 import { useShiftStore } from './shiftStore';
 import { useGiftCardStore } from './giftCardStore';
+import { playNotificationTone, vibrateDevice } from '../utils/soundNotifications';
 import toast from 'react-hot-toast';
 
 let activeOrdersUnsub = null;
@@ -401,7 +402,14 @@ export const useOrderStore = create((set, get) => ({
       loyaltyEarned: Math.floor(total / 10),
       loyaltyRedeemed: redeemingPoints && customer ? Math.round(pointsDiscount * 10) : 0,
       note,
-      staffId,
+      staffId: staffId ?? (useAuthStore.getState().staffDoc?.id ?? null),
+      staffName: useAuthStore.getState().staffDoc?.name ?? null,
+      assignedWaiterId: (useAuthStore.getState().staffDoc?.role === 'waiter') 
+        ? (useAuthStore.getState().staffDoc?.id) 
+        : (staffId ?? null),
+      assignedWaiterName: (useAuthStore.getState().staffDoc?.role === 'waiter') 
+        ? (useAuthStore.getState().staffDoc?.name) 
+        : null,
       updatedAt: serverTimestamp(),
       currency: restaurant?.currency ?? 'INR',
     };
@@ -703,10 +711,31 @@ export const useOrderStore = create((set, get) => ({
               if (!notified.has(orderId)) {
                 notified.add(orderId);
                 set({ notifiedReadyOrders: notified });
-                playChime();
-                
+
+                const currentRest = useAuthStore.getState().restaurant;
+                const currentStaff = useAuthStore.getState().staffDoc;
+                const currentRole = currentStaff?.role ?? 'admin';
+                const notifConfig = currentRest?.notifications ?? {};
+
+                const tone = notifConfig.readySoundTone || 'reception-bell';
+                const isCashier = ['cashier', 'admin', 'super_admin'].includes(currentRole);
+                const isWaiter = ['waiter', 'admin', 'super_admin'].includes(currentRole);
+
+                const shouldPlayCashier = isCashier && notifConfig.cashierFoodReadyChime !== false;
+                const shouldPlayWaiter = isWaiter && notifConfig.waiterFoodReadyChime !== false;
+
+                if (shouldPlayCashier || shouldPlayWaiter) {
+                  playNotificationTone(tone, 0.6);
+                  if (notifConfig.vibrateOnReady !== false) {
+                    vibrateDevice([200, 100, 200]);
+                  }
+                } else {
+                  playChime();
+                }
+
                 const orderDesc = data.tableName ? `Table ${data.tableName}` : `Takeaway #${orderId.slice(-4).toUpperCase()}`;
-                toast(`🍳 ${orderDesc} is READY to serve!`, { duration: 6000 });
+                const waiterAttribution = data.assignedWaiterName ? ` · Server: ${data.assignedWaiterName}` : '';
+                toast.success(`🍳 ${orderDesc} is READY to serve!${waiterAttribution}`, { duration: 6000, icon: '🔔' });
               }
             }
           }

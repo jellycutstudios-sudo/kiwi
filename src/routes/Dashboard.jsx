@@ -7,8 +7,10 @@ import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/f
 import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
-  Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle
+  Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle,
+  Zap, X, Check
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import {
   ResponsiveContainer,
@@ -26,11 +28,44 @@ export default function Dashboard() {
   const activeOrders = useOrderStore(s => s.activeOrders);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const categories = useMenuStore(s => s.categories);
-  const [todayStats, setTodayStats] = useState({ sales: 0, orders: 0, avg: 0, avgCookTime: 0, tableTurnover: 0, topItem: null, paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 } });
+  const settleOrder = useOrderStore(s => s.settleOrder);
+  const [todayStats, setTodayStats] = useState({ 
+    sales: 0, 
+    orders: 0, 
+    settledSales: 0, 
+    openSales: 0, 
+    totalSales: 0, 
+    settledOrders: 0, 
+    openOrders: 0, 
+    totalOrders: 0, 
+    avg: 0, 
+    avgCookTime: 0, 
+    tableTurnover: 0, 
+    topItem: null, 
+    paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 } 
+  });
+  const [salesViewMode, setSalesViewMode] = useState('pipeline'); // 'pipeline' | 'settled'
+  const [settleOrderModal, setSettleOrderModal] = useState(null);
+  const [settling, setSettling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [analyticsOrders, setAnalyticsOrders] = useState([]);
   const [tablesCount, setTablesCount] = useState(0);
   const currency = restaurant?.currency ?? 'INR';
+
+  const handleQuickSettle = async (order, method = 'cash') => {
+    if (!order?.id || !restaurant?.id) return;
+    try {
+      setSettling(true);
+      await settleOrder(restaurant.id, order.id, method, order.total);
+      const label = order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : `#${order.id.slice(-6).toUpperCase()}`);
+      toast.success(`${label} settled for ${formatCurrency(order.total, currency)} via ${method.toUpperCase()}!`, { icon: '💰' });
+      setSettleOrderModal(null);
+    } catch (err) {
+      toast.error('Failed to settle order: ' + err.message);
+    } finally {
+      setSettling(false);
+    }
+  };
 
   // Fetch completed orders for the last 7 days for Business Insights
   useEffect(() => {
@@ -243,10 +278,17 @@ export default function Dashboard() {
     }).catch(e => console.error(e));
 
     const unsub = onSnapshot(q, snap => {
-      const docs = snap.docs.map(d => d.data());
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const todayBilled = docs.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
-      const sales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
-      const orders = todayBilled.length;
+      const todayOpen = docs.filter(d => d.status !== 'billed' && (!d.paymentMethod || d.paymentMethod === 'unpaid') && d.status !== 'cancelled');
+
+      const billedSales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
+      const openSales = todayOpen.reduce((s, d) => s + (d.total ?? 0), 0);
+      const totalSales = billedSales + openSales;
+
+      const billedOrders = todayBilled.length;
+      const openOrders = todayOpen.length;
+      const totalOrders = billedOrders + openOrders;
       
       // Calculate Avg Cook Time
       const ordersWithPrep = todayBilled.filter(d => d.prepDuration > 0);
@@ -262,28 +304,30 @@ export default function Dashboard() {
         }
       });
 
-      // Top Item Today
+      // Top Item Today (across all orders today, billed and open)
       const itemCounts = {};
-      todayBilled.forEach(o => {
+      docs.filter(d => d.status !== 'cancelled').forEach(o => {
         (o.items || []).forEach(i => {
           if (!itemCounts[i.name]) itemCounts[i.name] = { name: i.name, qty: 0, emoji: i.emoji || '🍽️' };
           itemCounts[i.name].qty += (i.qty || 1);
         });
       });
       const topItem = Object.values(itemCounts).sort((a,b) => b.qty - a.qty)[0] || null;
-
-      // Table Turnover (Orders per table today)
-      // Note: we'll use tablesCount from state inside the render or effect, 
-      // but we calculate it dynamically below.
       
       setTodayStats({ 
-        sales, 
-        orders, 
-        avg: orders ? sales / orders : 0,
+        settledSales: billedSales,
+        openSales,
+        totalSales,
+        sales: billedSales,
+        orders: billedOrders,
+        settledOrders: billedOrders,
+        openOrders,
+        totalOrders,
+        avg: totalOrders ? totalSales / totalOrders : 0,
         avgCookTime,
         paymentSplit,
         topItem,
-        tableTurnover: 0 // Will be computed in render using tablesCount
+        tableTurnover: 0
       });
       setLoading(false);
     }, err => {
@@ -310,12 +354,62 @@ export default function Dashboard() {
     return staffDoc.name;
   }, [staffDoc?.name]);
 
+  const displayedSales = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
+  const displayedOrders = salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders;
+  const displayedAvg = displayedOrders ? displayedSales / displayedOrders : 0;
+
   const stats = [
-    { label: "Today's Sales", value: formatCurrency(todayStats.sales, currency), icon: TrendingUp, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', desc: 'Gross revenue today', highlight: true },
-    { label: 'Orders Today', value: todayStats.orders, icon: ShoppingCart, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', desc: 'Completed orders' },
-    { label: 'Avg. Bill Size',   value: formatCurrency(todayStats.avg, currency), icon: CheckCircle2, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', desc: 'Order ticket average', tooltip: 'The typical amount a customer spends per order' },
-    { label: 'Orders Cooking',   value: activeOrders.length, icon: Clock, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', desc: 'POS orders in progress', tooltip: 'Orders currently being prepared in the kitchen' },
-    { label: 'Waiting Online Orders', value: unreadOnlineCount, icon: Globe, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)', desc: 'Unread online orders', tooltip: 'Orders from Zomato/Swiggy waiting to be accepted' },
+    { 
+      label: "Today's Sales", 
+      value: formatCurrency(displayedSales, currency), 
+      icon: TrendingUp, 
+      color: '#10b981', 
+      bg: 'rgba(16, 185, 129, 0.1)', 
+      desc: todayStats.openSales > 0
+        ? (salesViewMode === 'pipeline'
+            ? `₹${todayStats.settledSales.toFixed(0)} billed · ₹${todayStats.openSales.toFixed(0)} live dining`
+            : `+ ₹${todayStats.openSales.toFixed(0)} open in kitchen`)
+        : 'Gross revenue today', 
+      highlight: true,
+      hasToggle: todayStats.openSales > 0
+    },
+    { 
+      label: 'Orders Today', 
+      value: displayedOrders, 
+      icon: ShoppingCart, 
+      color: '#3b82f6', 
+      bg: 'rgba(59, 130, 246, 0.1)', 
+      desc: todayStats.openOrders > 0 
+        ? `${todayStats.settledOrders} completed · ${todayStats.openOrders} dining`
+        : 'Completed orders' 
+    },
+    { 
+      label: 'Avg. Bill Size',   
+      value: formatCurrency(displayedAvg, currency), 
+      icon: CheckCircle2, 
+      color: '#f59e0b', 
+      bg: 'rgba(245, 158, 11, 0.1)', 
+      desc: 'Order ticket average', 
+      tooltip: 'The typical amount a customer spends per order' 
+    },
+    { 
+      label: 'Orders Cooking',   
+      value: activeOrders.length, 
+      icon: Clock, 
+      color: '#8b5cf6', 
+      bg: 'rgba(139, 92, 246, 0.1)', 
+      desc: 'POS orders in progress', 
+      tooltip: 'Orders currently being prepared in the kitchen' 
+    },
+    { 
+      label: 'Waiting Online Orders', 
+      value: unreadOnlineCount, 
+      icon: Globe, 
+      color: '#06b6d4', 
+      bg: 'rgba(6, 182, 212, 0.1)', 
+      desc: 'Unread online orders', 
+      tooltip: 'Orders from Zomato/Swiggy waiting to be accepted' 
+    },
   ];
 
   const orderStatusColors = {
@@ -445,14 +539,47 @@ export default function Dashboard() {
               fontSize: '28px', 
               fontWeight: 800, 
               lineHeight: 1.1,
-              marginTop: '4px'
+              marginTop: '4px',
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '6px'
             }}>
-              {loading ? <div className="skeleton" style={{ height: 28, width: 80, borderRadius: 6, background: s.highlight ? 'rgba(255,255,255,0.2)' : undefined }} /> : s.value}
+              <span>{loading ? <div className="skeleton" style={{ height: 28, width: 80, borderRadius: 6, background: s.highlight ? 'rgba(255,255,255,0.2)' : undefined }} /> : s.value}</span>
+              {s.hasToggle && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSalesViewMode(v => v === 'pipeline' ? 'settled' : 'pipeline');
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.22)',
+                    border: '1px solid rgba(255,255,255,0.4)',
+                    borderRadius: '999px',
+                    padding: '3px 8px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: '#fff',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    backdropFilter: 'blur(4px)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Switch between Realtime Total Pipeline and Settled-only revenue"
+                >
+                  <Zap size={11} fill="#fff" />
+                  {salesViewMode === 'pipeline' ? 'Live Pipeline' : 'Settled Only'}
+                </button>
+              )}
             </div>
 
             <span style={{ 
               fontSize: '11px', 
-              color: s.highlight ? 'rgba(255,255,255,0.7)' : 'var(--color-label-tertiary)',
+              color: s.highlight ? 'rgba(255,255,255,0.85)' : 'var(--color-label-tertiary)',
               marginTop: 'auto'
             }}>
               {s.desc}
@@ -468,6 +595,29 @@ export default function Dashboard() {
           <InfoTooltip text="Smart tips based on your live restaurant data today." />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {todayStats.openOrders > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', fontSize: '13px', padding: '10px 12px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #f59e0b', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <Zap size={16} color="#f59e0b" style={{ flexShrink: 0 }} />
+                <div>
+                  <strong>{todayStats.openOrders} dining orders active ({formatCurrency(todayStats.openSales, currency)}):</strong> 
+                  {' '}Kitchen in progress. Quick Settle is available when guests request the bill.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const firstOpen = activeOrders.find(o => o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid'));
+                  if (firstOpen) setSettleOrderModal(firstOpen);
+                  else window.location.href = '/orders';
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px' }}
+              >
+                <Zap size={12} /> Settle Order
+              </button>
+            </div>
+          )}
           {todayStats.avgCookTime > 20 && (
             <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-red)' }}>
               <AlertCircle size={16} color="var(--color-red)" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -486,7 +636,7 @@ export default function Dashboard() {
               <div><strong>Tables are turning slowly:</strong> Customers are staying longer. Ask staff to clear empty plates faster to free up tables for new walk-ins.</div>
             </div>
           )}
-          {(!todayStats.avgCookTime || todayStats.avgCookTime <= 20) && (!todayStats.paymentSplit.upi || todayStats.paymentSplit.upi <= (todayStats.orders * 0.5)) && (todayStats.tableTurnover >= 2 || tablesCount === 0 || todayStats.orders <= 5) && (
+          {todayStats.openOrders === 0 && (!todayStats.avgCookTime || todayStats.avgCookTime <= 20) && (!todayStats.paymentSplit.upi || todayStats.paymentSplit.upi <= (todayStats.orders * 0.5)) && (todayStats.tableTurnover >= 2 || tablesCount === 0 || todayStats.orders <= 5) && (
             <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontStyle: 'italic', padding: '4px' }}>
               Everything looks good so far today! Keep it up.
             </div>
@@ -607,7 +757,7 @@ export default function Dashboard() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
-                      {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Status'].map(h => (
+                      {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Status', 'Action'].map(h => (
                         <th key={h} style={{
                           padding: 'var(--space-3) var(--space-5)',
                           textAlign: 'left',
@@ -650,6 +800,34 @@ export default function Dashboard() {
                           <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`}>
                             {o.status}
                           </span>
+                        </td>
+                        <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
+                          {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
+                            <button
+                              onClick={() => setSettleOrderModal(o)}
+                              className="btn btn-sm"
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '4px 10px',
+                                background: '#10b981',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: 'var(--radius-md)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
+                              }}
+                            >
+                              <Zap size={11} fill="#fff" /> Settle
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Check size={12} color="#10b981" /> Paid
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -818,6 +996,148 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      {/* Quick Settle Modal */}
+      {settleOrderModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && !settling && setSettleOrderModal(null)}>
+          <div className="modal" style={{ maxWidth: '420px', borderRadius: 'var(--radius-xl)' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'rgba(16, 185, 129, 0.12)', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Zap size={18} color="#10b981" />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '16px', fontWeight: 800 }}>
+                    Quick Settle Order
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                    {settleOrderModal.tableName ? `Table ${settleOrderModal.tableName}` : (settleOrderModal.token ? `Token #${settleOrderModal.token}` : `#${settleOrderModal.id.slice(-6).toUpperCase()}`)}
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="btn btn-secondary btn-icon" 
+                onClick={() => !settling && setSettleOrderModal(null)}
+                disabled={settling}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div style={{
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '16px',
+                textAlign: 'center',
+                border: '1px solid var(--color-separator)'
+              }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                  Total Bill Amount
+                </div>
+                <div style={{ fontSize: '32px', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>
+                  {formatCurrency(settleOrderModal.total, settleOrderModal.currency || currency)}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-label-tertiary)', marginTop: '4px' }}>
+                  {(settleOrderModal.items || []).length} items · {settleOrderModal.type || 'dine-in'}
+                </div>
+              </div>
+
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Select Payment Method
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => handleQuickSettle(settleOrderModal, 'cash')}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '14px 8px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#10b981'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
+                >
+                  <span style={{ fontSize: '20px' }}>💵</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>Cash</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => handleQuickSettle(settleOrderModal, 'upi')}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '14px 8px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#8b5cf6'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
+                >
+                  <span style={{ fontSize: '20px' }}>📱</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>UPI / QR</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => handleQuickSettle(settleOrderModal, 'card')}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '14px 8px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
+                >
+                  <span style={{ fontSize: '20px' }}>💳</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>Card</span>
+                </button>
+              </div>
+
+              {settling && (
+                <div style={{ textAlign: 'center', fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                  Settling order & releasing table...
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setSettleOrderModal(null)}
+                disabled={settling}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

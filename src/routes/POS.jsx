@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -7,15 +8,125 @@ import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
 import { useTableStore } from '../stores/tableStore';
 import { useShallow } from 'zustand/react/shallow';
-import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printTokenTicket, printKitchenTickets } from '../utils/print';
 import toast from 'react-hot-toast';
-import { ShoppingCart, Trash2, Plus, Minus, X, ChevronRight, Tag } from 'lucide-react';
+import { 
+  ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
+  ChevronRight, ChevronDown, Tag, Banknote, Star, User, Search, 
+  FileText, Check, Flame, Leaf, Sparkles, Clock, LayoutGrid, Maximize2, Minimize2 
+} from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
 import ModifierModal from '../components/pos/ModifierModal';
+
+const COURSE_ICONS = {
+  'Appetizers': '🥗',
+  'Mains': '🍲',
+  'Desserts': '🍰',
+  'Beverages': '🥤',
+};
+
+const POS_COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
+
+function CartCoursePicker({ currentCourse, onSelectCourse }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
+
+  const toggle = (e) => {
+    e.stopPropagation();
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const popoverWidth = 142;
+      const popoverHeight = 152;
+      
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= popoverHeight ? rect.bottom + 4 : rect.top - popoverHeight - 4;
+      const left = Math.max(8, rect.right - popoverWidth);
+      setCoords({ top, left });
+    }
+    setOpen(v => !v);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (e) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        popoverRef.current && !popoverRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    };
+    const handleScrollOrResize = () => setOpen(false);
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [open]);
+
+  const activeCourse = currentCourse ?? 'Mains';
+
+  return (
+    <div className="cart-course-picker-wrapper">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`cart-course-btn ${open ? 'active' : ''}`}
+        onClick={toggle}
+        title="Change course"
+      >
+        <span className="cart-course-btn-icon">{COURSE_ICONS[activeCourse] || '🍽️'}</span>
+        <span className="cart-course-btn-text">{activeCourse}</span>
+        <ChevronDown size={10} className={`cart-course-btn-chevron ${open ? 'open' : ''}`} />
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={popoverRef}
+          className="cart-course-popover"
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 99999,
+          }}
+        >
+          <div className="cart-course-popover-title">Course Stage</div>
+          {POS_COURSES.map(c => {
+            const isSelected = c === activeCourse;
+            return (
+              <button
+                key={c}
+                type="button"
+                className={`cart-course-popover-item ${isSelected ? 'selected' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectCourse(c);
+                  setOpen(false);
+                }}
+              >
+                <span className="cart-course-popover-icon">{COURSE_ICONS[c] || '🍽️'}</span>
+                <span className="cart-course-popover-label">{c}</span>
+                {isSelected && <Check size={13} className="cart-course-popover-check" />}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 export default function POS() {
   const { t } = useTranslation();
@@ -95,6 +206,28 @@ export default function POS() {
 
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
+  const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'non-veg' | 'bestseller'
+  const [menuDensity, setMenuDensity] = useState(() => localStorage.getItem('kiwi_pos_density') || 'visual');
+  const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
+  const [dismissedUpsell, setDismissedUpsell] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(() => localStorage.getItem('kiwi_pos_focus') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('kiwi_pos_density', menuDensity);
+  }, [menuDensity]);
+
+  useEffect(() => {
+    localStorage.setItem('kiwi_pos_focus', isFocusMode);
+    if (isFocusMode) {
+      document.body.classList.add('pos-focus-mode');
+    } else {
+      document.body.classList.remove('pos-focus-mode');
+    }
+    return () => {
+      document.body.classList.remove('pos-focus-mode');
+    };
+  }, [isFocusMode]);
+
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
@@ -170,7 +303,6 @@ export default function POS() {
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [newCustName, setNewCustName] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
-  const [showNoteInput, setShowNoteInput] = useState(false);
 
   const [openFloatCash, setOpenFloatCash] = useState('0.00');
   const [checkingShift, setCheckingShift] = useState(true);
@@ -180,10 +312,13 @@ export default function POS() {
 
   // Till drawer modal states
   const [showTillModal, setShowTillModal] = useState(false);
+  const [tillModalTab, setTillModalTab] = useState('summary'); // 'summary' | 'movement' | 'close'
   const [tillTxType, setTillTxType] = useState('drop'); // 'drop' | 'paidout'
   const [tillTxAmount, setTillTxAmount] = useState('');
   const [tillTxReason, setTillTxReason] = useState('');
   const [closeCountedCash, setCloseCountedCash] = useState('');
+  const [showDenomCounter, setShowDenomCounter] = useState(false);
+  const [denominations, setDenominations] = useState({ 500: '', 200: '', 100: '', 50: '', 20: '', 10: '', coins: '' });
   const [zReportToShow, setZReportToShow] = useState(null);
 
   // Manager PIN authorized void states
@@ -288,7 +423,8 @@ export default function POS() {
   };
 
   const handleCloseShiftSubmit = async () => {
-    if (!closeCountedCash.trim() || isNaN(parseFloat(closeCountedCash))) {
+    const countedStr = (closeCountedCash ?? '').toString().trim();
+    if (!countedStr || isNaN(parseFloat(countedStr))) {
       toast.error('Please enter counted cash amount.');
       return;
     }
@@ -300,7 +436,7 @@ export default function POS() {
     const res = await closeShift(
       restaurant.id,
       activeShift.id,
-      parseFloat(closeCountedCash),
+      parseFloat(countedStr),
       staffDoc?.id || 'unknown',
       staffDoc?.name || 'Cashier'
     );
@@ -310,6 +446,9 @@ export default function POS() {
       setZReportToShow(res.zReport);
       setShowTillModal(false);
       setCloseCountedCash('');
+      setDenominations({ 500: '', 200: '', 100: '', 50: '', 20: '', 10: '', coins: '' });
+      setShowDenomCounter(false);
+      setTillModalTab('summary');
     } else {
       toast.error(`Failed to close shift: ${res.error}`);
     }
@@ -504,27 +643,40 @@ export default function POS() {
     }
   };
 
-  // Menu items from active category (or all categories when searching)
+  // Menu items from active category (or all categories when searching) + dietary filter
   const displayItems = useMemo(() => {
     // When searching, search across all items regardless of active category tab
     const rawItems = (activeCat === 'all' || search.trim())
       ? categories.flatMap(c => c.items ?? [])
       : categories.find(c => c.id === activeCat)?.items ?? [];
-    if (!search.trim()) return rawItems;
-    const lowerSearch = search.toLowerCase().trim();
-    return rawItems.filter(i => 
-      i.name?.toLowerCase().includes(lowerSearch) ||
-      i.code?.toLowerCase().includes(lowerSearch) ||
-      i.sku?.toLowerCase().includes(lowerSearch) ||
-      i.categoryName?.toLowerCase().includes(lowerSearch)
-    );
-  }, [categories, activeCat, search]);
 
-  // Order type buttons
+    let filtered = rawItems;
+    if (search.trim()) {
+      const lowerSearch = search.toLowerCase().trim();
+      filtered = filtered.filter(i => 
+        i.name?.toLowerCase().includes(lowerSearch) ||
+        i.code?.toLowerCase().includes(lowerSearch) ||
+        i.sku?.toLowerCase().includes(lowerSearch) ||
+        i.categoryName?.toLowerCase().includes(lowerSearch)
+      );
+    }
+
+    if (dietaryFilter === 'veg') {
+      filtered = filtered.filter(i => i.isVeg === true || i.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(i.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(i.name)));
+    } else if (dietaryFilter === 'non-veg') {
+      filtered = filtered.filter(i => i.isVeg === false || i.veg === false || /chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon|carbonara/i.test(i.name));
+    } else if (dietaryFilter === 'bestseller') {
+      filtered = filtered.filter(i => i.highMargin || i.isBestseller || i.popular);
+    }
+
+    return filtered;
+  }, [categories, activeCat, search, dietaryFilter]);
+
+  // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in',  label: t('dineIn'),   icon: '🍽️', enabled: modes.includes('table') || modes.includes('pos') },
-    { key: 'takeaway', label: t('takeaway'),  icon: '🛍️', enabled: true },
-    { key: 'online',   label: t('online'),    icon: '📱', enabled: false }, // online handled separately
+    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: modes.includes('table') || modes.includes('pos') },
+    { key: 'takeaway', label: t('takeaway') || 'Takeaway', Icon: ShoppingBag,    enabled: true },
+    { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
@@ -747,7 +899,7 @@ export default function POS() {
       <div className="pos-menu-panel">
 
 
-        {/* Category chips */}
+        {/* Category chips with counts */}
         <div className="pos-category-bar">
           <button
             id="cat-all"
@@ -755,6 +907,7 @@ export default function POS() {
             onClick={() => { setActiveCat('all'); setSearch(''); }}
           >
             <span>🍽️</span> All Items
+            <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
           </button>
           {categories.map(c => (
             <button
@@ -764,9 +917,110 @@ export default function POS() {
               onClick={() => { setActiveCat(c.id); setSearch(''); }}
             >
               {c.emoji && <span>{c.emoji}</span>}
-              {c.name}
+              <span>{c.name}</span>
+              {c.items?.length > 0 && (
+                <span className="category-chip-count">{c.items.length}</span>
+              )}
             </button>
           ))}
+        </div>
+
+        {/* Dietary Quick Filter Bar + View Density & Focus Controls */}
+        <div className="menu-dietary-bar">
+          <button
+            type="button"
+            className={`dietary-chip ${dietaryFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setDietaryFilter('all')}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={`dietary-chip ${dietaryFilter === 'veg' ? 'active' : ''}`}
+            onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+          >
+            <span className="food-badge-veg" /> Pure Veg
+          </button>
+          <button
+            type="button"
+            className={`dietary-chip ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+            onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+          >
+            <span className="food-badge-nonveg" /> Non-Veg
+          </button>
+          <button
+            type="button"
+            className={`dietary-chip ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+            onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+          >
+            <Sparkles size={12} color="#f59e0b" /> Bestsellers
+          </button>
+
+          {/* Right-aligned Density & Focus Controls */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', background: 'var(--color-bg)', border: '1px solid var(--color-separator)', borderRadius: 'var(--radius-full)', padding: '2px' }}>
+              <button
+                type="button"
+                onClick={() => setMenuDensity('visual')}
+                title="Visual Cards with photos"
+                style={{
+                  border: 'none',
+                  background: menuDensity === 'visual' ? 'var(--color-label)' : 'transparent',
+                  color: menuDensity === 'visual' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <LayoutGrid size={11} /> Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => setMenuDensity('dense')}
+                title="Fast QSR Touch Keys (Fit 20+ items on screen)"
+                style={{
+                  border: 'none',
+                  background: menuDensity === 'dense' ? 'var(--color-label)' : 'transparent',
+                  color: menuDensity === 'dense' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                ⚡ Fast Keys
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              onClick={() => setIsFocusMode(!isFocusMode)}
+              title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode (Hides side rail)"}
+              style={{
+                height: '26px',
+                padding: '0 6px',
+                fontSize: '11px',
+                color: isFocusMode ? 'var(--color-accent)' : 'var(--color-label-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                borderRadius: '6px'
+              }}
+            >
+              {isFocusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              <span className="desktop-only">{isFocusMode ? "Exit" : "Focus"}</span>
+            </button>
+          </div>
         </div>
 
         {/* Menu grid */}
@@ -782,10 +1036,55 @@ export default function POS() {
             <div>No items found</div>
           </div>
         ) : (
-          <div className="menu-grid">
+          <div className={`menu-grid ${menuDensity === 'dense' ? 'dense' : ''}`}>
             {displayItems.map(item => {
               const qty = getItemQty(item);
               const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
+              const isVegItem = item.isVeg === true || item.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(item.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(item.name));
+              
+              if (menuDensity === 'dense') {
+                return (
+                  <div
+                    key={item.id}
+                    id={`menu-item-${item.id}`}
+                    role="button"
+                    tabIndex={0}
+                    className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                    onClick={() => {
+                      if (item.available === false) return;
+                      if (hasModifiers) setActiveModifierItem(item);
+                      else addItem(item);
+                    }}
+                    onKeyDown={e => {
+                      if (item.available === false) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (hasModifiers) setActiveModifierItem(item);
+                        else addItem(item);
+                      }
+                    }}
+                  >
+                    <div className="menu-key-header">
+                      <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} />
+                      <span className="menu-key-name" title={item.name}>{item.name}</span>
+                      {item.highMargin && <span title="Chef's Special" style={{ fontSize: '11px', flexShrink: 0 }}>⭐</span>}
+                    </div>
+                    <div className="menu-key-footer">
+                      <span className="menu-key-price">{formatCurrency(item.price, currency)}</span>
+                      {qty > 0 ? (
+                        <span className="menu-key-qty-badge">
+                          <Check size={10} strokeWidth={3} /> {qty}
+                        </span>
+                      ) : (
+                        <span className="menu-key-add-btn">
+                          <Plus size={11} strokeWidth={2.5} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={item.id}
@@ -813,6 +1112,11 @@ export default function POS() {
                     }
                   }}
                 >
+                  {/* Veg / Non-Veg Indicator Badge */}
+                  <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 'var(--z-raised)' }}>
+                    <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                  </div>
+
                   {qty > 0 && (
                     <div className="menu-item-qty-badge">{qty}</div>
                   )}
@@ -825,7 +1129,7 @@ export default function POS() {
                   <div className="menu-item-body">
                     <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       {item.name}
-                      {item.highMargin && <span title="High Margin — push this item" style={{ fontSize: '11px' }}>⭐</span>}
+                      {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px' }}>⭐</span>}
                     </div>
                     <div className="menu-item-price">{formatCurrency(item.price, currency)}</div>
                   </div>
@@ -869,35 +1173,44 @@ export default function POS() {
 
       {/* ── Cart Panel ─────────────────────────────── */}
       <div className={`pos-cart-panel ${mobileCartOpen ? 'open' : ''}`}>
-        <div className="cart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
-            <ShoppingCart size={18} color="var(--color-accent)" />
-            <span className="text-headline">{t('cart')}</span>
-            {items.length > 0 && <span className="badge badge-blue">{items.length}</span>}
+        {/* Cart Header */}
+        <div className="cart-header">
+          <div className="cart-title-wrap">
+            <ShoppingBag size={17} color="var(--color-accent)" />
+            <span style={{ fontSize: '13.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-label)' }}>{t('cart')}</span>
+            {items.length > 0 && (
+              <span className="cart-count-pill">{items.reduce((s, i) => s + i.qty, 0)}</span>
+            )}
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <button 
               className="btn btn-secondary btn-sm" 
               onClick={() => setShowTillModal(true)} 
               id="till-drawer-btn"
               disabled={!activeShift}
               title={!activeShift ? 'Open a shift first' : 'Till Drawer'}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: activeShift ? 1 : 0.4 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 8px', fontSize: '11px', borderRadius: 'var(--radius-full)', opacity: activeShift ? 1 : 0.4 }}
             >
-              💰 Till
+              <Banknote size={13} /> Till
             </button>
             {items.length > 0 && (
-              <button className="btn btn-ghost btn-sm" onClick={clearCart} id="clear-cart-btn">
-                <Trash2 size={14} /> {t('clearCart')}
+              <button 
+                className="btn btn-ghost btn-sm" 
+                onClick={clearCart} 
+                id="clear-cart-btn"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 6px', fontSize: '11px', color: 'var(--color-label-secondary)' }}
+                title="Clear all items"
+              >
+                <Trash2 size={12} /> {t('clearCart')}
               </button>
             )}
             <button
               className="btn btn-ghost btn-icon mobile-only"
               onClick={() => setMobileCartOpen(false)}
-              style={{ width: '30px', height: '30px', padding: 0 }}
+              style={{ width: '26px', height: '26px', padding: 0 }}
               title="Close cart"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         </div>
@@ -925,81 +1238,56 @@ export default function POS() {
           </div>
         )}
 
-        {/* Order type */}
+        {/* Modern Segmented Order Type Control */}
         <div className="cart-type-tabs">
-          {orderTypes.map(ot => (
-            <button
-              key={ot.key}
-              id={`order-type-${ot.key}`}
-              className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
-              onClick={() => setOrderType(ot.key)}
-            >
-              {ot.icon} {ot.label}
-            </button>
-          ))}
+          {orderTypes.map(ot => {
+            const Icon = ot.Icon;
+            return (
+              <button
+                key={ot.key}
+                id={`order-type-${ot.key}`}
+                className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
+                onClick={() => setOrderType(ot.key)}
+              >
+                {Icon && <Icon size={14} />}
+                <span>{ot.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Table / Customer info */}
-        {/* Service Details: Table and Customer/Loyalty Side-by-Side */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: (orderType === 'dine-in' && restaurant?.features?.table) ? '1fr 1fr' : '1fr',
-          gap: '8px',
-          padding: 'var(--space-2) var(--space-4)',
-          borderBottom: '1px solid var(--color-separator)',
-          background: 'var(--color-bg-secondary)'
+        {/* Service Details: Table and Customer/Loyalty */}
+        <div className="cart-service-details" style={{
+          gridTemplateColumns: (orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table'))) ? '1fr 1.2fr' : '1fr'
         }}>
-          {orderType === 'dine-in' && restaurant?.features?.table && (
-            <select
-              value={tableId || ''}
-              onChange={(e) => {
-                const selectedId = e.target.value;
-                if (!selectedId) {
-                  setTable('', '');
-                  return;
-                }
-                const tbl = tables.find(t => t.id === selectedId);
-                if (tbl) handleTableSelectQuick(tbl);
-              }}
-              className="form-input btn-sm"
+          {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
+            <button
+              type="button"
+              onClick={() => setShowTableSel(true)}
+              className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
               id="select-table-dropdown"
-              style={{ 
-                width: '100%', 
-                height: '32px', 
-                padding: '4px 8px', 
-                fontSize: '12px', 
-                cursor: 'pointer', 
-                background: 'var(--color-bg)',
-                borderColor: 'var(--color-separator)',
-                borderRadius: 'var(--radius-sm)',
-                fontWeight: 'var(--weight-bold)'
-              }}
+              title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
             >
-              <option value="">🪑 {t('selectTable') || 'Select Table'}</option>
-              {tables.map(table => {
-                const activeOrder = tableOrders[table.id];
-                const statusLabel = table.status === 'occupied' && activeOrder 
-                  ? `${t('occupied') || 'Occupied'} - ₹${activeOrder.total}` 
-                  : table.status === 'reserved' ? (t('reserved') || 'Reserved') : (t('free') || 'Free');
-                return (
-                  <option key={table.id} value={table.id}>
-                    {table.name} ({statusLabel})
-                  </option>
-                );
-              })}
-            </select>
+              <span className="cart-table-select-content">
+                <span className="cart-table-icon">🪑</span>
+                <span className="cart-table-label">
+                  {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                </span>
+              </span>
+              <ChevronDown size={11} className="cart-table-chevron" />
+            </button>
           )}
 
           {/* Customer / Loyalty Info column */}
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             {customer ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px', background: 'var(--color-accent-light)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent-opaque)', height: '32px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="cart-customer-vip-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     👤 {customer.name}
                   </span>
-                  <span style={{ fontSize: 8, color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
-                    {customer.points} pts (+{Math.floor(total / 10)} pts)
+                  <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                    ⭐ {customer.points} pts
                   </span>
                 </div>
                 <button
@@ -1009,25 +1297,26 @@ export default function POS() {
                     setCustomer('', '');
                     setRedeemingPoints(false);
                   }}
-                  style={{ color: 'var(--color-red)', padding: '2px', fontSize: 9, marginLeft: '4px', flexShrink: 0 }}
+                  style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                  title="Remove customer"
                 >
-                  Remove
+                  <X size={12} />
                 </button>
               </div>
             ) : showQuickRegister ? (
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: '32px' }}>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: '34px' }}>
                 <input
                   className="form-input"
-                  placeholder="Name"
+                  placeholder="Customer name"
                   value={newCustName}
                   onChange={e => setNewCustName(e.target.value)}
-                  style={{ height: 26, fontSize: '10px', padding: '2px 4px', flex: 1 }}
+                  style={{ height: 32, fontSize: '11px', padding: '2px 8px', flex: 1 }}
                 />
                 <button
                   type="button"
                   className="btn btn-success btn-xs"
                   onClick={handleQuickRegister}
-                  style={{ height: 26, padding: '2px 6px', fontSize: 9 }}
+                  style={{ height: 32, padding: '0 8px', fontSize: 11 }}
                 >
                   ✓
                 </button>
@@ -1035,55 +1324,64 @@ export default function POS() {
                   type="button"
                   className="btn btn-secondary btn-xs"
                   onClick={() => setShowQuickRegister(false)}
-                  style={{ height: 26, padding: '2px 6px', fontSize: 9 }}
+                  style={{ height: 32, padding: '0 8px', fontSize: 11 }}
                 >
-                  ✗
+                  ✕
                 </button>
               </div>
             ) : (
-              <input
-                className="form-input"
-                placeholder={orderType === 'dine-in' ? "🔍 Loyalty Phone..." : "🔍 Search / Add loyalty phone number..."}
-                value={custSearch}
-                onChange={e => {
-                  setCustSearch(e.target.value);
-                  if (e.target.value.replace(/\D/g, '').length >= 8) {
-                    handleCustomerLookup(e.target.value);
-                  }
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    handleCustomerLookup(custSearch);
-                  }
-                }}
-                style={{ height: '32px', fontSize: '11px', padding: '4px 8px', width: '100%' }}
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={13} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+                <input
+                  className="cart-customer-search-input"
+                  placeholder={orderType === 'dine-in' ? "Loyalty Phone..." : "Customer phone / Loyalty..."}
+                  value={custSearch}
+                  onChange={e => {
+                    setCustSearch(e.target.value);
+                    if (e.target.value.replace(/\D/g, '').length >= 8) {
+                      handleCustomerLookup(e.target.value);
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      handleCustomerLookup(custSearch);
+                    }
+                  }}
+                  style={{ paddingLeft: '28px' }}
+                />
+              </div>
             )}
           </div>
         </div>
 
         {orderType === 'takeaway' && !customer && !showQuickRegister && (
-          <div style={{ padding: 'var(--space-1) var(--space-4)', borderBottom: '1px solid var(--color-separator)', display:'flex', gap:'var(--space-2)', background: 'var(--color-bg-secondary)' }}>
+          <div style={{ padding: '6px var(--space-4)', borderBottom: '1px solid var(--color-separator)', display:'flex', gap:'var(--space-2)', background: 'var(--color-bg-secondary)' }}>
             <input className="form-input" placeholder="Customer name" value={customerName}
               onChange={e => setCustomer(e.target.value, customerPhone)}
-              id="customer-name-input" style={{ fontSize: '12px', height: '28px', padding: '4px 8px' }} />
+              id="customer-name-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', flex: 1 }} />
             <input className="form-input" placeholder="Phone" value={customerPhone}
               onChange={e => setCustomer(customerName, e.target.value)}
-              id="customer-phone-input" style={{ fontSize: '12px', height: '28px', padding: '4px 8px', width: 110 }} />
+              id="customer-phone-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', width: 115 }} />
           </div>
         )}
 
-        {/* Items */}
+        {/* Cart Items */}
         <div className="cart-items">
           {items.length === 0 ? (
             <div className="cart-empty">
-              <div style={{ fontSize: 40 }}>🛒</div>
-              <div className="text-headline">{t('emptyCart')}</div>
+              <div style={{ fontSize: 44 }}>🛒</div>
+              <div className="text-headline" style={{ fontWeight: 700 }}>{t('emptyCart')}</div>
               <div className="text-footnote text-tertiary">{t('emptyCartHint')}</div>
             </div>
           ) : (
             (() => {
               const COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
+              const courseColors = {
+                Appetizers: '#10b981',
+                Mains: '#3b82f6',
+                Desserts: '#8b5cf6',
+                Beverages: '#f59e0b',
+              };
               return COURSES.map(courseName => {
                 const courseItems = items.filter(i => (i.course ?? 'Mains') === courseName);
                 if (courseItems.length === 0) return null;
@@ -1091,7 +1389,11 @@ export default function POS() {
                   <div key={courseName}>
                     {/* Course Header */}
                     <div className="cart-course-header">
-                      <span className="cart-course-header-label">{courseName}</span>
+                      <span className="cart-course-pill">
+                        <span className="cart-course-dot" style={{ background: courseColors[courseName] || 'var(--color-accent)' }} />
+                        {courseName}
+                      </span>
+                      <span className="cart-course-count">({courseItems.length})</span>
                       <div className="cart-course-header-line" />
                       {editingOrderId && courseItems.some(i => i.prepState === 'hold') && (
                         <button
@@ -1111,48 +1413,80 @@ export default function POS() {
 
                     {/* Course Items */}
                     {courseItems.map(i => (
-                      <div key={i.id} className="cart-item">
-                        {/* Row 1: Name + Price + Remove */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                          <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)', flex: 1, lineHeight: 1.3 }}>
+                      <div key={i.id} className="cart-item-card">
+                        {/* Row 1: Name + Price */}
+                        <div className="cart-item-card-top">
+                          <span className="cart-item-card-name" title={i.name}>
                             {i.name}
-                            {i.selectedModifiers?.length > 0 && (
-                              <span style={{ display: 'block', fontSize: '10px', color: 'var(--color-label-tertiary)', fontWeight: 'var(--weight-regular)', marginTop: 2 }}>
-                                + {i.selectedModifiers.map(m => m.name).join(', ')}
-                              </span>
-                            )}
                           </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label)' }}>
-                              {formatCurrency(i.price * i.qty, currency)}
-                            </span>
-                            <button onClick={() => handleCartRemove(i)} style={{ color: 'var(--color-label-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
-                              <X size={14}/>
+                          <span className="cart-item-card-price">
+                            {formatCurrency(i.price * i.qty, currency)}
+                          </span>
+                        </div>
+
+                        {/* Optional Modifiers */}
+                        {i.selectedModifiers?.length > 0 && (
+                          <div className="cart-item-modifiers">
+                            {i.selectedModifiers.map((m, idx) => (
+                              <span key={idx} className="cart-modifier-chip">
+                                +{m.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Row 2: Tactile Stepper + Status + Course + Remove */}
+                        <div className="cart-item-card-bottom">
+                          {/* Tactile Stepper */}
+                          <div className="cart-stepper">
+                            <button 
+                              type="button"
+                              className="cart-stepper-btn" 
+                              onClick={() => handleCartDecrement(i)}
+                              title="Decrease quantity"
+                            >
+                              <Minus size={11} strokeWidth={2.5} />
+                            </button>
+                            <span className="cart-stepper-count">{i.qty}</span>
+                            <button 
+                              type="button"
+                              className="cart-stepper-btn" 
+                              onClick={() => updateQty(i.id, i.qty + 1)}
+                              title="Increase quantity"
+                            >
+                              <Plus size={11} strokeWidth={2.5} />
                             </button>
                           </div>
-                        </div>
-                        {/* Row 2: Qty controls + status badge + course */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-sm)', padding: '2px 4px' }}>
-                            <button className="qty-btn" onClick={() => handleCartDecrement(i)}><Minus size={10}/></button>
-                            <span className="qty-count">{i.qty}</span>
-                            <button className="qty-btn" onClick={() => updateQty(i.id, i.qty + 1)}><Plus size={10}/></button>
-                          </div>
-                          <span
-                            className={`badge ${i.prepState === 'hold' ? 'badge-orange' : 'badge-green'}`}
-                            style={{ fontSize: 9, padding: '2px 7px', cursor: 'pointer', userSelect: 'none' }}
+
+                          {/* Status Badge (Fired vs Hold) */}
+                          <button
+                            type="button"
+                            className={`cart-status-badge ${i.prepState === 'hold' ? 'hold' : 'fired'}`}
                             onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
-                            title="Click to toggle Hold/Fire"
+                            title={i.prepState === 'hold' ? 'On hold - click to fire' : 'Fired - click to hold'}
                           >
-                            {i.prepState === 'hold' ? '⏳ Hold' : '🔥 Fired'}
-                          </span>
-                          <select
-                            value={i.course ?? 'Mains'}
-                            onChange={(e) => useOrderStore.getState().setItemCourse(i.id, e.target.value)}
-                            style={{ fontSize: 10, padding: '2px 4px', height: '20px', borderRadius: '4px', background: 'var(--color-bg-secondary)', color: 'var(--color-label-secondary)', border: '1px solid var(--color-separator)', cursor: 'pointer', outline: 'none', marginLeft: 'auto' }}
+                            {i.prepState === 'hold' ? (
+                              <><Clock size={10} /> Hold</>
+                            ) : (
+                              <><Flame size={10} /> Fired</>
+                            )}
+                          </button>
+
+                          {/* Custom Course Picker Popover (Eliminates ugly OS select bubble) */}
+                          <CartCoursePicker
+                            currentCourse={i.course}
+                            onSelectCourse={(course) => useOrderStore.getState().setItemCourse(i.id, course)}
+                          />
+
+                          {/* Remove Button */}
+                          <button 
+                            type="button"
+                            className="cart-item-card-remove"
+                            onClick={() => handleCartRemove(i)} 
+                            title="Remove item"
                           >
-                            {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
+                            <X size={14} />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -1163,141 +1497,261 @@ export default function POS() {
           )}
         </div>
 
-        {/* Note */}
+        {/* Smart Collapsible Add-ons & Upsell Bar */}
         {items.length > 0 && (
-          <div style={{ padding: '0 var(--space-4) var(--space-2)', display: 'flex', alignItems: 'center' }}>
-            {showNoteInput || note ? (
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', width: '100%' }}>
-                <input 
-                  className="form-input" 
-                  placeholder="📝 Order note..." 
-                  value={note}
-                  onChange={e => setNote(e.target.value)} 
-                  id="order-note-input"
-                  style={{ fontSize: '12px', height: '28px', padding: '4px 8px', flex: 1 }} 
-                  autoFocus
-                />
-                {!note && (
-                  <button 
-                    className="btn btn-ghost btn-xs" 
-                    onClick={() => setShowNoteInput(false)}
-                    style={{ padding: '2px', height: '28px', minWidth: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          <>
+            {/* Dismissible Compact Upsell Nudge */}
+            {!dismissedUpsell && sevenDayAvg > 0 && total > 0 && total < sevenDayAvg && (
+              <div className="cart-upsell-chip">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span>💡</span> Order is below avg ({formatCurrency(sevenDayAvg, currency)}). Add drink?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDismissedUpsell(true)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', display: 'flex', opacity: 0.6 }}
+                  title="Dismiss"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
+            {/* Collapsed Pill Row */}
+            <div className="cart-addons-bar">
+              {/* Discount Pill / Active Chip */}
+              {discount > 0 ? (
+                <div className="cart-addon-chip">
+                  <Tag size={11} />
+                  <span 
+                    onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to edit discount"
+                  >
+                    {discountType === 'percent' ? `${discount}%` : formatCurrency(discount, currency)} (-{formatCurrency(discountAmount, currency)})
+                  </span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
+                    title="Remove discount"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`cart-addon-btn ${activeAddon === 'discount' ? 'active' : ''}`}
+                  onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                >
+                  <Tag size={11} /> + Discount
+                </button>
+              )}
+
+              {/* Note Pill / Active Chip */}
+              {note ? (
+                <div className="cart-addon-chip note-chip">
+                  <FileText size={11} />
+                  <span 
+                    onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
+                    style={{ cursor: 'pointer', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={note}
+                  >
+                    "{note}"
+                  </span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
+                    title="Clear note"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`cart-addon-btn ${activeAddon === 'note' ? 'active' : ''}`}
+                  onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
+                >
+                  <FileText size={11} /> + Note
+                </button>
+              )}
+            </div>
+
+            {/* Inline Addon Expandable Drawer */}
+            {activeAddon === 'discount' && (
+              <div className="cart-addon-drawer">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Tag size={12} /> Add Order Discount
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAddon(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 0 }}
                   >
                     <X size={14} />
                   </button>
-                )}
-              </div>
-            ) : (
-              <button 
-                onClick={() => setShowNoteInput(true)} 
-                style={{ 
-                  fontSize: 'var(--text-caption1)', 
-                  color: 'var(--color-accent)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px',
-                  fontWeight: 'var(--weight-semibold)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px 0'
-                }}
-              >
-                📝 + Add Order Note
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Totals */}
-        {items.length > 0 && (
-          <div className="cart-totals" style={{ padding: 'var(--space-2) var(--space-4)', gap: '4px' }}>
-            {/* Collapsible Subtotal and Taxes Breakdown */}
-            {showTotalsBreakdown && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '4px', borderBottom: '1px solid var(--color-separator)' }}>
-                <div className="cart-total-row" style={{ fontSize: '12px' }}>
-                  <span>{t('subtotal')}</span>
-                  <span>{formatCurrency(subtotal, currency)}</span>
                 </div>
-                {taxInfo.lines.map(l => (
-                  <div key={l.label} className="cart-total-row" style={{ fontSize: '12px' }}>
-                    <span>{l.label}</span>
-                    <span>{formatCurrency(l.amount, currency)}</span>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: '4px', border: '1px solid var(--color-separator)', padding: '1px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDiscount(discount, 'percent')}
+                      style={{
+                        border: 'none',
+                        background: discountType === 'percent' ? 'var(--color-label)' : 'transparent',
+                        color: discountType === 'percent' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
+                        fontSize: '9.5px',
+                        fontWeight: '700',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      %
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiscount(discount, 'fixed')}
+                      style={{
+                        border: 'none',
+                        background: discountType === 'fixed' ? 'var(--color-label)' : 'transparent',
+                        color: discountType === 'fixed' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
+                        fontSize: '9.5px',
+                        fontWeight: '700',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {currency}
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Upsell Nudge */}
-            {sevenDayAvg > 0 && total > 0 && total < sevenDayAvg && (
-              <div style={{
-                background: 'var(--color-orange-light)',
-                color: 'var(--color-orange)',
-                padding: 'var(--space-2)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '11px',
-                fontWeight: 'var(--weight-semibold)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '6px',
-                marginTop: 'var(--space-2)',
-                border: '1px solid var(--color-orange)'
-              }}>
-                <span style={{ fontSize: '14px' }}>💡</span>
-                <div style={{ lineHeight: '1.4' }}>
-                  This order is below your {formatCurrency(sevenDayAvg, currency)} average. Consider suggesting a side or drink.
-                </div>
-              </div>
-            )}
-
-            {/* Discount Row */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0', borderBottom: '1px dashed var(--color-separator)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px' }}>
-                  <Tag size={12} color="var(--color-accent)" /> Discount
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <select
-                    className="form-select"
-                    value={discountType}
-                    onChange={e => setDiscount(discount, e.target.value)}
-                    style={{ width: 60, height: 24, padding: '2px 4px', fontSize: 10, borderRadius: 'var(--radius-xs)', border: '1px solid var(--color-separator-opaque)' }}
-                  >
-                    <option value="percent">%</option>
-                    <option value="fixed">{currency}</option>
-                  </select>
                   <input
                     type="number"
                     className="form-input"
                     min={0}
                     value={discount === 0 ? '' : discount}
                     onChange={e => setDiscount(parseFloat(e.target.value) || 0, discountType)}
-                    placeholder="0"
-                    style={{ width: 60, height: 24, padding: '2px 4px', fontSize: 10, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--color-separator-opaque)' }}
+                    placeholder="Enter value"
+                    autoFocus
+                    style={{ flex: 1, height: 26, padding: '2px 8px', fontSize: 11, textAlign: 'right', borderRadius: '4px', border: '1px solid var(--color-separator)' }}
                   />
                 </div>
-              </div>
-              {discountAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-green)', fontWeight: 'var(--weight-semibold)' }}>
-                  <span>Applied Discount</span>
-                  <span>-{formatCurrency(discountAmount, currency)}</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  {[5, 10, 15, 20].map(pct => (
+                    <button
+                      key={pct}
+                      type="button"
+                      className="cart-discount-preset-btn"
+                      onClick={() => setDiscount(pct, 'percent')}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                  {discount > 0 && (
+                    <button
+                      type="button"
+                      className="cart-discount-preset-btn"
+                      onClick={() => setDiscount(0, discountType)}
+                      style={{ color: 'var(--color-red)', marginLeft: 'auto' }}
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
+            {activeAddon === 'note' && (
+              <div className="cart-addon-drawer">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <FileText size={12} /> Kitchen Special Note
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAddon(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 0 }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. less spicy, no onion..."
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                    id="order-note-input"
+                    style={{ fontSize: '11.5px', height: '28px', padding: '4px 8px', flex: 1 }}
+                    autoFocus
+                  />
+                  {note && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => setNote('')}
+                      style={{ padding: '2px', height: '28px', minWidth: '28px' }}
+                      title="Clear text"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {['Less Spicy', 'No Onion', 'Pack Sep.', 'Extra Chutney'].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className="cart-note-preset-chip"
+                      onClick={() => setNote(note ? `${note}, ${preset}` : preset)}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Totals & Financial Summary Card */}
+        {items.length > 0 && (
+          <div className="cart-totals">
+            {/* Collapsible Subtotal and Taxes Breakdown */}
+            {showTotalsBreakdown && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--color-separator)' }}>
+                <div className="cart-total-row" style={{ fontSize: '12px' }}>
+                  <span>{t('subtotal')}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(subtotal, currency)}</span>
+                </div>
+                {taxInfo.lines.map(l => (
+                  <div key={l.label} className="cart-total-row" style={{ fontSize: '12px' }}>
+                    <span>{l.label}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.amount, currency)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Grand Total */}
             <div 
               className="cart-total-row grand-total" 
               onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-              style={{ cursor: 'pointer', padding: '4px 0 2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ cursor: 'pointer', padding: '6px 0 2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               title="Click to toggle tax breakdown details"
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {t('total')}{' '}
-                <span style={{ fontSize: 9, color: 'var(--color-label-tertiary)', fontWeight: 'normal', border: '1px solid var(--color-separator)', borderRadius: '4px', padding: '1px 4px', background: 'var(--color-bg)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('total')}
+                <span style={{ fontSize: 9.5, color: 'var(--color-label-tertiary)', fontWeight: '600', border: '1px solid var(--color-separator)', borderRadius: '4px', padding: '2px 6px', background: 'var(--color-bg-secondary)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   {showTotalsBreakdown ? 'Hide Details ▲' : 'Show Details ▼'}
                 </span>
               </span>
-              <span>{formatCurrency(total, currency)}</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total, currency)}</span>
             </div>
           </div>
         )}
@@ -1306,22 +1760,28 @@ export default function POS() {
         {(orderType === 'dine-in' && modes.includes('kds')) ? (
           <div className="cart-action-buttons">
             <button
-              className="btn btn-secondary cart-action-btn"
+              className="cart-action-btn-kitchen"
               id="send-to-kitchen-btn"
               onClick={handleSendToKitchen}
               disabled={!items.length}
               type="button"
+              style={{ opacity: items.length ? 1 : 0.4 }}
+              title="Send order to Kitchen (KOT)"
             >
-              🍳 Send to Kitchen
+              <span className="btn-3d-emoji">🍳</span>
+              <span>Kitchen</span>
             </button>
             <button
-              className="btn btn-primary cart-action-btn"
+              className="cart-action-btn-checkout"
               id="checkout-btn"
               onClick={handleCheckout}
               disabled={!items.length}
               type="button"
+              style={{ opacity: items.length ? 1 : 0.4 }}
+              title="Proceed to payment & checkout"
             >
-              💳 Checkout
+              <span className="btn-3d-emoji">⚡</span>
+              <span>Checkout</span>
             </button>
           </div>
         ) : (
@@ -1333,8 +1793,11 @@ export default function POS() {
             type="button"
             style={{ opacity: items.length ? 1 : 0.4 }}
           >
-            <ChevronRight size={20} />
-            {t('checkout')} · {formatCurrency(total, currency)}
+            <span className="btn-3d-emoji">⚡</span>
+            <span>{t('checkout')} ({items.reduce((s, i) => s + i.qty, 0)})</span>
+            <span style={{ margin: '0 4px', opacity: 0.5 }}>·</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total, currency)}</span>
+            <ChevronRight size={18} style={{ marginLeft: 'auto' }} />
           </button>
         )}
       </div>
@@ -1343,6 +1806,7 @@ export default function POS() {
       {showTableSel && (
         <TableSelectModal
           restaurantId={restaurant?.id}
+          tableOrders={tableOrders}
           onSelect={async (id, name) => {
             setTable(id, name);
             setShowTableSel(false);
@@ -1392,369 +1856,837 @@ export default function POS() {
       )}
 
       {/* Till Drawer Modal */}
-      {showTillModal && activeShift && (
-        <div
-          onClick={e => e.target === e.currentTarget && setShowTillModal(false)}
-          className="till-modal-overlay"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <style dangerouslySetInnerHTML={{__html: `
-            @media (max-width: 540px) {
-              .till-modal-overlay {
-                padding: 8px !important;
-              }
-              .till-modal-card {
-                border-radius: 16px !important;
-              }
-              .till-modal-header {
-                padding: 12px 16px 10px !important;
-              }
-              .till-modal-emoji {
-                font-size: 22px !important;
-                margin-bottom: 2px !important;
-              }
-              .till-modal-title {
-                font-size: 17px !important;
-              }
-              .till-modal-body {
-                padding: 10px 14px 14px !important;
-                gap: 8px !important;
-              }
-              .till-modal-grid-2 {
-                grid-template-columns: 1fr !important;
-                gap: 8px !important;
-              }
-              .till-modal-hero-val {
-                font-size: 22px !important;
-              }
-              .till-modal-hero-emoji {
-                font-size: 26px !important;
-              }
-              .till-modal-counted-input {
-                font-size: 15px !important;
-                height: 38px !important;
-              }
-              .till-modal-variance-box {
-                font-size: 15px !important;
-                height: 38px !important;
-              }
-              .till-modal-btn {
-                height: 38px !important;
-                font-size: 13px !important;
-              }
-              .till-modal-close-btn {
-                height: 42px !important;
-                font-size: 14px !important;
-              }
-            }
-          `}} />
-          <div className="till-modal-card" style={{
-            background: 'var(--color-bg)',
-            borderRadius: '24px',
-            width: '100%', maxWidth: '620px',
-            boxShadow: 'var(--shadow-xl)',
-            border: '1px solid var(--color-separator)',
-          }}>
-            {/* Header Banner */}
-            <div className="till-modal-header" style={{
-              background: 'var(--color-label)',
-              borderRadius: '24px 24px 0 0',
-              padding: '16px 24px 14px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-            }}>
-              <div>
-                <div className="till-modal-emoji" style={{ fontSize: 28, marginBottom: 4 }}>💰</div>
-                <h2 className="till-modal-title" style={{ color: 'var(--color-on-dark)', fontSize: 20, fontWeight: 700, margin: 0, letterSpacing: '-0.3px' }}>
-                  Till Drawer Management
-                </h2>
-                <p style={{ color: 'var(--color-on-dark-soft)', fontSize: 12, margin: '4px 0 0', fontWeight: 500 }}>
-                  Shift opened by <strong style={{ color: 'var(--color-on-dark)' }}>{activeShift?.openedBy}</strong>
-                  {activeShift?.openedAt && (
-                    <span> · {new Date(activeShift.openedAt.seconds ? activeShift.openedAt.seconds * 1000 : activeShift.openedAt).toLocaleString()}</span>
-                  )}
-                </p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {showTillModal && activeShift && (() => {
+        const drops = activeShift?.cashDrops ?? [];
+        const paidOuts = activeShift?.paidOuts ?? [];
+        const dropsAmt = drops.reduce((sum, d) => sum + (d.amount || 0), 0);
+        const paidOutsAmt = paidOuts.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const totalSalesAmt = (activeShift?.cashSalesAmount || 0) + (activeShift?.cardSalesAmount || 0) + (activeShift?.upiSalesAmount || 0);
+        const totalOrdersCount = (activeShift?.cashSalesCount || 0) + (activeShift?.cardSalesCount || 0) + (activeShift?.upiSalesCount || 0);
+        const expectedCash = activeShift?.expectedCash ?? activeShift?.startCash ?? 0;
+
+        const hasCountedInput = closeCountedCash.toString().trim() !== '';
+        const countedNum = hasCountedInput ? parseFloat(closeCountedCash) || 0 : null;
+        const variance = countedNum !== null ? Math.round((countedNum - expectedCash) * 100) / 100 : null;
+
+        const updateDenom = (denom, val) => {
+          const next = { ...denominations, [denom]: val };
+          setDenominations(next);
+          let sum = 0;
+          [500, 200, 100, 50, 20, 10].forEach(d => {
+            const qty = parseInt(next[d], 10);
+            if (!isNaN(qty) && qty > 0) sum += qty * d;
+          });
+          const coins = parseFloat(next.coins);
+          if (!isNaN(coins) && coins > 0) sum += coins;
+          setCloseCountedCash(sum > 0 ? sum.toString() : '');
+        };
+
+        const printXReport = () => {
+          const printWin = window.open('', '_blank', 'width=600,height=600');
+          if (!printWin) {
+            toast.error('Please allow popups to print X-Report');
+            return;
+          }
+          const openedDate = activeShift.openedAt ? new Date(activeShift.openedAt.seconds ? activeShift.openedAt.seconds * 1000 : activeShift.openedAt).toLocaleString() : '';
+          const formatMonospace = (label, value) => {
+            const paddingLen = 38 - label.length - value.length;
+            const pad = paddingLen > 0 ? '.'.repeat(paddingLen) : ' ';
+            return `${label}${pad}${value}\n`;
+          };
+          let report = `======================================\n`;
+          report += `          ${restaurant?.name?.toUpperCase() || 'POS RESTAURANT'}\n`;
+          report += `          X-REPORT: MID-SHIFT AUDIT    \n`;
+          report += `======================================\n`;
+          report += `Shift ID: ${activeShift.id?.substring(0, 8) || 'N/A'}\n`;
+          report += `Opened By: ${activeShift.openedBy || 'N/A'}\n`;
+          report += `Opened At: ${openedDate}\n`;
+          report += `Printed At: ${new Date().toLocaleString()}\n`;
+          report += `--------------------------------------\n`;
+          report += formatMonospace('STARTING FLOAT', formatCurrency(activeShift.startCash || 0, currency));
+          report += `--------------------------------------\n`;
+          report += formatMonospace(`CASH SALES (${activeShift.cashSalesCount || 0})`, formatCurrency(activeShift.cashSalesAmount || 0, currency));
+          report += formatMonospace(`CARD SALES (${activeShift.cardSalesCount || 0})`, formatCurrency(activeShift.cardSalesAmount || 0, currency));
+          report += formatMonospace(`UPI SALES (${activeShift.upiSalesCount || 0})`, formatCurrency(activeShift.upiSalesAmount || 0, currency));
+          report += `--------------------------------------\n`;
+          report += formatMonospace('TOTAL SALES', formatCurrency(totalSalesAmt, currency));
+          report += `--------------------------------------\n`;
+          report += formatMonospace('TOTAL CASH DROPS', `-${formatCurrency(dropsAmt, currency)}`);
+          report += formatMonospace('TOTAL PAID-OUTS', `-${formatCurrency(paidOutsAmt, currency)}`);
+          report += `--------------------------------------\n`;
+          report += formatMonospace('EXPECTED CASH', formatCurrency(expectedCash, currency));
+          report += `======================================\n\n`;
+          report += `Audited By: __________________________\n`;
+
+          printWin.document.write(`<html><head><title>X-Report (Mid-Shift)</title><style>body{font-family:monospace;white-space:pre;padding:20px;color:#18181b;}</style></head><body>${report}</body></html>`);
+          printWin.document.close();
+          printWin.focus();
+          printWin.print();
+          printWin.close();
+        };
+
+        const movementsList = [
+          ...drops.map(d => ({ ...d, kind: 'drop', kindLabel: 'Safe Drop' })),
+          ...paidOuts.map(p => ({ ...p, kind: 'paidout', kindLabel: 'Expense Paid-Out' }))
+        ].sort((a, b) => {
+          const tA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp || 0).getTime();
+          const tB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp || 0).getTime();
+          return tB - tA;
+        });
+
+        return (
+          <div
+            onClick={e => e.target === e.currentTarget && setShowTillModal(false)}
+            className="modal-overlay"
+            style={{ zIndex: 1000 }}
+          >
+            <div
+              className="modal till-modal-card"
+              style={{
+                maxWidth: '660px', width: 'min(660px, 94vw)',
+                maxHeight: '92vh', display: 'flex', flexDirection: 'column',
+                borderRadius: 20, overflow: 'hidden', padding: 0
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                padding: '16px 22px 14px',
+                borderBottom: '1px solid var(--color-separator)',
+                background: 'var(--color-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>💰</span>
+                  <div>
+                    <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-label)', letterSpacing: '-0.02em' }}>
+                      Till Drawer Management
+                    </h2>
+                    <p style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', margin: '2px 0 0' }}>
+                      Shift opened by <strong style={{ color: 'var(--color-label-secondary)' }}>{activeShift?.openedBy || 'Staff'}</strong>
+                      {activeShift?.openedAt && (
+                        <span> · {new Date(activeShift.openedAt.seconds ? activeShift.openedAt.seconds * 1000 : activeShift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!activeShift) return;
-                    const printWin = window.open('', '_blank', 'width=600,height=600');
-                    const openedDate = activeShift.openedAt ? new Date(activeShift.openedAt.seconds ? activeShift.openedAt.seconds * 1000 : activeShift.openedAt).toLocaleString() : '';
-                    const formatMonospace = (label, value) => {
-                      const paddingLen = 38 - label.length - value.length;
-                      const pad = paddingLen > 0 ? '.'.repeat(paddingLen) : ' ';
-                      return `${label}${pad}${value}\n`;
-                    };
-                    let report = `======================================\n`;
-                    report += `          ${restaurant?.name?.toUpperCase() || 'POS RESTAURANT'}\n`;
-                    report += `          X-REPORT: MID-SHIFT AUDIT    \n`;
-                    report += `======================================\n`;
-                    report += `Shift ID: ${activeShift.id?.substring(0, 8) || 'N/A'}\n`;
-                    report += `Opened By: ${activeShift.openedBy || 'N/A'}\n`;
-                    report += `Opened At: ${openedDate}\n`;
-                    report += `Printed At: ${new Date().toLocaleString()}\n`;
-                    report += `--------------------------------------\n`;
-                    report += formatMonospace('STARTING FLOAT', formatCurrency(activeShift.startCash || 0, currency));
-                    report += `--------------------------------------\n`;
-                    report += formatMonospace(`CASH SALES (${activeShift.cashSalesCount || 0})`, formatCurrency(activeShift.cashSalesAmount || 0, currency));
-                    report += formatMonospace(`CARD SALES (${activeShift.cardSalesCount || 0})`, formatCurrency(activeShift.cardSalesAmount || 0, currency));
-                    report += formatMonospace(`UPI SALES (${activeShift.upiSalesCount || 0})`, formatCurrency(activeShift.upiSalesAmount || 0, currency));
-                    report += `--------------------------------------\n`;
-                    report += formatMonospace('TOTAL SALES', formatCurrency((activeShift.cashSalesAmount || 0) + (activeShift.cardSalesAmount || 0) + (activeShift.upiSalesAmount || 0), currency));
-                    report += `--------------------------------------\n`;
-                    const dropsAmt = (activeShift.cashDrops ?? []).reduce((sum, d) => sum + d.amount, 0);
-                    const paidOutsAmt = (activeShift.paidOuts ?? []).reduce((sum, p) => sum + p.amount, 0);
-                    report += formatMonospace('TOTAL CASH DROPS', `-${formatCurrency(dropsAmt, currency)}`);
-                    report += formatMonospace('TOTAL PAID-OUTS', `-${formatCurrency(paidOutsAmt, currency)}`);
-                    report += `--------------------------------------\n`;
-                    report += formatMonospace('EXPECTED CASH', formatCurrency(activeShift.expectedCash || 0, currency));
-                    report += `======================================\n\n`;
-                    report += `Audited By: __________________________\n`;
-
-                    printWin.document.write(`<html><head><title>X-Report (Mid-Shift)</title><style>body{font-family:monospace;white-space:pre;padding:20px;color:#18181b;}</style></head><body>${report}</body></html>`);
-                    printWin.document.close();
-                    printWin.focus();
-                    printWin.print();
-                    printWin.close();
-                  }}
-                  style={{
-                    background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8,
-                    padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6,
-                    cursor: 'pointer', color: 'var(--color-on-dark)', fontSize: 12, fontWeight: 600
-                  }}
-                  title="Print mid-shift X-Report without closing shift"
-                >
-                  🖨️ X-Report
-                </button>
-                <button
                   onClick={() => setShowTillModal(false)}
-                  style={{
-                    background: 'rgba(255,255,255,0.10)', border: 'none', borderRadius: '50%',
-                    width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: 'var(--color-on-dark)', fontSize: 18, transition: 'background 0.15s',
-                    flexShrink: 0
-                  }}
+                  className="btn btn-secondary btn-icon"
+                  style={{ width: 32, height: 32, borderRadius: 8, padding: 0 }}
+                  title="Close modal"
                 >
                   <X size={16} />
                 </button>
               </div>
-            </div>
 
-            <div className="till-modal-body" style={{ padding: '14px 20px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-              {/* Expected Cash Hero Card */}
+              {/* Segmented Tab Navigation */}
               <div style={{
-                background: 'linear-gradient(135deg, rgba(52,199,89,0.12) 0%, rgba(52,199,89,0.04) 100%)',
-                border: '1px solid rgba(52,199,89,0.25)',
-                borderRadius: 14, padding: '12px 18px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Expected Cash in Drawer</div>
-                  <div className="till-modal-hero-val" style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-green)', letterSpacing: '-0.5px' }}>
-                    {formatCurrency(activeShift?.expectedCash || 0, currency)}
-                  </div>
-                </div>
-                <div className="till-modal-hero-emoji" style={{ fontSize: 32, opacity: 0.6 }}>🏦</div>
-              </div>
-
-              {/* Sales Breakdown + Movements Grid */}
-              <div className="till-modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {/* Sales Breakdown */}
-                <div style={{
-                  background: 'var(--color-bg-secondary)',
-                  borderRadius: 12, padding: '12px 14px',
-                  border: '1px solid var(--color-separator)',
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                    📊 Sales Breakdown
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[
-                      { label: 'Starting Float', val: formatCurrency(activeShift?.startCash || 0, currency), color: null },
-                      { label: `Cash (${activeShift?.cashSalesCount || 0})`, val: `+${formatCurrency(activeShift?.cashSalesAmount || 0, currency)}`, color: 'var(--color-green)' },
-                      { label: `Card (${activeShift?.cardSalesCount || 0})`, val: formatCurrency(activeShift?.cardSalesAmount || 0, currency), color: null },
-                      { label: `UPI (${activeShift?.upiSalesCount || 0})`, val: formatCurrency(activeShift?.upiSalesAmount || 0, currency), color: null },
-                    ].map(row => (
-                      <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                        <span style={{ color: 'var(--color-label-secondary)' }}>{row.label}</span>
-                        <span style={{ fontWeight: 600, color: row.color || 'var(--color-label)' }}>{row.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Drawer Movements */}
-                <div style={{
-                  background: 'var(--color-bg-secondary)',
-                  borderRadius: 12, padding: '12px 14px',
-                  border: '1px solid var(--color-separator)',
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                    🔄 Drawer Movements
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                      <span style={{ color: 'var(--color-label-secondary)' }}>Cash Drops ({(activeShift?.cashDrops ?? []).length})</span>
-                      <span style={{ fontWeight: 600, color: 'var(--color-red)' }}>
-                        -{formatCurrency((activeShift?.cashDrops ?? []).reduce((s, d) => s + d.amount, 0), currency)}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                      <span style={{ color: 'var(--color-label-secondary)' }}>Paid-Outs ({(activeShift?.paidOuts ?? []).length})</span>
-                      <span style={{ fontWeight: 600, color: 'var(--color-red)' }}>
-                        -{formatCurrency((activeShift?.paidOuts ?? []).reduce((s, p) => s + p.amount, 0), currency)}
-                      </span>
-                    </div>
-                    {/* Recent movements list */}
-                    {[...(activeShift?.cashDrops ?? []).map(d => ({ ...d, kind: 'Drop' })), ...(activeShift?.paidOuts ?? []).map(p => ({ ...p, kind: 'Paid-Out' }))].length === 0 && (
-                      <div style={{ marginTop: 8, textAlign: 'center', color: 'var(--color-label-tertiary)', fontSize: 11 }}>No movements logged yet</div>
-                    )}
-                    {[...(activeShift?.cashDrops ?? []).map(d => ({ ...d, kind: 'Drop' })), ...(activeShift?.paidOuts ?? []).map(p => ({ ...p, kind: 'Paid-Out' }))]
-                      .slice(-3)
-                      .map((m, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: 'var(--color-bg-elevated)', borderRadius: 8, fontSize: 11 }}>
-                          <span style={{ color: 'var(--color-label-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--color-label)' }}>{m.kind}</span>: {m.reason}
-                          </span>
-                          <span style={{ fontWeight: 700, color: 'var(--color-red)', marginLeft: 8, flexShrink: 0 }}>-{formatCurrency(m.amount, currency)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Log Cash Drop / Paid-Out */}
-              <div style={{
+                display: 'flex',
                 background: 'var(--color-bg-secondary)',
-                borderRadius: 12, padding: '12px 14px',
-                border: '1px solid var(--color-separator)',
+                padding: '6px 14px',
+                gap: 6,
+                borderBottom: '1px solid var(--color-separator)'
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  💸 Log Cash Movement
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div className="till-modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</label>
-                      <select
-                        className="form-select"
-                        value={tillTxType}
-                        onChange={e => setTillTxType(e.target.value)}
-                        style={{ width: '100%', height: 36, fontSize: 13, borderRadius: 10 }}
-                      >
-                        <option value="drop">💵 Cash Drop</option>
-                        <option value="paidout">🧾 Petty Paid-Out</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount ({currency})</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="0.00"
-                        value={tillTxAmount}
-                        onChange={e => setTillTxAmount(e.target.value)}
-                        style={{ width: '100%', height: 36, fontSize: 13, fontWeight: 600, textAlign: 'right', borderRadius: 10 }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason / Description</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Office supplies, safe drop..."
-                      value={tillTxReason}
-                      onChange={e => setTillTxReason(e.target.value)}
-                      style={{ width: '100%', height: 40, fontSize: 13, borderRadius: 10 }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary till-modal-btn"
-                    onClick={handleTillTxSubmit}
-                    style={{ width: '100%', height: 36, fontSize: 13, fontWeight: 600, borderRadius: 10, marginTop: 2 }}
-                  >
-                    ✓ Log Transaction
-                  </button>
-                </div>
-              </div>
-
-              {/* Close Shift Section */}
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(255,59,48,0.07) 0%, rgba(255,59,48,0.03) 100%)',
-                border: '1px solid rgba(255,59,48,0.2)',
-                borderRadius: 12, padding: '12px 14px',
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-red)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  ⚠️ Close Shift Till
-                </div>
-                <div className="till-modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Physical Counted Cash
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-input till-modal-counted-input"
-                      placeholder="0.00"
-                      value={closeCountedCash}
-                      onChange={e => setCloseCountedCash(e.target.value)}
-                      style={{ width: '100%', height: 42, fontSize: 18, fontWeight: 700, textAlign: 'center', borderRadius: 10 }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Drawer Variance
-                    </label>
-                    <div className="till-modal-variance-box" style={{
-                      height: 42, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 18, fontWeight: 800,
-                      background: (parseFloat(closeCountedCash || 0) - (activeShift?.expectedCash || 0)) === 0
-                        ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
-                      color: (parseFloat(closeCountedCash || 0) - (activeShift?.expectedCash || 0)) === 0
-                        ? 'var(--color-green)' : 'var(--color-red)',
-                      border: `1px solid ${(parseFloat(closeCountedCash || 0) - (activeShift?.expectedCash || 0)) === 0
-                        ? 'rgba(52,199,89,0.25)' : 'rgba(255,59,48,0.25)'}`,
-                      letterSpacing: '-0.5px'
-                    }}>
-                      {(parseFloat(closeCountedCash || 0) - (activeShift?.expectedCash || 0)) >= 0 ? '+' : ''}
-                      {formatCurrency(parseFloat(closeCountedCash || 0) - (activeShift?.expectedCash || 0), currency)}
-                    </div>
-                  </div>
-                </div>
                 <button
                   type="button"
-                  className="till-modal-close-btn"
-                  onClick={handleCloseShiftSubmit}
-                  disabled={closingShift}
+                  onClick={() => setTillModalTab('summary')}
                   style={{
-                    width: '100%', height: 48, borderRadius: 'var(--radius-md)',
-                    background: closingShift ? 'var(--color-red-light)' : 'var(--color-red)',
-                    color: closingShift ? 'var(--color-red)' : 'var(--color-on-dark)', border: 'none', cursor: closingShift ? 'not-allowed' : 'pointer',
-                    fontSize: 15, fontWeight: 700, letterSpacing: '-0.2px',
-                    boxShadow: closingShift ? 'none' : 'var(--shadow-md)',
-                    transition: 'all 0.2s',
+                    flex: 1, padding: '8px 12px', borderRadius: 10,
+                    border: 'none', cursor: 'pointer',
+                    fontSize: 13, fontWeight: tillModalTab === 'summary' ? 700 : 500,
+                    background: tillModalTab === 'summary' ? 'var(--color-card)' : 'transparent',
+                    color: tillModalTab === 'summary' ? 'var(--color-primary)' : 'var(--color-label-secondary)',
+                    boxShadow: tillModalTab === 'summary' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  {closingShift ? '⏳ Closing Shift...' : '🔴 Close Shift & Print Z-Report'}
+                  <span>📊</span> Drawer Overview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTillModalTab('movement')}
+                  style={{
+                    flex: 1, padding: '8px 12px', borderRadius: 10,
+                    border: 'none', cursor: 'pointer',
+                    fontSize: 13, fontWeight: tillModalTab === 'movement' ? 700 : 500,
+                    background: tillModalTab === 'movement' ? 'var(--color-card)' : 'transparent',
+                    color: tillModalTab === 'movement' ? 'var(--color-primary)' : 'var(--color-label-secondary)',
+                    boxShadow: tillModalTab === 'movement' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>💸</span> Cash In / Out
+                  {(drops.length > 0 || paidOuts.length > 0) && (
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 8,
+                      background: 'rgba(0,122,255,0.12)', color: 'var(--color-primary)'
+                    }}>
+                      {drops.length + paidOuts.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTillModalTab('close')}
+                  style={{
+                    flex: 1, padding: '8px 12px', borderRadius: 10,
+                    border: 'none', cursor: 'pointer',
+                    fontSize: 13, fontWeight: tillModalTab === 'close' ? 700 : 500,
+                    background: tillModalTab === 'close' ? 'var(--color-card)' : 'transparent',
+                    color: tillModalTab === 'close' ? 'var(--color-red)' : 'var(--color-label-secondary)',
+                    boxShadow: tillModalTab === 'close' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>🔒</span> Close Shift
                 </button>
               </div>
 
+              {/* Modal Body Scrollable */}
+              <div style={{ padding: '18px 22px 22px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {tillModalTab === 'summary' && (
+                  <>
+                    {/* Expected Cash Hero Banner */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(52,199,89,0.09) 0%, rgba(0,122,255,0.06) 100%)',
+                      border: '1px solid rgba(52,199,89,0.25)',
+                      borderRadius: 16, padding: '18px 20px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                          letterSpacing: '0.08em', color: 'var(--color-green)',
+                          marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6
+                        }}>
+                          <span>💵</span> Expected Cash In Drawer
+                        </div>
+                        <div style={{
+                          fontSize: 28, fontWeight: 800, color: 'var(--color-label)',
+                          letterSpacing: '-0.03em', lineHeight: 1.15
+                        }}>
+                          {formatCurrency(expectedCash, currency)}
+                        </div>
+                        <div style={{
+                          fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 6,
+                          background: 'rgba(255,255,255,0.6)', padding: '3px 8px', borderRadius: 6,
+                          display: 'inline-block'
+                        }}>
+                          Float ({formatCurrency(activeShift?.startCash || 0, currency)}) + Cash Sales ({formatCurrency(activeShift?.cashSalesAmount || 0, currency)}) - Outflows ({formatCurrency(dropsAmt + paidOutsAmt, currency)})
+                        </div>
+                      </div>
+                      <div style={{
+                        width: 52, height: 52, borderRadius: 14,
+                        background: 'rgba(52,199,89,0.12)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 26, flexShrink: 0
+                      }}>
+                        🏦
+                      </div>
+                    </div>
+
+                    {/* Sales & Movements Summary Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                      {/* Left: Sales Breakdown */}
+                      <div style={{
+                        background: 'var(--color-bg-secondary)',
+                        borderRadius: 14, padding: '14px 16px',
+                        border: '1px solid var(--color-separator)'
+                      }}>
+                        <div style={{
+                          fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase',
+                          color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
+                          marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6
+                        }}>
+                          <span>📊</span> Sales Breakdown ({totalOrdersCount} Orders)
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--color-label-secondary)' }}>Starting Float:</span>
+                            <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.startCash || 0, currency)}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--color-label-secondary)' }}>Cash Sales ({activeShift?.cashSalesCount || 0}):</span>
+                            <strong style={{ color: 'var(--color-green)' }}>+{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--color-label-secondary)' }}>Card Sales ({activeShift?.cardSalesCount || 0}):</span>
+                            <span style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.cardSalesAmount || 0, currency)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--color-label-secondary)' }}>UPI / QR Sales ({activeShift?.upiSalesCount || 0}):</span>
+                            <span style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.upiSalesAmount || 0, currency)}</span>
+                          </div>
+                          <div style={{
+                            borderTop: '1px dashed var(--color-separator)',
+                            paddingTop: 8, marginTop: 2,
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                          }}>
+                            <span style={{ fontWeight: 700, color: 'var(--color-label)' }}>Total Gross Sales:</span>
+                            <strong style={{ fontSize: 13, color: 'var(--color-primary)' }}>{formatCurrency(totalSalesAmt, currency)}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Drawer Outflows & Audit */}
+                      <div style={{
+                        background: 'var(--color-bg-secondary)',
+                        borderRadius: 14, padding: '14px 16px',
+                        border: '1px solid var(--color-separator)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <div style={{
+                            fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase',
+                            color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
+                            marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6
+                          }}>
+                            <span>🔄</span> Drawer Movements
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: 'var(--color-label-secondary)' }}>Safe Drops ({drops.length}):</span>
+                              <strong style={{ color: dropsAmt > 0 ? 'var(--color-red)' : 'var(--color-label-tertiary)' }}>
+                                {dropsAmt > 0 ? `-${formatCurrency(dropsAmt, currency)}` : '₹0.00'}
+                              </strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: 'var(--color-label-secondary)' }}>Expense Paid-Outs ({paidOuts.length}):</span>
+                              <strong style={{ color: paidOutsAmt > 0 ? 'var(--color-red)' : 'var(--color-label-tertiary)' }}>
+                                {paidOutsAmt > 0 ? `-${formatCurrency(paidOutsAmt, currency)}` : '₹0.00'}
+                              </strong>
+                            </div>
+                            <div style={{
+                              borderTop: '1px dashed var(--color-separator)',
+                              paddingTop: 8, marginTop: 2,
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            }}>
+                              <span style={{ fontWeight: 600, color: 'var(--color-label-secondary)' }}>Total Cash Deductions:</span>
+                              <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(dropsAmt + paidOutsAmt, currency)}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mid-Shift X-Report Action */}
+                        <div style={{
+                          marginTop: 12, paddingTop: 10,
+                          borderTop: '1px solid var(--color-separator)'
+                        }}>
+                          <button
+                            type="button"
+                            onClick={printXReport}
+                            className="btn btn-secondary"
+                            style={{
+                              width: '100%', height: 38, borderRadius: 10,
+                              fontSize: 12, fontWeight: 700,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                            }}
+                          >
+                            <span>🖨️</span> Print Mid-Shift X-Report
+                          </button>
+                          <p style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '4px 0 0' }}>
+                            Snapshot audit for change verification. Does not close shift.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Navigation Buttons */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => setTillModalTab('movement')}
+                        className="btn btn-secondary"
+                        style={{
+                          height: 44, borderRadius: 12, fontSize: 13, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                        }}
+                      >
+                        <span>💸</span> Log Cash In / Out
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTillModalTab('close')}
+                        className="btn"
+                        style={{
+                          height: 44, borderRadius: 12, fontSize: 13, fontWeight: 700,
+                          background: 'rgba(255,59,48,0.1)', color: 'var(--color-red)',
+                          border: '1px solid rgba(255,59,48,0.25)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                        }}
+                      >
+                        <span>🔒</span> Close Shift Till
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {tillModalTab === 'movement' && (
+                  <>
+                    {/* Log Movement Form */}
+                    <div style={{
+                      background: 'var(--color-bg-secondary)',
+                      borderRadius: 16, padding: '16px 18px',
+                      border: '1px solid var(--color-separator)'
+                    }}>
+                      <div style={{
+                        fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+                        color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
+                        marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6
+                      }}>
+                        <span>💸</span> Record Drawer Cash Movement
+                      </div>
+
+                      {/* Transaction Type Radios */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                        <div
+                          onClick={() => setTillTxType('drop')}
+                          style={{
+                            padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                            background: tillTxType === 'drop' ? 'rgba(0,122,255,0.08)' : 'var(--color-card)',
+                            border: `1.5px solid ${tillTxType === 'drop' ? 'var(--color-primary)' : 'var(--color-separator)'}`,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                            <span style={{ fontSize: 18 }}>🏦</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>Safe Drop</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', lineHeight: 1.3 }}>
+                            Move excess cash to safe
+                          </div>
+                        </div>
+
+                        <div
+                          onClick={() => setTillTxType('paidout')}
+                          style={{
+                            padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                            background: tillTxType === 'paidout' ? 'rgba(255,149,0,0.08)' : 'var(--color-card)',
+                            border: `1.5px solid ${tillTxType === 'paidout' ? '#ff9500' : 'var(--color-separator)'}`,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                            <span style={{ fontSize: 18 }}>🛒</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>Expense Paid-Out</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', lineHeight: 1.3 }}>
+                            Daily supplies, veggies, courier
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Amount Input with Quick Presets */}
+                      <div style={{ marginBottom: 14 }}>
+                        <label style={{
+                          display: 'block', fontSize: 11.5, fontWeight: 700,
+                          color: 'var(--color-label-secondary)', marginBottom: 6,
+                          textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}>
+                          Amount ({currency})
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={tillTxAmount}
+                            onChange={e => setTillTxAmount(e.target.value)}
+                            style={{
+                              width: '100%', height: 44, padding: '0 14px',
+                              borderRadius: 10, border: '1px solid var(--color-separator)',
+                              background: 'var(--color-card)', fontSize: 17, fontWeight: 700,
+                              color: 'var(--color-label)', boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        {/* Quick Amount Chips */}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                          {[100, 200, 500, 1000, 2000].map(amt => (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => {
+                                const current = parseFloat(tillTxAmount) || 0;
+                                setTillTxAmount((current + amt).toString());
+                              }}
+                              style={{
+                                padding: '4px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600,
+                                background: 'var(--color-card)', border: '1px solid var(--color-separator)',
+                                cursor: 'pointer', color: 'var(--color-label-secondary)'
+                              }}
+                            >
+                              +₹{amt}
+                            </button>
+                          ))}
+                          {tillTxAmount && (
+                            <button
+                              type="button"
+                              onClick={() => setTillTxAmount('')}
+                              style={{
+                                padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                background: 'transparent', border: 'none',
+                                cursor: 'pointer', color: 'var(--color-red)'
+                              }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Reason / Description with Preset Chips */}
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{
+                          display: 'block', fontSize: 11.5, fontWeight: 700,
+                          color: 'var(--color-label-secondary)', marginBottom: 6,
+                          textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}>
+                          Reason / Description
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={tillTxType === 'drop' ? 'e.g., Safe drop above ₹10,000 threshold' : 'e.g., Dairy delivery, kitchen emergency supplies'}
+                          value={tillTxReason}
+                          onChange={e => setTillTxReason(e.target.value)}
+                          style={{
+                            width: '100%', height: 40, padding: '0 14px',
+                            borderRadius: 10, border: '1px solid var(--color-separator)',
+                            background: 'var(--color-card)', fontSize: 13,
+                            color: 'var(--color-label)', boxSizing: 'border-box'
+                          }}
+                        />
+                        {/* Preset Reason Chips */}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                          {(tillTxType === 'drop'
+                            ? ['Routine Safe Drop', 'Excess Cash Safe Stash', 'Bank Transit']
+                            : ['🥛 Milk / Dairy', '🥬 Veggies / Grocery', '📦 Courier / Delivery', '🧹 Cleaning Supplies', '🧊 Ice Bags']
+                          ).map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setTillTxReason(tag)}
+                              style={{
+                                padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500,
+                                background: tillTxReason === tag ? 'var(--color-card)' : 'transparent',
+                                border: `1px solid ${tillTxReason === tag ? 'var(--color-primary)' : 'var(--color-separator)'}`,
+                                cursor: 'pointer', color: tillTxReason === tag ? 'var(--color-primary)' : 'var(--color-label-secondary)'
+                              }}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        type="button"
+                        onClick={handleTillTxSubmit}
+                        className="btn btn-primary"
+                        style={{
+                          width: '100%', height: 44, borderRadius: 12,
+                          fontSize: 14, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                        }}
+                      >
+                        <span>✓</span> Record {tillTxType === 'drop' ? 'Safe Drop' : 'Paid-Out'}
+                      </button>
+                    </div>
+
+                    {/* Shift Movements History List */}
+                    <div style={{
+                      background: 'var(--color-bg-secondary)',
+                      borderRadius: 16, padding: '14px 16px',
+                      border: '1px solid var(--color-separator)'
+                    }}>
+                      <div style={{
+                        fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase',
+                        color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
+                        marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                      }}>
+                        <span>📜 Today's Logged Movements ({movementsList.length})</span>
+                      </div>
+                      {movementsList.length === 0 ? (
+                        <p style={{ fontSize: 12, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '14px 0' }}>
+                          No cash movements logged during this shift yet.
+                        </p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                          {movementsList.map((m, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '8px 12px', borderRadius: 10,
+                                background: 'var(--color-card)', border: '1px solid var(--color-separator)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{
+                                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                                  background: m.kind === 'drop' ? 'rgba(0,122,255,0.1)' : 'rgba(255,149,0,0.1)',
+                                  color: m.kind === 'drop' ? 'var(--color-primary)' : '#e68a00'
+                                }}>
+                                  {m.kindLabel}
+                                </span>
+                                <div>
+                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-label)' }}>
+                                    {m.reason || 'No description'}
+                                  </div>
+                                  <div style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
+                                    {m.timestamp?.seconds
+                                      ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                      : 'Recently'}
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
+                                -{formatCurrency(m.amount || 0, currency)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {tillModalTab === 'close' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* Guided Steps Header */}
+                    <div style={{
+                      background: 'rgba(255,59,48,0.06)',
+                      border: '1px solid rgba(255,59,48,0.2)',
+                      borderRadius: 14, padding: '12px 16px',
+                      display: 'flex', alignItems: 'center', gap: 10
+                    }}>
+                      <span style={{ fontSize: 20 }}>🔒</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
+                          Shift Closing & Drawer Reconciliation
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)' }}>
+                          Count the cash inside the physical register drawer to reconcile against system sales.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 1: Expected Reference */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: 'var(--color-bg-secondary)', padding: '12px 16px',
+                      borderRadius: 12, border: '1px solid var(--color-separator)'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+                          Step 1 · System Expected Total
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
+                          Opening Float + Cash Sales - Deductions
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-label)' }}>
+                        {formatCurrency(expectedCash, currency)}
+                      </div>
+                    </div>
+
+                    {/* Step 2: Physical Counted Cash Input */}
+                    <div style={{
+                      background: 'var(--color-bg-secondary)', padding: '14px 16px',
+                      borderRadius: 14, border: '1px solid var(--color-separator)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+                            Step 2 · Enter Physical Counted Cash
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                            Type drawer total directly, or open the note breakdown helper
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowDenomCounter(!showDenomCounter)}
+                          style={{
+                            padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600,
+                            background: showDenomCounter ? 'rgba(0,122,255,0.1)' : 'var(--color-card)',
+                            color: showDenomCounter ? 'var(--color-primary)' : 'var(--color-label-secondary)',
+                            border: '1px solid var(--color-separator)', cursor: 'pointer'
+                          }}
+                        >
+                          {showDenomCounter ? '✕ Hide Counter' : '🧮 Denomination Helper'}
+                        </button>
+                      </div>
+
+                      <div style={{ position: 'relative', marginTop: 10 }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Enter physical cash (e.g. 22890.50)"
+                          value={closeCountedCash}
+                          onChange={e => setCloseCountedCash(e.target.value)}
+                          style={{
+                            width: '100%', height: 48, borderRadius: 12,
+                            border: '1.5px solid var(--color-separator)', background: 'var(--color-card)',
+                            fontSize: 20, fontWeight: 800, textAlign: 'center',
+                            color: 'var(--color-label)', boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+
+                      {/* Interactive Denomination Calculator Grid */}
+                      {showDenomCounter && (
+                        <div style={{
+                          marginTop: 12, paddingTop: 12,
+                          borderTop: '1px solid var(--color-separator)'
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', marginBottom: 8 }}>
+                            Count per denomination (auto-sums above):
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                            {[500, 200, 100, 50, 20, 10].map(d => (
+                              <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>₹{d}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="qty"
+                                  value={denominations[d] || ''}
+                                  onChange={e => updateDenom(d, e.target.value)}
+                                  style={{
+                                    width: '100%', height: 32, padding: '0 8px', borderRadius: 6,
+                                    border: '1px solid var(--color-separator)', background: 'var(--color-card)',
+                                    fontSize: 12, textAlign: 'center'
+                                  }}
+                                />
+                              </div>
+                            ))}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>Coins</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                placeholder="₹ total"
+                                value={denominations.coins || ''}
+                                onChange={e => updateDenom('coins', e.target.value)}
+                                style={{
+                                  width: '100%', height: 32, padding: '0 8px', borderRadius: 6,
+                                  border: '1px solid var(--color-separator)', background: 'var(--color-card)',
+                                  fontSize: 12, textAlign: 'center'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Step 3: Variance Status Banner */}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)', marginBottom: 6 }}>
+                        Step 3 · Reconciliation Status
+                      </div>
+
+                      {!hasCountedInput ? (
+                        <div style={{
+                          padding: '12px 16px', borderRadius: 12,
+                          background: 'var(--color-bg-secondary)', border: '1px dashed var(--color-separator)',
+                          display: 'flex', alignItems: 'center', gap: 10
+                        }}>
+                          <span style={{ fontSize: 18 }}>ℹ️</span>
+                          <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                            Enter counted physical cash above to calculate drawer variance.
+                          </span>
+                        </div>
+                      ) : variance === 0 ? (
+                        <div style={{
+                          padding: '14px 16px', borderRadius: 12,
+                          background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.3)',
+                          display: 'flex', alignItems: 'center', gap: 12
+                        }}>
+                          <span style={{ fontSize: 24 }}>✅</span>
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-green)' }}>
+                              Perfect Match (₹0.00 Variance)
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                              Physical counted cash perfectly balances with all system sales.
+                            </div>
+                          </div>
+                        </div>
+                      ) : variance < 0 ? (
+                        <div style={{
+                          padding: '14px 16px', borderRadius: 12,
+                          background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)',
+                          display: 'flex', alignItems: 'center', gap: 12
+                        }}>
+                          <span style={{ fontSize: 24 }}>⚠️</span>
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-red)' }}>
+                              Cash Shortage: -{formatCurrency(Math.abs(variance), currency)}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                              The physical drawer is missing {formatCurrency(Math.abs(variance), currency)}. Please recount or verify if an unrecorded cash payout occurred.
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '14px 16px', borderRadius: 12,
+                          background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.3)',
+                          display: 'flex', alignItems: 'center', gap: 12
+                        }}>
+                          <span style={{ fontSize: 24 }}>ℹ️</span>
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 800, color: '#e68a00' }}>
+                              Cash Surplus: +{formatCurrency(variance, currency)}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                              The physical drawer contains {formatCurrency(variance, currency)} more than registered. Check if tips or float were added.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Destructive Shift Close Button */}
+                    <div style={{ marginTop: 6 }}>
+                      <button
+                        type="button"
+                        onClick={handleCloseShiftSubmit}
+                        disabled={closingShift || !hasCountedInput}
+                        style={{
+                          width: '100%', height: 48, borderRadius: 14,
+                          background: (!hasCountedInput || closingShift) ? 'var(--color-bg-secondary)' : 'var(--color-red)',
+                          color: (!hasCountedInput || closingShift) ? 'var(--color-label-tertiary)' : '#fff',
+                          border: 'none', cursor: (!hasCountedInput || closingShift) ? 'not-allowed' : 'pointer',
+                          fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em',
+                          boxShadow: (!hasCountedInput || closingShift) ? 'none' : '0 4px 12px rgba(255,59,48,0.35)',
+                          transition: 'all 0.2s ease',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                        }}
+                      >
+                        {closingShift ? '⏳ Finalizing & Printing Z-Report...' : '🔴 Close Shift & Print Z-Report'}
+                      </button>
+                      <p style={{ fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '8px 0 0' }}>
+                        This permanently closes the active shift, prints the Z-Report audit, and resets the register for the next cashier.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Z-Report Modal */}
 

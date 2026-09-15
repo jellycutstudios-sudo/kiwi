@@ -9,7 +9,7 @@ import { printReceipt } from '../utils/print';
 import { useTokenStore } from '../stores/tokenStore';
 import { 
   ClipboardList, Search, Clock, Printer, Check, ChefHat, 
-  Bell, AlertTriangle, User, Eye, X
+  Bell, AlertTriangle, User, Eye, X, Zap, FastForward
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -19,7 +19,53 @@ export default function ActiveOrders() {
   const staffDoc = useAuthStore(s => s.staffDoc);
   const activeOrders = useOrderStore(s => s.activeOrders);
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
+  const settleOrder = useOrderStore(s => s.settleOrder);
   const { callSpecificToken } = useTokenStore();
+  
+  const [quickSettleOrder, setQuickSettleOrder] = useState(null);
+  const [settling, setSettling] = useState(false);
+
+  const handleQuickSettle = async (order, method = 'cash') => {
+    if (!order?.id || !restaurant?.id) return;
+    try {
+      setSettling(true);
+      await settleOrder(restaurant.id, order.id, method, order.total);
+      const label = order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : `#${order.id.slice(-6).toUpperCase()}`);
+      toast.success(`${label} settled for ${formatCurrency(order.total, restaurant?.currency || 'INR')} via ${method.toUpperCase()}!`, { icon: '💰' });
+      setQuickSettleOrder(null);
+      if (selectedOrderDetails?.id === order.id) setSelectedOrderDetails(null);
+    } catch (err) {
+      toast.error('Failed to settle order: ' + err.message);
+    } finally {
+      setSettling(false);
+    }
+  };
+
+  const handleBatchAdvanceAll = async () => {
+    if (pendingOrders.length === 0) return;
+    if (!window.confirm(`Mark all ${pendingOrders.length} pending orders as Ready?`)) return;
+    try {
+      for (const o of pendingOrders) {
+        await updateOrderStatus(restaurant.id, o.id, 'ready');
+      }
+      toast.success(`Advanced ${pendingOrders.length} orders to Ready!`, { icon: '⚡' });
+    } catch (err) {
+      toast.error('Batch advance failed: ' + err.message);
+    }
+  };
+
+  const handleBatchSettleReady = async () => {
+    if (readyOrders.length === 0) return;
+    if (!window.confirm(`Settle all ${readyOrders.length} ready orders as Cash payment?`)) return;
+    try {
+      for (const o of readyOrders) {
+        await settleOrder(restaurant.id, o.id, 'cash', o.total);
+      }
+      toast.success(`Settled ${readyOrders.length} orders!`, { icon: '🎉' });
+    } catch (err) {
+      toast.error('Batch settle failed: ' + err.message);
+    }
+  };
   
   const handleCallToken = async (tokenNumber) => {
     if (!restaurant?.id) return;
@@ -285,7 +331,31 @@ export default function ActiveOrders() {
             </button>
           )}
 
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button 
+              className="btn btn-sm"
+              onClick={() => setQuickSettleOrder(order)}
+              title="Instant Settle Payment & Close Order"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '0 8px',
+                height: 32,
+                background: '#10b981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: '0 2px 6px rgba(16,185,129,0.25)',
+                cursor: 'pointer'
+              }}
+            >
+              <Zap size={12} fill="#fff" />
+              <span>Settle</span>
+            </button>
+
             {order.status === 'pending' && (
               <button 
                 className="btn btn-primary btn-sm"
@@ -338,8 +408,8 @@ export default function ActiveOrders() {
           </p>
         </div>
 
-        {/* Counter Summary badges */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {/* Counter Summary badges + Rush Hour Actions */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <div className="badge badge-yellow" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>⏳ Pending:</span>
             <strong>{pendingOrders.length}</strong>
@@ -352,6 +422,30 @@ export default function ActiveOrders() {
             <span>🔔 Ready:</span>
             <strong>{readyOrders.length}</strong>
           </div>
+
+          {pendingOrders.length > 1 && (
+            <button
+              onClick={handleBatchAdvanceAll}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'var(--color-bg-secondary)' }}
+              title="Quickly advance all pending orders to Ready for the kitchen"
+            >
+              <FastForward size={13} color="var(--color-teal)" />
+              <span>Advance All ({pendingOrders.length})</span>
+            </button>
+          )}
+
+          {readyOrders.length > 0 && (
+            <button
+              onClick={handleBatchSettleReady}
+              className="btn btn-sm"
+              style={{ fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'var(--color-green-light)', color: 'var(--color-green)', border: '1px solid var(--color-green)' }}
+              title="Quickly settle all ready orders as Cash"
+            >
+              <Zap size={13} />
+              <span>Settle All Ready ({readyOrders.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -625,6 +719,22 @@ export default function ActiveOrders() {
               </button>
               <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                 <button 
+                  className="btn btn-sm" 
+                  style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontWeight: 700
+                  }}
+                  onClick={() => setQuickSettleOrder(selectedOrderDetails)}
+                >
+                  <Zap size={13} fill="#fff" />
+                  <span>Settle</span>
+                </button>
+                <button 
                   className="btn btn-secondary" 
                   onClick={() => setSelectedOrderDetails(null)}
                 >
@@ -642,6 +752,148 @@ export default function ActiveOrders() {
                   <span>Print</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Settle Modal */}
+      {quickSettleOrder && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && !settling && setQuickSettleOrder(null)}>
+          <div className="modal" style={{ maxWidth: '420px', borderRadius: 'var(--radius-xl)' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'rgba(16, 185, 129, 0.12)', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Zap size={18} color="#10b981" />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '16px', fontWeight: 800 }}>
+                    Quick Settle Order
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                    {quickSettleOrder.tableName ? `Table ${quickSettleOrder.tableName}` : (quickSettleOrder.token ? `Token #${quickSettleOrder.token}` : `#${quickSettleOrder.id.slice(-6).toUpperCase()}`)}
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="btn btn-secondary btn-icon" 
+                onClick={() => !settling && setQuickSettleOrder(null)}
+                disabled={settling}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div style={{
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '16px',
+                textAlign: 'center',
+                border: '1px solid var(--color-separator)'
+              }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                  Total Bill Amount
+                </div>
+                <div style={{ fontSize: '32px', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>
+                  {formatCurrency(quickSettleOrder.total, restaurant?.currency || 'INR')}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-label-tertiary)', marginTop: '4px' }}>
+                  {(quickSettleOrder.items || []).length} items · {quickSettleOrder.type || 'dine-in'}
+                </div>
+              </div>
+
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Select Payment Method
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => handleQuickSettle(quickSettleOrder, 'cash')}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '14px 8px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#10b981'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
+                >
+                  <span style={{ fontSize: '20px' }}>💵</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>Cash</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => handleQuickSettle(quickSettleOrder, 'upi')}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '14px 8px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#8b5cf6'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
+                >
+                  <span style={{ fontSize: '20px' }}>📱</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>UPI / QR</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => handleQuickSettle(quickSettleOrder, 'card')}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '14px 8px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
+                >
+                  <span style={{ fontSize: '20px' }}>💳</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>Card</span>
+                </button>
+              </div>
+
+              {settling && (
+                <div style={{ textAlign: 'center', fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                  Settling order & releasing table...
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setQuickSettleOrder(null)}
+                disabled={settling}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

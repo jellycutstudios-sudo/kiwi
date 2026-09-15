@@ -9,7 +9,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt } from '../utils/print';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, LayoutGrid, Search, Clock, Zap, Sparkles } from 'lucide-react';
 
 export default function TableMap() {
   const navigate = useNavigate();
@@ -28,6 +28,8 @@ export default function TableMap() {
   const [reservations, setReservations] = useState([]);
   const [showTransfer, setShowTransfer] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'free' | 'occupied' | 'reserved'
+  const [searchQuery, setSearchQuery] = useState('');
   const todayStr = new Date().toISOString().split('T')[0];
 
   const [activeFloor, setActiveFloor] = useState('Ground Floor');
@@ -37,6 +39,103 @@ export default function TableMap() {
 
   const [zoom, setZoom] = useState(1);
   const wrapperRef = useRef(null);
+
+  const floorTables = useMemo(() => {
+    return tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
+  }, [tables, activeFloor]);
+
+  // Dynamically resolve and space out any overlapping tables (e.g. T4 and T5)
+  const resolvedTables = useMemo(() => {
+    const list = floorTables.map(t => ({
+      ...t,
+      renderX: t.x ?? 80,
+      renderY: t.y ?? 80,
+      renderW: t.w ?? 90,
+      renderH: t.h ?? 90
+    }));
+
+    // Collision detection & gentle non-overlapping separation
+    for (let i = 0; i < list.length; i++) {
+      for (let j = 0; j < list.length; j++) {
+        if (i === j) continue;
+        const a = list[i];
+        const b = list[j];
+        const overlapsX = (a.renderX < b.renderX + b.renderW) && (a.renderX + a.renderW > b.renderX);
+        const overlapsY = (a.renderY < b.renderY + b.renderH) && (a.renderY + a.renderH > b.renderY);
+
+        if (overlapsX && overlapsY) {
+          if (a.renderX <= b.renderX) {
+            b.renderX = a.renderX + a.renderW + 45;
+          } else {
+            a.renderX = b.renderX + b.renderW + 45;
+          }
+        }
+      }
+    }
+    return list;
+  }, [floorTables]);
+
+  // Realtime metric calculations for active floor
+  const floorTableMetrics = useMemo(() => {
+    let free = 0;
+    let occupied = 0;
+    let reserved = 0;
+    let liveRevenue = 0;
+
+    floorTables.forEach(t => {
+      const order = tableOrders[t.id];
+      const isOccupied = (order && order.status !== 'billed' && order.status !== 'cancelled') || t.status === 'occupied';
+      const isReserved = !isOccupied && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
+      if (isOccupied) {
+        occupied++;
+        if (order?.total) liveRevenue += order.total;
+      } else if (isReserved) {
+        reserved++;
+      } else {
+        free++;
+      }
+    });
+
+    return { free, occupied, reserved, liveRevenue };
+  }, [floorTables, tableOrders, reservations]);
+
+  // Auto-align tables into clean non-overlapping grid (fixes collisions like T4 on T5)
+  const handleAutoAlign = async () => {
+    if (!floorTables.length || !restaurant?.id) return;
+
+    const sorted = [...floorTables].sort((a, b) => {
+      return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true });
+    });
+
+    const MARGIN_X = 60;
+    const MARGIN_Y = 50;
+    const COL_WIDTH = 190;
+    const ROW_HEIGHT = 160;
+    const COLS = 4;
+
+    toast.loading('Auto-aligning tables into clean grid...', { id: 'auto-align' });
+    try {
+      const updateTable = useTableStore.getState().updateTable;
+      for (let i = 0; i < sorted.length; i++) {
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        const newX = MARGIN_X + col * COL_WIDTH;
+        const newY = MARGIN_Y + row * ROW_HEIGHT;
+        const t = sorted[i];
+        const standardW = (t.capacity || 4) > 6 ? 110 : 90;
+        const standardH = (t.capacity || 4) > 6 ? 110 : 90;
+        await updateTable(restaurant.id, t.id, {
+          x: newX,
+          y: newY,
+          w: standardW,
+          h: standardH
+        });
+      }
+      toast.success('Tables aligned into clean non-overlapping grid!', { id: 'auto-align', icon: '📐' });
+    } catch (err) {
+      toast.error('Failed to align tables: ' + err.message, { id: 'auto-align' });
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -186,73 +285,16 @@ export default function TableMap() {
   const selectedOrder = selected ? tableOrders[selected] : null;
 
   // Render visual chairs dynamically around a table card
-  const renderChairs = (table) => {
+  const renderChairs = (table, isOccupied) => {
     const chairs = [];
     const capacity = table.capacity || 4;
-    const size = table.w || 80;
+    const w = table.w || 90;
+    const h = table.h || 90;
     const shape = table.shape || 'rect';
-    const isOccupied = table.status === 'occupied';
-
-    // Scan order items for occupant emojis
-    const order = tableOrders[table.id];
-    const defaultEmojis = ['🍕', '🍹', '🍔', '🧁', '🍜', '☕', '🍩', '🌮', '🍣', '🍟', '🍷', '🍝', '😋', '🥤'];
-    const keywordMap = {
-      'pizza': '🍕',
-      'burger': '🍔',
-      'fry': '🍟',
-      'fries': '🍟',
-      'pasta': '🍝',
-      'spaghetti': '🍝',
-      'noodle': '🍜',
-      'ramen': '🍜',
-      'soup': '🥣',
-      'sushi': '🍣',
-      'taco': '🌮',
-      'sandwich': '🥪',
-      'salad': '🥗',
-      'steak': '🥩',
-      'chicken': '🍗',
-      'cake': '🧁',
-      'dessert': '🍩',
-      'donut': '🍩',
-      'coffee': '☕',
-      'tea': '🍵',
-      'drink': '🍹',
-      'cocktail': '🍹',
-      'juice': '🥤',
-      'soda': '🥤',
-      'beer': '🍺',
-      'wine': '🍷',
-    };
-
-    const occupantEmojis = [];
-    if (isOccupied && order && order.items) {
-      for (const item of order.items) {
-        const nameLower = (item.name || '').toLowerCase();
-        for (const [key, emoji] of Object.entries(keywordMap)) {
-          if (nameLower.includes(key) && !occupantEmojis.includes(emoji)) {
-            occupantEmojis.push(emoji);
-            break;
-          }
-        }
-        if (occupantEmojis.length >= capacity) break;
-      }
-    }
-
-    let seedOffset = 0;
-    while (occupantEmojis.length < capacity) {
-      const hash = ((table.id ?? '') + seedOffset).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const fallback = defaultEmojis[hash % defaultEmojis.length];
-      if (!occupantEmojis.includes(fallback)) {
-        occupantEmojis.push(fallback);
-      }
-      seedOffset++;
-    }
-
 
     if (shape === 'round') {
-      const radius = size / 2;
-      const dist = radius + 5;
+      const radius = Math.min(w, h) / 2;
+      const dist = radius + 6;
       for (let i = 0; i < capacity; i++) {
         const angle = (i * 2 * Math.PI) / capacity - Math.PI / 2;
         const x = radius + dist * Math.cos(angle) - 7;
@@ -266,7 +308,6 @@ export default function TableMap() {
         );
       }
     } else {
-      // Rectangular table: distribute chairs along the 4 edges
       let topCount = 0;
       let bottomCount = 0;
       let leftCount = 0;
@@ -284,18 +325,20 @@ export default function TableMap() {
       }
 
       const addChairsForEdge = (count, edge) => {
-        const step = size / (count + 1);
+        const isHorizontal = edge === 'top' || edge === 'bottom';
+        const span = isHorizontal ? w : h;
+        const step = span / (count + 1);
         for (let i = 0; i < count; i++) {
           const offset = (i + 1) * step;
           let style = {};
           if (edge === 'top') {
-            style = { left: offset - 9, top: -13, width: 18, height: 10, borderRadius: '3px 3px 0 0' };
+            style = { left: offset - 10, top: -11, width: 20, height: 8, borderRadius: '4px 4px 1px 1px' };
           } else if (edge === 'bottom') {
-            style = { left: offset - 9, top: size + 3, width: 18, height: 10, borderRadius: '0 0 3px 3px' };
+            style = { left: offset - 10, top: h + 3, width: 20, height: 8, borderRadius: '1px 1px 4px 4px' };
           } else if (edge === 'left') {
-            style = { left: -13, top: offset - 9, width: 10, height: 18, borderRadius: '3px 0 0 3px' };
+            style = { left: -11, top: offset - 10, width: 8, height: 20, borderRadius: '4px 1px 1px 4px' };
           } else if (edge === 'right') {
-            style = { left: size + 3, top: offset - 9, width: 10, height: 18, borderRadius: '0 3px 3px 0' };
+            style = { left: w + 3, top: offset - 10, width: 8, height: 20, borderRadius: '1px 4px 4px 1px' };
           }
           chairs.push(
             <div
@@ -320,34 +363,92 @@ export default function TableMap() {
     <div className="table-map-layout">
       {/* Main map */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        {/* Legend */}
-        <div style={{ display:'flex', gap:'var(--space-3)', flexWrap:'wrap', alignItems:'center' }}>
-          {Object.entries(statusConfig).map(([k, v]) => {
-            const count = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor && t.status === k).length;
-            return (
-              <div 
-                key={k} 
-                style={{ 
-                  display:'flex', 
-                  alignItems:'center', 
-                  gap:'var(--space-2)', 
-                  fontSize:'12px',
-                  fontWeight: 'var(--weight-semibold)',
-                  color: v.text,
-                  background: v.bg,
-                  padding: '4px 12px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid transparent'
+        {/* Interactive Filter Pills & Search Bar */}
+        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '5px 12px', fontSize: '12px', borderRadius: '999px', fontWeight: 700 }}
+            >
+              All Tables ({floorTables.length})
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === 'free' ? 'all' : 'free')}
+              className="btn btn-sm"
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                borderRadius: '999px',
+                background: statusFilter === 'free' ? '#10b981' : 'rgba(16, 185, 129, 0.1)',
+                color: statusFilter === 'free' ? '#fff' : '#059669',
+                border: '1px solid ' + (statusFilter === 'free' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'),
+                fontWeight: 700
+              }}
+            >
+              🟢 Available ({floorTableMetrics.free})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === 'occupied' ? 'all' : 'occupied')}
+              className="btn btn-sm"
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                borderRadius: '999px',
+                background: statusFilter === 'occupied' ? '#ef4444' : 'rgba(239, 68, 68, 0.1)',
+                color: statusFilter === 'occupied' ? '#fff' : '#dc2626',
+                border: '1px solid ' + (statusFilter === 'occupied' ? '#ef4444' : 'rgba(239, 68, 68, 0.3)'),
+                fontWeight: 700
+              }}
+            >
+              🔴 Seated ({floorTableMetrics.occupied})
+              {floorTableMetrics.liveRevenue > 0 && (
+                <span style={{ marginLeft: '4px', opacity: 0.9 }}>· {formatCurrency(floorTableMetrics.liveRevenue, currency)}</span>
+              )}
+            </button>
+
+            {floorTableMetrics.reserved > 0 && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved')}
+                className="btn btn-sm"
+                style={{
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  borderRadius: '999px',
+                  background: statusFilter === 'reserved' ? '#f59e0b' : 'rgba(245, 158, 11, 0.1)',
+                  color: statusFilter === 'reserved' ? '#fff' : '#d97706',
+                  border: '1px solid ' + (statusFilter === 'reserved' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)'),
+                  fontWeight: 700
                 }}
               >
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: v.color }} />
-                <span>{v.label}</span>
-                <span style={{ opacity: 0.75, fontSize: '10px' }}>({count})</span>
-              </div>
-            );
-          })}
-          <div className="badge badge-gray" style={{ marginLeft:'auto', fontWeight: 'var(--weight-semibold)' }}>
-            📍 {tables.length} tables configured
+                ⭐ Reserved ({floorTableMetrics.reserved})
+              </button>
+            )}
+          </div>
+
+          {/* Quick Table Search */}
+          <div style={{ position: 'relative', width: '200px' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-secondary)' }} />
+            <input
+              type="text"
+              placeholder="Find table (e.g. T3)..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="form-input"
+              style={{
+                paddingLeft: 30,
+                height: 32,
+                fontSize: '12px',
+                borderRadius: '999px',
+                background: 'var(--color-bg-secondary)'
+              }}
+            />
           </div>
         </div>
 
@@ -363,7 +464,7 @@ export default function TableMap() {
                 className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => {
                   setActiveFloor(floor);
-                  setSelected(null); // Clear selected table on floor switch
+                  setSelected(null);
                 }}
                 style={{ padding: '6px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 6 }}
               >
@@ -386,7 +487,7 @@ export default function TableMap() {
         </div>
 
         <div className="table-canvas-wrapper" ref={wrapperRef}>
-          {/* Zoom Controls */}
+          {/* Zoom Controls & Auto-Align */}
           <div className="canvas-zoom-controls">
             <button
               type="button"
@@ -421,6 +522,24 @@ export default function TableMap() {
             >
               <Maximize2 size={12} /> Fit
             </button>
+            <button
+              type="button"
+              className="zoom-btn align-btn"
+              onClick={handleAutoAlign}
+              title="Auto-align tables into clean non-overlapping grid"
+              style={{
+                borderLeft: '1px solid var(--color-separator)',
+                padding: '0 10px',
+                width: 'auto',
+                gap: '4px',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--color-accent)'
+              }}
+            >
+              <LayoutGrid size={13} />
+              <span>Auto-Align</span>
+            </button>
           </div>
 
           <div className="table-canvas-scroll-area">
@@ -437,17 +556,34 @@ export default function TableMap() {
                   transform: `scale(${zoom})`,
                 }}
               >
-                {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(t => {
-                  const cfg = statusConfig[t.status] ?? statusConfig.free;
+                {resolvedTables.map(t => {
                   const order = tableOrders[t.id];
-                  const isReserved = reservations.some(r => r.tableId === t.id);
+                  const hasActiveOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+                  const effectiveStatus = hasActiveOrder ? 'occupied' : (t.status || 'free');
+                  const cfg = statusConfig[effectiveStatus] ?? statusConfig.free;
+                  const isReserved = !hasActiveOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
+
+                  // Filter check
+                  if (statusFilter === 'free' && effectiveStatus !== 'free') return null;
+                  if (statusFilter === 'occupied' && effectiveStatus !== 'occupied') return null;
+                  if (statusFilter === 'reserved' && !isReserved) return null;
+
+                  // Search query check
+                  const isMatch = !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()) || String(t.capacity).includes(searchQuery);
+
+                  // Dining elapsed time
+                  let elapsedMins = 0;
+                  if (hasActiveOrder && order.createdAt) {
+                    const orderDate = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
+                    elapsedMins = Math.max(0, Math.floor((Date.now() - orderDate.getTime()) / 60000));
+                  }
+
                   return (
                     <button
                       key={t.id}
                       id={`map-table-${t.id}`}
                       onClick={() => {
-                        const status = t.status || 'free';
-                        if (status === 'free') {
+                        if (effectiveStatus === 'free') {
                           clearCart();
                           setTable(t.id, t.name);
                           setOrderType('dine-in');
@@ -457,58 +593,89 @@ export default function TableMap() {
                           setSelected(selected === t.id ? null : t.id);
                         }
                       }}
-                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} status-${selected === t.id ? 'selected' : t.status || 'free'}`}
+                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} status-${selected === t.id ? 'selected' : effectiveStatus}`}
                       style={{
                         position: 'absolute',
-                        left: t.x ?? 80,
-                        top: t.y ?? 80,
-                        width: t.w ?? 80,
-                        height: t.h ?? 80,
+                        left: t.renderX,
+                        top: t.renderY,
+                        width: t.renderW,
+                        height: t.renderH,
+                        opacity: isMatch ? 1 : 0.25,
+                        filter: isMatch ? 'none' : 'grayscale(80%)',
+                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                       }}
                     >
-                      {renderChairs(t)}
+                      {renderChairs(t, effectiveStatus === 'occupied')}
+                      
+                      {/* Table Name */}
                       <span className="table-label">
                         {t.name}
                       </span>
-                      <span className="table-capacity">
-                        👥 {t.capacity}p
-                      </span>
-                      {order && (
+                      
+                      {/* Capacity & Live Elapsed Timer */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                        <span className="table-capacity">
+                          👥 {t.capacity}p
+                        </span>
+                        {hasActiveOrder && elapsedMins > 0 && (
+                          <span 
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: '999px',
+                              background: elapsedMins >= 60 ? 'rgba(239, 68, 68, 0.15)' : elapsedMins >= 40 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.12)',
+                              color: elapsedMins >= 60 ? '#dc2626' : elapsedMins >= 40 ? '#d97706' : '#059669',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px'
+                            }}
+                            title={`Seated for ${elapsedMins} minutes`}
+                          >
+                            ⏱️ {elapsedMins}m
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Live Order Amount Badge */}
+                      {hasActiveOrder && (
                         <span style={{ 
                           fontSize: '10px', 
-                          fontWeight: 'var(--weight-bold)', 
+                          fontWeight: 800, 
                           color: '#ffffff',
-                          background: cfg.color,
-                          padding: '2px 6px',
-                          borderRadius: 'var(--radius-full)',
+                          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                          padding: '2px 7px',
+                          borderRadius: '999px',
                           marginTop: '4px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                          scale: '0.9',
-                          zIndex: 3
+                          boxShadow: '0 2px 6px rgba(220, 38, 38, 0.35)',
+                          zIndex: 3,
+                          letterSpacing: '-0.2px',
+                          fontVariantNumeric: 'tabular-nums'
                         }}>
                           {formatCurrency(order.total ?? 0, currency)}
                         </span>
                       )}
-                      {isReserved && t.status === 'free' && (
+
+                      {isReserved && effectiveStatus === 'free' && (
                         <span style={{
                           position: 'absolute',
                           top: -6,
                           right: -6,
-                          background: '#f59e0b',
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                           color: '#fff',
                           borderRadius: '50%',
-                          width: 20,
-                          height: 20,
+                          width: 22,
+                          height: 22,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '10px',
-                          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                          fontSize: '11px',
+                          boxShadow: '0 2px 6px rgba(217, 119, 6, 0.35)',
                           fontWeight: 'bold',
-                          border: '1.5px solid #ffffff',
+                          border: '2px solid #ffffff',
                           zIndex: 4
                         }} title="Reserved Today">
-                          📅
+                          ⭐
                         </span>
                       )}
                     </button>
@@ -546,8 +713,13 @@ export default function TableMap() {
             {selectedOrder ? (
               <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight:'var(--weight-semibold)', fontSize: '13px' }}>Current Order</span>
-                  <span style={{ fontSize:'10px', color:'var(--color-label-tertiary)', fontFamily: 'monospace' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight:'var(--weight-semibold)', fontSize: '13px' }}>Current Order</span>
+                    <span style={{ fontSize: '11px', color: 'var(--color-teal)', fontWeight: 700 }}>
+                      👤 {selectedOrder.assignedWaiterName || selectedOrder.staffName || 'Waiter'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize:'10px', color:'var(--color-label-tertiary)', fontFamily: 'monospace', marginTop: '2px' }}>
                     ID: #{selectedOrder.id.slice(-8).toUpperCase()}
                   </span>
                 </div>
