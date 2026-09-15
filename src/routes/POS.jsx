@@ -718,55 +718,65 @@ export default function POS() {
   };
 
   const handlePaymentConfirm = async () => {
-    // If QSR mode — issue token (if not already set)
-    let token = tokenNumber;
-    if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
-      token = await issueToken(restaurant.id);
-      setToken(token);
-    }
-
-    const res = await submitOrder(restaurant, staffDoc?.id);
-    if (!res.ok) { toast.error(res.error); return; }
-
-    toast.success('Order placed!');
+    // Instant-close modal for 0ms cashier latency
     setShowPayment(false);
+    const toastId = toast.loading('Completing payment & placing order...', { duration: 4000 });
 
-    const printOrder = {
-      id: res.orderId,
-      type: orderType,
-      tableName,
-      token,
-      customerName,
-      subtotal,
-      discount,
-      discountType,
-      discountAmount,
-      total,
-      paymentMethod,
-      currency,
-      note,
-    };
+    try {
+      // If QSR mode — issue token (if not already set)
+      let token = tokenNumber;
+      if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
+        token = await issueToken(restaurant.id);
+        setToken(token);
+      }
 
-    // Print receipt
-    printReceipt({
-      restaurant,
-      order: printOrder,
-      items,
-      taxInfo,
-      staffName: staffDoc?.name,
-    });
+      const res = await submitOrder(restaurant, staffDoc?.id);
+      if (!res.ok) {
+        toast.error(res.error || 'Failed to place order', { id: toastId });
+        return;
+      }
 
-    // Print kitchen tickets
-    printKitchenTickets({
-      restaurant,
-      order: printOrder,
-      items,
-      staffName: staffDoc?.name,
-    });
+      toast.success('Payment completed & order placed! ⚡', { id: toastId });
 
-    // Print token ticket if QSR
-    if (token) {
-      printTokenTicket({ token, orderType, customerName, restaurant });
+      const printOrder = {
+        id: res.orderId,
+        type: orderType,
+        tableName,
+        token,
+        customerName,
+        subtotal,
+        discount,
+        discountType,
+        discountAmount,
+        total,
+        paymentMethod,
+        currency,
+        note,
+      };
+
+      // Print tickets in background without blocking POS interface
+      setTimeout(() => {
+        printReceipt({
+          restaurant,
+          order: printOrder,
+          items,
+          taxInfo,
+          staffName: staffDoc?.name,
+        });
+
+        printKitchenTickets({
+          restaurant,
+          order: printOrder,
+          items,
+          staffName: staffDoc?.name,
+        });
+
+        if (token) {
+          printTokenTicket({ token, orderType, customerName, restaurant });
+        }
+      }, 50);
+    } catch (err) {
+      toast.error(err.message || 'Error processing payment', { id: toastId });
     }
   };
 

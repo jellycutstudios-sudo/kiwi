@@ -47,8 +47,15 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
   // Compute subtotal for tip base
   const tipBaseAmount = subtotal - getDiscountAmount() - getPointsDiscountAmount();
-  const [cashTendered, setCashTendered] = useState('');
+  const [cashTendered, setCashTendered] = useState(() => (total > 0 ? total.toString() : ''));
   const [loading, setLoading] = useState(false);
+
+  // Ensure cashTendered defaults to total when entering cash mode or total changes
+  useEffect(() => {
+    if (paymentMethod === 'cash' && (!cashTendered || parseFloat(cashTendered) <= 0)) {
+      setCashTendered(total > 0 ? total.toString() : '');
+    }
+  }, [paymentMethod, total]);
 
   // Quick cash options for 1-tap fast cashier checkout
   const quickCashOptions = useMemo(() => {
@@ -1346,7 +1353,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
             id="payment-confirm-btn"
             style={{
               flex: 1,
-              height: 44,
+              height: 46,
               borderRadius: 12,
               fontWeight: 800,
               fontSize: 15,
@@ -1355,16 +1362,16 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              background: canConfirm ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#334155',
-              color: canConfirm ? '#ffffff' : '#94a3b8',
-              border: 'none',
-              boxShadow: canConfirm ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
+              background: canConfirm ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'var(--color-bg-secondary)',
+              color: canConfirm ? '#ffffff' : 'var(--color-label-tertiary)',
+              border: canConfirm ? 'none' : '1.5px solid var(--color-separator-opaque)',
+              boxShadow: canConfirm ? '0 4px 16px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)' : 'none',
               cursor: canConfirm ? 'pointer' : 'not-allowed',
-              opacity: canConfirm ? 1 : 0.7,
-              transition: 'all 0.15s ease'
+              opacity: canConfirm ? 1 : 0.65,
+              transition: 'transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease'
             }}
           >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={2.5} />}
             <span>Complete Payment &middot; {formatCurrency(total, currency)}</span>
           </button>
         </div>
