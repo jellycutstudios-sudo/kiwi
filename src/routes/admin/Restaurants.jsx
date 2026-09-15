@@ -24,6 +24,7 @@ export default function Restaurants() {
     totalStaff: 0,
     lowStockList: []
   });
+  const [analyticsDays, setAnalyticsDays] = useState(30);
 
   useEffect(() => {
     // Super admin can see all restaurants linked to their uid
@@ -37,16 +38,23 @@ export default function Restaurants() {
     if (restaurants.length === 0) return;
     setLoadingAnalytics(true);
     try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - analyticsDays);
+
       const results = await Promise.all(
         restaurants.map(async (r) => {
-          // Parallel fetch of orders, inventory, and staff for each branch
+          // Bounded fetch of recent orders, inventory, and staff for each branch
           const [ordersSnap, inventorySnap, staffSnap] = await Promise.all([
-            getDocs(query(collection(db, 'restaurants', r.id, 'orders'), where('status', '==', 'billed'))),
+            getDocs(query(
+              collection(db, 'restaurants', r.id, 'orders'),
+              where('createdAt', '>=', startDate)
+            )),
             getDocs(collection(db, 'restaurants', r.id, 'inventory')),
             getDocs(collection(db, 'restaurants', r.id, 'staff'))
           ]);
 
-          const orders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const rawOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const orders = rawOrders.filter(o => o.status === 'billed');
           const inventory = inventorySnap.docs.map(d => ({ id: d.id, ...d.data() }));
           const staff = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -96,7 +104,7 @@ export default function Restaurants() {
     } finally {
       setLoadingAnalytics(false);
     }
-  }, [restaurants]);
+  }, [restaurants, analyticsDays]);
 
   useEffect(() => {
     if (activeTab === 'analytics' && restaurants.length > 0) {
@@ -289,6 +297,23 @@ export default function Restaurants() {
 
       {activeTab === 'analytics' && !loadingAnalytics && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          {/* Time range selector */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+            {[
+              { days: 7, label: 'Last 7 Days' },
+              { days: 30, label: 'Last 30 Days' },
+              { days: 90, label: 'Last 90 Days' },
+            ].map(({ days, label }) => (
+              <button
+                key={days}
+                className={`btn btn-sm ${analyticsDays === days ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setAnalyticsDays(days)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* KPI Summary Cards Grid */}
           <div className="stat-grid">
             <div className="stat-card">

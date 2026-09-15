@@ -1,464 +1,595 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, BookOpen, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { X, BookOpen, Search, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 
 const SECTIONS = [
   {
-    title: '1. First Time Setup',
+    title: 'First Time Setup',
     emoji: '🚀',
-    content: `When you first open DineOS, create your account and set up your restaurant.
-
-1. Open the DineOS app in your browser
-2. Click "Create Account" and enter your email and password
-3. Enter your restaurant name, currency (e.g. INR, USD), and country
-4. Choose which Modes your restaurant needs. Start with POS and Table Management
-5. Click Save — your restaurant is set up!
-
-You only need to do this once. After setup, every staff member logs in with their own account.`
+    color: '#8b5cf6',
+    route: null,
+    routeLabel: null,
+    content: [
+      { type: 'note', text: 'Do this once — before your first login.' },
+      { type: 'heading', text: 'How to Register' },
+      { type: 'steps', items: [
+        'Open the DineOS homepage in your browser',
+        'Click "Get Started Free" — this takes you to the login page',
+        'On the login page, click the 🚀 Register tab (third option)',
+        'Fill in: Owner Name, Owner Email, Password (min 6 chars), Restaurant Name, and Currency',
+        'Click Register Restaurant',
+        'You will see a Pending Approval screen — wait for an admin to activate your account',
+      ]},
+      { type: 'heading', text: 'Logging In (after approval)' },
+      { type: 'steps', items: [
+        'Go to the DineOS homepage and click Sign In',
+        'Click the Admin tab',
+        'Enter your email and password — you land on the Dashboard',
+      ]},
+      { type: 'heading', text: 'Staff Login' },
+      { type: 'bullets', items: [
+        'Staff use a 4-digit PIN — not email',
+        'Click the Staff PIN tab on the login page',
+        'Enter the Restaurant ID and PIN',
+        'Add staff in Staff Manager after logging in as Admin',
+      ]},
+    ],
   },
   {
-    title: '2. Dashboard',
+    title: 'Dashboard',
     emoji: '📊',
-    content: `The Dashboard shows the health of your business today.
-
-TODAY'S NUMBERS
-• Today's Sales — Total money collected today
-• Active Orders — Orders being prepared or waiting for payment
-• Online Orders Waiting — New web orders that need attention
-• Revenue Chart — Sales graph, hour by hour
-
-7-DAY PERFORMANCE
-• Best-Selling Items — Top 3 items from the last 7 days
-• Avg Kitchen Time — Average time from order placed to food ready
-• Table Turnover — Groups of customers per table per day on average
-• Payment Split — % of customers who paid Cash / Card / UPI
-
-✅ TODAY'S ACTION ITEMS
-This card reads your live data and gives plain English tips automatically.
-• "Kitchen is slow — average cook time 28 mins. Stay under 20 mins."
-• "UPI is popular today — place QR stands on every table."
-Check this every morning before service begins.`
+    color: '#10b981',
+    route: '/dashboard',
+    routeLabel: 'Open Dashboard',
+    content: [
+      { type: 'text', text: 'Your live business overview — check this every morning before service.' },
+      { type: 'heading', text: "Today's Numbers" },
+      { type: 'bullets', items: [
+        "Today's Sales — total money collected today",
+        'Orders Today — number of completed orders',
+        'Avg. Bill Size — typical spend per customer',
+        'Orders Cooking — currently being prepared',
+        'Waiting Online Orders — unread orders from your order link',
+      ]},
+      { type: 'heading', text: '7-Day Performance' },
+      { type: 'bullets', items: [
+        'Best-Selling Items — top 3 by quantity sold',
+        'Slow Movers — items with the least sales (consider promotions)',
+        'Peak Traffic Hours — chart of your busiest times',
+        'Payment Split — Cash / Card / UPI breakdown',
+      ]},
+      { type: 'heading', text: "Today's Action Items" },
+      { type: 'highlight', text: 'This card reads your live data and shows plain-English tips automatically. Check it every morning.' },
+    ],
   },
   {
-    title: '3. Point of Sale (POS)',
+    title: 'Point of Sale (POS)',
     emoji: '🧾',
-    content: `The POS is where your staff takes orders and bills customers.
-
-LAYOUT
-• Left side — Your full menu organized by category
-• Right side — The current order/cart
-
-TAKING AN ORDER
-1. Choose Order Type: Dine-In, Takeaway, or Online
-2. If Dine-In, select the table number
-3. Tap items from the menu — they appear in the cart
-4. If an item has customizations (e.g. Size, Extra Cheese), a pop-up appears
-5. To remove an item, tap the minus (−) button
-6. To add an order note, tap "Add Note"
-
-⭐ HIGH MARGIN ITEMS
-Items with a gold star are your best profit-makers. Staff should suggest these first when customers ask for recommendations.
-
-💡 UPSELL TIP
-If the order total is below your average, the system automatically suggests offering a side, dessert, or drink.
-
-CHECKOUT & PAYMENT
-1. Tap "💳 Checkout"
-2. Select payment method: Cash, Card, UPI, or Split
-3. Enter a Gift Card code if the customer has one
-4. Confirm — a receipt prints automatically if a printer is connected`
+    color: '#3b82f6',
+    route: '/pos',
+    routeLabel: 'Open POS',
+    content: [
+      { type: 'text', text: 'Where staff take orders and bill customers.' },
+      { type: 'heading', text: 'Taking an Order' },
+      { type: 'steps', items: [
+        'Choose Order Type: Dine-In, Takeaway, or Online',
+        'If Dine-In, select the table number',
+        'Tap items from the menu — they appear in the cart on the right',
+        'If an item has customizations, a pop-up appears automatically',
+        'To remove an item, tap the minus button',
+        'Tap Checkout when done',
+      ]},
+      { type: 'heading', text: 'Checkout & Payment' },
+      { type: 'steps', items: [
+        'Tap Checkout',
+        'Select payment method: Cash, Card, UPI, or Split',
+        'Enter a Gift Card code if the customer has one',
+        'Confirm — receipt prints automatically if a printer is connected',
+      ]},
+      { type: 'bullets', items: [
+        'Gold star items are high-margin — staff should suggest these first',
+        'If the order is below average, the system suggests an upsell automatically',
+      ]},
+    ],
   },
   {
-    title: '4. Table Map',
+    title: 'Table Map',
     emoji: '🗺️',
-    content: `A visual layout of your restaurant floor.
-
-TABLE COLOURS
-• Grey/Empty — Table is free, ready for customers
-• Green — Active order being prepared
-• Yellow/Orange — Billed, waiting for payment
-• Red — Waiting a long time
-
-WHAT YOU CAN DO
-• Click any occupied table → See the order, add items, or checkout
-• Click a free table → Open a new order for that table
-• Rearrange tables in the Floor Plan Editor to match your real layout
-
-Go to Settings → General to add, name, or delete tables.`
+    color: '#f59e0b',
+    route: '/tables',
+    routeLabel: 'Open Table Map',
+    content: [
+      { type: 'text', text: 'A visual layout of your restaurant floor — see table status at a glance.' },
+      { type: 'heading', text: 'Table Colours' },
+      { type: 'bullets', items: [
+        'Grey / Empty — table is free',
+        'Green — active order being prepared',
+        'Yellow / Orange — billed, waiting for payment',
+        'Red — waiting a long time',
+      ]},
+      { type: 'heading', text: 'What You Can Do' },
+      { type: 'bullets', items: [
+        'Click an occupied table to view the order, add items, or checkout',
+        'Click a free table to open a new order for it',
+        'Rearrange tables in Floor Plan Editor to match your real layout',
+      ]},
+      { type: 'highlight', text: 'Go to Settings to add, name, or delete tables.' },
+    ],
   },
   {
-    title: '5. Kitchen Display (KDS)',
+    title: 'Kitchen Display (KDS)',
     emoji: '🍳',
-    content: `Replaces paper kitchen tickets. Orders appear on a kitchen screen automatically.
-
-HOW IT WORKS
-1. Waiter places an order and taps "Send to Kitchen"
-2. Order appears on KDS showing table, items, and time elapsed
-3. Cooks tap "🍳 Start Cooking" when they begin
-4. When everything is ready, tap "✅ Food is Ready"
-5. The waiter is notified
-
-STATION TABS
-If your kitchen has multiple stations (Grill, Cold, Bar), each station sees only their items. Use the tabs to switch.
-
-ITEM STATUS BADGES
-• ⏳ Waiting — Not started yet
-• 🍳 Cooking — Being prepared right now
-• ✓ Done — Ready to serve
-
-Hover over any button on the KDS for a plain English explanation.`
+    color: '#ef4444',
+    route: '/kds',
+    routeLabel: 'Open Kitchen Display',
+    content: [
+      { type: 'text', text: 'Replaces paper tickets — orders appear on a kitchen screen automatically.' },
+      { type: 'heading', text: 'How It Works' },
+      { type: 'steps', items: [
+        'Waiter places an order and taps Send to Kitchen',
+        'Order appears on KDS showing table, items, and time elapsed',
+        'Cooks tap Start Cooking when they begin',
+        'When ready, tap Food is Ready',
+        'The waiter is notified',
+      ]},
+      { type: 'heading', text: 'Item Status Badges' },
+      { type: 'bullets', items: [
+        'Waiting — not started yet',
+        'Cooking — being prepared right now',
+        'Done — ready to serve',
+      ]},
+    ],
   },
   {
-    title: '6. Online Orders',
+    title: 'Online Orders',
     emoji: '📱',
-    content: `A public web page where customers can order from their phone.
-
-FINDING YOUR LINK
-1. Go to Settings → General
-2. Copy your Online Order Link
-3. Share it on Instagram, WhatsApp, or your website
-
-WHEN A CUSTOMER ORDERS ONLINE
-1. They browse your menu and add items to cart
-2. They choose Pickup or Delivery
-3. They enter their name and phone number
-4. A notification appears on your Online Orders screen immediately
-
-MANAGING ONLINE ORDERS
-• Accept the order and confirm a prep time
-• Reject if you are too busy or out of ingredients
-• Mark as Ready when food is packaged`
+    color: '#06b6d4',
+    route: '/online-orders',
+    routeLabel: 'Open Online Orders',
+    content: [
+      { type: 'text', text: 'A public web page where customers order from their phone.' },
+      { type: 'heading', text: 'Finding Your Order Link' },
+      { type: 'steps', items: [
+        'Go to Settings',
+        'Copy your Online Order Link',
+        'Share it on Instagram, WhatsApp, or your website',
+      ]},
+      { type: 'heading', text: 'Managing Orders' },
+      { type: 'bullets', items: [
+        'Accept — confirm a prep time',
+        'Reject — if too busy or out of ingredients',
+        'Mark as Ready — when food is packaged',
+      ]},
+    ],
   },
   {
-    title: '7. Active Orders',
+    title: 'Active Orders',
     emoji: '📋',
-    content: `Shows all orders in progress — dine-in, takeaway, and online — in one place.
-
-Each order card shows:
-• Order type (Dine-In, Takeaway, Online)
-• Table name or customer name
-• Items ordered
-• Current status (Pending, Cooking, Ready)
-• Time elapsed since order was placed
-
-Ideal for a manager to monitor everything at a glance.`
+    color: '#8b5cf6',
+    route: '/orders',
+    routeLabel: 'Open Active Orders',
+    content: [
+      { type: 'text', text: 'All orders in progress — dine-in, takeaway, and online — in one place.' },
+      { type: 'bullets', items: [
+        'Order type (Dine-In, Takeaway, Online)',
+        'Table name or customer name',
+        'Items ordered',
+        'Current status (Pending, Cooking, Ready)',
+        'Time elapsed since order was placed',
+      ]},
+      { type: 'highlight', text: 'Ideal for a manager to monitor all activity at a glance without being at the POS.' },
+    ],
   },
   {
-    title: '8. Menu Editor',
+    title: 'Menu Editor',
     emoji: '🍽️',
-    content: `Create and manage your full restaurant menu.
-
-ADDING A CATEGORY
-1. Go to Menu Editor
-2. Click "+ Add Category" on the left panel
-3. Enter a name (e.g. "Starters", "Drinks") and an emoji
-4. Click Save
-
-ADDING A MENU ITEM
-1. Select a category from the left panel
-2. Click "+ Add Item"
-3. Fill in: Name, Price, Description, Emoji, Station, Photo (optional)
-4. Click Save
-
-⭐ MARKING AS HIGH MARGIN
-Toggle "⭐ Mark as High Margin" on any item. A gold star shows in the POS reminding staff to push this item.
-
-MODIFIERS (CUSTOMIZATIONS)
-1. Open an item → go to "Modifiers" tab
-2. Click "+ Add Group"
-3. Name the group (e.g. "Choose Size") and add options with prices
-4. Mark as Required if staff must pick one before adding to cart
-
-MAKING AN ITEM UNAVAILABLE
-Toggle the "Available" switch off to instantly hide the item. Toggle back on when available again.`
+    color: '#10b981',
+    route: '/admin/menu',
+    routeLabel: 'Open Menu Editor',
+    content: [
+      { type: 'heading', text: 'Adding a Category' },
+      { type: 'steps', items: [
+        'Click Add Category in the left panel',
+        'Enter a name (e.g. Starters) and an emoji',
+        'Click Save',
+      ]},
+      { type: 'heading', text: 'Adding a Menu Item' },
+      { type: 'steps', items: [
+        'Select a category from the left panel',
+        'Click Add Item',
+        'Fill in: Name, Price, Description, Emoji, Station',
+        'Click Save',
+      ]},
+      { type: 'heading', text: 'Modifiers (Customizations)' },
+      { type: 'steps', items: [
+        'Open an item and go to the Modifiers tab',
+        'Click Add Group',
+        'Name the group (e.g. Choose Size) and add options with prices',
+        'Mark as Required if staff must pick one before adding to cart',
+      ]},
+      { type: 'highlight', text: 'Toggle the Available switch off to instantly hide an item. Toggle back on when available again.' },
+    ],
   },
   {
-    title: '9. Inventory',
+    title: 'Inventory',
     emoji: '📦',
-    content: `Track your raw ingredients so you always know what's in stock.
-
-ADDING AN INGREDIENT
-1. Go to Inventory
-2. Click "+ Add Item"
-3. Enter name, unit (kg, litre, pieces), and current stock quantity
-4. Set a Low Stock Alert level — you'll be warned when stock drops below this
-
-AUTO DEDUCTION
-If you've linked recipes to menu items, stock reduces automatically with every order. E.g. Butter Chicken uses 200g of chicken — each sale deducts 200g.
-
-LOW STOCK WARNINGS
-Items running low appear with a red/orange badge. Check Inventory every morning before service.
-
-MANUAL ADJUSTMENTS
-1. Click an ingredient
-2. Click "Adjust Stock"
-3. Enter the quantity received — it's added to the current total`
+    color: '#f97316',
+    route: '/admin/inventory',
+    routeLabel: 'Open Inventory',
+    content: [
+      { type: 'heading', text: 'Adding an Ingredient' },
+      { type: 'steps', items: [
+        'Click Add Item',
+        'Enter name, unit (kg, litre, pieces), and current stock quantity',
+        'Set a Low Stock Alert level',
+      ]},
+      { type: 'heading', text: 'Manual Adjustment' },
+      { type: 'steps', items: [
+        'Click an ingredient',
+        'Click Adjust Stock',
+        'Enter quantity received — it is added to the current total',
+      ]},
+      { type: 'highlight', text: 'Items running low appear with a red badge. Check every morning before service.' },
+    ],
   },
   {
-    title: '10. Transactions',
+    title: 'Transactions',
     emoji: '💳',
-    content: `Complete record of every payment ever processed.
-
-FILTERING
-• Date Range — Today, Last 7 days, Last 30 days, All
-• Payment Method — Cash, Card, UPI, Split
-• Order Type — Dine-In, Takeaway, Online
-• Staff Member — See orders from a specific staff member
-
-SUMMARY BAR
-• Total Revenue — Total money collected
-• Order Count — Number of orders
-• Avg Bill Size — Typical amount per order
-
-VIEW DETAILS
-Click any row to expand and see the full item list, payment method, staff who took the order, cook time, and Paid ✅ status.
-
-🚩 FLAG FOR REVIEW
-If something looks wrong (large discount, unexplained cancellation), click "Flag for Review". A red flag marks it permanently so you can investigate later.
-
-EXPORT TO SPREADSHEET
-Click the Download button to export as a CSV file — opens in Excel or Google Sheets.`
+    color: '#64748b',
+    route: '/admin/transactions',
+    routeLabel: 'Open Transactions',
+    content: [
+      { type: 'text', text: 'Complete record of every payment ever processed.' },
+      { type: 'heading', text: 'Filtering' },
+      { type: 'bullets', items: [
+        'Date Range — Today, Last 7 days, Last 30 days, All',
+        'Payment Method — Cash, Card, UPI, Split',
+        'Order Type — Dine-In, Takeaway, Online',
+        'Staff Member — orders from a specific person',
+      ]},
+      { type: 'heading', text: 'Useful Actions' },
+      { type: 'bullets', items: [
+        'Click any row to see the full item list, payment method, and cook time',
+        'Flag for Review — marks suspicious orders with a permanent red flag',
+        'Download — export as CSV for Excel or Google Sheets',
+      ]},
+    ],
   },
   {
-    title: '11. Reports',
+    title: 'Reports',
     emoji: '📈',
-    content: `Understand your performance over time and make better decisions.
-
-SALES OVERVIEW
-Total sales, number of orders, average bill, and average kitchen time for any date range.
-
-BEST SELLERS
-Ranked list of your most popular items. Use this to feature items on menu boards, promote on social media, and make sure you stock enough.
-
-HOURLY PATTERNS
-Chart showing your busiest hours. Schedule more staff during peaks, save on wages during slow times.
-
-CASH SHIFT HISTORY
-Record of cash drawer opens/closes, expected vs. actual cash, and any discrepancies.
-
-CANCELLED ITEMS LOG
-Record of every item removed from an order — who removed it and when. Use to monitor for mistakes or misuse.`
+    color: '#3b82f6',
+    route: '/reports',
+    routeLabel: 'Open Reports',
+    content: [
+      { type: 'text', text: 'Understand your performance over time and make better decisions.' },
+      { type: 'bullets', items: [
+        'Sales Overview — total sales, orders, avg bill, and avg kitchen time',
+        'Best Sellers — ranked list of most popular items',
+        'Hourly Patterns — chart of your busiest hours',
+        'Cash Shift History — expected vs. actual cash and discrepancies',
+        'Cancelled Items Log — who removed what and when',
+      ]},
+    ],
   },
   {
-    title: '12. Staff Manager',
+    title: 'Staff Manager',
     emoji: '👥',
-    content: `Add and manage your team members.
-
-ADDING A NEW STAFF MEMBER
-1. Go to Staff Manager
-2. Click "+ Add Staff"
-3. Enter their name, email, and role:
-   • Admin — Full access including settings and reports
-   • Manager — Most features but not sensitive settings
-   • Staff — Can only take orders in POS
-4. They'll receive an invite email to set their password
-
-ROLES AT A GLANCE
-• Admin: everything ✅
-• Manager: orders, reports, menu, payroll ✅ | settings ❌
-• Staff: orders only ✅
-
-Staff check in and out through the system so you have a full attendance record.`
+    color: '#10b981',
+    route: '/admin/staff',
+    routeLabel: 'Open Staff Manager',
+    content: [
+      { type: 'heading', text: 'Adding a Staff Member' },
+      { type: 'steps', items: [
+        'Click Add Staff',
+        'Enter their name, email, and role',
+        'They receive an invite email to set their password',
+      ]},
+      { type: 'heading', text: 'Roles' },
+      { type: 'bullets', items: [
+        'Admin — full access including settings and reports',
+        'Manager — orders, reports, menu, payroll; no sensitive settings',
+        'Staff / Waiter — can only take orders in POS',
+      ]},
+    ],
   },
   {
-    title: '13. Payroll',
+    title: 'Payroll',
     emoji: '💸',
-    content: `Calculate how much to pay each staff member based on hours worked.
-
-SETTING UP PAY RATES
-1. Go to Staff Manager → click a staff member
-2. Enter their hourly rate or fixed daily rate
-3. Click Save
-
-VIEWING A PAY PERIOD
-1. Go to Payroll
-2. Select the date range (e.g. 1st–31st of the month)
-3. See each staff member's total hours and amount owed
-
-MARKING AS PAID
-Once paid, click "Mark as Paid" to record it.
-
-Note: Payroll uses attendance logged in the system. Make sure staff are clocking in and out correctly.`
+    color: '#10b981',
+    route: '/admin/payroll',
+    routeLabel: 'Open Payroll',
+    content: [
+      { type: 'heading', text: 'Setting Up Pay Rates' },
+      { type: 'steps', items: [
+        'Go to Staff Manager and click a staff member',
+        'Enter their hourly or daily rate',
+        'Click Save',
+      ]},
+      { type: 'heading', text: 'Running Payroll' },
+      { type: 'steps', items: [
+        'Go to Payroll',
+        'Select the date range',
+        'See total hours and amount owed for each staff member',
+        'Click Mark as Paid once paid',
+      ]},
+      { type: 'highlight', text: 'Make sure staff are clocking in and out correctly — payroll uses that attendance data.' },
+    ],
   },
   {
-    title: '14. Customers & Loyalty',
+    title: 'Customers & Loyalty',
     emoji: '🤝',
-    content: `Build relationships with repeat customers and reward them for coming back.
-
-CUSTOMER PROFILES
-Every online order saves the customer's name, phone, and order history automatically. Click any customer to see their full history, total spent, birthday, and loyalty points.
-
-LOYALTY POINTS
-Customers earn points for every rupee/dollar spent. Points can be redeemed for discounts. Configure the points ratio in Settings.
-
-🎁 PREPAID GIFT CARDS
-1. Go to Customers → Prepaid Gift Cards tab
-2. Click "Issue Gift Card"
-3. Enter customer name and amount (e.g. ₹500)
-4. A unique code is generated (e.g. GC-ABCD1234) — give this to the customer
-
-When the customer visits, staff enters the code in the payment screen and the amount is deducted automatically.`
+    color: '#ec4899',
+    route: '/admin/customers',
+    routeLabel: 'Open Customers',
+    content: [
+      { type: 'text', text: 'Every online order saves the customer name, phone, and order history automatically.' },
+      { type: 'heading', text: 'Gift Cards' },
+      { type: 'steps', items: [
+        'Go to Customers and open the Gift Cards tab',
+        'Click Issue Gift Card',
+        'Enter customer name and amount (e.g. 500)',
+        'A unique code is generated — give it to the customer',
+        'At checkout, staff enters the code and the amount is deducted',
+      ]},
+      { type: 'highlight', text: 'Loyalty points are earned per rupee/dollar spent and can be redeemed for discounts. Configure the ratio in Settings.' },
+    ],
   },
   {
-    title: '15. Reservations',
+    title: 'Reservations',
     emoji: '📅',
-    content: `Manage table bookings made in advance.
-
-ADDING A RESERVATION
-1. Go to Reservations
-2. Click "+ New Reservation"
-3. Enter customer name, phone, date, time, and number of guests
-4. Select which table(s) to assign
-5. Click Save
-
-THE RESERVATION CALENDAR
-View all upcoming bookings in calendar or list format. Click any reservation to confirm, modify, or cancel it.
-
-WALK-IN WAITLIST
-If all tables are full, add the waiting customer to the Waitlist. The system notifies you when a table becomes free.`
+    color: '#8b5cf6',
+    route: '/admin/reservations',
+    routeLabel: 'Open Reservations',
+    content: [
+      { type: 'heading', text: 'Adding a Reservation' },
+      { type: 'steps', items: [
+        'Click New Reservation',
+        'Enter customer name, phone, date, time, and number of guests',
+        'Select which table(s) to assign',
+        'Click Save',
+      ]},
+      { type: 'highlight', text: 'If all tables are full, use the Waitlist — the system notifies you when a table becomes free.' },
+    ],
   },
   {
-    title: '16. Delivery Hub',
+    title: 'Delivery Hub',
     emoji: '🛵',
-    content: `For restaurants that offer home delivery.
-
-SETTING UP DELIVERY ZONES
-1. Go to Delivery Hub → Delivery Zones
-2. Define areas on a map and set a delivery fee for each zone
-
-MANAGING YOUR RIDERS
-Add your delivery riders in the Riders section. When a delivery order comes in, assign it to a specific rider.
-
-ORDER FLOW
-1. Customer places a delivery order online
-2. Order appears in Delivery Hub
-3. You accept and assign a rider
-4. Rider picks up food and marks it as Delivered when done`
+    color: '#f97316',
+    route: '/admin/delivery-hub',
+    routeLabel: 'Open Delivery Hub',
+    content: [
+      { type: 'steps', items: [
+        'Go to Delivery Hub and define your Delivery Zones on the map',
+        'Set a delivery fee per zone',
+        'Add your riders in the Riders section',
+        'When an order arrives, assign it to a rider',
+        'Rider marks it as Delivered when done',
+      ]},
+    ],
   },
   {
-    title: '17. Token Display',
-    emoji: '🎫',
-    content: `A TV screen that shows customers their token number — ideal for QSRs and food courts.
-
-HOW IT WORKS
-1. When a staff member places an order, a token number is assigned automatically
-2. Customer waits and watches the Token Display TV screen
-3. When order is ready, staff press "📢 Call Token" on the KDS or Active Orders screen
-4. The token appears on the TV with a sound chime and voice announcement
-
-SETTING UP
-1. Open a browser on the TV you want to use
-2. Go to Settings → General and copy the Token Display Link
-3. Open that link on the TV — it updates automatically
-4. Leave it running`
-  },
-  {
-    title: '18. Poster Manager',
+    title: 'Poster Manager',
     emoji: '📺',
-    content: `Show promotional images and menus on TV screens inside your restaurant.
-
-ADDING A SCREEN
-1. Go to Poster Manager
-2. Click "+ New Screen" and name it (e.g. "Main Dining TV")
-3. Copy the unique link for that screen
-4. Open that link on the TV
-
-UPLOADING POSTERS
-1. Select a screen
-2. Click "+ Upload Poster" and choose an image from your computer
-3. Set how long each poster shows (in seconds)
-4. The TV plays all your posters as a slideshow automatically
-
-Choose transition effects (fade, slide, zoom) for a professional look.`
+    color: '#64748b',
+    route: '/admin/posters',
+    routeLabel: 'Open Poster Manager',
+    content: [
+      { type: 'text', text: 'Show promotional images and menus on TV screens inside your restaurant.' },
+      { type: 'steps', items: [
+        'Click New Screen and name it (e.g. Main Dining TV)',
+        'Copy the unique link and open it on the TV',
+        'Click Upload Poster and choose an image',
+        'Set how long each poster shows — TV plays them as a slideshow',
+      ]},
+    ],
   },
   {
-    title: '19. Settings',
+    title: 'Settings',
     emoji: '⚙️',
-    content: `The control panel for your entire restaurant. Only Admins can access this.
-
-GENERAL SETTINGS
-• Restaurant Name, Logo, Address — shown on receipts and the online order page
-• Currency — Select INR, USD, AED, etc.
-• Tables — Add, name, and configure dining tables
-
-MODES (FEATURES)
-Turn on only the features you need:
-• 🧾 Bill Only — Basic POS
-• 🗺️ Table Management — Visual floor plan
-• 🎫 Token / QSR — Token number queue
-• 📱 Online Orders — Customer web ordering
-• 🍳 Kitchen Display — KDS for the kitchen
-• 📦 Inventory — Track ingredients and stock
-• 💸 Staff Payroll — Calculate wages
-• 🛵 Delivery Hub — Manage deliveries
-• 📅 Reservations — Advance table bookings
-• 🤝 Loyalty & Customers — Customer profiles and points
-
-TAXES & PAYMENTS
-• GST (India) — Tax breakdowns print automatically on every receipt
-• VAT (Middle East)
-• Flat Rate — Simple fixed percentage tax
-• Payment Methods — Enable/disable Cash, Card, UPI, Split
-
-PRINTERS & HARDWARE
-Add receipt printers, kitchen printers, and cash drawers. For kitchen printers, set which menu categories print to each printer.`
+    color: '#64748b',
+    route: '/admin/settings',
+    routeLabel: 'Open Settings',
+    content: [
+      { type: 'heading', text: 'General' },
+      { type: 'bullets', items: [
+        'Restaurant Name, Logo, Address — shown on receipts and order page',
+        'Currency — INR, USD, AED, etc.',
+        'Tables — add, name, and configure dining tables',
+        'Online Order Link — your customer-facing ordering page URL',
+      ]},
+      { type: 'heading', text: 'Modes (Features)' },
+      { type: 'bullets', items: [
+        'Bill Only — basic POS',
+        'Table Management — visual floor plan',
+        'Token / QSR — token number queue',
+        'Online Orders — customer web ordering',
+        'Kitchen Display — KDS for the kitchen',
+        'Inventory — track ingredients and stock',
+        'Staff Payroll — calculate wages',
+        'Delivery Hub — manage deliveries',
+        'Reservations — advance table bookings',
+        'Loyalty & Customers — customer profiles and points',
+      ]},
+      { type: 'heading', text: 'Taxes & Payments' },
+      { type: 'bullets', items: [
+        'GST (India), VAT (Middle East), or Flat Rate',
+        'Enable or disable Cash, Card, UPI, Split',
+      ]},
+    ],
   },
   {
-    title: '20. Smart Features & Tips',
+    title: 'Smart Tips & Tooltips',
     emoji: '✨',
-    content: `Built-in features that help you run a more profitable and efficient restaurant.
-
-ℹ️ INFO TOOLTIPS
-Hover over any ℹ️ icon anywhere in the system for a plain English explanation of that metric or button. Great for training new staff.
-
-💡 UPSELL NUDGES
-When a customer's order is below your average bill size, the system automatically suggests offering a side, dessert, or drink.
-
-⭐ HIGH MARGIN PROMOTERS
-Mark items as High Margin in the Menu Editor. A gold star shows in the POS reminding staff to suggest these items first.
-
-🚩 FLAG FOR REVIEW
-In Transactions, flag any suspicious order with a permanent red flag to investigate later.
-
-📊 BEST SELLERS & INSIGHTS
-Dashboard shows top-selling items from the last 7 days. Use this to stock the right ingredients and feature popular dishes.
-
-🔔 SOUND ALERTS
-Enable sound alerts in Settings so the POS or KDS plays a chime when a new order arrives.
-
-⚠️ KEEP YOUR ADMIN LOGIN SECURE
-Do not share the Admin account with general staff. Create separate accounts for each team member.`
-  }
+    color: '#f59e0b',
+    route: null,
+    routeLabel: null,
+    content: [
+      { type: 'bullets', items: [
+        'Hover over any info icon anywhere in the system for a plain-English explanation',
+        'Upsell nudge — when an order is below your average, the system suggests a side or drink',
+        'High Margin star — mark items in Menu Editor; a gold star in POS reminds staff to push these',
+        'Flag for Review — in Transactions, flag suspicious orders with a permanent red flag',
+        'Sound Alerts — enable in Settings so POS or KDS plays a chime on new orders',
+        'Keep your Admin login secure — create separate accounts for each team member',
+      ]},
+    ],
+  },
 ];
 
-export default function HelpGuide({ onClose }) {
-  const [search, setSearch] = useState('');
-  const [expanded, setExpanded] = useState(null);
+const ROUTE_TO_SECTION = {
+  '/dashboard': 1,
+  '/pos': 2,
+  '/tables': 3,
+  '/kds': 4,
+  '/online-orders': 5,
+  '/orders': 6,
+  '/admin/menu': 7,
+  '/admin/inventory': 8,
+  '/admin/transactions': 9,
+  '/reports': 10,
+  '/admin/staff': 11,
+  '/admin/payroll': 12,
+  '/admin/customers': 13,
+  '/admin/reservations': 14,
+  '/admin/delivery-hub': 15,
+  '/admin/posters': 16,
+  '/admin/settings': 17,
+};
 
-  const filtered = SECTIONS.filter(s =>
-    s.title.toLowerCase().includes(search.toLowerCase()) ||
-    s.content.toLowerCase().includes(search.toLowerCase())
+function RenderContent({ blocks }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {blocks.map((block, i) => {
+        switch (block.type) {
+          case 'heading':
+            return (
+              <div key={i} style={{
+                fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
+                letterSpacing: '0.6px', color: 'var(--color-label-secondary)',
+                marginTop: i === 0 ? 0 : 14, marginBottom: 4,
+              }}>
+                {block.text}
+              </div>
+            );
+          case 'text':
+            return (
+              <div key={i} style={{ fontSize: 13, color: 'var(--color-label)', lineHeight: 1.6, marginBottom: 4 }}>
+                {block.text}
+              </div>
+            );
+          case 'steps':
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+                {block.items.map((item, j) => (
+                  <div key={j} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                    <span style={{
+                      minWidth: 20, height: 20, borderRadius: '50%',
+                      background: 'var(--color-accent)', color: '#fff',
+                      fontSize: 10, fontWeight: 800,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, marginTop: 1,
+                    }}>
+                      {j + 1}
+                    </span>
+                    <span style={{ fontSize: 13, color: 'var(--color-label)', lineHeight: 1.55 }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          case 'bullets':
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 4 }}>
+                {block.items.map((item, j) => (
+                  <div key={j} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <span style={{ color: 'var(--color-accent)', fontSize: 18, lineHeight: 1.1, flexShrink: 0, marginTop: 0 }}>·</span>
+                    <span style={{ fontSize: 13, color: 'var(--color-label)', lineHeight: 1.55 }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          case 'note':
+            return (
+              <div key={i} style={{
+                background: '#fef3c7', border: '1px solid #fcd34d',
+                borderRadius: 8, padding: '7px 10px',
+                fontSize: 12, color: '#92400e', fontWeight: 600,
+                marginBottom: 10,
+              }}>
+                ⚠️ {block.text}
+              </div>
+            );
+          case 'highlight':
+            return (
+              <div key={i} style={{
+                background: 'var(--color-bg)', border: '1px solid var(--color-separator)',
+                borderLeft: '3px solid var(--color-accent)',
+                borderRadius: 6, padding: '7px 10px',
+                fontSize: 12.5, color: 'var(--color-label)', lineHeight: 1.55,
+                marginTop: 6, marginBottom: 4,
+              }}>
+                💡 {block.text}
+              </div>
+            );
+          default:
+            return null;
+        }
+      })}
+    </div>
   );
+}
+
+export default function HelpGuide({ onClose }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [search, setSearch] = useState('');
+
+  const defaultExpanded = useMemo(() => {
+    const idx = ROUTE_TO_SECTION[location.pathname];
+    return idx !== undefined ? idx : null;
+  }, [location.pathname]);
+
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return SECTIONS.map((s, i) => ({ ...s, idx: i }));
+    const q = search.toLowerCase();
+    return SECTIONS
+      .map((s, i) => ({ ...s, idx: i }))
+      .filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.content.some(b =>
+          (b.text && b.text.toLowerCase().includes(q)) ||
+          (b.items && b.items.some(it => it.toLowerCase().includes(q)))
+        )
+      );
+  }, [search]);
+
+  const handleNavigate = (route) => {
+    onClose();
+    navigate(route);
+  };
 
   return createPortal(
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 999999,
-    }}>
-      <div onClick={onClose} style={{ 
-        position: 'absolute', inset: 0, 
-        background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' 
-      }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 999999 }}>
+      <div
+        onClick={onClose}
+        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
+      />
       <div style={{
         position: 'absolute', top: 0, right: 0, bottom: 0,
-        width: '420px', maxWidth: '100vw', 
-        background: '#ffffff', // Force solid background to prevent bleed-through
-        borderLeft: '1px solid var(--color-separator)', 
+        width: '440px', maxWidth: '100vw',
+        background: 'var(--color-bg-elevated)',
+        borderLeft: '1px solid var(--color-separator)',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.15)', 
+        boxShadow: '-8px 0 40px rgba(0,0,0,0.15)',
         animation: 'slideInRight 0.2s ease',
       }}>
+        {/* Header */}
         <div style={{
-          padding: '20px 20px 16px', borderBottom: '1px solid var(--color-separator)',
+          padding: '18px 20px 14px',
+          borderBottom: '1px solid var(--color-separator)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -470,7 +601,7 @@ export default function HelpGuide({ onClose }) {
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-label)' }}>Owner's Guide</div>
-              <div style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>Everything you need to know</div>
+              <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)' }}>Tap any section to expand · click to navigate</div>
             </div>
           </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose} style={{ width: 32, height: 32 }}>
@@ -478,57 +609,96 @@ export default function HelpGuide({ onClose }) {
           </button>
         </div>
 
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-separator)' }}>
+        {/* Search */}
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-separator)' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={14} style={{
+            <Search size={13} style={{
               position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--color-label-tertiary)'
+              color: 'var(--color-label-tertiary)',
             }} />
             <input
               className="form-input"
               placeholder="Search the guide..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: 32, height: 36, fontSize: 13 }}
+              style={{ paddingLeft: 30, height: 34, fontSize: 13 }}
             />
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+        {/* Sections */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
           {filtered.length === 0 && (
             <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-label-secondary)', fontSize: 13 }}>
               No results for "{search}"
             </div>
           )}
-          {filtered.map((section, i) => {
-            const isOpen = expanded === i;
+          {filtered.map((section) => {
+            const isOpen = expanded === section.idx;
+            const isCurrent = ROUTE_TO_SECTION[location.pathname] === section.idx;
             return (
-              <div key={i} style={{ borderBottom: '1px solid var(--color-separator-opaque)' }}>
+              <div key={section.idx} style={{ borderBottom: '1px solid var(--color-separator-opaque)' }}>
                 <button
-                  onClick={() => setExpanded(isOpen ? null : i)}
+                  onClick={() => setExpanded(isOpen ? null : section.idx)}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between', padding: '12px 16px',
+                    justifyContent: 'space-between',
+                    padding: '11px 16px',
                     background: isOpen ? 'var(--color-bg-secondary)' : 'transparent',
                     border: 'none', cursor: 'pointer', textAlign: 'left',
                     transition: 'background 0.15s', gap: 8,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>{section.emoji}</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: isOpen ? 'var(--color-accent)' : 'var(--color-label)' }}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: section.color, flexShrink: 0,
+                      opacity: isOpen ? 1 : 0.45,
+                    }} />
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{section.emoji}</span>
+                    <span style={{
+                      fontSize: 13.5, fontWeight: 600,
+                      color: isOpen ? 'var(--color-accent)' : 'var(--color-label)',
+                    }}>
                       {section.title}
                     </span>
+                    {isCurrent && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, background: 'var(--color-accent)',
+                        color: '#fff', padding: '1px 6px', borderRadius: 10,
+                      }}>
+                        Current
+                      </span>
+                    )}
                   </div>
-                  {isOpen ? <ChevronUp size={14} color="var(--color-label-secondary)" /> : <ChevronDown size={14} color="var(--color-label-secondary)" />}
+                  {isOpen
+                    ? <ChevronUp size={14} color="var(--color-label-secondary)" />
+                    : <ChevronDown size={14} color="var(--color-label-secondary)" />
+                  }
                 </button>
+
                 {isOpen && (
-                  <div style={{
-                    padding: '4px 16px 16px 44px', fontSize: 13,
-                    color: 'var(--color-label)', lineHeight: 1.7,
-                    whiteSpace: 'pre-wrap', background: 'var(--color-bg-secondary)',
-                  }}>
-                    {section.content}
+                  <div style={{ padding: '2px 16px 16px 16px', background: 'var(--color-bg-secondary)' }}>
+                    <RenderContent blocks={section.content} />
+                    {section.route && (
+                      <button
+                        onClick={() => handleNavigate(section.route)}
+                        style={{
+                          marginTop: 14, width: '100%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: '9px 14px', borderRadius: 8,
+                          background: section.color, color: '#fff',
+                          border: 'none', cursor: 'pointer',
+                          fontSize: 13, fontWeight: 700,
+                          transition: 'opacity 0.15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                      >
+                        {section.routeLabel}
+                        <ArrowRight size={14} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -536,11 +706,13 @@ export default function HelpGuide({ onClose }) {
           })}
         </div>
 
+        {/* Footer */}
         <div style={{
-          padding: '12px 16px', borderTop: '1px solid var(--color-separator)',
+          padding: '10px 16px',
+          borderTop: '1px solid var(--color-separator)',
           fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center',
         }}>
-          📖 DineOS Owner's Guide · Updated August 2026
+          📖 DineOS Owner's Guide · Updated September 2026
         </div>
       </div>
       <style>{`@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>

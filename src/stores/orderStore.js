@@ -11,6 +11,10 @@ import { useShiftStore } from './shiftStore';
 import { useGiftCardStore } from './giftCardStore';
 import toast from 'react-hot-toast';
 
+let activeOrdersUnsub = null;
+let subscribedOrdersRestId = null;
+let ordersSubCount = 0;
+
 export const useOrderStore = create((set, get) => ({
   // Cart
   items: [],
@@ -28,6 +32,7 @@ export const useOrderStore = create((set, get) => ({
   activeOrders: [],
   onlineOrders: [],
   unreadOnlineCount: 0,
+  readOnlineOrderIds: new Set(),
   notifiedReadyOrders: new Set(),
 
   // Payment
@@ -44,6 +49,9 @@ export const useOrderStore = create((set, get) => ({
 
   // ── Cart Operations ──────────────────────────────────────
   addItem: (item) => {
+    if (useGiftCardStore.getState().giftCardCode) {
+      useGiftCardStore.getState().clearGiftCard();
+    }
     const items = get().items;
     const existing = items.find(i => i.id === item.id);
     if (existing) {
@@ -58,9 +66,17 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  removeItem: (id) => set({ items: get().items.filter(i => i.id !== id) }),
+  removeItem: (id) => {
+    if (useGiftCardStore.getState().giftCardCode) {
+      useGiftCardStore.getState().clearGiftCard();
+    }
+    set({ items: get().items.filter(i => i.id !== id) });
+  },
 
   updateQty: (id, qty) => {
+    if (useGiftCardStore.getState().giftCardCode) {
+      useGiftCardStore.getState().clearGiftCard();
+    }
     if (qty <= 0) { get().removeItem(id); return; }
     set({ items: get().items.map(i => i.id === id ? { ...i, qty } : i) });
   },
@@ -114,10 +130,20 @@ export const useOrderStore = create((set, get) => ({
   setNote:         (note) => set({ note }),
   setPaymentMethod:(m) => set({ paymentMethod: m }),
   setSplitPayments:(splits) => set({ splitPayments: splits }),
-  setDiscount:     (discount, discountType = 'fixed') => set({ discount, discountType }),
+  setDiscount:     (discount, discountType = 'fixed') => {
+    if (useGiftCardStore.getState().giftCardCode) {
+      useGiftCardStore.getState().clearGiftCard();
+    }
+    set({ discount, discountType });
+  },
   setCustomerProfile:(c) => set({ customer: c }),
   setRedeemingPoints:(r) => set({ redeemingPoints: r }),
-  setTip: (amt) => set({ tipAmount: Math.max(0, Math.round(amt * 100) / 100) }),
+  setTip: (amt) => {
+    if (useGiftCardStore.getState().giftCardCode) {
+      useGiftCardStore.getState().clearGiftCard();
+    }
+    set({ tipAmount: Math.max(0, Math.round(amt * 100) / 100) });
+  },
   setUpiRef: (upiRef) => set({ upiRef }),
 
 
@@ -233,7 +259,9 @@ export const useOrderStore = create((set, get) => ({
       const restaurantData = restSnap.exists() ? restSnap.data() : null;
 
       const { taxTotal } = computeTax(taxableAmount, restaurantData?.taxConfig ?? { type: 'none', rate: 0 });
-      const totalBeforeGiftCard = taxableAmount + taxTotal;
+      const serviceChargeAmt = primaryOrder.serviceChargeAmount ?? 0;
+      const tipAmt = primaryOrder.tipAmount ?? 0;
+      const totalBeforeGiftCard = taxableAmount + taxTotal + serviceChargeAmt + tipAmt;
       const giftCardDeduction = primaryOrder.giftCardDeduction ?? 0;
       const total = Math.max(0, totalBeforeGiftCard - giftCardDeduction);
 
@@ -275,7 +303,7 @@ export const useOrderStore = create((set, get) => ({
     if (discountType === 'percent') {
       return (subtotal * discount) / 100;
     }
-    return discount;
+    return Math.min(discount, subtotal);
   },
 
   getPointsDiscountAmount: () => {
@@ -553,8 +581,8 @@ export const useOrderStore = create((set, get) => ({
           }
         }
 
-        // Update customer profile with loyalty points, visit counts, and lifetime spends
-        if (customer) {
+        // Update customer profile with loyalty points, visit counts, and lifetime spends ONLY if paid immediately
+        if (customer && paymentMethod !== 'unpaid') {
           const pointsEarned = orderData.loyaltyEarned ?? 0;
           const pointsRedeemed = orderData.loyaltyRedeemed ?? 0;
           const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', customer.phone);
@@ -596,13 +624,39 @@ export const useOrderStore = create((set, get) => ({
 
   // ── Real-time Order Listeners ────────────────────────────
   subscribeActiveOrders: (restaurantId) => {
+    if (!restaurantId) return () => {};
+
+    // Reuse existing listener if already subscribed to this restaurant
+    if (subscribedOrdersRestId === restaurantId && activeOrdersUnsub) {
+      ordersSubCount++;
+      return () => {
+        ordersSubCount--;
+        if (ordersSubCount <= 0 && activeOrdersUnsub) {
+          activeOrdersUnsub();
+          activeOrdersUnsub = null;
+          subscribedOrdersRestId = null;
+          ordersSubCount = 0;
+        }
+      };
+    }
+
+    // Clean up previous subscription if switching restaurants
+    if (activeOrdersUnsub) {
+      activeOrdersUnsub();
+      activeOrdersUnsub = null;
+      ordersSubCount = 0;
+    }
+
+    subscribedOrdersRestId = restaurantId;
+    ordersSubCount = 1;
+
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
       where('status', 'in', ['pending', 'preparing', 'ready']),
       limit(100)
     );
     let isInitial = true;
-    return onSnapshot(q, snap => {
+    const unsub = onSnapshot(q, snap => {
       const rawOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
       // Sort in memory by createdAt descending to avoid composite index requirement
@@ -669,31 +723,83 @@ export const useOrderStore = create((set, get) => ({
       }
       isInitial = false;
 
+      const readSet = get().readOnlineOrderIds || new Set();
       set({
         activeOrders: orders,
         onlineOrders: online,
-        unreadOnlineCount: online.filter(o => o.status === 'pending').length,
+        unreadOnlineCount: online.filter(o => o.status === 'pending' && !readSet.has(o.id)).length,
       });
     }, err => {
       console.error("[Firestore Subscription Error] subscribeActiveOrders:", err);
     });
+
+    activeOrdersUnsub = () => {
+      unsub();
+      set({ activeOrders: [], onlineOrders: [], unreadOnlineCount: 0 });
+    };
+
+    return () => {
+      ordersSubCount--;
+      if (ordersSubCount <= 0 && activeOrdersUnsub) {
+        activeOrdersUnsub();
+        activeOrdersUnsub = null;
+        subscribedOrdersRestId = null;
+        ordersSubCount = 0;
+      }
+    };
   },
 
   updateOrderStatus: async (restaurantId, orderId, status) => {
     await useAuthStore.getState().ensureAnonymousAuth();
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', orderId), { status });
+    const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+
+    // If moving to preparing and order is online (or inventory not yet depleted), deplete stock safely
+    if (status === 'preparing') {
+      try {
+        const snap = await getDoc(orderRef);
+        if (snap.exists()) {
+          const order = snap.data();
+          if (order.type === 'online' && !order.inventoryDepleted) {
+            const batch = writeBatch(db);
+            const items = order.items ?? [];
+            for (const item of items) {
+              const recipe = item.recipe ?? [];
+              for (const recipeItem of recipe) {
+                if (recipeItem.ingredientId && recipeItem.amount) {
+                  const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', recipeItem.ingredientId);
+                  batch.update(ingDocRef, {
+                    qty: increment(-recipeItem.amount * (item.qty || 1))
+                  });
+                }
+              }
+            }
+            batch.update(orderRef, { status, inventoryDepleted: true, updatedAt: serverTimestamp() });
+            await batch.commit();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Inventory depletion on order prepare check failed:', err);
+      }
+    }
+
+    await updateDoc(orderRef, { status, updatedAt: serverTimestamp() });
   },
 
-
-
-  markOnlineOrdersRead: () => set({ unreadOnlineCount: 0 }),
-
-
+  markOnlineOrdersRead: () => {
+    const currentOnline = get().onlineOrders || [];
+    const newRead = new Set(get().readOnlineOrderIds || []);
+    currentOnline.forEach(o => newRead.add(o.id));
+    set({ readOnlineOrderIds: newRead, unreadOnlineCount: 0 });
+  },
 
   settleOrder: async (restaurantId, orderId, method, totalAmount, additionalFields = {}) => {
     try {
       await useAuthStore.getState().ensureAnonymousAuth();
       const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+      const orderSnap = await getDoc(orderRef);
+      const existingOrder = orderSnap.exists() ? orderSnap.data() : null;
+
       await updateDoc(orderRef, {
         status: 'billed',
         paymentMethod: method,
@@ -702,10 +808,23 @@ export const useOrderStore = create((set, get) => ({
         ...additionalFields
       });
 
+      // Free table if associated
+      if (existingOrder?.tableId) {
+        try {
+          await useTableStore.getState().freeTable(restaurantId, existingOrder.tableId);
+        } catch (tableErr) {
+          console.warn('Failed to free table on settle:', tableErr);
+        }
+      }
+
+      // Check if order was already paid at submit (e.g. counter takeaway paid upfront).
+      // Only credit the shift if order was UNPAID (or not marked paid).
+      const wasAlreadyPaid = existingOrder?.paid === true || (existingOrder?.paymentMethod && existingOrder?.paymentMethod !== 'unpaid');
+
       const activeShift = useShiftStore.getState().activeShift;
-      if (activeShift?.id) {
+      if (activeShift?.id && !wasAlreadyPaid) {
         const shiftRef = doc(db, 'restaurants', restaurantId, 'shifts', activeShift.id);
-        const val = totalAmount || 0;
+        const val = totalAmount || existingOrder?.total || 0;
         
         const shiftUpdate = {
           totalSalesAmount: increment(val)
@@ -762,6 +881,23 @@ export const useOrderStore = create((set, get) => ({
         
         await updateDoc(shiftRef, shiftUpdate);
       }
+
+      // Credit customer loyalty points at settlement if order was unpaid at submission
+      if (existingOrder?.customerPhone && existingOrder?.paymentMethod === 'unpaid') {
+        const pointsEarned = existingOrder.loyaltyEarned ?? Math.floor((totalAmount || existingOrder.total || 0) / 10);
+        const pointsRedeemed = existingOrder.loyaltyRedeemed ?? 0;
+        const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', existingOrder.customerPhone);
+        try {
+          await updateDoc(custDocRef, {
+            visitCount: increment(1),
+            lifetimeSpend: increment(totalAmount || existingOrder.total || 0),
+            points: increment(pointsEarned - pointsRedeemed)
+          });
+        } catch (custErr) {
+          console.warn('Could not update customer loyalty points at settle:', custErr);
+        }
+      }
+
       return { ok: true };
     } catch (e) {
       console.error(e);

@@ -490,3 +490,121 @@ exports.sendNewTrialRequestNotification = onDocumentCreated('restaurants/{restau
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Email Notification: Daily Sales Report (Gmail App Password SMTP)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.sendDailySalesReportEmail = onCall(async (request) => {
+  const { restaurantId } = request.data || {};
+  if (!restaurantId) {
+    throw new HttpsError('invalid-argument', 'restaurantId is required');
+  }
+
+  const db = admin.firestore();
+  const restDoc = await db.collection('restaurants').doc(restaurantId).get();
+  if (!restDoc.exists) {
+    throw new HttpsError('not-found', 'Restaurant not found');
+  }
+
+  const restData = restDoc.data();
+  const recipientEmail = restData.adminNotificationEmail || restData.email;
+  if (!recipientEmail) {
+    throw new HttpsError('failed-precondition', 'No recipient email configured in settings');
+  }
+
+  const senderEmail = restData.reportSenderEmail || process.env.GMAIL_USER || 'smanpk@gmail.com';
+  const appPassword = restData.reportGmailAppPassword || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASS;
+
+  if (!appPassword) {
+    throw new HttpsError('failed-precondition', 'No Gmail App Password configured in restaurant settings or environment');
+  }
+
+  // Calculate today's sales
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const ordersSnap = await db.collection('restaurants').doc(restaurantId).collection('orders')
+    .where('status', '==', 'billed')
+    .where('createdAt', '>=', todayStart)
+    .get();
+
+  let totalRevenue = 0;
+  let cashSales = 0;
+  let cardSales = 0;
+  let upiSales = 0;
+  const itemCountMap = {};
+
+  ordersSnap.forEach(d => {
+    const o = d.data();
+    const val = o.total || 0;
+    totalRevenue += val;
+    if (o.paymentMethod === 'cash') cashSales += val;
+    else if (o.paymentMethod === 'card' || o.paymentMethod === 'terminal') cardSales += val;
+    else if (o.paymentMethod === 'upi') upiSales += val;
+
+    (o.items || []).forEach(item => {
+      itemCountMap[item.name] = (itemCountMap[item.name] || 0) + (item.qty || 1);
+    });
+  });
+
+  const topItems = Object.entries(itemCountMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: senderEmail,
+      pass: appPassword.replace(/\s+/g, ''),
+    },
+  });
+
+  const currency = restData.currency || 'INR';
+  const restName = restData.name || 'Restaurant';
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 8px; color: #ffffff; text-align: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 20px;">📊 Daily Sales Report</h2>
+        <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">${restName} · ${new Date().toLocaleDateString()}</p>
+      </div>
+
+      <div style="background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <span style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700;">Total Revenue</span>
+        <div style="font-size: 28px; font-weight: 800; color: #16a34a; margin: 4px 0;">${currency} ${totalRevenue.toFixed(2)}</div>
+        <div style="font-size: 13px; color: #475569;">Total Orders Billed: <strong>${ordersSnap.size}</strong></div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+        <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
+          <th style="padding: 8px 0; color: #64748b;">Payment Method</th>
+          <th style="padding: 8px 0; text-align: right; color: #64748b;">Amount</th>
+        </tr>
+        <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 0;">💵 Cash</td><td style="text-align: right; font-weight: 600;">${currency} ${cashSales.toFixed(2)}</td></tr>
+        <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 0;">💳 Card / Terminal</td><td style="text-align: right; font-weight: 600;">${currency} ${cardSales.toFixed(2)}</td></tr>
+        <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 0;">📱 UPI / Digital</td><td style="text-align: right; font-weight: 600;">${currency} ${upiSales.toFixed(2)}</td></tr>
+      </table>
+
+      ${topItems.length > 0 ? `
+        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;">Top 5 Selling Items</h4>
+        <ul style="padding-left: 20px; margin: 0 0 20px 0; font-size: 13px; color: #475569;">
+          ${topItems.map(([name, qty]) => `<li style="padding: 2px 0;"><strong>${name}</strong>: ×${qty} ordered</li>`).join('')}
+        </ul>
+      ` : ''}
+
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #94a3b8; text-align: center;">
+        Automated Daily Report dispatched from Kiwi/RUPOS POS System
+      </div>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: `"${restName} Daily Reports" <${senderEmail}>`,
+    to: recipientEmail,
+    subject: `📈 Daily Sales Report for ${restName} (${new Date().toLocaleDateString()})`,
+    html,
+  });
+
+  return { success: true, ordersCount: ordersSnap.size, totalRevenue };
+});
+
+

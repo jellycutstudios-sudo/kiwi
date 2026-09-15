@@ -99,7 +99,7 @@ export default function POS() {
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
 
-  const { tables } = useTableStore();
+  const tables = useTableStore(s => s.tables);
   const [tableOrders, setTableOrders] = useState({});
 
   useEffect(() => {
@@ -116,6 +116,8 @@ export default function POS() {
         if (data.tableId) map[data.tableId] = { id: d.id, ...data };
       });
       setTableOrders(map);
+    }, err => {
+      console.warn("POS table orders listener error:", err);
     });
   }, [restaurant?.id]);
 
@@ -148,7 +150,8 @@ export default function POS() {
     past7Days.setDate(past7Days.getDate() - 7);
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', past7Days)
+      where('createdAt', '>=', past7Days),
+      limit(100)
     );
     getDocs(q).then(snap => {
       let totalSales = 0;
@@ -196,14 +199,17 @@ export default function POS() {
   const taxInfo   = getTaxInfo(restaurant);
   const total     = getTotal(restaurant);
 
-  const getItemQty = (item) => {
-    return items.reduce((sum, cartItem) => {
-      if (cartItem.id === item.id || cartItem.menuItemId === item.id) {
-        return sum + cartItem.qty;
-      }
-      return sum;
-    }, 0);
-  };
+  const itemQtyMap = useMemo(() => {
+    const map = {};
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it.id) map[it.id] = (map[it.id] || 0) + (it.qty || 1);
+      if (it.menuItemId) map[it.menuItemId] = (map[it.menuItemId] || 0) + (it.qty || 1);
+    }
+    return map;
+  }, [items]);
+
+  const getItemQty = (item) => itemQtyMap[item.id] || 0;
 
 
 
@@ -498,14 +504,20 @@ export default function POS() {
     }
   };
 
-  // Menu items from active category
+  // Menu items from active category (or all categories when searching)
   const displayItems = useMemo(() => {
-    const rawItems = activeCat === 'all'
+    // When searching, search across all items regardless of active category tab
+    const rawItems = (activeCat === 'all' || search.trim())
       ? categories.flatMap(c => c.items ?? [])
       : categories.find(c => c.id === activeCat)?.items ?? [];
-    if (!search) return rawItems;
-    const lowerSearch = search.toLowerCase();
-    return rawItems.filter(i => i.name.toLowerCase().includes(lowerSearch));
+    if (!search.trim()) return rawItems;
+    const lowerSearch = search.toLowerCase().trim();
+    return rawItems.filter(i => 
+      i.name?.toLowerCase().includes(lowerSearch) ||
+      i.code?.toLowerCase().includes(lowerSearch) ||
+      i.sku?.toLowerCase().includes(lowerSearch) ||
+      i.categoryName?.toLowerCase().includes(lowerSearch)
+    );
   }, [categories, activeCat, search]);
 
   // Order type buttons
@@ -1469,17 +1481,71 @@ export default function POS() {
                   )}
                 </p>
               </div>
-              <button
-                onClick={() => setShowTillModal(false)}
-                style={{
-                  background: 'rgba(255,255,255,0.10)', border: 'none', borderRadius: '50%',
-                  width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: 'var(--color-on-dark)', fontSize: 18, transition: 'background 0.15s',
-                  flexShrink: 0
-                }}
-              >
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!activeShift) return;
+                    const printWin = window.open('', '_blank', 'width=600,height=600');
+                    const openedDate = activeShift.openedAt ? new Date(activeShift.openedAt.seconds ? activeShift.openedAt.seconds * 1000 : activeShift.openedAt).toLocaleString() : '';
+                    const formatMonospace = (label, value) => {
+                      const paddingLen = 38 - label.length - value.length;
+                      const pad = paddingLen > 0 ? '.'.repeat(paddingLen) : ' ';
+                      return `${label}${pad}${value}\n`;
+                    };
+                    let report = `======================================\n`;
+                    report += `          ${restaurant?.name?.toUpperCase() || 'POS RESTAURANT'}\n`;
+                    report += `          X-REPORT: MID-SHIFT AUDIT    \n`;
+                    report += `======================================\n`;
+                    report += `Shift ID: ${activeShift.id?.substring(0, 8) || 'N/A'}\n`;
+                    report += `Opened By: ${activeShift.openedBy || 'N/A'}\n`;
+                    report += `Opened At: ${openedDate}\n`;
+                    report += `Printed At: ${new Date().toLocaleString()}\n`;
+                    report += `--------------------------------------\n`;
+                    report += formatMonospace('STARTING FLOAT', formatCurrency(activeShift.startCash || 0, currency));
+                    report += `--------------------------------------\n`;
+                    report += formatMonospace(`CASH SALES (${activeShift.cashSalesCount || 0})`, formatCurrency(activeShift.cashSalesAmount || 0, currency));
+                    report += formatMonospace(`CARD SALES (${activeShift.cardSalesCount || 0})`, formatCurrency(activeShift.cardSalesAmount || 0, currency));
+                    report += formatMonospace(`UPI SALES (${activeShift.upiSalesCount || 0})`, formatCurrency(activeShift.upiSalesAmount || 0, currency));
+                    report += `--------------------------------------\n`;
+                    report += formatMonospace('TOTAL SALES', formatCurrency((activeShift.cashSalesAmount || 0) + (activeShift.cardSalesAmount || 0) + (activeShift.upiSalesAmount || 0), currency));
+                    report += `--------------------------------------\n`;
+                    const dropsAmt = (activeShift.cashDrops ?? []).reduce((sum, d) => sum + d.amount, 0);
+                    const paidOutsAmt = (activeShift.paidOuts ?? []).reduce((sum, p) => sum + p.amount, 0);
+                    report += formatMonospace('TOTAL CASH DROPS', `-${formatCurrency(dropsAmt, currency)}`);
+                    report += formatMonospace('TOTAL PAID-OUTS', `-${formatCurrency(paidOutsAmt, currency)}`);
+                    report += `--------------------------------------\n`;
+                    report += formatMonospace('EXPECTED CASH', formatCurrency(activeShift.expectedCash || 0, currency));
+                    report += `======================================\n\n`;
+                    report += `Audited By: __________________________\n`;
+
+                    printWin.document.write(`<html><head><title>X-Report (Mid-Shift)</title><style>body{font-family:monospace;white-space:pre;padding:20px;color:#18181b;}</style></head><body>${report}</body></html>`);
+                    printWin.document.close();
+                    printWin.focus();
+                    printWin.print();
+                    printWin.close();
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8,
+                    padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6,
+                    cursor: 'pointer', color: 'var(--color-on-dark)', fontSize: 12, fontWeight: 600
+                  }}
+                  title="Print mid-shift X-Report without closing shift"
+                >
+                  🖨️ X-Report
+                </button>
+                <button
+                  onClick={() => setShowTillModal(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.10)', border: 'none', borderRadius: '50%',
+                    width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: 'var(--color-on-dark)', fontSize: 18, transition: 'background 0.15s',
+                    flexShrink: 0
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div className="till-modal-body" style={{ padding: '14px 20px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>

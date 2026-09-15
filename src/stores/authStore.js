@@ -139,6 +139,11 @@ export const useAuthStore = create(
               // check if restDoc exists
               if (restDoc.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
+                if (restData.status && restData.status !== 'approved') {
+                  set({ loading: false, error: 'Restaurant account is not active or suspended' });
+                  await get().signOut();
+                  return;
+                }
               }
             }
             // set state
@@ -189,6 +194,22 @@ export const useAuthStore = create(
               }
               if (get().staffDoc && get().restaurant) {
                 set({ user, loading: false });
+                // Re-verify restaurant status hasn't changed while session was stored
+                const restId = get().restaurant.id;
+                if (restId) {
+                  getDoc(doc(db, 'restaurants', restId)).then(async (rSnap) => {
+                    if (rSnap.exists()) {
+                      const rData = rSnap.data();
+                      if (rData.status && rData.status !== 'approved') {
+                        await get().signOut();
+                      } else {
+                        set({ restaurant: { id: restId, ...rData } });
+                      }
+                    } else {
+                      await get().signOut();
+                    }
+                  }).catch(console.warn);
+                }
               } else {
                 // Page load/refresh with orphaned anonymous session — clean up and show login screen
                 if (auth) {

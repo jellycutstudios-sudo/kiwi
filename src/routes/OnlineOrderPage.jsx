@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { collection, onSnapshot, serverTimestamp, getDoc, doc, writeBatch, increment, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
+import { computeTax } from '../utils/taxUtils';
 import { Plus, Minus, Check, Clock, ChefHat, CheckSquare } from 'lucide-react';
 import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
@@ -61,22 +62,27 @@ export default function OnlineOrderPage() {
 
     const resolveRestaurant = async () => {
       try {
+        // Fast path: try direct doc ID first (handles 99% of QR code & link visits without an extra index query)
+        const docSnap = await getDoc(doc(db, 'restaurants', restaurantId));
+        if (docSnap.exists() && active) {
+          const resolved = { id: docSnap.id, ...docSnap.data() };
+          setRestaurant(resolved);
+          unsubMenu = onSnapshot(collection(db, 'restaurants', resolved.id, 'menu'), snap => {
+            const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setCategories(cats);
+            if (cats.length) setActiveCat(cats[0].id);
+          });
+          return;
+        }
+
+        // Fallback: lookup by custom restaurant slug if ID didn't match
         const q = query(collection(db, 'restaurants'), where('slug', '==', restaurantId));
         const snap = await getDocs(q);
         
         if (!active) return;
 
-        let resolved = null;
         if (!snap.empty) {
-          resolved = { id: snap.docs[0].id, ...snap.docs[0].data() };
-        } else {
-          const docSnap = await getDoc(doc(db, 'restaurants', restaurantId));
-          if (docSnap.exists()) {
-            resolved = { id: docSnap.id, ...docSnap.data() };
-          }
-        }
-        
-        if (resolved && active) {
+          const resolved = { id: snap.docs[0].id, ...snap.docs[0].data() };
           setRestaurant(resolved);
           unsubMenu = onSnapshot(collection(db, 'restaurants', resolved.id, 'menu'), snap => {
             const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -97,14 +103,15 @@ export default function OnlineOrderPage() {
     };
   }, [restaurantId]);
 
-  // Fetch 7-day average
+  // Fetch 7-day average with limit to avoid fetching unbounded orders on client
   useEffect(() => {
     if (!restaurant?.id) return;
     const past7Days = new Date();
     past7Days.setDate(past7Days.getDate() - 7);
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', past7Days)
+      where('createdAt', '>=', past7Days),
+      limit(100)
     );
     getDocs(q).then(snap => {
       let totalSales = 0;
@@ -197,6 +204,26 @@ export default function OnlineOrderPage() {
     });
   };
 
+  const allMenuItems = useMemo(() => {
+    return categories.flatMap(c => c.items || []);
+  }, [categories]);
+
+  // Evict sold-out items from cart if restaurant marks them unavailable
+  useEffect(() => {
+    if (!allMenuItems.length || !cart.length) return;
+    const soldOutInCart = cart.filter(ci => {
+      const orig = allMenuItems.find(m => m.id === (ci.menuItemId || ci.id));
+      return orig && orig.available === false;
+    });
+    if (soldOutInCart.length > 0) {
+      toast.error(`Removed unavailable items: ${soldOutInCart.map(i => i.name).join(', ')}`);
+      setCart(c => c.filter(ci => {
+        const orig = allMenuItems.find(m => m.id === (ci.menuItemId || ci.id));
+        return !orig || orig.available !== false;
+      }));
+    }
+  }, [allMenuItems, cart]);
+
   const updateQty = (id, qty) => {
     if (qty <= 0) setCart(c => c.filter(i => i.id !== id));
     else setCart(c => c.map(i => i.id === id ? { ...i, qty } : i));
@@ -205,6 +232,12 @@ export default function OnlineOrderPage() {
   const subtotal = useMemo(() => {
     return cart.reduce((s, i) => s + i.price * i.qty, 0);
   }, [cart]);
+
+  const taxResult = useMemo(() => {
+    return computeTax(subtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+  }, [subtotal, restaurant?.taxConfig]);
+
+  const total = taxResult.total;
 
   const cartCount = useMemo(() => {
     return cart.reduce((sum, i) => sum + i.qty, 0);
@@ -223,6 +256,17 @@ export default function OnlineOrderPage() {
       toast.error('Please enter your delivery address');
       return;
     }
+
+    // Verify no sold-out items remain in cart
+    const soldOutNow = cart.filter(ci => {
+      const orig = allMenuItems.find(m => m.id === (ci.menuItemId || ci.id));
+      return orig && orig.available === false;
+    });
+    if (soldOutNow.length > 0) {
+      toast.error(`Cannot place order. Items sold out: ${soldOutNow.map(i => i.name).join(', ')}`);
+      return;
+    }
+
     setLoading(true);
     try {
       const orderPayload = {
@@ -236,11 +280,17 @@ export default function OnlineOrderPage() {
           qty: i.qty,
           selectedModifiers: i.selectedModifiers ?? [],
           modifierTotal: i.modifierTotal ?? 0,
+          recipe: i.recipe ?? [],
           station: i.station ?? 'Kitchen',
           status: 'pending'
         })),
         subtotal,
-        total: subtotal,
+        taxAmount: taxResult.taxTotal,
+        taxTotal: taxResult.taxTotal,
+        taxLines: taxResult.lines,
+        taxMode: taxResult.mode || 'exclusive',
+        total,
+        inventoryDepleted: false,
         customerName: name.trim(),
         customerPhone: phone.trim().replace(/\D/g, '') || '',
         note: note.trim() || '',
@@ -272,20 +322,7 @@ export default function OnlineOrderPage() {
         });
       }
 
-      // Deplete safety stock levels for each ingredient in the recipe
-      for (const item of cart) {
-        const recipe = item.recipe ?? [];
-        for (const recipeItem of recipe) {
-          if (recipeItem.ingredientId && recipeItem.amount) {
-            const ingDocRef = doc(db, 'restaurants', restaurant.id, 'inventory', recipeItem.ingredientId);
-            batch.update(ingDocRef, {
-              qty: increment(-recipeItem.amount * item.qty)
-            });
-          }
-        }
-      }
-
-      // Execute batch write atomically
+      // Execute batch write atomically (stock is depleted safely when restaurant staff moves order to 'preparing')
       await batch.commit();
 
       localStorage.setItem(`dineOS_${restaurantId}_active_order`, orderDocRef.id);
@@ -831,6 +868,30 @@ export default function OnlineOrderPage() {
                 />
               </div>
 
+              {/* Order Bill Summary */}
+              <div style={{
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-3) var(--space-4)',
+                marginBottom: 'var(--space-4)',
+                fontSize: 'var(--text-subhead)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)', color: 'var(--color-label-secondary)' }}>
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(subtotal, currency)}</span>
+                </div>
+                {taxResult.lines.map((line, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)', color: 'var(--color-label-secondary)' }}>
+                    <span>{line.label} {taxResult.mode === 'inclusive' ? '(incl.)' : ''}</span>
+                    <span>{formatCurrency(line.amount, currency)}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-separator-opaque)', fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: 'var(--color-label)' }}>
+                  <span>Total Payable</span>
+                  <span>{formatCurrency(total, currency)}</span>
+                </div>
+              </div>
+
               <button
                 id="online-place-order-btn"
                 className="btn btn-primary btn-lg"
@@ -838,7 +899,7 @@ export default function OnlineOrderPage() {
                 onClick={submitOrder}
                 disabled={loading || !name.trim() || !phone.trim() || (orderType === 'delivery' && !address.trim())}
               >
-                {loading ? '...' : `Place Order · ${formatCurrency(subtotal, currency)}`}
+                {loading ? '...' : `Place Order · ${formatCurrency(total, currency)}`}
               </button>
               
               <div style={{ textAlign:'center', fontSize:'var(--text-caption1)', color:'var(--color-label-tertiary)', marginTop:'var(--space-2)' }}>
@@ -967,12 +1028,33 @@ export default function OnlineOrderPage() {
             return (
               <div key={item.id} className="card" style={{ display:'flex', alignItems:'center', padding:'var(--space-4)', gap:'var(--space-4)' }}>
                 {item.imageUrl || item.image ? (
-                  <img src={item.imageUrl || item.image} alt={item.name} style={{ width:64, height:64, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} />
-                ) : (
-                  <div style={{ width:64, height:64, background:'var(--color-bg-secondary)', borderRadius:'var(--radius-md)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, flexShrink:0 }}>
-                    {item.emoji ?? '🍽️'}
-                  </div>
-                )}
+                  <img 
+                    src={item.imageUrl || item.image} 
+                    alt={item.name} 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      if (e.currentTarget.nextElementSibling) {
+                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                      }
+                    }}
+                    style={{ width:64, height:64, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} 
+                  />
+                ) : null}
+                <div 
+                  style={{ 
+                    width:64, 
+                    height:64, 
+                    background:'var(--color-bg-secondary)', 
+                    borderRadius:'var(--radius-md)', 
+                    display: (item.imageUrl || item.image) ? 'none' : 'flex', 
+                    alignItems:'center', 
+                    justifyContent:'center', 
+                    fontSize:28, 
+                    flexShrink:0 
+                  }}
+                >
+                  {item.emoji ?? '🍽️'}
+                </div>
                 <div style={{ flex:1 }}>
                   <div style={{ fontWeight:'var(--weight-semibold)' }}>{item.name}</div>
                   {item.description && <div style={{ fontSize:'var(--text-footnote)', color:'var(--color-label-secondary)', marginTop:2 }}>{item.description}</div>}

@@ -4,7 +4,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { CURRENCY_OPTIONS } from '../utils/formatCurrency';
@@ -217,7 +217,35 @@ export default function Login() {
                   onChange={e => setEmail(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Password</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-1)' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Password</label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!email.trim()) {
+                        toast.error('Please enter your email above to reset password.');
+                        return;
+                      }
+                      try {
+                        await sendPasswordResetEmail(auth, email.trim());
+                        toast.success('Password reset email sent! Check your inbox.');
+                      } catch (err) {
+                        toast.error('Failed to send reset email: ' + err.message);
+                      }
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-primary)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <div className="password-input-wrapper">
                   <input id="login-password" className="form-input password-input"
                     type={showPw ? 'text' : 'password'} placeholder={t('passwordPlaceholder')}
@@ -262,7 +290,35 @@ export default function Login() {
 
           /* ── Registration ── */
           ) : (
-            <form onSubmit={handleRegister} className="login-form register-form">
+            <div className="login-form register-form" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* How it works banner */}
+              <div style={{
+                background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
+                border: '1px solid #bfdbfe',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                fontSize: '12.5px',
+                color: '#1e40af',
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px', color: '#1d4ed8' }}>
+                  ✅ How registration works
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', color: '#374151' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span style={{ fontWeight: 700, color: '#2563eb', minWidth: 16 }}>1.</span>
+                    <span>Fill in the form below and click <strong>Register Restaurant</strong></span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span style={{ fontWeight: 700, color: '#2563eb', minWidth: 16 }}>2.</span>
+                    <span>Your account is created and sent for <strong>approval</strong></span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span style={{ fontWeight: 700, color: '#2563eb', minWidth: 16 }}>3.</span>
+                    <span>Once approved, log in with the <strong>📧 Admin</strong> tab using your email &amp; password</span>
+                  </div>
+                </div>
+              </div>
+            <form onSubmit={handleRegister} style={{ display: 'contents' }}>
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Owner Name *</label>
@@ -316,6 +372,7 @@ export default function Login() {
                 {registering ? 'Registering…' : 'Register Restaurant'}
               </button>
             </form>
+            </div>
           )}
         </div>
       </div>

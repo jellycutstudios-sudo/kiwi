@@ -4,8 +4,13 @@ import {
   doc, onSnapshot, runTransaction, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getTodayKey } from '../utils/timezoneUtils';
+import { useAuthStore } from './authStore';
 
-const todayKey = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+const todayKey = () => {
+  const restaurant = useAuthStore.getState().restaurant;
+  return getTodayKey(restaurant);
+};
 
 export const useTokenStore = create((set) => ({
   currentServing: null,

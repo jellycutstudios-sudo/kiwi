@@ -300,17 +300,34 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
   };
 
   const handleConfirm = async () => {
-    if (!canConfirm) return;
-    setLoading(true);
+    if (!canConfirm) {
+      if (paymentMethod === 'split') {
+        toast.error('Full amount must be paid across splits before confirming.');
+      } else if (paymentMethod === 'cash' && cashTendered && parseFloat(cashTendered) < total - 0.01) {
+        toast.error('Cash tendered is less than the total payable.');
+      }
+      return;
+    }
 
     if (paymentMethod === 'split') {
       const finalSplits = splitMode === 'equal'
         ? guestSplits.map(g => ({ method: g.method, amount: g.amount }))
         : mixedPayments;
+      const splitTotal = finalSplits.reduce((s, p) => s + (p.amount || 0), 0);
+      if (splitTotal < total - 0.01) {
+        toast.error(`Split amount (${formatCurrency(splitTotal, currency)}) is less than total (${formatCurrency(total, currency)})`);
+        return;
+      }
+      if (splitMode === 'equal' && !guestSplits.every(g => g.paid)) {
+        toast.error('All guest splits must be marked as paid before confirming.');
+        return;
+      }
       setSplitPayments(finalSplits);
     } else {
       setSplitPayments([]); // Clear if single payment
     }
+
+    setLoading(true);
 
     if (paymentMethod === 'terminal') {
       setLoading(false);

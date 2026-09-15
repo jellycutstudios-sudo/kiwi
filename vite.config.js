@@ -83,6 +83,9 @@ export default defineConfig({
             if (id.includes('i18next')) {
                return 'i18n-vendor';
             }
+            if (id.includes('recharts') || id.includes('d3-')) {
+               return 'charts-vendor';
+            }
             return 'vendor';
           }
         }

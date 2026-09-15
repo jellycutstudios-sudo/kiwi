@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
+import { useTableStore } from '../stores/tableStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { Check, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -19,8 +20,10 @@ const PLATFORM_BADGES = {
 
 export default function OnlineOrders() {
   const { t } = useTranslation();
-  const { restaurant } = useAuthStore();
-  const { onlineOrders, updateOrderStatus, markOnlineOrdersRead } = useOrderStore();
+  const restaurant = useAuthStore(s => s.restaurant);
+  const onlineOrders = useOrderStore(s => s.onlineOrders);
+  const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
+  const markOnlineOrdersRead = useOrderStore(s => s.markOnlineOrdersRead);
   const [filter, setFilter] = useState('pending');
   const currency = restaurant?.currency ?? 'INR';
 
@@ -60,6 +63,13 @@ export default function OnlineOrders() {
   const handleReject = async (order) => {
     // 'cancelled' is the correct terminal status for rejected online orders
     await updateOrderStatus(restaurant.id, order.id, 'cancelled');
+    if (order.tableId) {
+      try {
+        await useTableStore.getState().freeTable(restaurant.id, order.tableId);
+      } catch (err) {
+        console.warn('Failed to free table on reject:', err);
+      }
+    }
     if (order.source && order.source !== 'native') {
       const getAuthToken = async () => {
         const user = auth?.currentUser;

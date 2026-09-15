@@ -25,6 +25,16 @@ export default function TokenDisplay() {
 
     const resolve = async () => {
       try {
+        // Fast path: direct doc ID check first
+        const docSnap = await getDoc(doc(db, 'restaurants', restaurantId));
+        if (!active) return;
+        if (docSnap.exists()) {
+          setResolvedId(restaurantId);
+          setPrimaryLanguage(docSnap.data().primaryLanguage || 'en');
+          langRef.current = docSnap.data().primaryLanguage || 'en';
+          return;
+        }
+
         const q1 = query(collection(db, 'restaurants'), where('slug', '==', restaurantId));
         const snap1 = await getDocs(q1);
         if (!active) return;
@@ -45,14 +55,6 @@ export default function TokenDisplay() {
           setPrimaryLanguage(rDoc.data().primaryLanguage || 'en');
           langRef.current = rDoc.data().primaryLanguage || 'en';
           return;
-        }
-
-        const docSnap = await getDoc(doc(db, 'restaurants', restaurantId));
-        if (!active) return;
-        if (docSnap.exists()) {
-          setResolvedId(restaurantId);
-          setPrimaryLanguage(docSnap.data().primaryLanguage || 'en');
-          langRef.current = docSnap.data().primaryLanguage || 'en';
         }
       } catch (err) {
         console.error("Error resolving restaurant ID in TokenDisplay:", err);

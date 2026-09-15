@@ -5,7 +5,8 @@ import { useStaffStore } from '../stores/staffStore';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake, Receipt, UtensilsCrossed, FileText } from 'lucide-react';
+import { downloadTallyXML } from '../utils/tallyExport';
+import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake, Receipt, UtensilsCrossed, FileText, FileSpreadsheet, FileCode } from 'lucide-react';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import toast from 'react-hot-toast';
 import {
@@ -485,6 +486,48 @@ export default function Reports() {
     setTimeout(() => { win.print(); win.close(); }, 500);
   };
 
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    if (!data.length) {
+      toast.error('No orders available to export for this period.');
+      return;
+    }
+    const headers = ['Order ID', 'Date', 'Type', 'Table', 'Payment Method', 'Subtotal', 'Tax', 'Tip', 'Total', 'Status'];
+    const rows = data.map(o => [
+      o.id,
+      o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+      o.type || 'dine-in',
+      o.tableName || 'N/A',
+      o.paymentMethod || 'cash',
+      (o.subtotal || 0).toFixed(2),
+      (o.taxAmount || o.taxTotal || 0).toFixed(2),
+      (o.tipAmount || 0).toFixed(2),
+      (o.total || 0).toFixed(2),
+      o.status || 'completed'
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${restaurant?.name || 'restaurant'}_sales_${period}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('CSV Export downloaded!');
+  };
+
+  // Tally XML Export Handler
+  const handleExportTally = () => {
+    if (!data.length) {
+      toast.error('No orders available to export for Tally.');
+      return;
+    }
+    downloadTallyXML(data, restaurant, `${restaurant?.name || 'restaurant'}_tally_${period}.xml`);
+    toast.success('Tally XML vouchers generated & downloaded!');
+  };
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
       {/* Page Header */}
@@ -497,7 +540,13 @@ export default function Reports() {
         </div>
         <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap' }}>
           <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Download size={14} /> Export Report
+            <Download size={14} /> PDF
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <FileSpreadsheet size={14} /> CSV
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportTally} title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML" style={{ display: 'flex', alignItems: 'center', gap: 6, borderColor: 'var(--color-primary)' }}>
+            <FileCode size={14} /> Tally XML
           </button>
           {['today','week','month'].map(p => (
             <button key={p} id={`report-period-${p}`} className={`btn btn-sm ${period===p?'btn-primary':'btn-secondary'}`} onClick={()=>setPeriod(p)}>

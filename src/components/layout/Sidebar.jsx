@@ -41,8 +41,10 @@ const ADMIN_NAV = [
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const { t } = useTranslation();
-  const { staffDoc, signOut, restaurant } = useAuthStore();
-  const { unreadOnlineCount } = useOrderStore();
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const signOut = useAuthStore(s => s.signOut);
+  const restaurant = useAuthStore(s => s.restaurant);
+  const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const role = staffDoc?.role ?? 'cashier';
 
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
@@ -68,6 +70,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         }
       });
       setAnyPlatformPaused(paused);
+    }, (err) => {
+      console.warn('Sidebar deliverySettings listener:', err);
     });
     return unsub;
   }, [restaurant?.id]);

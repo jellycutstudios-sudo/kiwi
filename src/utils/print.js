@@ -9,7 +9,18 @@ function unicodeToEscPosBytes(text) {
     'ا': 'A', 'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'dh',
     'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a',
     'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ه': 'h', 'و': 'w', 'ي': 'y',
-    'ة': 'h', 'ء': 'a', 'أ': 'A', 'إ': 'E', 'ؤ': 'w', 'ئ': 'y', 'ى': 'y'
+    'ة': 'h', 'ء': 'a', 'أ': 'A', 'إ': 'E', 'ؤ': 'w', 'ئ': 'y', 'ى': 'y',
+    // Devanagari (Hindi / Marathi)
+    'अ': 'a', 'आ': 'aa', 'इ': 'i', 'ई': 'ee', 'उ': 'u', 'ऊ': 'oo', 'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au',
+    'क': 'k', 'ख': 'kh', 'ग': 'g', 'घ': 'gh', 'ङ': 'ng',
+    'च': 'ch', 'छ': 'chh', 'ज': 'j', 'झ': 'jh', 'ञ': 'ny',
+    'ट': 't', 'ठ': 'th', 'ड': 'd', 'ढ': 'dh', 'ण': 'n',
+    'त': 't', 'थ': 'th', 'द': 'd', 'ध': 'dh', 'न': 'n',
+    'प': 'p', 'फ': 'ph', 'ब': 'b', 'भ': 'bh', 'म': 'm',
+    'य': 'y', 'र': 'r', 'ल': 'l', 'व': 'v', 'श': 'sh', 'ष': 'sh', 'स': 's', 'ह': 'h',
+    'ा': 'a', 'ि': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri', 'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au',
+    'ं': 'n', 'ँ': 'n', 'ः': 'h', '्': '',
+    '।': '.', '॥': '.'
   };
 
   const result = [];
@@ -82,6 +93,8 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   
   if (address) writeTextLine(address);
   if (phone) writeTextLine(`Tel: ${phone}`);
+  if (restaurant?.gstin) writeTextLine(`GSTIN: ${restaurant.gstin}`);
+  if (restaurant?.fssai) writeTextLine(`FSSAI Lic: ${restaurant.fssai}`);
   
   writeTextLine('--------------------------------');
   
@@ -408,6 +421,8 @@ function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName }) {
 <div class="center bold large">${restName}</div>
 ${address ? `<div class="center">${address}</div>` : ''}
 ${phone ? `<div class="center">Tel: ${phone}</div>` : ''}
+${restaurant?.gstin ? `<div class="center bold">GSTIN: ${restaurant.gstin}</div>` : ''}
+${restaurant?.fssai ? `<div class="center">FSSAI Lic: ${restaurant.fssai}</div>` : ''}
 <div class="divider"></div>
 <div>Date: ${new Date().toLocaleString()}</div>
 <div>${orderTypeLabel}</div>

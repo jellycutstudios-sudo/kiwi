@@ -21,9 +21,11 @@ import {
 } from 'recharts';
 
 export default function Dashboard() {
-  const { restaurant, staffDoc } = useAuthStore();
-  const { activeOrders, unreadOnlineCount } = useOrderStore();
-  const { categories } = useMenuStore();
+  const restaurant = useAuthStore(s => s.restaurant);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const activeOrders = useOrderStore(s => s.activeOrders);
+  const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
+  const categories = useMenuStore(s => s.categories);
   const [todayStats, setTodayStats] = useState({ sales: 0, orders: 0, avg: 0, avgCookTime: 0, tableTurnover: 0, topItem: null, paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 } });
   const [loading, setLoading] = useState(true);
   const [analyticsOrders, setAnalyticsOrders] = useState([]);

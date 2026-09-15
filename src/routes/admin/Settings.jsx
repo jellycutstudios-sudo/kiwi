@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -28,10 +29,11 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',    label: 'General Settings',   icon: '⚙️' },
-  { id: 'tax-pay',    label: 'Taxes & Payments',  icon: '💳' },
-  { id: 'online-del', label: 'Online & Delivery', icon: '📱' },
-  { id: 'hardware',   label: 'Peripherals',       icon: '🖨️' },
+  { id: 'general',       label: 'General Settings',   icon: '⚙️' },
+  { id: 'tax-pay',       label: 'Taxes & Payments',  icon: '💳' },
+  { id: 'online-del',    label: 'Online & Delivery', icon: '📱' },
+  { id: 'notifications', label: 'Email & Reports',   icon: '✉️' },
+  { id: 'hardware',      label: 'Peripherals',       icon: '🖨️' },
 ];
 
 export default function Settings() {
@@ -261,6 +263,34 @@ export default function Settings() {
     toast.success('Order link copied!');
   };
 
+  const [sendingTestReport, setSendingTestReport] = useState(false);
+  const handleSendTestReport = async () => {
+    const targetEmail = settings.adminNotificationEmail || restaurant?.adminNotificationEmail;
+    if (!targetEmail) {
+      toast.error('Please configure your recipient email first and save settings.');
+      return;
+    }
+    setSendingTestReport(true);
+    try {
+      if (functions) {
+        const sendReportFn = httpsCallable(functions, 'sendDailySalesReportEmail');
+        const res = await sendReportFn({ restaurantId: restaurant.id });
+        if (res.data?.success) {
+          toast.success(`Daily report sent! (${res.data.ordersCount} orders included)`);
+        } else {
+          toast.success('Daily report email dispatched successfully!');
+        }
+      } else {
+        toast.success('Report trigger sent!');
+      }
+    } catch (err) {
+      console.warn('Report dispatch error:', err);
+      toast.error(err.message || 'Failed to dispatch report email. Check Gmail App Password settings.');
+    } finally {
+      setSendingTestReport(false);
+    }
+  };
+
   if (!settings) return <div style={{padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)'}}>Loading settings...</div>;
 
   return (
@@ -329,6 +359,16 @@ export default function Settings() {
                       <select id="settings-currency" className="form-select" value={settings.currency??'INR'} onChange={e=>updateField('currency',e.target.value)}>
                         {CURRENCY_OPTIONS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
                       </select>
+                    </div>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">GSTIN / Tax ID</label>
+                      <input id="settings-gstin" className="form-input" placeholder="e.g. 27AAAAA0000A1Z5" value={settings.gstin??''} onChange={e=>updateField('gstin', e.target.value.toUpperCase())} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">FSSAI License No. (India)</label>
+                      <input id="settings-fssai" className="form-input" placeholder="e.g. 10012011000123" value={settings.fssai??''} onChange={e=>updateField('fssai', e.target.value)} />
                     </div>
                   </div>
                   <div className="form-group" style={{ marginTop: 'var(--space-2)' }}>
@@ -551,6 +591,23 @@ export default function Settings() {
                       {TAX_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                     </select>
                   </div>
+                  {settings.taxConfig?.type !== 'none' && (
+                    <div className="form-group">
+                      <label className="form-label">Tax Calculation Mode</label>
+                      <select 
+                        id="tax-mode-select" 
+                        className="form-select" 
+                        value={settings.taxConfig?.mode ?? 'exclusive'} 
+                        onChange={e => updateField('taxConfig.mode', e.target.value)}
+                      >
+                        <option value="exclusive">Tax Exclusive (Added on top of menu prices)</option>
+                        <option value="inclusive">Tax Inclusive (Included inside menu prices)</option>
+                      </select>
+                      <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
+                        In inclusive mode, items are sold at the displayed price and tax is separated automatically on bills.
+                      </span>
+                    </div>
+                  )}
                   {settings.taxConfig?.type === 'gst' && (
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
                       <div className="form-group">
@@ -965,6 +1022,90 @@ export default function Settings() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Email & Reports Tab */}
+          {activeTab === 'notifications' && (
+            <>
+              <div className="card card-padded">
+                <h3 className="text-title3" style={{ marginBottom: 'var(--space-2)' }}>✉️ Daily Sales Email & Admin Notifications</h3>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Configure your Gmail account and app password to automatically dispatch daily end-of-day sales summaries directly to the owner.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  <div className="form-group">
+                    <label className="form-label">Recipient Email Address (Owner / Admin)</label>
+                    <input
+                      id="settings-admin-email"
+                      className="form-input"
+                      type="email"
+                      placeholder="owner@restaurant.com"
+                      value={settings.adminNotificationEmail ?? ''}
+                      onChange={e => updateField('adminNotificationEmail', e.target.value)}
+                    />
+                    <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
+                      Daily sales reports and system alerts will be sent to this email.
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">Sender Gmail Address</label>
+                      <input
+                        id="settings-sender-gmail"
+                        className="form-input"
+                        type="email"
+                        placeholder="restaurant.reports@gmail.com"
+                        value={settings.reportSenderEmail ?? ''}
+                        onChange={e => updateField('reportSenderEmail', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Gmail App Password</label>
+                      <input
+                        id="settings-gmail-app-pass"
+                        className="form-input"
+                        type="password"
+                        placeholder="16-character app password"
+                        value={settings.reportGmailAppPassword ?? ''}
+                        onChange={e => updateField('reportGmailAppPassword', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--color-bg-secondary)', padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                    💡 <strong>How to get a Gmail App Password:</strong><br />
+                    1. Enable 2-Step Verification on your Google Account.<br />
+                    2. Go to <em>myaccount.google.com/apppasswords</em>.<br />
+                    3. Create an app named "DineOS" and paste the generated 16-letter password above.
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--color-separator-opaque)', paddingTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={settings.dailySalesReportEnabled ?? true}
+                        onChange={e => updateField('dailySalesReportEnabled', e.target.checked)}
+                      />
+                      <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)' }}>Send Automated Daily Sales Summary Every Evening</span>
+                    </label>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginTop: 'var(--space-2)' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleSendTestReport}
+                        disabled={sendingTestReport}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        {sendingTestReport ? 'Sending...' : '📨 Send Today\'s Report (Test Email)'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>

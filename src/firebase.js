@@ -5,6 +5,7 @@ import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getMessaging, isSupported } from 'firebase/messaging';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 export const isFirebaseConfigured = !!(
@@ -19,6 +20,7 @@ let auth = null;
 let db = null;
 let messaging = null;
 let storage = null;
+let functions = null;
 
 if (isFirebaseConfigured) {
   const firebaseConfig = {
@@ -34,6 +36,7 @@ if (isFirebaseConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     storage = getStorage(app);
+    functions = getFunctions(app);
 
     // Enable offline persistence using the modern API
     // (Replaces deprecated enableIndexedDbPersistence from Firebase v9 compat layer)
@@ -54,4 +57,4 @@ if (isFirebaseConfigured) {
   }
 }
 
-export { app, auth, db, messaging, storage };
+export { app, auth, db, messaging, storage, functions };

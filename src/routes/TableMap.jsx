@@ -13,9 +13,16 @@ import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 export default function TableMap() {
   const navigate = useNavigate();
-  const { restaurant } = useAuthStore();
-  const { tables, subscribe, freeTable } = useTableStore();
-  const { updateOrderStatus, loadOrderToCart, settleOrder, clearCart, setTable, setOrderType } = useOrderStore();
+  const restaurant = useAuthStore(s => s.restaurant);
+  const tables = useTableStore(s => s.tables);
+  const subscribe = useTableStore(s => s.subscribe);
+  const freeTable = useTableStore(s => s.freeTable);
+  const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
+  const loadOrderToCart = useOrderStore(s => s.loadOrderToCart);
+  const settleOrder = useOrderStore(s => s.settleOrder);
+  const clearCart = useOrderStore(s => s.clearCart);
+  const setTable = useOrderStore(s => s.setTable);
+  const setOrderType = useOrderStore(s => s.setOrderType);
   const [selected, setSelected] = useState(null);
   const [tableOrders, setTableOrders] = useState({});
   const [reservations, setReservations] = useState([]);
@@ -80,6 +87,8 @@ export default function TableMap() {
         if (data.tableId) map[data.tableId] = { id: d.id, ...data };
       });
       setTableOrders(map);
+    }, err => {
+      console.warn("TableMap active orders listener error:", err);
     });
   }, [restaurant?.id]);
 
@@ -93,6 +102,8 @@ export default function TableMap() {
     );
     return onSnapshot(q, snap => {
       setReservations(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, err => {
+      console.warn("TableMap reservations listener error:", err);
     });
   }, [restaurant?.id, todayStr]);
 

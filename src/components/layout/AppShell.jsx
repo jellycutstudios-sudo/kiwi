@@ -24,14 +24,28 @@ const PAGE_TITLES = {
   '/admin/restaurants': 'restaurants',
 };
 
+const SUPPORTED_LANGS = [
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'ta', label: 'தமிழ்', flag: '🇮🇳' },
+  { code: 'te', label: 'తెలుగు', flag: '🇮🇳' },
+  { code: 'mr', label: 'मराठी', flag: '🇮🇳' },
+  { code: 'kn', label: 'ಕನ್ನಡ', flag: '🇮🇳' },
+  { code: 'ar', label: 'العربية', flag: '🇦🇪' },
+];
+
 export default function AppShell() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { restaurant } = useAuthStore();
-  const { unreadOnlineCount, subscribeActiveOrders, markOnlineOrdersRead } = useOrderStore();
-  const { subscribeMenu, search, setSearch } = useMenuStore();
-  const { subscribeStaff } = useStaffStore();
-  const { subscribe: subscribeTables } = useTableStore();
+  const restaurant = useAuthStore(s => s.restaurant);
+  const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
+  const subscribeActiveOrders = useOrderStore(s => s.subscribeActiveOrders);
+  const markOnlineOrdersRead = useOrderStore(s => s.markOnlineOrdersRead);
+  const subscribeMenu = useMenuStore(s => s.subscribeMenu);
+  const search = useMenuStore(s => s.search);
+  const setSearch = useMenuStore(s => s.setSearch);
+  const subscribeStaff = useStaffStore(s => s.subscribeStaff);
+  const subscribeTables = useTableStore(s => s.subscribe);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -131,6 +145,33 @@ export default function AppShell() {
         />
       )}
 
+      {/* Sticky offline warning banner */}
+      {!isOnline && (
+        <div 
+          role="alert"
+          style={{ 
+            background: '#dc2626', 
+            color: '#ffffff', 
+            padding: '8px 16px', 
+            textAlign: 'center', 
+            fontSize: '13px', 
+            fontWeight: 600, 
+            zIndex: 10000, 
+            position: 'sticky', 
+            top: 0, 
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+        >
+          <span>⚠️</span>
+          <span>Network Disconnected — Operating in offline mode. Orders & changes will sync once connection is restored.</span>
+        </div>
+      )}
+
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Top Bar */}
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
@@ -198,16 +239,32 @@ export default function AppShell() {
               }}
             />
 
-            {/* Language toggle */}
-            <button
-              className="btn btn-secondary btn-icon"
-              onClick={toggleLang}
-              title={i18n.language === 'ar' ? 'Switch to English' : 'تبديل إلى العربية'}
-              aria-label={i18n.language === 'ar' ? 'Switch to English' : 'Switch to Arabic'}
-              id="lang-toggle-btn"
-            >
-              <Globe size={16} />
-            </button>
+            {/* Language selector */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <select
+                id="lang-select"
+                value={SUPPORTED_LANGS.some(l => l.code === i18n.language) ? i18n.language : 'en'}
+                onChange={e => i18n.changeLanguage(e.target.value)}
+                aria-label="Select interface language"
+                style={{
+                  height: '32px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  padding: '0 8px',
+                  cursor: 'pointer'
+                }}
+              >
+                {SUPPORTED_LANGS.map(lang => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.flag} {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Notification bell */}
             <button

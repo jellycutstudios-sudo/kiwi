@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
+import { useTableStore } from '../stores/tableStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
 import { printReceipt } from '../utils/print';
@@ -14,8 +15,10 @@ import toast from 'react-hot-toast';
 
 export default function ActiveOrders() {
   const { t } = useTranslation();
-  const { restaurant, staffDoc } = useAuthStore();
-  const { activeOrders, updateOrderStatus } = useOrderStore();
+  const restaurant = useAuthStore(s => s.restaurant);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const activeOrders = useOrderStore(s => s.activeOrders);
+  const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const { callSpecificToken } = useTokenStore();
   
   const handleCallToken = async (tokenNumber) => {
@@ -72,6 +75,23 @@ export default function ActiveOrders() {
       }
     } catch (err) {
       toast.error('Failed to update status: ' + err.message);
+    }
+  };
+
+  const handleCancelOrder = async (order) => {
+    const label = order.tableName ? `Table ${order.tableName}` : `Order #${order.id.slice(-4).toUpperCase()}`;
+    if (!window.confirm(`Are you sure you want to cancel ${label}? This will release any occupied table.`)) {
+      return;
+    }
+    try {
+      await updateOrderStatus(restaurant.id, order.id, 'cancelled');
+      if (order.tableId) {
+        await useTableStore.getState().freeTable(restaurant.id, order.tableId);
+      }
+      toast.success(`${label} cancelled and table freed.`);
+      setSelectedOrderDetails(null);
+    } catch (err) {
+      toast.error('Failed to cancel order: ' + err.message);
     }
   };
 
@@ -595,24 +615,33 @@ export default function ActiveOrders() {
               </div>
 
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
               <button 
-                className="btn btn-secondary" 
-                onClick={() => setSelectedOrderDetails(null)}
+                className="btn btn-sm" 
+                style={{ background: 'var(--color-red-light)', color: 'var(--color-red)', border: 'none' }}
+                onClick={() => handleCancelOrder(selectedOrderDetails)}
               >
-                Close
+                Cancel Order
               </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  handlePrint(selectedOrderDetails);
-                  setSelectedOrderDetails(null);
-                }}
-                style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                <Printer size={14} />
-                <span>Print</span>
-              </button>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setSelectedOrderDetails(null)}
+                >
+                  Close
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    handlePrint(selectedOrderDetails);
+                    setSelectedOrderDetails(null);
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <Printer size={14} />
+                  <span>Print</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

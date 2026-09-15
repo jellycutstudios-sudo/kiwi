@@ -56,4 +56,27 @@ describe('computeTax', () => {
     expect(result.taxTotal).toBe(0);
     expect(result.total).toBe(150);
   });
+
+  it('should compute tax-inclusive GST correctly', () => {
+    const result = computeTax(118, { type: 'gst', rate: 18, mode: 'inclusive' });
+    expect(result.type).toBe('gst');
+    expect(result.mode).toBe('inclusive');
+    expect(result.total).toBe(118);
+    expect(result.baseSubtotal).toBe(100);
+    expect(result.taxTotal).toBe(18);
+    expect(result.lines).toEqual([
+      { label: 'CGST (9%)', amount: 9 },
+      { label: 'SGST (9%)', amount: 9 }
+    ]);
+  });
+
+  it('should compute tax-inclusive VAT correctly', () => {
+    const result = computeTax(105, { type: 'vat', rate: 5, mode: 'inclusive' });
+    expect(result.type).toBe('vat');
+    expect(result.mode).toBe('inclusive');
+    expect(result.total).toBe(105);
+    expect(result.baseSubtotal).toBe(100);
+    expect(result.taxTotal).toBe(5);
+  });
 });
+

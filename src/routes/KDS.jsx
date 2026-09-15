@@ -56,9 +56,9 @@ function KdsTooltip({ text, children }) {
 
 export default function KDS() {
   const { t } = useTranslation();
-  const { restaurant } = useAuthStore();
+  const restaurant = useAuthStore(s => s.restaurant);
   const modes = restaurant?.modes || [];
-  const { activeOrders } = useOrderStore();
+  const activeOrders = useOrderStore(s => s.activeOrders);
   const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
   const { callSpecificToken } = useTokenStore();
   
@@ -73,6 +73,7 @@ export default function KDS() {
   };
 
   const [activeStation, setActiveStation] = useState('All');
+  const [viewTab, setViewTab] = useState('active'); // 'active' | 'recent'
   
   const prevCountRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -92,6 +93,21 @@ export default function KDS() {
       }
       return o.items?.some(i => i.station === activeStation && i.status !== 'ready' && i.prepState !== 'hold');
     });
+
+  const recentReadyOrders = activeOrders.filter(o => {
+    if (o.status !== 'ready') return false;
+    const createdAtMs = o.createdAt?.toDate ? o.createdAt.toDate().getTime() : (o.createdAt ? new Date(o.createdAt).getTime() : 0);
+    return (currentTime - createdAtMs) <= 30 * 60 * 1000;
+  });
+
+  const handleRecallOrder = async (order) => {
+    try {
+      await updateKDSStationStatus(restaurant.id, order, 'All', 'preparing');
+      toast.success(`Recalled order to kitchen!`, { icon: '↩️' });
+    } catch (err) {
+      toast.error('Failed to recall order: ' + err.message);
+    }
+  };
 
   const orderCount = kdsOrders.length;
 
@@ -172,8 +188,42 @@ export default function KDS() {
             <Info size={14} color="rgba(255,255,255,0.3)" style={{ cursor: 'help', marginLeft: 4 }} />
           </KdsTooltip>
         </div>
-        <div style={{ color: 'var(--color-on-dark-soft)', fontSize: 13 }}>
-          {new Date().toLocaleTimeString()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-md)', padding: 2 }}>
+            <button
+              onClick={() => setViewTab('active')}
+              style={{
+                background: viewTab === 'active' ? 'var(--color-accent)' : 'transparent',
+                color: 'var(--color-on-dark)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: 12,
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Active ({kdsOrders.length})
+            </button>
+            <button
+              onClick={() => setViewTab('recent')}
+              style={{
+                background: viewTab === 'recent' ? 'var(--color-teal)' : 'transparent',
+                color: 'var(--color-on-dark)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: 12,
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Ready ({recentReadyOrders.length})
+            </button>
+          </div>
+          <div style={{ color: 'var(--color-on-dark-soft)', fontSize: 13 }}>
+            {new Date().toLocaleTimeString()}
+          </div>
         </div>
       </div>
 
@@ -229,16 +279,65 @@ export default function KDS() {
       </div>
 
       {/* Grid */}
-      {kdsOrders.length === 0 ? (
-        <div style={{
-          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-          height: '50vh', color: 'rgba(255,255,255,0.3)', gap: 'var(--space-4)',
-        }}>
-          <div style={{ fontSize: 48 }}>🍳</div>
-          <div style={{ fontSize: 20, fontWeight: 600 }}>No orders in queue for this station</div>
-        </div>
+      {viewTab === 'recent' ? (
+        recentReadyOrders.length === 0 ? (
+          <div style={{
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+            height: '50vh', color: 'rgba(255,255,255,0.3)', gap: 'var(--space-4)',
+          }}>
+            <div style={{ fontSize: 48 }}>✅</div>
+            <div style={{ fontSize: 20, fontWeight: 600 }}>No recently ready orders in the last 30 minutes</div>
+          </div>
+        ) : (
+          <div className="kds-grid">
+            {recentReadyOrders.map(order => (
+              <div key={order.id} className="kds-order-card status-ready" id={`kds-recent-${order.id}`}>
+                <div className="kds-order-header" style={{ borderLeft: '4px solid var(--color-teal)' }}>
+                  <div>
+                    <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {order.token && <span className="badge badge-teal">Token #{order.token}</span>}
+                      <span>{order.tableName ? `Table ${order.tableName}` : (order.type === 'takeaway' ? 'Takeaway' : (order.type === 'online' ? 'Online' : 'Dine-In'))}</span>
+                    </div>
+                    <div className="kds-order-meta">
+                      <span>Ready · Completed {getElapsed(order.updatedAt || order.createdAt)}</span>
+                    </div>
+                  </div>
+                  <span className="badge badge-teal">READY</span>
+                </div>
+                <div className="kds-order-items">
+                  {order.items?.map((item, idx) => (
+                    <div key={idx} className="kds-item-row" style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="kds-item-info">
+                        <span className="kds-item-qty">×{item.qty}</span>
+                        <span className="kds-item-name">{item.name}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="kds-order-action" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleRecallOrder(order)}
+                    style={{ flex: 1, padding: '8px', fontSize: 12, background: 'rgba(255,149,0,0.15)', color: 'var(--color-orange)', border: '1px solid rgba(255,149,0,0.3)' }}
+                  >
+                    ↩️ Recall to Kitchen
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : (
-        <div className="kds-grid">
+        kdsOrders.length === 0 ? (
+          <div style={{
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+            height: '50vh', color: 'rgba(255,255,255,0.3)', gap: 'var(--space-4)',
+          }}>
+            <div style={{ fontSize: 48 }}>🍳</div>
+            <div style={{ fontSize: 20, fontWeight: 600 }}>No orders in queue for this station</div>
+          </div>
+        ) : (
+          <div className="kds-grid">
           {kdsOrders.map(order => {
             const stationItems = (order.items ?? []).filter(i => (activeStation === 'All' || i.station === activeStation) && i.prepState !== 'hold');
             const anyStationPending = stationItems.some(i => !i.status || i.status === 'pending');
@@ -448,7 +547,7 @@ export default function KDS() {
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 }
