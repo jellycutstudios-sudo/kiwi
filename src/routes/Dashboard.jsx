@@ -469,33 +469,33 @@ export default function Dashboard() {
               animationDelay: `${i * 60}ms`,
               background: s.highlight 
                 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                : 'var(--color-bg-elevated)',
+                : '#fffdf9',
               color: s.highlight ? '#fff' : 'inherit',
-              borderRadius: 'var(--radius-xl)',
+              borderRadius: 'var(--clay-radius-card)',
               padding: 'var(--space-5) var(--space-6)',
               boxShadow: s.highlight 
-                ? '0 10px 20px -5px rgba(5, 150, 105, 0.25)' 
-                : 'var(--shadow-md)',
+                ? '0 12px 28px -4px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.3)' 
+                : 'var(--clay-shadow-md)',
               display: 'flex',
               flexDirection: 'column',
               gap: 'var(--space-2)',
               position: 'relative',
               overflow: 'hidden',
-              transition: 'transform var(--duration-fast), box-shadow var(--duration-fast)',
+              transition: 'transform 0.2s var(--ease-spring-pop), box-shadow 0.2s var(--ease-spring-pop)',
               cursor: 'pointer',
-              border: s.highlight ? 'none' : '1px solid var(--color-separator)'
+              border: s.highlight ? 'none' : '1px solid rgba(0,0,0,0.04)'
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'translateY(-3px)';
               e.currentTarget.style.boxShadow = s.highlight 
-                ? '0 15px 25px -5px rgba(5, 150, 105, 0.35)' 
-                : 'var(--shadow-lg)';
+                ? '0 16px 32px -4px rgba(5, 150, 105, 0.45)' 
+                : 'var(--clay-shadow-lg)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'none';
               e.currentTarget.style.boxShadow = s.highlight 
-                ? '0 10px 20px -5px rgba(5, 150, 105, 0.25)' 
-                : 'var(--shadow-md)';
+                ? '0 12px 28px -4px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.3)' 
+                : 'var(--clay-shadow-md)';
             }}
           >
             {/* Background design circle */}

@@ -168,21 +168,14 @@ export default function MenuEditor() {
             {categories.map(c => (
               <div
                 key={c.id}
-                style={{
-                  display:'flex', alignItems:'center', gap:'var(--space-2)',
-                  padding:'var(--space-2) var(--space-3)',
-                  borderRadius:'var(--radius-md)',
-                  background: activeCatId === c.id ? 'var(--color-accent-light)' : 'transparent',
-                  cursor:'pointer',
-                  transition:'all var(--duration-fast)',
-                }}
+                className={`menu-editor-cat-item ${activeCatId === c.id ? 'active' : ''}`}
                 onClick={() => setActiveCat(c.id)}
               >
                 <span>{c.emoji}</span>
-                <span style={{ flex:1, fontWeight:'var(--weight-medium)', fontSize:'var(--text-subhead)', color: activeCatId === c.id ? 'var(--color-accent)' : 'var(--color-label)' }}>
+                <span style={{ flex:1, fontWeight: activeCatId === c.id ? 700 : 'var(--weight-medium)', fontSize:'var(--text-subhead)', color: activeCatId === c.id ? '#ffffff' : 'var(--color-label)' }}>
                   {c.name}
                 </span>
-                <span style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-tertiary)' }}>
+                <span style={{ fontSize:'var(--text-caption2)', color: activeCatId === c.id ? 'rgba(255,255,255,0.7)' : 'var(--color-label-tertiary)' }}>
                   {c.items?.length ?? 0}
                 </span>
                 <button
