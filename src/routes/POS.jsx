@@ -941,28 +941,28 @@ export default function POS() {
           <div className="menu-dietary-chips">
             <button
               type="button"
-              className={`dietary-chip ${dietaryFilter === 'all' ? 'active' : ''}`}
+              className={`dietary-chip dietary-chip--all ${dietaryFilter === 'all' ? 'active' : ''}`}
               onClick={() => setDietaryFilter('all')}
             >
               All
             </button>
             <button
               type="button"
-              className={`dietary-chip ${dietaryFilter === 'veg' ? 'active' : ''}`}
+              className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
             >
               <span className="food-badge-veg" /> Pure Veg
             </button>
             <button
               type="button"
-              className={`dietary-chip ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+              className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
             >
               <span className="food-badge-nonveg" /> Non-Veg
             </button>
             <button
               type="button"
-              className={`dietary-chip ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+              className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
             >
               <Sparkles size={12} color="#f59e0b" /> Bestsellers
