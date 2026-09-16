@@ -5112,3 +5112,150 @@ button:active:not(:disabled),
   font-variant-numeric: tabular-nums;
   margin-top: 1px;
 }
+
+/* ============================================================
+   High-Density Compact Table Keypad Grid (20+ Tables Mode)
+   ============================================================ */
+.table-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  padding: 6px 2px 20px;
+}
+
+.table-compact-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 9px 12px;
+  min-height: 58px;
+  border-radius: 13px;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: var(--clay-shadow-sm);
+  transition: transform 0.18s var(--ease-spring-pop),
+              box-shadow 0.18s var(--ease-spring-pop),
+              background 0.14s ease,
+              border-color 0.14s ease;
+  user-select: none;
+  text-align: left;
+  outline: none !important;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.table-compact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--clay-shadow-md);
+}
+
+.table-compact-card:active {
+  transform: translateY(2px) scale(0.96);
+  box-shadow: var(--clay-press);
+}
+
+.table-compact-card.free {
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+  border-color: #86efac;
+}
+
+.table-compact-card.free:hover {
+  border-color: #4ade80;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.18);
+}
+
+.table-compact-card.occupied {
+  background: linear-gradient(180deg, #fff5f5 0%, #fee2e2 100%);
+  border-color: #fca5a5;
+}
+
+.table-compact-card.occupied:hover {
+  border-color: #f87171;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.18);
+}
+
+.table-compact-card.reserved {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+
+.table-compact-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.table-compact-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.table-compact-card.occupied .table-compact-name {
+  color: #881337;
+}
+
+.table-compact-card.reserved .table-compact-name {
+  color: #78350f;
+}
+
+.table-compact-capacity {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-label-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.table-compact-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.table-compact-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-compact-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.table-compact-status-dot.free {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+.table-compact-status-dot.occupied {
+  background: #e11d48;
+  box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+}
+
+.table-compact-status-dot.reserved {
+  background: #d97706;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.table-compact-order-total {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #be123c;
+  font-variant-numeric: tabular-nums;
+  background: rgba(225, 29, 72, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
