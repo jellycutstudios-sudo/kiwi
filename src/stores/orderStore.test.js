@@ -220,4 +220,52 @@ describe('orderStore', () => {
     expect(useGiftCardStore.getState().giftCardDeduction).toBe(110);
     expect(store.getTotal(restaurant)).toBe(0);
   });
+
+  it('should update table status to free when order is paid at checkout', async () => {
+    const batchMock = {
+      set: vi.fn(),
+      update: vi.fn(),
+      commit: vi.fn().mockResolvedValue(true),
+    };
+    const { writeBatch, doc } = await import('firebase/firestore');
+    vi.mocked(writeBatch).mockReturnValue(batchMock);
+    vi.mocked(doc).mockReturnValue({ id: 'order-123' });
+
+    const store = useOrderStore.getState();
+    store.addItem({ id: 'item-1', name: 'Pizza', price: 200 });
+    store.setOrderType('dine-in');
+    store.setTable('table-5', 'T5');
+    store.setPaymentMethod('cash');
+
+    const res = await store.submitOrder({ id: 'rest-1', currency: 'INR' });
+    expect(res.ok).toBe(true);
+    expect(batchMock.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: 'free', currentOrderId: null })
+    );
+  });
+
+  it('should update table status to occupied when order is unpaid (kitchen dispatch)', async () => {
+    const batchMock = {
+      set: vi.fn(),
+      update: vi.fn(),
+      commit: vi.fn().mockResolvedValue(true),
+    };
+    const { writeBatch, doc } = await import('firebase/firestore');
+    vi.mocked(writeBatch).mockReturnValue(batchMock);
+    vi.mocked(doc).mockReturnValue({ id: 'order-456' });
+
+    const store = useOrderStore.getState();
+    store.addItem({ id: 'item-1', name: 'Pizza', price: 200 });
+    store.setOrderType('dine-in');
+    store.setTable('table-5', 'T5');
+    store.setPaymentMethod('unpaid');
+
+    const res = await store.submitOrder({ id: 'rest-1', currency: 'INR' });
+    expect(res.ok).toBe(true);
+    expect(batchMock.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: 'occupied', currentOrderId: 'order-456' })
+    );
+  });
 });

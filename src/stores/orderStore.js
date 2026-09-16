@@ -368,9 +368,12 @@ export const useOrderStore = create((set, get) => ({
     const serviceChargeAmount = get().getServiceChargeAmount(restaurant);
     const total    = get().getTotal(restaurant);
 
+    const isPaid = paymentMethod !== 'unpaid';
+
     const orderData = {
       type: orderType,
-      status: 'pending',
+      status: isPaid ? 'billed' : 'pending',
+      paid: isPaid,
       items: items.map(i => ({
         id: i.id,
         name: i.name,
@@ -411,6 +414,7 @@ export const useOrderStore = create((set, get) => ({
         ? (useAuthStore.getState().staffDoc?.name) 
         : null,
       updatedAt: serverTimestamp(),
+      paidAt: isPaid ? serverTimestamp() : null,
       currency: restaurant?.currency ?? 'INR',
     };
 
@@ -551,9 +555,27 @@ export const useOrderStore = create((set, get) => ({
           }
         }
 
+        // Update customer profile with loyalty points, visit counts, and lifetime spends if paying now and wasn't paid before
+        if (customer && isPaid) {
+          const oldWasPaid = oldOrderSnap.exists() && (oldOrderSnap.data().paid === true || (oldOrderSnap.data().paymentMethod && oldOrderSnap.data().paymentMethod !== 'unpaid'));
+          if (!oldWasPaid) {
+            const pointsEarned = orderData.loyaltyEarned ?? 0;
+            const pointsRedeemed = orderData.loyaltyRedeemed ?? 0;
+            const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', customer.phone);
+            batch.update(custDocRef, {
+              visitCount: increment(1),
+              lifetimeSpend: increment(total),
+              points: increment(pointsEarned - pointsRedeemed)
+            });
+          }
+        }
+
         if (orderType === 'dine-in' && tableId) {
           const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
-          batch.update(tableRef, {
+          batch.update(tableRef, isPaid ? {
+            status: 'free',
+            currentOrderId: null
+          } : {
             status: 'occupied',
             currentOrderId: orderId
           });
@@ -590,7 +612,7 @@ export const useOrderStore = create((set, get) => ({
         }
 
         // Update customer profile with loyalty points, visit counts, and lifetime spends ONLY if paid immediately
-        if (customer && paymentMethod !== 'unpaid') {
+        if (customer && isPaid) {
           const pointsEarned = orderData.loyaltyEarned ?? 0;
           const pointsRedeemed = orderData.loyaltyRedeemed ?? 0;
           const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', customer.phone);
@@ -614,7 +636,10 @@ export const useOrderStore = create((set, get) => ({
 
         if (orderType === 'dine-in' && tableId) {
           const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
-          batch.update(tableRef, {
+          batch.update(tableRef, isPaid ? {
+            status: 'free',
+            currentOrderId: null
+          } : {
             status: 'occupied',
             currentOrderId: orderId
           });

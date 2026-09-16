@@ -707,13 +707,75 @@ export default function POS() {
       setToken(token);
     }
 
+    const itemsToPrint = [...items];
+    const activeTableName = tableName;
+    const activeTableId = tableId;
+    const isEdit = Boolean(editingOrderId);
+
     setPaymentMethod('unpaid');
     const res = await submitOrder(restaurant, staffDoc?.id);
     if (!res.ok) { toast.error(res.error); return; }
 
-    toast.success(editingOrderId ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
-    if (token) {
-      printTokenTicket({ token, orderType, customerName, restaurant });
+    toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
+    
+    // Print kitchen tickets (KOT)
+    setTimeout(() => {
+      printKitchenTickets({
+        restaurant,
+        order: {
+          id: res.orderId || editingOrderId,
+          type: orderType,
+          tableName: activeTableName,
+          tableId: activeTableId,
+          token,
+          customerName,
+          note,
+        },
+        items: itemsToPrint,
+        staffName: staffDoc?.name || 'Waiter'
+      });
+      if (token) {
+        printTokenTicket({ token, orderType, customerName, restaurant });
+      }
+    }, 100);
+  };
+
+  const handlePrintPreBill = () => {
+    if (!items.length) return;
+    const printOrder = {
+      id: editingOrderId || 'PRE-BILL',
+      type: orderType,
+      tableName,
+      token: tokenNumber,
+      customerName,
+      subtotal,
+      discount,
+      discountType,
+      discountAmount,
+      total,
+      paymentMethod: 'Unpaid (Guest Check)',
+      currency,
+      note,
+    };
+    printReceipt({
+      restaurant,
+      order: printOrder,
+      items,
+      taxInfo,
+      staffName: staffDoc?.name || 'Cashier'
+    });
+    toast.success(`Guest check printed for Table ${tableName || ''}!`, { icon: '🖨️' });
+  };
+
+  const handleReleaseTable = async () => {
+    if (!tableId) return;
+    if (!window.confirm(`Release Table ${tableName}? This will mark the table as free.`)) return;
+    try {
+      await useTableStore.getState().freeTable(restaurant.id, tableId);
+      clearCart();
+      toast.success(`Table ${tableName} is now free.`, { icon: '🪑' });
+    } catch (e) {
+      toast.error('Failed to release table: ' + e.message);
     }
   };
 
@@ -1197,24 +1259,51 @@ export default function POS() {
 
         {editingOrderId && (
           <div style={{
-            background: 'var(--color-accent-light)',
-            color: 'var(--color-accent)',
-            padding: 'var(--space-2) var(--space-4)',
-            fontSize: 'var(--text-footnote)',
-            fontWeight: 'var(--weight-semibold)',
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            color: '#1e40af',
+            padding: '6px 12px',
+            fontSize: '11.5px',
+            fontWeight: 700,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: '1px solid var(--color-separator)'
+            borderBottom: '1px solid #bfdbfe',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
           }}>
-            <span>📝 Modifying Table Order</span>
-            <button 
-              className="btn btn-ghost btn-xs"
-              onClick={clearCart}
-              style={{ color: 'var(--color-accent)', padding: '2px 6px', fontSize: 10 }}
-            >
-              Cancel Edit
-            </button>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span>🍽️ {tableName ? `Table ${tableName}` : 'Active Order'}</span>
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <button 
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={handlePrintPreBill}
+                title="Print Guest Bill / Pre-Bill Check"
+                style={{ color: '#1e40af', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(255,255,255,0.7)', borderRadius: 6, border: '1px solid rgba(30,64,175,0.2)' }}
+              >
+                🖨️ Bill
+              </button>
+              {tableId && (
+                <button 
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={handleReleaseTable}
+                  title="Release / Free Table"
+                  style={{ color: '#991b1b', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(254,226,226,0.7)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}
+                >
+                  Free
+                </button>
+              )}
+              <button 
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={clearCart}
+                title="Close active order view"
+                style={{ color: '#64748b', padding: '2px 5px', fontSize: 11, height: 22 }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
 
@@ -1787,18 +1876,83 @@ export default function POS() {
         <TableSelectModal
           restaurantId={restaurant?.id}
           tableOrders={tableOrders}
-          onSelect={async (id, name) => {
-            setTable(id, name);
+          onSelect={async (id, name, activeOrder, table) => {
             setShowTableSel(false);
+
+            // Case 1: Table is occupied and has an active order
+            if (activeOrder) {
+              if (items.length === 0) {
+                // Empty cart: Load running order directly
+                loadOrderToCart(activeOrder);
+                toast.success(`Loaded active order for Table ${name}`, { icon: '🍽️' });
+                return;
+              } else {
+                // Cart already has items: Merge into existing table order
+                const existingItems = activeOrder.items || [];
+                const currentCartItems = [...items];
+                const merged = [...existingItems];
+
+                currentCartItems.forEach(cartItem => {
+                  const match = merged.find(m => 
+                    m.id === cartItem.id && 
+                    JSON.stringify(m.selectedModifiers || []) === JSON.stringify(cartItem.selectedModifiers || [])
+                  );
+                  if (match) {
+                    match.qty += cartItem.qty;
+                  } else {
+                    merged.push({ ...cartItem, prepState: 'fired' });
+                  }
+                });
+
+                loadOrderToCart({
+                  ...activeOrder,
+                  items: merged
+                });
+
+                toast.success(`Added items to Table ${name}'s running order`, { icon: '🍽️' });
+
+                if (tableSelAction === 'checkout') {
+                  setShowPayment(true);
+                } else if (tableSelAction === 'kitchen') {
+                  setPaymentMethod('unpaid');
+                  const res = await submitOrder(restaurant, staffDoc?.id);
+                  if (!res.ok) { toast.error(res.error); return; }
+                  toast.success('New items sent to kitchen!', { icon: '🍳' });
+                  setTimeout(() => {
+                    printKitchenTickets({
+                      restaurant,
+                      order: { id: activeOrder.id, tableName: name, tableId: id, type: 'dine-in' },
+                      items: currentCartItems,
+                      staffName: staffDoc?.name || 'Waiter'
+                    });
+                  }, 100);
+                }
+                return;
+              }
+            }
+
+            // Case 2: Table is free
+            setTable(id, name);
             if (items.length) {
               if (tableSelAction === 'checkout') {
                 setShowPayment(true);
               } else {
+                const currentItems = [...items];
                 setPaymentMethod('unpaid');
                 const res = await submitOrder(restaurant, staffDoc?.id);
                 if (!res.ok) { toast.error(res.error); return; }
-                toast.success(editingOrderId ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
+                toast.success('Order sent to kitchen!', { icon: '🍳' });
+                setTimeout(() => {
+                  printKitchenTickets({
+                    restaurant,
+                    order: { id: res.orderId, tableName: name, tableId: id, type: 'dine-in' },
+                    items: currentItems,
+                    staffName: staffDoc?.name || 'Waiter'
+                  });
+                }, 100);
               }
+            } else {
+              toast.success(`Assigned to Table ${name}`, { icon: '🪑' });
             }
           }}
           onClose={() => setShowTableSel(false)}

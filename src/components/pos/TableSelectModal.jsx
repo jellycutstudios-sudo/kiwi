@@ -309,7 +309,7 @@ export default function TableSelectModal({ restaurantId, tableOrders = {}, onSel
                     id={`table-select-${table.id}`}
                     type="button"
                     className={`table-compact-card ${table.status}`}
-                    onClick={() => onSelect(table.id, table.name)}
+                    onClick={() => onSelect(table.id, table.name, activeOrder, table)}
                     title={`${table.name} · ${table.capacity || 4} seats · ${table.status}`}
                   >
                     <div className="table-compact-card-top">
@@ -360,7 +360,7 @@ export default function TableSelectModal({ restaurantId, tableOrders = {}, onSel
                       id={`table-select-${table.id}`}
                       type="button"
                       className={`table-3d-card ${isRound ? 'round' : ''} ${table.status}`}
-                      onClick={() => onSelect(table.id, table.name)}
+                      onClick={() => onSelect(table.id, table.name, activeOrder, table)}
                       title={`${table.name} · ${table.capacity} seats · ${table.status}`}
                     >
                       {/* Status Pill Badge */}
