@@ -707,10 +707,16 @@ export default function POS() {
       setToken(token);
     }
 
-    const itemsToPrint = [...items];
-    const activeTableName = tableName;
-    const activeTableId = tableId;
+    // Snapshot all cart and metadata values BEFORE submitOrder clears state
+    const snapItems = [...items];
+    const snapTableName = tableName;
+    const snapTableId = tableId;
+    const snapOrderType = orderType;
+    const snapCustomerName = customerName || (customer?.name ?? '');
+    const snapNote = note;
+    const snapStaffName = staffDoc?.name || 'Waiter';
     const isEdit = Boolean(editingOrderId);
+    const snapEditingOrderId = editingOrderId;
 
     setPaymentMethod('unpaid');
     const res = await submitOrder(restaurant, staffDoc?.id);
@@ -723,19 +729,19 @@ export default function POS() {
       printKitchenTickets({
         restaurant,
         order: {
-          id: res.orderId || editingOrderId,
-          type: orderType,
-          tableName: activeTableName,
-          tableId: activeTableId,
+          id: res.orderId || snapEditingOrderId,
+          type: snapOrderType,
+          tableName: snapTableName,
+          tableId: snapTableId,
           token,
-          customerName,
-          note,
+          customerName: snapCustomerName,
+          note: snapNote,
         },
-        items: itemsToPrint,
-        staffName: staffDoc?.name || 'Waiter'
+        items: snapItems,
+        staffName: snapStaffName
       });
       if (token) {
-        printTokenTicket({ token, orderType, customerName, restaurant });
+        printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
       }
     }, 100);
   };
@@ -769,14 +775,39 @@ export default function POS() {
 
   const handleReleaseTable = async () => {
     if (!tableId) return;
-    if (!window.confirm(`Release Table ${tableName}? This will mark the table as free.`)) return;
-    try {
-      await useTableStore.getState().freeTable(restaurant.id, tableId);
-      clearCart();
-      toast.success(`Table ${tableName} is now free.`, { icon: '🪑' });
-    } catch (e) {
-      toast.error('Failed to release table: ' + e.message);
-    }
+    const targetTableId = tableId;
+    const targetTableName = tableName;
+    toast((toastItem) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
+        <span style={{ fontWeight: 600, fontSize: '13px' }}>Release Table {targetTableName}?</span>
+        <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>This will mark the table as free and clear your cart.</span>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
+          <button 
+            type="button"
+            className="btn btn-secondary btn-xs" 
+            onClick={() => toast.dismiss(toastItem.id)}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            className="btn btn-danger btn-xs"
+            onClick={async () => {
+              toast.dismiss(toastItem.id);
+              try {
+                await useTableStore.getState().freeTable(restaurant.id, targetTableId);
+                clearCart();
+                toast.success(`Table ${targetTableName} is now free.`, { icon: '🪑' });
+              } catch (e) {
+                toast.error('Failed to release table: ' + e.message);
+              }
+            }}
+          >
+            Confirm Release
+          </button>
+        </div>
+      </div>
+    ), { duration: 6000 });
   };
 
   const handlePaymentConfirm = async () => {
@@ -792,6 +823,25 @@ export default function POS() {
         setToken(token);
       }
 
+      // Snapshot all cart and payment parameters BEFORE submitOrder clears state
+      const snapItems = [...items];
+      const snapOrderType = orderType;
+      const snapTableName = tableName;
+      const snapCustomerName = customerName || (customer?.name ?? '');
+      const snapCustomerPhone = customerPhone || (customer?.phone ?? '');
+      const snapSubtotal = subtotal;
+      const snapDiscount = discount;
+      const snapDiscountType = discountType;
+      const snapDiscountAmount = discountAmount;
+      const snapTotal = total;
+      const snapPaymentMethod = paymentMethod;
+      const snapSplitPayments = useOrderStore.getState().splitPayments ?? [];
+      const snapTipAmount = useOrderStore.getState().tipAmount ?? 0;
+      const snapTaxInfo = taxInfo;
+      const snapStaffName = staffDoc?.name || 'Cashier';
+      const snapNote = note;
+      const { giftCardCode, giftCardDeduction } = useGiftCardStore.getState();
+
       const res = await submitOrder(restaurant, staffDoc?.id);
       if (!res.ok) {
         toast.error(res.error || 'Failed to place order', { id: toastId });
@@ -802,18 +852,23 @@ export default function POS() {
 
       const printOrder = {
         id: res.orderId,
-        type: orderType,
-        tableName,
+        type: snapOrderType,
+        tableName: snapTableName,
         token,
-        customerName,
-        subtotal,
-        discount,
-        discountType,
-        discountAmount,
-        total,
-        paymentMethod,
+        customerName: snapCustomerName,
+        customerPhone: snapCustomerPhone,
+        subtotal: snapSubtotal,
+        discount: snapDiscount,
+        discountType: snapDiscountType,
+        discountAmount: snapDiscountAmount,
+        total: snapTotal,
+        paymentMethod: snapPaymentMethod,
+        splitPayments: snapSplitPayments,
+        giftCardCode,
+        giftCardDeduction,
+        tipAmount: snapTipAmount,
         currency,
-        note,
+        note: snapNote,
       };
 
       // Print tickets in background without blocking POS interface
@@ -821,25 +876,33 @@ export default function POS() {
         printReceipt({
           restaurant,
           order: printOrder,
-          items,
-          taxInfo,
-          staffName: staffDoc?.name,
+          items: snapItems,
+          taxInfo: snapTaxInfo,
+          staffName: snapStaffName,
         });
 
         printKitchenTickets({
           restaurant,
           order: printOrder,
-          items,
-          staffName: staffDoc?.name,
+          items: snapItems,
+          staffName: snapStaffName,
         });
 
         if (token) {
-          printTokenTicket({ token, orderType, customerName, restaurant });
+          printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
         }
       }, 50);
     } catch (err) {
       toast.error(err.message || 'Error processing payment', { id: toastId });
     }
+  };
+
+  const handleOrderTypeChange = (newType) => {
+    if (editingOrderId && orderType !== newType) {
+      toast.error('Cannot change order type while modifying an active order. Settle or cancel it first.');
+      return;
+    }
+    setOrderType(newType);
   };
 
   if (checkingShift) {
@@ -1316,7 +1379,7 @@ export default function POS() {
                 key={ot.key}
                 id={`order-type-${ot.key}`}
                 className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
-                onClick={() => setOrderType(ot.key)}
+                onClick={() => handleOrderTypeChange(ot.key)}
               >
                 {Icon && <Icon size={14} />}
                 <span>{ot.label}</span>

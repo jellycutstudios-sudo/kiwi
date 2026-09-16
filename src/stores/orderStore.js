@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 let activeOrdersUnsub = null;
 let subscribedOrdersRestId = null;
 let ordersSubCount = 0;
+const localCancelledOrderIds = new Set();
 
 export const useOrderStore = create((set, get) => ({
   // Cart
@@ -54,9 +55,18 @@ export const useOrderStore = create((set, get) => ({
       useGiftCardStore.getState().clearGiftCard();
     }
     const items = get().items;
-    const existing = items.find(i => i.id === item.id);
+    const existing = items.find(i => 
+      i.id === item.id && 
+      JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
+    );
     if (existing) {
-      set({ items: items.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i) });
+      set({ 
+        items: items.map(i => 
+          (i.id === item.id && JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])) 
+            ? { ...i, qty: i.qty + 1 } 
+            : i
+        ) 
+      });
     } else {
       set({ items: [...items, { 
         ...item, 
@@ -766,8 +776,10 @@ export const useOrderStore = create((set, get) => ({
           }
 
           if (change.type === 'removed') {
-            // Check if order was cancelled
-            if (data.status === 'cancelled') {
+            const wasCancelledLocally = localCancelledOrderIds.has(orderId);
+            if (wasCancelledLocally) {
+              localCancelledOrderIds.delete(orderId);
+            } else if (data.status === 'cancelled') {
               playChime();
               const orderDesc = data.tableName ? `Table ${data.tableName}` : `Order #${orderId.slice(-4).toUpperCase()}`;
               toast.error(`❌ ${orderDesc} has been CANCELLED!`, { duration: 6000 });
@@ -835,6 +847,10 @@ export const useOrderStore = create((set, get) => ({
       } catch (err) {
         console.warn('Inventory depletion on order prepare check failed:', err);
       }
+    }
+
+    if (status === 'cancelled') {
+      localCancelledOrderIds.add(orderId);
     }
 
     await updateDoc(orderRef, { status, updatedAt: serverTimestamp() });

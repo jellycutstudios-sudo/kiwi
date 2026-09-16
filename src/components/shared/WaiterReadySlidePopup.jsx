@@ -21,6 +21,7 @@ export default function WaiterReadySlidePopup() {
   // Track acknowledged order IDs locally in session so they don't pop up again
   const [acknowledgedOrderIds, setAcknowledgedOrderIds] = useState(() => new Set());
   const [currentOrder, setCurrentOrder] = useState(null);
+  const currentOrderIdRef = useRef(null);
 
   // Slider state
   const [slideX, setSlideX] = useState(0);
@@ -32,12 +33,14 @@ export default function WaiterReadySlidePopup() {
   // Filter orders that are ready and relevant to this staff member
   useEffect(() => {
     if (!isWaiterPopupEnabled) {
+      currentOrderIdRef.current = null;
       setCurrentOrder(null);
       return;
     }
 
     // STRICT: Cashiers never see the slide popup so checkout and billing are never blocked
     if (userRole === 'cashier') {
+      currentOrderIdRef.current = null;
       setCurrentOrder(null);
       return;
     }
@@ -46,6 +49,7 @@ export default function WaiterReadySlidePopup() {
     const isWaiter = userRole === 'waiter';
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
     if (!isWaiter && !isAdmin) {
+      currentOrderIdRef.current = null;
       setCurrentOrder(null);
       return;
     }
@@ -68,8 +72,10 @@ export default function WaiterReadySlidePopup() {
     });
 
     if (readyOrders.length > 0) {
-      if (!currentOrder || !readyOrders.some(o => o.id === currentOrder.id)) {
-        setCurrentOrder(readyOrders[0]);
+      if (!currentOrderIdRef.current || !readyOrders.some(o => o.id === currentOrderIdRef.current)) {
+        const nextOrder = readyOrders[0];
+        currentOrderIdRef.current = nextOrder.id;
+        setCurrentOrder(nextOrder);
         setSlideX(0);
         setIsCompleted(false);
 
@@ -78,12 +84,14 @@ export default function WaiterReadySlidePopup() {
           vibrateDevice([150, 80, 150]);
         }
       }
-    } else {
+    } else if (currentOrderIdRef.current) {
+      currentOrderIdRef.current = null;
       setCurrentOrder(null);
     }
-  }, [activeOrders, acknowledgedOrderIds, userRole, staffId, isWaiterPopupEnabled, isVibrateEnabled, currentOrder]);
+  }, [activeOrders, acknowledgedOrderIds, userRole, staffId, isWaiterPopupEnabled, isVibrateEnabled]);
 
   const handleDismiss = useCallback((orderId) => {
+    currentOrderIdRef.current = null;
     setAcknowledgedOrderIds(prev => new Set([...prev, orderId]));
     setCurrentOrder(null);
     setSlideX(0);

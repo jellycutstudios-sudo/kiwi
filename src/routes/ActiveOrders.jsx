@@ -41,30 +41,76 @@ export default function ActiveOrders() {
     }
   };
 
-  const handleBatchAdvanceAll = async () => {
+  const handleBatchAdvanceAll = () => {
     if (pendingOrders.length === 0) return;
-    if (!window.confirm(`Mark all ${pendingOrders.length} pending orders as Ready?`)) return;
-    try {
-      for (const o of pendingOrders) {
-        await updateOrderStatus(restaurant.id, o.id, 'ready');
-      }
-      toast.success(`Advanced ${pendingOrders.length} orders to Ready!`, { icon: '⚡' });
-    } catch (err) {
-      toast.error('Batch advance failed: ' + err.message);
-    }
+    const count = pendingOrders.length;
+    toast((toastItem) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
+        <span style={{ fontWeight: 600, fontSize: '13px' }}>Mark all {count} pending orders as Ready?</span>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button 
+            type="button"
+            className="btn btn-secondary btn-xs" 
+            onClick={() => toast.dismiss(toastItem.id)}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            className="btn btn-primary btn-xs"
+            onClick={async () => {
+              toast.dismiss(toastItem.id);
+              try {
+                for (const o of pendingOrders) {
+                  await updateOrderStatus(restaurant.id, o.id, 'ready');
+                }
+                toast.success(`Advanced ${count} orders to Ready!`, { icon: '⚡' });
+              } catch (err) {
+                toast.error('Batch advance failed: ' + err.message);
+              }
+            }}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    ), { duration: 6000 });
   };
 
-  const handleBatchSettleReady = async () => {
+  const handleBatchSettleReady = () => {
     if (readyOrders.length === 0) return;
-    if (!window.confirm(`Settle all ${readyOrders.length} ready orders as Cash payment?`)) return;
-    try {
-      for (const o of readyOrders) {
-        await settleOrder(restaurant.id, o.id, 'cash', o.total);
-      }
-      toast.success(`Settled ${readyOrders.length} orders!`, { icon: '🎉' });
-    } catch (err) {
-      toast.error('Batch settle failed: ' + err.message);
-    }
+    const count = readyOrders.length;
+    toast((toastItem) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
+        <span style={{ fontWeight: 600, fontSize: '13px' }}>Settle all {count} ready orders as Cash payment?</span>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button 
+            type="button"
+            className="btn btn-secondary btn-xs" 
+            onClick={() => toast.dismiss(toastItem.id)}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            className="btn btn-primary btn-xs"
+            onClick={async () => {
+              toast.dismiss(toastItem.id);
+              try {
+                for (const o of readyOrders) {
+                  await settleOrder(restaurant.id, o.id, 'cash', o.total);
+                }
+                toast.success(`Settled ${count} orders!`, { icon: '🎉' });
+              } catch (err) {
+                toast.error('Batch settle failed: ' + err.message);
+              }
+            }}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    ), { duration: 6000 });
   };
   
   const handleCallToken = async (tokenNumber) => {
@@ -124,21 +170,42 @@ export default function ActiveOrders() {
     }
   };
 
-  const handleCancelOrder = async (order) => {
+  const handleCancelOrder = (order) => {
     const label = order.tableName ? `Table ${order.tableName}` : `Order #${order.id.slice(-4).toUpperCase()}`;
-    if (!window.confirm(`Are you sure you want to cancel ${label}? This will release any occupied table.`)) {
-      return;
-    }
-    try {
-      await updateOrderStatus(restaurant.id, order.id, 'cancelled');
-      if (order.tableId) {
-        await useTableStore.getState().freeTable(restaurant.id, order.tableId);
-      }
-      toast.success(`${label} cancelled and table freed.`);
-      setSelectedOrderDetails(null);
-    } catch (err) {
-      toast.error('Failed to cancel order: ' + err.message);
-    }
+    toast((toastItem) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
+        <span style={{ fontWeight: 600, fontSize: '13px' }}>Cancel {label}?</span>
+        <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>This will cancel the order and release any occupied table.</span>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button 
+            type="button"
+            className="btn btn-secondary btn-xs" 
+            onClick={() => toast.dismiss(toastItem.id)}
+          >
+            Back
+          </button>
+          <button 
+            type="button"
+            className="btn btn-danger btn-xs"
+            onClick={async () => {
+              toast.dismiss(toastItem.id);
+              try {
+                await updateOrderStatus(restaurant.id, order.id, 'cancelled');
+                if (order.tableId) {
+                  await useTableStore.getState().freeTable(restaurant.id, order.tableId);
+                }
+                toast.success(`${label} cancelled and table freed.`);
+                setSelectedOrderDetails(null);
+              } catch (err) {
+                toast.error('Failed to cancel order: ' + err.message);
+              }
+            }}
+          >
+            Confirm Cancel
+          </button>
+        </div>
+      </div>
+    ), { duration: 6000 });
   };
 
   const handlePrint = (order) => {

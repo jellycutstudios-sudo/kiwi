@@ -268,4 +268,20 @@ describe('orderStore', () => {
       expect.objectContaining({ status: 'occupied', currentOrderId: 'order-456' })
     );
   });
+
+  it('should create separate cart items when adding same item with different modifiers', () => {
+    const store = useOrderStore.getState();
+    store.clearCart();
+    store.addItem({ id: 'item-1', name: 'Burger', price: 100, selectedModifiers: [{ id: 'm1', name: 'Extra Cheese' }] });
+    store.addItem({ id: 'item-1', name: 'Burger', price: 100, selectedModifiers: [{ id: 'm2', name: 'No Onions' }] });
+    
+    expect(useOrderStore.getState().items).toHaveLength(2);
+    expect(useOrderStore.getState().items[0].qty).toBe(1);
+    expect(useOrderStore.getState().items[1].qty).toBe(1);
+
+    // Adding with same modifier should increment quantity of matching line
+    store.addItem({ id: 'item-1', name: 'Burger', price: 100, selectedModifiers: [{ id: 'm1', name: 'Extra Cheese' }] });
+    expect(useOrderStore.getState().items).toHaveLength(2);
+    expect(useOrderStore.getState().items[0].qty).toBe(2);
+  });
 });
