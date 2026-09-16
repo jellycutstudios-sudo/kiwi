@@ -525,7 +525,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.65)' }}>
-      <div className="modal animate-slide-up" style={{ maxWidth: 510, maxHeight: '92vh', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 510, width: '100%', maxHeight: '96vh', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div className="modal-header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -556,18 +556,19 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           </button>
         </div>
 
-        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(92vh - 130px)', overflowY: 'auto', padding: '14px 18px 20px 18px' }}>
+        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(96vh - 130px)', overflowY: 'auto', padding: '12px 14px 20px 14px' }}>
           {/* Apple Pay / Stripe Luxury Fintech Amount Due Card */}
           <div style={{
             background: 'linear-gradient(135deg, #090d16 0%, #0f172a 55%, #1e293b 100%)',
             borderRadius: 16,
-            padding: '16px 20px',
+            padding: '18px 20px 16px',
             textAlign: 'center',
             color: '#ffffff',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            minHeight: 90
           }}>
             {/* Ambient emerald sheen */}
             <div style={{
@@ -580,14 +581,14 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               pointerEvents: 'none'
             }} />
 
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Amount Due
             </div>
-            <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', color: '#ffffff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>
+            <div style={{ fontSize: 'clamp(26px, 8vw, 38px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#ffffff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>
               {formatCurrency(total, currency)}
             </div>
             {(discountAmt > 0 || getPointsDiscountAmount() > 0 || giftCardDeduction > 0 || tipAmount > 0) && (
-              <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 8, display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 10, color: '#cbd5e1', marginTop: 8, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap', lineHeight: 1.6 }}>
                 <span style={{ opacity: 0.8 }}>Subtotal: {formatCurrency(subtotal, currency)}</span>
                 {discountAmt > 0 && <span style={{ color: '#34d399', fontWeight: 700 }}>• Disc: -{formatCurrency(discountAmt, currency)}</span>}
                 {getPointsDiscountAmount() > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}>• Points: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
@@ -729,7 +730,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
             </div>
 
             {/* Apple-style segmented tip chips */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
               {[
                 { key: 'none', label: 'No Tip' },
                 { key: '15',   label: '15%' },
@@ -1130,7 +1131,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
               {/* 1-Tap Quick Cash Denomination Chips */}
               {quickCashOptions.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${quickCashOptions.length}, 1fr)`, gap: 6, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 10 }}>
                   {quickCashOptions.map((opt, idx) => {
                     const isSelected = parseFloat(cashTendered) === opt;
                     return (
@@ -1139,26 +1140,27 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                         type="button"
                         onClick={() => setCashTendered(opt.toString())}
                         style={{
-                          padding: '7px 4px',
+                          padding: '9px 8px',
                           background: isSelected ? 'var(--color-accent)' : 'var(--color-bg-primary)',
                           color: isSelected ? '#ffffff' : 'var(--color-label)',
                           border: `1.5px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                          borderRadius: 8,
-                          fontSize: 12,
+                          borderRadius: 10,
+                          fontSize: 13,
                           fontWeight: 700,
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
+                          gap: 2,
                           lineHeight: 1.2,
                           boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none'
                         }}
                       >
-                        <span style={{ fontSize: 9, opacity: 0.8, textTransform: 'uppercase', fontWeight: 800 }}>
+                        <span style={{ fontSize: 9, opacity: 0.7, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>
                           {idx === 0 ? 'Exact' : 'Round'}
                         </span>
-                        <span>{formatCurrency(opt, currency)}</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(opt, currency)}</span>
                       </button>
                     );
                   })}

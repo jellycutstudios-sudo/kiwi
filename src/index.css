@@ -818,6 +818,20 @@ ul, ol { list-style: none; }
   animation: fadeIn var(--duration-fast) var(--ease-out);
 }
 
+@media (max-width: 540px) {
+  .modal-overlay {
+    padding: 8px;
+    align-items: flex-end;
+  }
+  .payment-modal-mobile {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 20px !important;
+    border-top-right-radius: 20px !important;
+    max-height: 94vh !important;
+  }
+}
+
 .modal {
   background: var(--color-bg-elevated);
   border-radius: var(--radius-2xl);
