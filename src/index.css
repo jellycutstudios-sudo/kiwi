@@ -993,21 +993,86 @@ ul, ol { list-style: none; }
 .menu-dietary-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px var(--space-4);
+  gap: 0;
+  padding: 0 8px 0 0;
   background: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-separator);
-  overflow-x: auto;
-  scrollbar-width: none;
+  min-height: 36px;
+  overflow: hidden;
 }
 
+.menu-dietary-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 5px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.menu-dietary-chips::-webkit-scrollbar { display: none; }
+
 .menu-dietary-bar::-webkit-scrollbar { display: none; }
+
+.menu-dietary-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-left: 6px;
+  border-left: 1px solid var(--color-separator);
+  margin-left: 2px;
+}
+
+.density-toggle {
+  display: flex;
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  gap: 1px;
+}
+
+.density-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  color: var(--color-label-secondary);
+  padding: 3px 7px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+  line-height: 1;
+}
+
+.density-btn.active {
+  background: var(--color-label);
+  color: var(--color-bg);
+}
+
+.density-expand-btn {
+  height: 26px !important;
+  padding: 0 5px !important;
+  font-size: 11px !important;
+  color: var(--color-label-secondary);
+  display: flex;
+  align-items: center;
+  border-radius: 6px !important;
+}
 
 .dietary-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 5px 11px;
   border-radius: var(--radius-full);
   font-size: 11.5px;
   font-weight: 600;
@@ -1017,6 +1082,8 @@ ul, ol { list-style: none; }
   color: var(--color-label-secondary);
   transition: all 0.12s ease;
   white-space: nowrap;
+  min-height: 28px;
+  touch-action: manipulation;
 }
 
 .dietary-chip:hover {
@@ -1034,6 +1101,15 @@ ul, ol { list-style: none; }
   color: var(--color-bg);
   border-color: var(--color-label);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Mobile: hide text labels on density toggle, keep icons only */
+@media (max-width: 540px) {
+  .density-label { display: none; }
+  .density-btn { padding: 4px 6px; }
+  .menu-dietary-chips { padding: 5px 6px; gap: 4px; }
+  .dietary-chip { padding: 5px 9px; font-size: 11px; min-height: 30px; }
+  .menu-dietary-controls { padding-left: 5px; gap: 3px; }
 }
 
 /* FSSAI Standard Food Dot Badges */
@@ -4465,14 +4541,14 @@ button:active:not(:disabled),
     padding: 4px var(--space-4);
   }
   .menu-dietary-bar {
-    padding: 3px var(--space-4);
+    padding: 0 6px 0 0;
   }
   .category-chip {
     padding: 4px 10px;
     font-size: 12px;
   }
   .dietary-chip {
-    padding: 3px 8px;
+    padding: 5px 9px;
     font-size: 11px;
   }
 }

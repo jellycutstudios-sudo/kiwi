@@ -937,98 +937,68 @@ export default function POS() {
 
         {/* Dietary Quick Filter Bar + View Density & Focus Controls */}
         <div className="menu-dietary-bar">
-          <button
-            type="button"
-            className={`dietary-chip ${dietaryFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setDietaryFilter('all')}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            className={`dietary-chip ${dietaryFilter === 'veg' ? 'active' : ''}`}
-            onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
-          >
-            <span className="food-badge-veg" /> Pure Veg
-          </button>
-          <button
-            type="button"
-            className={`dietary-chip ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-            onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
-          >
-            <span className="food-badge-nonveg" /> Non-Veg
-          </button>
-          <button
-            type="button"
-            className={`dietary-chip ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-            onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-          >
-            <Sparkles size={12} color="#f59e0b" /> Bestsellers
-          </button>
+          {/* Scrollable filter chips */}
+          <div className="menu-dietary-chips">
+            <button
+              type="button"
+              className={`dietary-chip ${dietaryFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter('all')}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className={`dietary-chip ${dietaryFilter === 'veg' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+            >
+              <span className="food-badge-veg" /> Pure Veg
+            </button>
+            <button
+              type="button"
+              className={`dietary-chip ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+            >
+              <span className="food-badge-nonveg" /> Non-Veg
+            </button>
+            <button
+              type="button"
+              className={`dietary-chip ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+            >
+              <Sparkles size={12} color="#f59e0b" /> Bestsellers
+            </button>
+          </div>
 
-          {/* Right-aligned Density & Focus Controls */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ display: 'flex', background: 'var(--color-bg)', border: '1px solid var(--color-separator)', borderRadius: 'var(--radius-full)', padding: '2px' }}>
+          {/* Sticky right: density toggle + focus */}
+          <div className="menu-dietary-controls">
+            <div className="density-toggle">
               <button
                 type="button"
                 onClick={() => setMenuDensity('visual')}
                 title="Visual Cards with photos"
-                style={{
-                  border: 'none',
-                  background: menuDensity === 'visual' ? 'var(--color-label)' : 'transparent',
-                  color: menuDensity === 'visual' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
-                  padding: '2px 8px',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
+                className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
               >
-                <LayoutGrid size={11} /> Cards
+                <LayoutGrid size={12} />
+                <span className="density-label">Cards</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMenuDensity('dense')}
-                title="Fast QSR Touch Keys (Fit 20+ items on screen)"
-                style={{
-                  border: 'none',
-                  background: menuDensity === 'dense' ? 'var(--color-label)' : 'transparent',
-                  color: menuDensity === 'dense' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
-                  padding: '2px 8px',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
+                title="Fast QSR Touch Keys"
+                className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
               >
-                ⚡ Fast Keys
+                ⚡
+                <span className="density-label">Fast Keys</span>
               </button>
             </div>
 
             <button
               type="button"
-              className="btn btn-ghost btn-xs"
+              className="btn btn-ghost btn-xs density-expand-btn"
               onClick={() => setIsFocusMode(!isFocusMode)}
-              title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode (Hides side rail)"}
-              style={{
-                height: '26px',
-                padding: '0 6px',
-                fontSize: '11px',
-                color: isFocusMode ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                borderRadius: '6px'
-              }}
+              title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
             >
               {isFocusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              <span className="desktop-only">{isFocusMode ? "Exit" : "Focus"}</span>
             </button>
           </div>
         </div>
