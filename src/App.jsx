@@ -89,6 +89,7 @@ export default function App() {
           <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={isSuperAdmin ? "/admin/restaurants" : "/dashboard"} replace /> : <Navigate to="/pending-approval" replace />) : <LandingPage />} />
           <Route path="/landing"                      element={<LandingPage />} />
           <Route path="/display/tokens/:restaurantId" element={<TokenDisplay />} />
+          <Route path="/display/slides/:restaurantId" element={<PosterDisplay />} />
           <Route path="/display/slides/:restaurantId/:slideshowId" element={<PosterDisplay />} />
           <Route path="/order/:restaurantId"          element={<OnlineOrderPage />} />
           <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to="/" replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />

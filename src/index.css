@@ -2465,25 +2465,23 @@ ul, ol { list-style: none; }
   transition: transform 0.12s ease;
 }
 
-/* 3D Kitchen / KOT Keycap (Claymorphism) */
+/* Kitchen / KOT Action Button */
 .cart-action-btn-kitchen {
-  height: 44px;
+  height: 48px;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: var(--color-surface, #ffffff);
   color: #0f172a;
-  border: 1px solid #cbd5e1;
-  border-top: 1px solid #ffffff;
-  border-bottom: 3.5px solid #94a3b8; /* Physical 3D bottom depth ledge */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: transform 0.14s var(--ease-spring-pop), box-shadow 0.14s ease, background 0.12s ease;
+  border: 1.5px solid var(--color-separator, #e2e8f0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
   position: relative;
   touch-action: manipulation;
@@ -2491,112 +2489,141 @@ ul, ol { list-style: none; }
 }
 
 .cart-action-btn-kitchen:hover:not(:disabled) {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-color: #94a3b8;
-  border-bottom-color: #64748b;
-  transform: translateY(-1.5px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.09);
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.cart-action-btn-kitchen:hover:not(:disabled) .btn-3d-emoji {
-  transform: scale(1.15) rotate(-5deg);
-}
-
-/* Tactile Click / Spring Press Effect */
 .cart-action-btn-kitchen:active:not(:disabled) {
-  transform: translateY(3px) scale(0.98);
-  border-bottom-width: 1px;
-  border-bottom-color: #94a3b8;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) inset;
+  transform: scale(0.98);
   background: #f1f5f9;
 }
 
-/* 3D Luxury Checkout / Pay Keycap (Claymorphism) */
+/* Dual Checkout Button */
 .cart-action-btn-checkout {
-  height: 44px;
+  height: 48px;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 800;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
-  border: 1px solid #334155;
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
-  border-bottom: 3.5px solid #020617;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: transform 0.14s var(--ease-spring-pop), box-shadow 0.14s ease, background 0.12s ease;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
   position: relative;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
 .cart-action-btn-checkout:hover:not(:disabled) {
-  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
-  transform: translateY(-1.5px);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.3);
 }
 
-.cart-action-btn-checkout:hover:not(:disabled) .btn-3d-emoji {
-  transform: scale(1.2) rotate(10deg);
-}
-
-/* Tactile Click / Spring Press Effect */
 .cart-action-btn-checkout:active:not(:disabled) {
-  transform: translateY(3px) scale(0.98);
-  border-bottom-width: 1px;
-  border-bottom-color: #020617;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45) inset;
-  background: #090d16;
+  transform: scale(0.98);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
-/* 3D Single Full-Width Checkout Button */
+/* Single Full-Width Primary Checkout Button */
 .cart-checkout-btn {
-  margin: 4px var(--space-3) 10px;
-  height: 46px;
+  margin: 6px var(--space-3) 12px;
+  height: 50px;
+  padding: 0 18px;
   border-radius: 14px;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
-  border: 1px solid #334155;
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
-  border-bottom: 3.5px solid #020617;
-  font-size: 13.5px;
-  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.14s var(--ease-spring-pop), box-shadow 0.14s ease, background 0.12s ease;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  letter-spacing: 0.01em;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  justify-content: space-between;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  width: calc(100% - (2 * var(--space-3)));
+  box-sizing: border-box;
+}
+
+.cart-checkout-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-checkout-icon {
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cart-checkout-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.cart-checkout-badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #f8fafc;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.cart-checkout-btn-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-checkout-amount {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.cart-checkout-arrow {
+  color: rgba(255, 255, 255, 0.7);
+  transition: transform 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .cart-checkout-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
-  transform: translateY(-1.5px);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.32);
+  transform: translateY(-1px);
 }
 
-.cart-checkout-btn:hover:not(:disabled) .btn-3d-emoji {
-  transform: scale(1.2) rotate(10deg);
+.cart-checkout-btn:hover:not(:disabled) .cart-checkout-arrow {
+  transform: translateX(2px);
+  color: #ffffff;
 }
 
 .cart-checkout-btn:active:not(:disabled) {
-  transform: translateY(3px) scale(0.98);
-  border-bottom-width: 1px;
-  border-bottom-color: #020617;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45) inset;
-  background: #090d16;
+  transform: scale(0.985);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
 .cart-empty {
@@ -3944,8 +3971,9 @@ ul, ol { list-style: none; }
 
   /* Cart checkout / action buttons */
   .cart-checkout-btn {
-    font-size: var(--text-subhead); /* 12px */
-    padding: 11px;
+    font-size: 13px;
+    height: 46px;
+    padding: 0 14px;
     margin: var(--space-2) var(--space-3) var(--space-3);
     width: calc(100% - 2 * var(--space-3));
   }
@@ -5302,4 +5330,26 @@ button:active:not(:disabled),
   background: rgba(225, 29, 72, 0.08);
   padding: 1px 5px;
   border-radius: 4px;
+}
+
+/* ============================================================
+   AppShell — Network Status Indicator Animations
+   (moved from inline <style> to avoid re-injection on re-renders)
+   ============================================================ */
+@keyframes blink {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+@keyframes pulseOnline {
+  0%   { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(52, 199, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
+}
+
+@keyframes pulseOffline {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
 }

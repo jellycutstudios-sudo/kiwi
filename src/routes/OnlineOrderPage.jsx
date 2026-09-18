@@ -103,22 +103,12 @@ export default function OnlineOrderPage() {
     };
   }, [restaurantId]);
 
-  // Fetch 7-day average with limit to avoid fetching unbounded orders on client
+  // Use restaurant config or average ticket threshold for upsell nudge (no unauthorized orders query needed)
   useEffect(() => {
-    if (!restaurant?.id) return;
-    const past7Days = new Date();
-    past7Days.setDate(past7Days.getDate() - 7);
-    const q = query(
-      collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', past7Days),
-      limit(100)
-    );
-    getDocs(q).then(snap => {
-      let totalSales = 0;
-      snap.docs.forEach(d => totalSales += (d.data().total || 0));
-      setSevenDayAvg(snap.docs.length > 0 ? totalSales / snap.docs.length : 0);
-    }).catch(console.error);
-  }, [restaurant?.id]);
+    if (restaurant) {
+      setSevenDayAvg(restaurant.averageOrderValue || restaurant.upsellThreshold || 0);
+    }
+  }, [restaurant]);
 
   // Real-time listener for customer active order details
   useEffect(() => {

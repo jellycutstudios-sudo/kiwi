@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
+import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
@@ -46,6 +47,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const restaurant = useAuthStore(s => s.restaurant);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const role = staffDoc?.role ?? 'cashier';
+  const { terms } = useBusinessConfig();
 
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -197,7 +199,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 onClick={handleItemClick}
               >
                 <span className="nav-item-icon"><n.icon size={18} strokeWidth={1.8} /></span>
-                {!isCollapsed && <span>{t(n.label)}</span>}
+                {!isCollapsed && <span>{n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label)}</span>}
               </NavLink>
             ))}
           </>

@@ -61,9 +61,9 @@ export default function ActiveOrders() {
             onClick={async () => {
               toast.dismiss(toastItem.id);
               try {
-                for (const o of pendingOrders) {
-                  await updateOrderStatus(restaurant.id, o.id, 'ready');
-                }
+                await Promise.all(
+                  pendingOrders.map(o => updateOrderStatus(restaurant.id, o.id, 'ready'))
+                );
                 toast.success(`Advanced ${count} orders to Ready!`, { icon: '⚡' });
               } catch (err) {
                 toast.error('Batch advance failed: ' + err.message);
@@ -97,9 +97,9 @@ export default function ActiveOrders() {
             onClick={async () => {
               toast.dismiss(toastItem.id);
               try {
-                for (const o of readyOrders) {
-                  await settleOrder(restaurant.id, o.id, 'cash', o.total);
-                }
+                await Promise.all(
+                  readyOrders.map(o => settleOrder(restaurant.id, o.id, 'cash', o.total))
+                );
                 toast.success(`Settled ${count} orders!`, { icon: '🎉' });
               } catch (err) {
                 toast.error('Batch settle failed: ' + err.message);

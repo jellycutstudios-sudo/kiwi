@@ -168,6 +168,20 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   (taxInfo?.lines ?? []).forEach(l => {
     writeTextLine(formatTotalLine(`${l.label}:`, l.amount.toFixed(2)));
   });
+
+  const serviceChargeAmt = order.serviceChargeAmount ?? order.serviceCharge ?? 0;
+  if (serviceChargeAmt > 0) {
+    writeTextLine(formatTotalLine('Service Charge:', serviceChargeAmt.toFixed(2)));
+  }
+
+  if (order.tipAmount && order.tipAmount > 0) {
+    writeTextLine(formatTotalLine('Tip / Gratuity:', order.tipAmount.toFixed(2)));
+  }
+
+  if (order.giftCardDeduction && order.giftCardDeduction > 0) {
+    const gcCode = order.giftCardCode ? ` (${order.giftCardCode})` : '';
+    writeTextLine(formatTotalLine(`Gift Card${gcCode}:`, `-${order.giftCardDeduction.toFixed(2)}`));
+  }
   
   writeBytes(BOLD_ON);
   writeTextLine(formatTotalLine(`TOTAL (${currency}):`, (order.total ?? 0).toFixed(2)));
@@ -419,7 +433,7 @@ async function sendToSerialPrinter(buffer) {
       throw new Error('Web Serial is not supported on this browser.');
     }
     // Reuse cached port if still open, otherwise request a new one
-    if (!cachedSerialPort || !cachedSerialPort.readable === null) {
+    if (!cachedSerialPort || !cachedSerialPort.readable) {
       cachedSerialPort = await navigator.serial.requestPort();
     }
     if (!cachedSerialPort.readable) {
@@ -656,6 +670,9 @@ ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
   <tr><td colspan="2">Subtotal</td><td style="text-align:right">${(order.subtotal ?? 0).toFixed(2)}</td></tr>
   ${discountRow}
   ${taxRows}
+  ${(order.serviceChargeAmount || order.serviceCharge) ? `<tr><td colspan="2">Service Charge</td><td style="text-align:right">${((order.serviceChargeAmount || order.serviceCharge) ?? 0).toFixed(2)}</td></tr>` : ''}
+  ${(order.tipAmount && order.tipAmount > 0) ? `<tr><td colspan="2">Tip / Gratuity</td><td style="text-align:right">${(order.tipAmount).toFixed(2)}</td></tr>` : ''}
+  ${(order.giftCardDeduction && order.giftCardDeduction > 0) ? `<tr><td colspan="2">Gift Card${order.giftCardCode ? ` (${order.giftCardCode})` : ''}</td><td style="text-align:right">-${(order.giftCardDeduction).toFixed(2)}</td></tr>` : ''}
   <tr class="total-row">
     <td colspan="2">TOTAL (${currency})</td>
     <td style="text-align:right">${(order.total ?? 0).toFixed(2)}</td>

@@ -8,16 +8,24 @@ export const TONE_PRESETS = [
   { id: 'kitchen-bell',   name: '🍳 Kitchen Pass Bell', desc: 'Classic order-up bell chime' },
 ];
 
+// Singleton AudioContext — browsers allow ~6 concurrent contexts; reusing one avoids silent failures
+let _audioCtx = null;
+function getAudioContext() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return null;
+  if (!_audioCtx) {
+    _audioCtx = new AudioContext();
+  }
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume().catch(() => {});
+  }
+  return _audioCtx;
+}
+
 export function playNotificationTone(toneType = 'reception-bell', volume = 0.5) {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-
+    const ctx = getAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(Math.min(1, Math.max(0.05, volume)), now);

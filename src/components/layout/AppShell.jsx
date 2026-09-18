@@ -115,23 +115,6 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      <style>{`
-        @keyframes blink {
-          0% { opacity: 1; }
-          50% { opacity: 0.4; }
-          100% { opacity: 1; }
-        }
-        @keyframes pulseOnline {
-          0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); }
-          70% { box-shadow: 0 0 0 8px rgba(52, 199, 89, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
-        }
-        @keyframes pulseOffline {
-          0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
-          70% { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
-        }
-      `}</style>
       <Sidebar 
         collapsed={sidebarCollapsed} 
         setCollapsed={setSidebarCollapsed} 

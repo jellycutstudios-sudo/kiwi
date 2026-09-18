@@ -34,8 +34,8 @@ export const useOrderStore = create((set, get) => ({
   activeOrders: [],
   onlineOrders: [],
   unreadOnlineCount: 0,
-  readOnlineOrderIds: new Set(),
-  notifiedReadyOrders: new Set(),
+  readOnlineOrderIds: [], // array of read online order IDs
+  notifiedReadyOrders: [], // array of order IDs already notified
 
   // Payment
   paymentMethod: 'cash',  // 'cash' | 'card' | 'upi' | 'split'
@@ -77,19 +77,34 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  removeItem: (id) => {
+  removeItem: (id, selectedModifiers) => {
     if (useGiftCardStore.getState().giftCardCode) {
       useGiftCardStore.getState().clearGiftCard();
     }
-    set({ items: get().items.filter(i => i.id !== id) });
+    // If selectedModifiers provided, match both id AND modifiers to avoid removing
+    // a different variant of the same item (e.g. same dish with different add-ons)
+    if (selectedModifiers !== undefined) {
+      const modKey = JSON.stringify(selectedModifiers ?? []);
+      set({ items: get().items.filter(i => !(i.id === id && JSON.stringify(i.selectedModifiers ?? []) === modKey)) });
+    } else {
+      set({ items: get().items.filter(i => i.id !== id) });
+    }
   },
 
-  updateQty: (id, qty) => {
+  updateQty: (id, qty, selectedModifiers) => {
     if (useGiftCardStore.getState().giftCardCode) {
       useGiftCardStore.getState().clearGiftCard();
     }
-    if (qty <= 0) { get().removeItem(id); return; }
-    set({ items: get().items.map(i => i.id === id ? { ...i, qty } : i) });
+    if (qty <= 0) { get().removeItem(id, selectedModifiers); return; }
+    if (selectedModifiers !== undefined) {
+      // Match by both id AND modifiers to avoid updating a different variant
+      const modKey = JSON.stringify(selectedModifiers ?? []);
+      set({ items: get().items.map(i =>
+        (i.id === id && JSON.stringify(i.selectedModifiers ?? []) === modKey) ? { ...i, qty } : i
+      )});
+    } else {
+      set({ items: get().items.map(i => i.id === id ? { ...i, qty } : i) });
+    }
   },
 
   editingOrderId: null,
@@ -150,6 +165,7 @@ export const useOrderStore = create((set, get) => ({
   setCustomerProfile:(c) => set({ customer: c }),
   setRedeemingPoints:(r) => set({ redeemingPoints: r }),
   setTip: (amt) => {
+    // Changing the tip changes the total, which makes any applied gift card deduction stale
     if (useGiftCardStore.getState().giftCardCode) {
       useGiftCardStore.getState().clearGiftCard();
     }
@@ -263,18 +279,30 @@ export const useOrderStore = create((set, get) => ({
       }
       
       const pointsDiscount = primaryOrder.pointsDiscount ?? 0;
-      const taxableAmount = Math.max(0, subtotal - discountAmount - pointsDiscount);
+      const baseTaxable = Math.max(0, subtotal - discountAmount - pointsDiscount);
       
       const restRef = doc(db, 'restaurants', restaurantId);
       const restSnap = await getDoc(restRef);
       const restaurantData = restSnap.exists() ? restSnap.data() : null;
 
-      const { taxTotal } = computeTax(taxableAmount, restaurantData?.taxConfig ?? { type: 'none', rate: 0 });
-      const serviceChargeAmt = primaryOrder.serviceChargeAmount ?? 0;
+      // Recalculate service charge on the MERGED subtotal (not the stale primary order value)
+      const serviceChargeRate = restaurantData?.serviceChargeRate ?? 0;
+      const serviceChargeAmt = serviceChargeRate > 0
+        ? Math.round(((baseTaxable * serviceChargeRate) / 100) * 100) / 100
+        : 0;
+
+      // Apply serviceChargeTaxable flag correctly
+      let taxableAmountForTax = baseTaxable;
+      if (restaurantData?.serviceChargeTaxable === 'yes') {
+        taxableAmountForTax += serviceChargeAmt;
+      }
+
+      const { taxTotal } = computeTax(taxableAmountForTax, restaurantData?.taxConfig ?? { type: 'none', rate: 0 });
       const tipAmt = primaryOrder.tipAmount ?? 0;
-      const totalBeforeGiftCard = taxableAmount + taxTotal + serviceChargeAmt + tipAmt;
+      const totalBeforeGiftCard = baseTaxable + taxTotal + serviceChargeAmt + tipAmt;
       const giftCardDeduction = primaryOrder.giftCardDeduction ?? 0;
       const total = Math.max(0, totalBeforeGiftCard - giftCardDeduction);
+
 
       await updateDoc(primaryOrderRef, {
         items: mergedItems,
@@ -742,10 +770,9 @@ export const useOrderStore = create((set, get) => ({
           if (change.type === 'modified') {
             // Check if status transitioned to 'ready' (prepared by kitchen)
             if (data.status === 'ready') {
-              const notified = get().notifiedReadyOrders || new Set();
-              if (!notified.has(orderId)) {
-                notified.add(orderId);
-                set({ notifiedReadyOrders: notified });
+              const notified = get().notifiedReadyOrders || [];
+              if (!notified.includes(orderId)) {
+                set({ notifiedReadyOrders: [...notified, orderId] });
 
                 const currentRest = useAuthStore.getState().restaurant;
                 const currentStaff = useAuthStore.getState().staffDoc;
@@ -789,11 +816,11 @@ export const useOrderStore = create((set, get) => ({
       }
       isInitial = false;
 
-      const readSet = get().readOnlineOrderIds || new Set();
+      const readArr = get().readOnlineOrderIds || [];
       set({
         activeOrders: orders,
         onlineOrders: online,
-        unreadOnlineCount: online.filter(o => o.status === 'pending' && !readSet.has(o.id)).length,
+        unreadOnlineCount: online.filter(o => o.status === 'pending' && !readArr.includes(o.id)).length,
       });
     }, err => {
       console.error("[Firestore Subscription Error] subscribeActiveOrders:", err);
@@ -858,9 +885,10 @@ export const useOrderStore = create((set, get) => ({
 
   markOnlineOrdersRead: () => {
     const currentOnline = get().onlineOrders || [];
-    const newRead = new Set(get().readOnlineOrderIds || []);
-    currentOnline.forEach(o => newRead.add(o.id));
-    set({ readOnlineOrderIds: newRead, unreadOnlineCount: 0 });
+    const existingRead = get().readOnlineOrderIds || [];
+    const existingSet = new Set(existingRead);
+    currentOnline.forEach(o => existingSet.add(o.id));
+    set({ readOnlineOrderIds: Array.from(existingSet), unreadOnlineCount: 0 });
   },
 
   settleOrder: async (restaurantId, orderId, method, totalAmount, additionalFields = {}) => {

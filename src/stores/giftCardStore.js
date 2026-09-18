@@ -12,9 +12,18 @@ export const useGiftCardStore = create((set) => ({
     const subtotal = orderStore.getSubtotal();
     const discountAmt = orderStore.getDiscountAmount();
     const pointsDiscount = orderStore.getPointsDiscountAmount();
-    const taxableAmount = Math.max(0, subtotal - discountAmt - pointsDiscount);
-    const { taxTotal } = computeTax(taxableAmount, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
-    const totalBeforeGiftCard = taxableAmount + taxTotal;
+    // Service charge is applied on the taxable base
+    const serviceChargeAmt = orderStore.getServiceChargeAmount(restaurant);
+    const tipAmt = orderStore.tipAmount ?? 0;
+
+    let taxableAmountForTax = Math.max(0, subtotal - discountAmt - pointsDiscount);
+    if (restaurant?.serviceChargeTaxable === 'yes') {
+      taxableAmountForTax += serviceChargeAmt;
+    }
+    const { taxTotal } = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+    const baseTaxable = Math.max(0, subtotal - discountAmt - pointsDiscount);
+    // Mirror getTotal() exactly: baseTaxable + tax + serviceCharge + tip
+    const totalBeforeGiftCard = baseTaxable + taxTotal + serviceChargeAmt + tipAmt;
 
     const deduction = Math.round(Math.min(balance, totalBeforeGiftCard) * 100) / 100;
     set({

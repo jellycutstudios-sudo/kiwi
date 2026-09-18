@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:fast": "vitest run",
+    "test:changed": "vitest run --changed",
+    "test:save": "vitest run --reporter=json --outputFile=src/test/fixtures/test-baseline.json",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -7,6 +7,7 @@ import { useShiftStore } from '../stores/shiftStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
 import { useTableStore } from '../stores/tableStore';
+import { useGiftCardStore } from '../stores/giftCardStore';
 import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -21,6 +22,10 @@ import {
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
 import ModifierModal from '../components/pos/ModifierModal';
+import QuickPayBar from '../components/pos/QuickPayBar';
+import OpenItemModal from '../components/pos/OpenItemModal';
+import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
+import { useBusinessConfig } from '../hooks/useBusinessConfig';
 
 const COURSE_ICONS = {
   'Appetizers': '🥗',
@@ -231,6 +236,8 @@ export default function POS() {
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
+  // Cache original order items when editing — avoids a Firestore getDoc on every cart tap
+  const originalOrderItemsRef = useRef(null);
 
   const tables = useTableStore(s => s.tables);
   const [tableOrders, setTableOrders] = useState({});
@@ -259,6 +266,8 @@ export default function POS() {
       const activeOrder = tableOrders[table.id];
       if (activeOrder) {
         loadOrderToCart(activeOrder);
+        // Cache original items so void checks don't need per-tap Firestore reads
+        originalOrderItemsRef.current = activeOrder.items ?? [];
         toast.success(`Loaded active order for ${table.name}`, { icon: '🍽️' });
       } else {
         setTable(table.id, table.name);
@@ -279,6 +288,7 @@ export default function POS() {
 
   useEffect(() => {
     if (!restaurant?.id) return;
+    let isMounted = true;
     const past7Days = new Date();
     past7Days.setDate(past7Days.getDate() - 7);
     const q = query(
@@ -287,10 +297,12 @@ export default function POS() {
       limit(100)
     );
     getDocs(q).then(snap => {
+      if (!isMounted) return; // prevent setState on unmounted component
       let totalSales = 0;
       snap.docs.forEach(d => totalSales += (d.data().total || 0));
       setSevenDayAvg(snap.docs.length > 0 ? totalSales / snap.docs.length : 0);
     }).catch(console.error);
+    return () => { isMounted = false; };
   }, [restaurant?.id]);
 
   useEffect(() => {
@@ -333,6 +345,157 @@ export default function POS() {
   const discountAmount = getDiscountAmount();
   const taxInfo   = getTaxInfo(restaurant);
   const total     = getTotal(restaurant);
+
+  const { terms, isRetail, enableQuickPay, enableBarcode, enableSpeedDial } = useBusinessConfig();
+  const [showOpenItemModal, setShowOpenItemModal] = useState(false);
+  const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
+  const [isQuickPaying, setIsQuickPaying] = useState(false);
+
+  const topFavorites = useMemo(() => {
+    const all = categories.flatMap(c => c.items || []);
+    const favs = all.filter(i => i.available !== false && (i.highMargin || i.isBestseller));
+    if (favs.length >= 4) return favs.slice(0, 8);
+    return all.filter(i => i.available !== false).slice(0, 8);
+  }, [categories]);
+
+  // Global Hardware Barcode Scanner Listener (HID Keyboard Event)
+  useEffect(() => {
+    if (!enableBarcode && !restaurant?.barcodeEnabled && !isRetail) return;
+
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return;
+
+      const now = Date.now();
+      if (now - lastKeyTime > 150) {
+        barcodeBuffer = '';
+      }
+      lastKeyTime = now;
+
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.length >= 3) {
+          e.preventDefault();
+          const scannedCode = barcodeBuffer.trim().toLowerCase();
+          const allItems = categories.flatMap(c => c.items || []);
+          const match = allItems.find(it => 
+            (it.barcode && it.barcode.toLowerCase() === scannedCode) ||
+            (it.sku && it.sku.toLowerCase() === scannedCode) ||
+            it.id.toLowerCase() === scannedCode
+          );
+
+          if (match) {
+            addItem(match);
+            toast.success(`Scanned: ${match.name}!`, { icon: '🏷️' });
+          } else {
+            toast.error(`Barcode not recognized: ${scannedCode}`, { icon: '🔍' });
+          }
+          barcodeBuffer = '';
+        }
+      } else if (e.key && e.key.length === 1) {
+        barcodeBuffer += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [categories, enableBarcode, isRetail, restaurant?.barcodeEnabled, addItem]);
+
+  const handleQuickPay = async (method, tenderedAmount) => {
+    if (!items.length || isQuickPaying) return;
+    setIsQuickPaying(true);
+    setPaymentMethod(method);
+    const toastId = toast.loading(`Processing 1-tap ${method.toUpperCase()} payment...`);
+
+    try {
+      let token = tokenNumber;
+      if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
+        token = await issueToken(restaurant.id);
+        setToken(token);
+      }
+
+      const snapItems = [...items];
+      const snapOrderType = orderType;
+      const snapTableName = tableName;
+      const snapCustomerName = customerName || (customer?.name ?? '');
+      const snapCustomerPhone = customerPhone || (customer?.phone ?? '');
+      const snapSubtotal = subtotal;
+      const snapDiscount = discount;
+      const snapDiscountType = discountType;
+      const snapDiscountAmount = discountAmount;
+      const snapTotal = total;
+      const snapPaymentMethod = method;
+      const snapTaxInfo = taxInfo;
+      const snapStaffName = staffDoc?.name || 'Cashier';
+      const snapNote = note;
+
+      const change = tenderedAmount > snapTotal ? tenderedAmount - snapTotal : 0;
+
+      const res = await submitOrder(restaurant, staffDoc?.id);
+      if (!res.ok) {
+        toast.error(res.error || 'Failed to place order', { id: toastId });
+        return;
+      }
+
+      const printOrder = {
+        id: res.orderId,
+        type: snapOrderType,
+        tableName: snapTableName,
+        token,
+        customerName: snapCustomerName,
+        customerPhone: snapCustomerPhone,
+        subtotal: snapSubtotal,
+        discount: snapDiscount,
+        discountType: snapDiscountType,
+        discountAmount: snapDiscountAmount,
+        total: snapTotal,
+        paymentMethod: snapPaymentMethod,
+        cashTendered: tenderedAmount,
+        change,
+        currency,
+        note: snapNote,
+      };
+
+      if (change > 0) {
+        toast.success(`Payment settled! Return Change: ${formatCurrency(change, currency)}`, { id: toastId, icon: '💵', duration: 5000 });
+      } else {
+        toast.success(`Payment complete! Order #${res.orderId.slice(-4)} placed.`, { id: toastId, icon: '⚡' });
+      }
+
+      // Background print
+      setTimeout(() => {
+        printReceipt({
+          restaurant,
+          order: printOrder,
+          items: snapItems,
+          taxInfo: snapTaxInfo,
+          staffName: snapStaffName,
+        });
+
+        if (modes.includes('kds')) {
+          printKitchenTickets({
+            restaurant,
+            order: printOrder,
+            items: snapItems,
+            staffName: snapStaffName,
+          });
+        }
+
+        if (token) {
+          printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
+        }
+      }, 50);
+
+      if (restaurant?.receiptConfig?.showDigitalReceiptAfterPay || !restaurant?.peripheralConfig?.printers?.length) {
+        setDigitalReceiptOrder({ ...printOrder, items: snapItems });
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error processing quick payment', { id: toastId });
+    } finally {
+      setIsQuickPaying(false);
+    }
+  };
 
   const itemQtyMap = useMemo(() => {
     const map = {};
@@ -456,73 +619,57 @@ export default function POS() {
 
   const handleCartDecrement = async (item) => {
     if (!editingOrderId) {
-      updateQty(item.id, item.qty - 1);
+      updateQty(item.id, item.qty - 1, item.selectedModifiers);
       return;
     }
 
-    try {
-      const orderRef = doc(db, 'restaurants', restaurant.id, 'orders', editingOrderId);
-      const snap = await getDoc(orderRef);
-      if (!snap.exists()) {
-        updateQty(item.id, item.qty - 1);
-        return;
-      }
-
-      const orderData = snap.data();
-      const originalItem = (orderData.items ?? []).find(oi => oi.id === item.id);
+    // Use cached original order items to check if a void is needed — no Firestore read on every tap
+    const cachedOriginalItems = originalOrderItemsRef.current ?? [];
+    const originalItem = cachedOriginalItems.find(oi =>
+      oi.id === item.id &&
+      JSON.stringify(oi.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
+    );
       
-      if (originalItem && (item.qty - 1) < originalItem.qty) {
-        setVoidAction({
-          type: 'decrement',
-          item,
-          currentQty: item.qty,
-          targetQty: item.qty - 1
-        });
-        setVoidReason('Burnt/Kitchen Error');
-        setManagerPin('');
-        setShowVoidModal(true);
-      } else {
-        updateQty(item.id, item.qty - 1);
-      }
-    } catch (e) {
-      console.error(e);
-      updateQty(item.id, item.qty - 1);
+    if (originalItem && (item.qty - 1) < originalItem.qty) {
+      setVoidAction({
+        type: 'decrement',
+        item,
+        currentQty: item.qty,
+        targetQty: item.qty - 1
+      });
+      setVoidReason('Burnt/Kitchen Error');
+      setManagerPin('');
+      setShowVoidModal(true);
+    } else {
+      updateQty(item.id, item.qty - 1, item.selectedModifiers);
     }
   };
 
   const handleCartRemove = async (item) => {
     if (!editingOrderId) {
-      removeItem(item.id);
+      removeItem(item.id, item.selectedModifiers);
       return;
     }
 
-    try {
-      const orderRef = doc(db, 'restaurants', restaurant.id, 'orders', editingOrderId);
-      const snap = await getDoc(orderRef);
-      if (!snap.exists()) {
-        removeItem(item.id);
-        return;
-      }
+    // Use cached original order items — no per-tap Firestore read
+    const cachedOriginalItems = originalOrderItemsRef.current ?? [];
+    const originalItem = cachedOriginalItems.find(oi =>
+      oi.id === item.id &&
+      JSON.stringify(oi.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
+    );
 
-      const orderData = snap.data();
-      const originalItem = (orderData.items ?? []).find(oi => oi.id === item.id);
-
-      if (originalItem) {
-        setVoidAction({
-          type: 'remove',
-          item,
-          currentQty: item.qty,
-          targetQty: 0
-        });
-        setVoidReason('Burnt/Kitchen Error');
-        setManagerPin('');
-        setShowVoidModal(true);
-      } else {
-        removeItem(item.id);
-      }
-    } catch (e) {
-      console.error(e);
-      removeItem(item.id);
+    if (originalItem) {
+      setVoidAction({
+        type: 'remove',
+        item,
+        currentQty: item.qty,
+        targetQty: 0
+      });
+      setVoidReason('Burnt/Kitchen Error');
+      setManagerPin('');
+      setShowVoidModal(true);
+    } else {
+      removeItem(item.id, item.selectedModifiers);
     }
   };
 
@@ -534,21 +681,30 @@ export default function POS() {
     
     try {
       await ensureAnonymousAuth();
-      const staffRef = collection(db, 'restaurants', restaurant.id, 'staff');
-      const q = query(
-        staffRef,
-        where('pin', '==', managerPin),
-        where('active', '==', true)
-      );
-      const snap = await getDocs(q);
+      // Use the same pins/ subcollection that loginWithPin uses — guarantees consistency
+      const pinDocRef = doc(db, 'restaurants', restaurant.id, 'pins', managerPin.trim());
+      const pinSnap = await getDoc(pinDocRef);
       
-      const managerDoc = snap.docs.find(d => ['admin', 'super_admin'].includes(d.data().role));
-      if (!managerDoc) {
-        toast.error('Invalid Manager PIN or Insufficient Permissions');
+      if (!pinSnap.exists()) {
+        toast.error('Invalid Manager PIN');
+        return;
+      }
+      
+      const { staffId } = pinSnap.data();
+      const staffDocRef = doc(db, 'restaurants', restaurant.id, 'staff', staffId);
+      const staffSnap = await getDoc(staffDocRef);
+      
+      if (!staffSnap.exists() || staffSnap.data().active === false) {
+        toast.error('Account not found or deactivated');
+        return;
+      }
+      
+      const managerData = staffSnap.data();
+      if (!['admin', 'super_admin'].includes(managerData.role)) {
+        toast.error('Insufficient permissions — manager or admin PIN required');
         return;
       }
 
-      const managerData = managerDoc.data();
       const qtyReduced = voidAction.type === 'remove' ? voidAction.item.qty : 1;
       const voidVal = voidAction.item.price * qtyReduced;
 
@@ -562,7 +718,7 @@ export default function POS() {
         reducedQty: qtyReduced,
         cashierId: staffDoc?.id || 'unknown',
         cashierName: staffDoc?.name || 'Cashier',
-        managerId: managerDoc.id,
+        managerId: staffId,
         managerName: managerData.name,
         reason: voidReason,
         value: voidVal
@@ -571,9 +727,10 @@ export default function POS() {
       await addDoc(collection(db, 'restaurants', restaurant.id, 'void_logs'), voidLog);
 
       if (voidAction.type === 'remove') {
-        removeItem(voidAction.item.id);
+        // Pass selectedModifiers so the correct variant is removed (not all items with same id)
+        removeItem(voidAction.item.id, voidAction.item.selectedModifiers);
       } else {
-        updateQty(voidAction.item.id, voidAction.item.qty - 1);
+        updateQty(voidAction.item.id, voidAction.item.qty - 1, voidAction.item.selectedModifiers);
       }
 
       setShowVoidModal(false);
@@ -1058,6 +1215,16 @@ export default function POS() {
               )}
             </button>
           ))}
+          <button
+            type="button"
+            id="add-custom-item-chip"
+            className="category-chip"
+            onClick={() => setShowOpenItemModal(true)}
+            style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)', background: 'var(--color-accent-light)', fontWeight: 600 }}
+            title="Add off-menu daily special or custom priced item"
+          >
+            <span>✨</span> + Custom Item
+          </button>
         </div>
 
         {/* Dietary Quick Filter Bar + View Density & Focus Controls */}
@@ -1127,6 +1294,58 @@ export default function POS() {
             </button>
           </div>
         </div>
+
+        {/* Favorites / Speed-Dial Strip for Rapid Queue Busting */}
+        {enableSpeedDial && topFavorites.length > 0 && (
+          <div className="pos-speed-dial-strip" style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            padding: '8px var(--space-4)',
+            scrollbarWidth: 'none',
+            alignItems: 'center',
+            background: 'var(--color-bg-secondary)',
+            borderBottom: '1px solid var(--color-separator-opaque)'
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-accent)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              ⚡ SPEED KEYS:
+            </span>
+            {topFavorites.map(fav => (
+              <button
+                key={fav.id}
+                type="button"
+                className="speed-dial-chip"
+                onClick={() => {
+                  if (fav.modifierGroups?.length) setActiveModifierItem(fav);
+                  else addItem(fav);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'var(--color-bg)',
+                  border: '1.5px solid var(--color-separator)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--color-label-primary)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  transition: 'all 0.15s ease'
+                }}
+                title={`Quick add ${fav.name}`}
+              >
+                <span>{fav.emoji || '🍽️'}</span>
+                <span>{fav.name}</span>
+                <span style={{ color: 'var(--color-accent)', fontWeight: 700, fontSize: '11px' }}>
+                  {formatCurrency(fav.price, currency)}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Menu grid */}
         {loadingMenu ? (
@@ -1888,6 +2107,17 @@ export default function POS() {
           </div>
         )}
 
+        {/* Quick Pay Bar for Instant 1-Tap Queue Busting */}
+        {items.length > 0 && enableQuickPay && (
+          <QuickPayBar
+            total={total}
+            currency={currency}
+            onQuickPay={handleQuickPay}
+            isProcessing={isQuickPaying}
+            hasUpi={Boolean(restaurant?.upiConfig?.vpa)}
+          />
+        )}
+
         {/* Actions */}
         {(orderType === 'dine-in' && modes.includes('kds')) ? (
           <div className="cart-action-buttons">
@@ -1925,11 +2155,19 @@ export default function POS() {
             type="button"
             style={{ opacity: items.length ? 1 : 0.4 }}
           >
-            <span className="btn-3d-emoji">⚡</span>
-            <span>{t('checkout')} ({items.reduce((s, i) => s + i.qty, 0)})</span>
-            <span style={{ margin: '0 4px', opacity: 0.5 }}>·</span>
-            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total, currency)}</span>
-            <ChevronRight size={18} style={{ marginLeft: 'auto' }} />
+            <div className="cart-checkout-btn-left">
+              <span className="cart-checkout-icon">⚡</span>
+              <span className="cart-checkout-title">{t('checkout')}</span>
+              {items.length > 0 && (
+                <span className="cart-checkout-badge">
+                  {items.reduce((s, i) => s + i.qty, 0)}
+                </span>
+              )}
+            </div>
+            <div className="cart-checkout-btn-right">
+              <span className="cart-checkout-amount">{formatCurrency(total, currency)}</span>
+              <ChevronRight size={18} className="cart-checkout-arrow" />
+            </div>
           </button>
         )}
       </div>
@@ -1938,6 +2176,7 @@ export default function POS() {
       {showTableSel && (
         <TableSelectModal
           restaurantId={restaurant?.id}
+          currency={currency}
           tableOrders={tableOrders}
           onSelect={async (id, name, activeOrder, table) => {
             setShowTableSel(false);
@@ -1947,6 +2186,7 @@ export default function POS() {
               if (items.length === 0) {
                 // Empty cart: Load running order directly
                 loadOrderToCart(activeOrder);
+                originalOrderItemsRef.current = activeOrder.items ?? [];
                 toast.success(`Loaded active order for Table ${name}`, { icon: '🍽️' });
                 return;
               } else {
@@ -1971,6 +2211,8 @@ export default function POS() {
                   ...activeOrder,
                   items: merged
                 });
+                // Cache the ORIGINAL (server-side) items for void checks, not the merged ones
+                originalOrderItemsRef.current = activeOrder.items ?? [];
 
                 toast.success(`Added items to Table ${name}'s running order`, { icon: '🍽️' });
 
@@ -2048,6 +2290,34 @@ export default function POS() {
             };
             addItem(cartItem);
             setActiveModifierItem(null);
+          }}
+        />
+      )}
+
+      {/* Open / Custom Item Modal */}
+      {showOpenItemModal && (
+        <OpenItemModal
+          isOpen={showOpenItemModal}
+          onClose={() => setShowOpenItemModal(false)}
+          onAdd={(customItem) => addItem(customItem)}
+          currency={currency}
+        />
+      )}
+
+      {/* Digital Receipt Modal (QR & WhatsApp sharing) */}
+      {digitalReceiptOrder && (
+        <DigitalReceiptModal
+          order={digitalReceiptOrder}
+          restaurant={restaurant}
+          currency={currency}
+          onClose={() => setDigitalReceiptOrder(null)}
+          onPrint={() => {
+            printReceiptSingle({
+              restaurant,
+              order: digitalReceiptOrder,
+              items: digitalReceiptOrder.items || [],
+              staffName: staffDoc?.name || 'Cashier'
+            });
           }}
         />
       )}

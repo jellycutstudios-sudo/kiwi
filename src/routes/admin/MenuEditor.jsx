@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
+import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
@@ -43,18 +44,16 @@ const generateId = () => crypto.randomUUID();
 export default function MenuEditor() {
   const { restaurant } = useAuthStore();
   const { categories } = useMenuStore();
+  const { terms, isRetail } = useBusinessConfig();
   const [activeCat, setActiveCat] = useState(null);
   const [showCatForm, setShowCatForm] = useState(false);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false });
+  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, barcode: '', unit: 'pcs' });
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
-
-
-
 
   // One-time fetch for inventory (COGS recipe editing)
   useEffect(() => {
@@ -101,6 +100,8 @@ export default function MenuEditor() {
       station: itemForm.station ?? 'Kitchen',
       imageUrl: itemForm.imageUrl ?? '',
       highMargin: itemForm.highMargin || false,
+      barcode: itemForm.barcode?.trim() ?? '',
+      unit: itemForm.unit || 'pcs',
     };
     const items = editItem
       ? cat.items.map(i => i.id === editItem.id ? newItem : i)
@@ -108,9 +109,8 @@ export default function MenuEditor() {
     await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCatId), { items });
     setShowItemForm(false);
     setEditItem(null);
-    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false });
+    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, barcode: '', unit: 'pcs' });
     toast.success(editItem ? 'Item updated!' : 'Item added!');
-
   };
 
   const deleteItem = async (catId, itemId) => {
@@ -210,8 +210,8 @@ export default function MenuEditor() {
               <span className="card-title">{activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}</span>
             </div>
             {activeCatId && (
-              <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen', imageUrl:'', highMargin: false }); setActiveTab('general'); setShowItemForm(true); }}>
-                <Plus size={14}/> Add Item
+              <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => { setEditItem(null); setItemForm({ name:'', price:'', description:'', emoji:'', available:true, modifierGroups:[], recipe:[], station:'Kitchen', imageUrl:'', highMargin: false, barcode: '', unit: 'pcs' }); setActiveTab('general'); setShowItemForm(true); }}>
+                <Plus size={14}/> Add {terms.item || 'Item'}
               </button>
             )}
           </div>
@@ -219,7 +219,7 @@ export default function MenuEditor() {
             {(activeCatData?.items ?? []).length === 0 ? (
               <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
                 <div style={{fontSize:32}}>🍽️</div>
-                <div style={{marginTop:'var(--space-2)'}}>No items in this category</div>
+                <div style={{marginTop:'var(--space-2)'}}>No {terms.items?.toLowerCase() || 'items'} in this {terms.category?.toLowerCase() || 'category'}</div>
               </div>
             ) : (activeCatData?.items ?? []).map((item) => (
               <div key={item.id} className="menu-item-row" style={{ opacity: item.available === false ? 0.5 : 1 }}>
@@ -234,6 +234,7 @@ export default function MenuEditor() {
                   <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 4 }}>
                     {item.name}
                     {item.highMargin && <span title="High Margin">⭐</span>}
+                    {item.barcode && <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px' }}>🏷️ {item.barcode}</span>}
                   </div>
                   {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
                 </div>
@@ -241,6 +242,7 @@ export default function MenuEditor() {
                 <div className="menu-item-meta-actions">
                   <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', minWidth: 80, textAlign: 'right', fontSize: 'var(--text-subhead)' }}>
                     {formatCurrency(item.price, restaurant?.currency ?? 'INR')}
+                    {item.unit && item.unit !== 'pcs' && <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>}
                   </div>
                   <div className="menu-item-actions">
                     <button
@@ -251,7 +253,7 @@ export default function MenuEditor() {
                     >
                       {item.available !== false ? 'Available' : 'Unavailable'}
                     </button>
-                    <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '', highMargin: item.highMargin || false }); setActiveTab('general'); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
+                    <button className="btn btn-secondary btn-icon btn-sm" onClick={() => { setEditItem(item); setItemForm({ name:item.name, price:item.price, description:item.description??'', emoji:item.emoji??'', available:item.available!==false, modifierGroups:item.modifierGroups ?? [], recipe:item.recipe ?? [], station:item.station ?? 'Kitchen', imageUrl:item.imageUrl ?? '', highMargin: item.highMargin || false, barcode: item.barcode ?? '', unit: item.unit ?? 'pcs' }); setActiveTab('general'); setShowItemForm(true); }} id={`edit-item-${item.id}`}>
                       <Edit2 size={12}/>
                     </button>
                     <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteItem(activeCatId, item.id)} id={`delete-item-${item.id}`}>
@@ -498,6 +500,39 @@ export default function MenuEditor() {
                       onChange={e => setItemForm(f=>({...f,emoji:e.target.value}))} 
                       style={{ textAlign: 'center', height: 40, fontSize: 18 }}
                     />
+                  </div>
+                </div>
+
+                {/* Barcode & Unit Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 'var(--space-4)' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 'var(--weight-bold)' }}>Barcode / SKU (Optional)</label>
+                    <input 
+                      id="item-barcode-input" 
+                      className="form-input" 
+                      placeholder="e.g. 890123456789 or SKU-101" 
+                      value={itemForm.barcode ?? ''} 
+                      onChange={e => setItemForm(f=>({...f, barcode: e.target.value}))} 
+                      style={{ height: 40 }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 'var(--weight-bold)' }}>Unit of Measure</label>
+                    <select 
+                      id="item-unit-select" 
+                      className="form-select" 
+                      value={itemForm.unit ?? 'pcs'} 
+                      onChange={e => setItemForm(f=>({...f, unit: e.target.value}))}
+                      style={{ height: 40 }}
+                    >
+                      <option value="pcs">Pieces (pcs)</option>
+                      <option value="kg">Kilogram (kg)</option>
+                      <option value="g">Gram (g)</option>
+                      <option value="pack">Pack / Box</option>
+                      <option value="portion">Portion</option>
+                      <option value="hour">Hour / Session</option>
+                    </select>
                   </div>
                 </div>
                 

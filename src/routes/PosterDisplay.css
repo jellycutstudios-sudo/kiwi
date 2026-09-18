@@ -11,6 +11,14 @@
   z-index: 9999;
 }
 
+/* Orientation modes */
+.poster-display-container.orientation-portrait {
+  /* In portrait mode, ensure proper orientation and flex centering */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .poster-display-loading {
   position: fixed;
   inset: 0;
@@ -84,7 +92,8 @@
   bottom: 24px;
   right: 24px;
   background-color: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #ffffff;
   padding: 8px 16px;
   border-radius: 50px;
@@ -93,8 +102,9 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   z-index: 100;
+  transition: bottom 0.3s ease;
 }
 
 /* --- Slides Base --- */
@@ -108,20 +118,28 @@
   align-items: center;
   opacity: 0;
   z-index: 1;
-  background: #000;
+  background: transparent;
 }
 
+/* Image Fit Modes */
 .poster-img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* default mode, respects aspect ratio */
 }
 
-/* --- Transitions --- */
+.poster-img.fit-contain {
+  object-fit: contain;
+}
+
+.poster-img.fit-cover {
+  object-fit: cover;
+}
+
+/* --- Transitions (with custom speed variable) --- */
 
 /* 1. Ken Burns + Crossfade */
 .poster-slide.trans-kenburns {
-  transition: opacity 1.5s ease-in-out;
+  transition: opacity var(--trans-duration, 1.5s) ease-in-out;
 }
 
 .poster-slide.trans-kenburns.active {
@@ -149,7 +167,7 @@
 
 /* 2. Fade */
 .poster-slide.trans-fade {
-  transition: opacity 0.8s ease-in-out;
+  transition: opacity var(--trans-duration, 0.8s) ease-in-out;
 }
 
 .poster-slide.trans-fade.active {
@@ -165,8 +183,8 @@
 /* 3. Slide Left */
 .poster-slide.trans-slide {
   transform: translateX(100%);
-  opacity: 1; /* keep opacity full during slide */
-  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transition: transform var(--trans-duration, 0.8s) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .poster-slide.trans-slide.active {
@@ -182,7 +200,7 @@
 /* 4. Zoom In */
 .poster-slide.trans-zoom {
   transform: scale(0.95);
-  transition: opacity 0.8s ease-in-out, transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity var(--trans-duration, 0.8s) ease-in-out, transform var(--trans-duration, 0.8s) cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .poster-slide.trans-zoom.active {
@@ -197,19 +215,29 @@
   z-index: 1;
 }
 
+/* 5. Instant Cut (None) */
+.poster-slide.trans-none.active {
+  opacity: 1;
+  z-index: 2;
+}
+.poster-slide.trans-none.exiting {
+  opacity: 0;
+  z-index: 1;
+}
+
 /* --- Progress Bar --- */
 .poster-progress {
   position: absolute;
-  bottom: 0;
   left: 0;
   height: 6px;
-  background: linear-gradient(90deg, #f97316, #fb923c);
+  background: linear-gradient(90deg, #f97316, #fb923c, #fbbf24);
   z-index: 100;
   width: 0%;
   animation-name: posterProgressBar;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
-  box-shadow: 0 -2px 10px rgba(249, 115, 22, 0.4);
+  box-shadow: 0 -2px 12px rgba(249, 115, 22, 0.5);
+  transition: bottom 0.3s ease;
 }
 
 @keyframes posterProgressBar {
@@ -219,4 +247,214 @@
   to {
     width: 100%;
   }
+}
+
+/* --- Live Clock & Date Overlay --- */
+.tv-clock-overlay {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 10px 18px;
+  border-radius: 14px;
+  color: #ffffff;
+  text-align: right;
+  z-index: 110;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.tv-clock-time {
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+  line-height: 1.1;
+}
+
+.tv-clock-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- Guest Wi-Fi Pill Overlay --- */
+.tv-wifi-overlay {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 16px;
+  border-radius: 30px;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 110;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.tv-wifi-pass {
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+}
+
+/* --- Bottom Running Announcement Ticker --- */
+.tv-ticker-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  z-index: 120;
+}
+
+.tv-ticker-badge {
+  background: #ea580c;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  padding: 0 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 2;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+}
+
+.tv-ticker-track {
+  display: flex;
+  white-space: nowrap;
+  animation: tvTickerScroll 25s linear infinite;
+}
+
+.tv-ticker-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f8fafc;
+  padding-right: 80px;
+}
+
+@keyframes tvTickerScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* --- Live Remote TV Identify Banner --- */
+.tv-identify-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 3px solid #38bdf8;
+  border-radius: 24px;
+  padding: 36px 48px;
+  z-index: 99999;
+  box-shadow: 0 0 50px rgba(56, 189, 248, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  animation: tvIdentifyPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes tvIdentifyPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 40px rgba(56, 189, 248, 0.4);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.02);
+    box-shadow: 0 0 70px rgba(56, 189, 248, 0.8);
+  }
+}
+
+.tv-identify-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.tv-identify-icon {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.tv-identify-tag {
+  font-size: 13px;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tv-identify-title {
+  font-size: 38px;
+  font-weight: 900;
+  color: #ffffff;
+  margin-top: 4px;
+  letter-spacing: -0.02em;
+}
+
+.tv-identify-id {
+  font-size: 15px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+/* --- Floating Fullscreen Button --- */
+.tv-fullscreen-btn {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.2s ease;
+  z-index: 120;
+}
+
+.poster-display-container:hover .tv-fullscreen-btn {
+  opacity: 0.85;
+}
+
+.tv-fullscreen-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  opacity: 1 !important;
 }

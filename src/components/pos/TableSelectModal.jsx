@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTableStore } from '../../stores/tableStore';
+import { formatCurrency } from '../../utils/formatCurrency';
 import { X, Search, LayoutGrid, Layers, ArrowDownUp, Users } from 'lucide-react';
 
-export default function TableSelectModal({ restaurantId, tableOrders = {}, onSelect, onClose }) {
+export default function TableSelectModal({ restaurantId, currency = 'INR', tableOrders = {}, onSelect, onClose }) {
   const { t } = useTranslation();
   const { tables, subscribe } = useTableStore();
   const [filterStatus, setFilterStatus] = useState('all');
@@ -332,7 +333,7 @@ export default function TableSelectModal({ restaurantId, tableOrders = {}, onSel
 
                       {table.status === 'occupied' && activeOrder?.total ? (
                         <span className="table-compact-order-total">
-                          ₹{activeOrder.total}
+                          {formatCurrency(activeOrder.total, currency)}
                         </span>
                       ) : null}
                     </div>
@@ -381,7 +382,7 @@ export default function TableSelectModal({ restaurantId, tableOrders = {}, onSel
                       {/* Live Active Order Total if Occupied */}
                       {table.status === 'occupied' && activeOrder?.total && (
                         <span className="table-3d-order-total">
-                          ₹{activeOrder.total}
+                          {formatCurrency(activeOrder.total, currency)}
                         </span>
                       )}
                     </button>

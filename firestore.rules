@@ -105,15 +105,19 @@ service cloud.firestore {
         allow write: if isUserAdmin(restaurantId);
       }
 
-      // Tables — public read, authenticated staff write
+      // Tables — public read, authenticated staff write (or customer claiming table on order)
       match /tables/{tableId} {
         allow read:  if true;
-        allow write: if isStaffMember(restaurantId);
+        allow write: if isStaffMember(restaurantId) || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'activeOrderId']) &&
+          request.resource.data.status == 'occupied'
+        );
       }
 
-      // Orders — public create (online orders), authenticated staff read/update/delete
+      // Orders — public create (online orders), public get (customer tracking by ID), staff list/update/delete
       match /orders/{orderId} {
-        allow read:   if isStaffMember(restaurantId);
+        allow get:    if true;                     // customers track their specific order by ID
+        allow list:   if isStaffMember(restaurantId); // prevent public from querying/enumerating orders
         allow create: if true;                     // customers place online orders without auth
         allow update, delete: if isStaffMember(restaurantId);
       }

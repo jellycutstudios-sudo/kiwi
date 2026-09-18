@@ -28,6 +28,7 @@ export default function TableMap() {
   const [reservations, setReservations] = useState([]);
   const [showTransfer, setShowTransfer] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
+  const [isSettling, setIsSettling] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'free' | 'occupied' | 'reserved'
   const [searchQuery, setSearchQuery] = useState('');
   const todayStr = new Date().toISOString().split('T')[0];
@@ -116,21 +117,20 @@ export default function TableMap() {
     toast.loading('Auto-aligning tables into clean grid...', { id: 'auto-align' });
     try {
       const updateTable = useTableStore.getState().updateTable;
-      for (let i = 0; i < sorted.length; i++) {
+      await Promise.all(sorted.map((t, i) => {
         const col = i % COLS;
         const row = Math.floor(i / COLS);
         const newX = MARGIN_X + col * COL_WIDTH;
         const newY = MARGIN_Y + row * ROW_HEIGHT;
-        const t = sorted[i];
         const standardW = (t.capacity || 4) > 6 ? 110 : 90;
         const standardH = (t.capacity || 4) > 6 ? 110 : 90;
-        await updateTable(restaurant.id, t.id, {
+        return updateTable(restaurant.id, t.id, {
           x: newX,
           y: newY,
           w: standardW,
           h: standardH
         });
-      }
+      }));
       toast.success('Tables aligned into clean non-overlapping grid!', { id: 'auto-align', icon: '📐' });
     } catch (err) {
       toast.error('Failed to align tables: ' + err.message, { id: 'auto-align' });
@@ -228,7 +228,8 @@ export default function TableMap() {
   }, [upiOrderToSettle, restaurant, currency, selectedTable]);
 
   const handleSettle = async (method) => {
-    if (!selectedOrder) return;
+    if (!selectedOrder || isSettling) return;
+    setIsSettling(true);
     try {
       await settleOrder(restaurant.id, selectedOrder.id, method, selectedOrder.total);
       await freeTable(restaurant.id, selected);
@@ -236,6 +237,8 @@ export default function TableMap() {
       toast.success(`Bill settled via ${method.toUpperCase()}! Table is now free.`, { icon: '💳' });
     } catch (err) {
       toast.error('Failed to settle: ' + err.message);
+    } finally {
+      setIsSettling(false);
     }
   };
 
@@ -856,8 +859,11 @@ export default function TableMap() {
                                 background: bg,
                                 color: color,
                                 boxShadow: 'none',
-                                height: 'auto'
+                                height: 'auto',
+                                opacity: isSettling ? 0.6 : 1,
+                                cursor: isSettling ? 'not-allowed' : 'pointer'
                               }}
+                              disabled={isSettling}
                               onClick={() => {
                                 if (m === 'upi') {
                                   setUpiOrderToSettle(selectedOrder);

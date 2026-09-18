@@ -9,6 +9,9 @@ import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Blue
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket } from '../../utils/print';
 import toast from 'react-hot-toast';
+import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker';
+import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
+import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
 
 const MODES = [
   { key: 'pos',          label: '🧾 Bill Only',            desc: 'Simple cashier-only billing' },
@@ -31,7 +34,8 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',       label: 'General Settings',   icon: '⚙️' },
+  { id: 'general',       label: 'General & Profile',  icon: '⚙️' },
+  { id: 'receipts',      label: 'Receipt Designer',   icon: '🧾' },
   { id: 'tax-pay',       label: 'Taxes & Payments',  icon: '💳' },
   { id: 'online-del',    label: 'Online & Delivery', icon: '📱' },
   { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔' },
@@ -331,6 +335,23 @@ export default function Settings() {
           {/* General Tab */}
           {activeTab === 'general' && (
             <>
+              {/* Business Type Preset Picker */}
+              <BusinessPresetPicker
+                currentBusinessType={settings.businessType}
+                currentModes={settings.modes}
+                onApplyPreset={(preset) => {
+                  setSettings(s => ({
+                    ...s,
+                    businessType: preset.id,
+                    modes: preset.recommendedModes,
+                    shiftMode: preset.recommendedShiftMode,
+                    quickPayEnabled: preset.features.enableQuickPay,
+                    barcodeEnabled: preset.features.enableBarcode,
+                    speedDialEnabled: preset.features.enableSpeedDial,
+                  }));
+                }}
+              />
+
               {/* Basic Info */}
               <div className="card card-padded">
                 <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Basic Info</h3>
@@ -460,6 +481,84 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Fast Checkout & POS Speed Options */}
+              <div className="card card-padded">
+                <h3 className="text-title3" style={{ marginBottom: 'var(--space-2)' }}>⚡ Fast Checkout & POS Speed Options</h3>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Tailor the checkout flow for speed, queue busting, and hardware scanning.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>1-Tap Quick-Pay Bar in POS</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Displays instant cash tender, round amount, and UPI buttons directly in the cart drawer.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.quickPayEnabled ?? true}
+                      onChange={e => updateField('quickPayEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Favorites & Speed-Dial Bar</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Shows a pinned strip of your top fast-selling items at the top of the menu grid for 1-tap ordering.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.speedDialEnabled ?? true}
+                      onChange={e => updateField('speedDialEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Hardware Barcode Scanner & SKU Lookup</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Enables USB & Bluetooth HID barcode guns to automatically add scanned items to cart.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.barcodeEnabled ?? false}
+                      onChange={e => updateField('barcodeEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+                </div>
+              </div>
+
               {/* QSR TV Display Link */}
               {(settings.modes ?? []).includes('token') && (
                 <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -583,6 +682,11 @@ export default function Settings() {
             </>
           )}
 
+          {/* Receipt Designer Tab */}
+          {activeTab === 'receipts' && (
+            <ReceiptDesigner settings={settings} updateField={updateField} />
+          )}
+
           {/* Taxes & Payments Tab */}
           {activeTab === 'tax-pay' && (
             <>
@@ -633,6 +737,13 @@ export default function Settings() {
                   )}
                 </div>
               </div>
+
+              {/* Interactive Tax Calculation Sandbox */}
+              <TaxCalculatorHelper
+                taxConfig={settings.taxConfig}
+                currency={settings.currency || 'INR'}
+                onSelectMode={(mode) => updateField('taxConfig.mode', mode)}
+              />
 
               {/* Stripe Payment Terminal */}
               <div className="card card-padded">

@@ -25,6 +25,7 @@ export default function OnlineOrders() {
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const markOnlineOrdersRead = useOrderStore(s => s.markOnlineOrdersRead);
   const [filter, setFilter] = useState('pending');
+  const [processingId, setProcessingId] = useState(null);
   const currency = restaurant?.currency ?? 'INR';
 
   useEffect(() => { markOnlineOrdersRead(); }, [markOnlineOrdersRead]);
@@ -34,7 +35,10 @@ export default function OnlineOrders() {
   );
 
   const handleAccept = async (order) => {
-    await updateOrderStatus(restaurant.id, order.id, 'preparing');
+    if (!order?.id || processingId === order.id) return;
+    setProcessingId(order.id);
+    try {
+      await updateOrderStatus(restaurant.id, order.id, 'preparing');
     if (order.source && order.source !== 'native') {
       // Get a fresh ID token to authenticate the Cloud Function call
       const getAuthToken = async () => {
@@ -55,42 +59,55 @@ export default function OnlineOrders() {
           error: `Failed to notify ${order.source}`
         }
       );
-    } else {
-      toast.success('Order accepted — sent to kitchen!', { icon: '✅' });
+      } else {
+        toast.success('Order accepted — sent to kitchen!', { icon: '✅' });
+      }
+    } catch (err) {
+      toast.error('Failed to accept order: ' + err.message);
+    } finally {
+      setProcessingId(null);
     }
   };
 
   const handleReject = async (order) => {
-    // 'cancelled' is the correct terminal status for rejected online orders
-    await updateOrderStatus(restaurant.id, order.id, 'cancelled');
-    if (order.tableId) {
-      try {
-        await useTableStore.getState().freeTable(restaurant.id, order.tableId);
-      } catch (err) {
-        console.warn('Failed to free table on reject:', err);
-      }
-    }
-    if (order.source && order.source !== 'native') {
-      const getAuthToken = async () => {
-        const user = auth?.currentUser;
-        return user ? await user.getIdToken() : null;
-      };
-      toast.promise(
-        getAuthToken().then(token => {
-          if (!token) return Promise.reject(new Error('Not authenticated'));
-          return fetch(
-            `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?action=reject&platform=${order.source}&orderId=${order.externalOrderId}&restaurantId=${restaurant.id}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-        }).catch(() => {}),
-        {
-          loading: `Sending cancellation to ${order.source}...`,
-          success: `Notified ${order.source} of cancellation!`,
-          error: `Failed to notify ${order.source}`
+    if (!order?.id || processingId === order.id) return;
+    setProcessingId(order.id);
+    try {
+      // 'cancelled' is the correct terminal status for rejected online orders
+      await updateOrderStatus(restaurant.id, order.id, 'cancelled');
+      if (order.tableId) {
+        try {
+          await useTableStore.getState().freeTable(restaurant.id, order.tableId);
+        } catch (err) {
+          console.warn('Failed to free table on reject:', err);
         }
-      );
-    } else {
-      toast('Order rejected', { icon: '❌' });
+      }
+      if (order.source && order.source !== 'native') {
+        const getAuthToken = async () => {
+          const user = auth?.currentUser;
+          return user ? await user.getIdToken() : null;
+        };
+        toast.promise(
+          getAuthToken().then(token => {
+            if (!token) return Promise.reject(new Error('Not authenticated'));
+            return fetch(
+              `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?action=reject&platform=${order.source}&orderId=${order.externalOrderId}&restaurantId=${restaurant.id}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+          }).catch(() => {}),
+          {
+            loading: `Sending cancellation to ${order.source}...`,
+            success: `Notified ${order.source} of cancellation!`,
+            error: `Failed to notify ${order.source}`
+          }
+        );
+      } else {
+        toast('Order rejected', { icon: '❌' });
+      }
+    } catch (err) {
+      toast.error('Failed to reject order: ' + err.message);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -256,6 +273,7 @@ export default function OnlineOrders() {
                   <button
                     className="btn btn-danger"
                     id={`reject-order-${order.id}`}
+                    disabled={processingId === order.id}
                     onClick={() => handleReject(order)}
                   >
                     <X size={16} /> Reject
@@ -263,6 +281,7 @@ export default function OnlineOrders() {
                   <button
                     className="btn btn-success"
                     id={`accept-order-${order.id}`}
+                    disabled={processingId === order.id}
                     onClick={() => handleAccept(order)}
                   >
                     <Check size={16} /> Accept

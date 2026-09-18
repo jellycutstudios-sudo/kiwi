@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import {
-  collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, where, limit
+  collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, where, limit, increment, arrayUnion
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';
@@ -91,12 +91,9 @@ export const useShiftStore = create((set, get) => ({
     try {
       await useAuthStore.getState().ensureAnonymousAuth();
       const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return { ok: false, error: 'Shift not found' };
-      const data = snap.data();
       
       const numAmt = parseFloat(amount) || 0;
-      let newExpected = data.expectedCash ?? data.startCash;
+      if (numAmt <= 0) return { ok: false, error: 'Amount must be greater than 0' };
       
       const txObj = {
         amount: numAmt,
@@ -105,23 +102,32 @@ export const useShiftStore = create((set, get) => ({
       };
       
       const updates = {};
+      // Use atomic increment() to avoid read-then-write race conditions across multiple terminals
       if (type === 'drop') {
-        newExpected -= numAmt;
-        updates.cashDrops = [...(data.cashDrops ?? []), txObj];
+        updates.cashDrops = arrayUnion(txObj);
+        updates.expectedCash = increment(-numAmt);
       } else if (type === 'paidout') {
-        newExpected -= numAmt;
-        updates.paidOuts = [...(data.paidOuts ?? []), txObj];
+        updates.paidOuts = arrayUnion(txObj);
+        updates.expectedCash = increment(-numAmt);
+      } else {
+        return { ok: false, error: `Unknown transaction type: ${type}` };
       }
       
-      updates.expectedCash = newExpected;
       await updateDoc(docRef, updates);
       
-      set({
-        activeShift: {
-          ...get().activeShift,
-          ...updates
-        }
-      });
+      // Update local state optimistically (no full re-read needed)
+      const currentShift = get().activeShift;
+      if (currentShift) {
+        const newExpected = (currentShift.expectedCash ?? currentShift.startCash ?? 0) - numAmt;
+        const listKey = type === 'drop' ? 'cashDrops' : 'paidOuts';
+        set({
+          activeShift: {
+            ...currentShift,
+            expectedCash: newExpected,
+            [listKey]: [...(currentShift[listKey] ?? []), txObj]
+          }
+        });
+      }
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };

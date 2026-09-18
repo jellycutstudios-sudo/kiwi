@@ -57,20 +57,79 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
     }
   }, [paymentMethod, total]);
 
-  // Quick cash options for 1-tap fast cashier checkout
+  // Smart quick cash options for 1-tap cashier checkout
   const quickCashOptions = useMemo(() => {
     if (total <= 0) return [];
     const exact = Math.round(total * 100) / 100;
-    const opts = [exact];
+    const result = [
+      { amount: exact, label: 'Exact', change: 0 }
+    ];
+
+    const candidates = new Set();
+
+    // 1. Next round step of 10, 20, 50 (for small bills < 100)
+    if (total < 100) {
+      const next10 = Math.ceil(total / 10) * 10;
+      if (next10 > total) candidates.add(next10);
+      const next20 = Math.ceil(total / 20) * 20;
+      if (next20 > total) candidates.add(next20);
+      const next50 = Math.ceil(total / 50) * 50;
+      if (next50 > total) candidates.add(next50);
+    }
+
+    // 2. Next round step of 50 (if total < 500)
+    if (total < 500) {
+      const next50 = Math.ceil(total / 50) * 50;
+      if (next50 > total) candidates.add(next50);
+    }
+
+    // 3. Next round step of 100
     const next100 = Math.ceil(total / 100) * 100;
-    if (next100 > total && !opts.includes(next100)) opts.push(next100);
+    if (next100 > total) candidates.add(next100);
+
+    // 4. Next round step of 500
     const next500 = Math.ceil(total / 500) * 500;
-    if (next500 > total && !opts.includes(next500)) opts.push(next500);
+    if (next500 > total) candidates.add(next500);
+
+    // 5. Next round step of 1000
     const next1000 = Math.ceil(total / 1000) * 1000;
-    if (next1000 > total && !opts.includes(next1000) && opts.length < 4) opts.push(next1000);
-    if (opts.length < 4 && !opts.includes(exact + 500)) opts.push(exact + 500);
-    return opts.slice(0, 4);
-  }, [total]);
+    if (next1000 > total) candidates.add(next1000);
+
+    // 6. Next round step of 2000 (INR or high cash)
+    if (currency === 'INR' || total >= 500) {
+      const next2000 = Math.ceil(total / 2000) * 2000;
+      if (next2000 > total) candidates.add(next2000);
+    }
+
+    const sorted = Array.from(candidates).sort((a, b) => a - b);
+    for (const amt of sorted) {
+      if (result.length >= 4) break;
+      const changeAmt = Math.round((amt - total) * 100) / 100;
+      const isBanknote = [10, 20, 50, 100, 200, 500, 1000, 2000].includes(amt);
+      result.push({
+        amount: amt,
+        label: isBanknote ? `${formatCurrency(amt, currency)} Note` : `Round`,
+        change: changeAmt
+      });
+    }
+
+    // Fallback if less than 4 options (e.g. large catering bills)
+    let mul = 2;
+    while (result.length < 4) {
+      const nextVal = Math.ceil((total * mul) / 1000) * 1000;
+      if (nextVal > total && !result.some(r => r.amount === nextVal)) {
+        result.push({
+          amount: nextVal,
+          label: 'Round',
+          change: Math.round((nextVal - total) * 100) / 100
+        });
+      }
+      mul++;
+      if (mul > 10) break;
+    }
+
+    return result;
+  }, [total, currency]);
 
   // Terminal Simulator states
   const [terminalStatus, setTerminalStatus] = useState(null); // null | 'connecting' | 'waiting' | 'processing' | 'success' | 'declined'
@@ -360,8 +419,11 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
       return;
     }
 
-    await onConfirm();
-    setLoading(false);
+    try {
+      await onConfirm();
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (terminalStatus) {
@@ -525,13 +587,13 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.65)' }}>
-      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 510, width: '100%', maxHeight: '96vh', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 530, width: '100%', maxHeight: '96vh', borderRadius: 22, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.12)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div className="modal-header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               borderRadius: 10,
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#ffffff',
@@ -556,40 +618,64 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           </button>
         </div>
 
-        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(96vh - 130px)', overflowY: 'auto', padding: '12px 14px 20px 14px' }}>
+        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(96vh - 130px)', overflowY: 'auto', padding: '12px 16px 20px 16px' }}>
           {/* Apple Pay / Stripe Luxury Fintech Amount Due Card */}
           <div style={{
-            background: 'linear-gradient(135deg, #090d16 0%, #0f172a 55%, #1e293b 100%)',
+            background: 'linear-gradient(145deg, #090d16 0%, #0f172a 60%, #1e293b 100%)',
             borderRadius: 16,
-            padding: '18px 20px 16px',
+            padding: '16px 20px 14px',
             textAlign: 'center',
             color: '#ffffff',
             border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 10px 28px -6px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
             position: 'relative',
-            overflow: 'hidden',
-            minHeight: 90
+            overflow: 'hidden'
           }}>
-            {/* Ambient emerald sheen */}
             <div style={{
-              position: 'absolute',
-              top: -24,
-              right: -24,
-              width: 90,
-              height: 90,
-              background: 'radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)',
-              pointerEvents: 'none'
-            }} />
-
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Amount Due
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 6
+            }}>
+              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Amount Due
+              </span>
+              <span style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: '#e2e8f0',
+                background: 'rgba(255, 255, 255, 0.12)',
+                padding: '2px 8px',
+                borderRadius: 999
+              }}>
+                {tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Register')}
+              </span>
             </div>
-            <div style={{ fontSize: 'clamp(26px, 8vw, 38px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#ffffff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>
+
+            <div style={{
+              fontSize: 'clamp(28px, 7vw, 38px)',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+              color: '#ffffff',
+              fontVariantNumeric: 'tabular-nums',
+              lineHeight: 1.15
+            }}>
               {formatCurrency(total, currency)}
             </div>
+
             {(discountAmt > 0 || getPointsDiscountAmount() > 0 || giftCardDeduction > 0 || tipAmount > 0) && (
-              <div style={{ fontSize: 10, color: '#cbd5e1', marginTop: 8, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap', lineHeight: 1.6 }}>
-                <span style={{ opacity: 0.8 }}>Subtotal: {formatCurrency(subtotal, currency)}</span>
+              <div style={{
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                fontSize: 11,
+                color: '#cbd5e1',
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 8,
+                flexWrap: 'wrap'
+              }}>
+                <span style={{ opacity: 0.85 }}>Subtotal: {formatCurrency(subtotal, currency)}</span>
                 {discountAmt > 0 && <span style={{ color: '#34d399', fontWeight: 700 }}>• Disc: -{formatCurrency(discountAmt, currency)}</span>}
                 {getPointsDiscountAmount() > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}>• Points: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
                 {tipAmount > 0 && <span style={{ color: '#38bdf8', fontWeight: 700 }}>• Tip: +{formatCurrency(tipAmount, currency)}</span>}
@@ -601,7 +687,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           {/* Loyalty Points Redemption Toggle */}
           {customer && customer.points > 0 && (
             <div style={{
-              marginTop: 12,
+              marginTop: 10,
               padding: '10px 14px',
               background: 'var(--color-bg-secondary)',
               borderRadius: 12,
@@ -611,7 +697,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               justifyContent: 'space-between'
             }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700 }}>
                   Redeem Loyalty Points
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
@@ -631,10 +717,10 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
           {/* Collapsible Gift Card / Voucher Drawer */}
           <div style={{
-            marginTop: 12,
-            padding: '10px 14px',
+            marginTop: 10,
+            padding: '8px 12px',
             background: 'var(--color-bg-secondary)',
-            borderRadius: 14,
+            borderRadius: 12,
             border: '1px solid var(--color-separator)',
             transition: 'all 0.2s ease'
           }}>
@@ -649,25 +735,25 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700, color: 'var(--color-label)' }}>
-                <Ticket size={15} color="var(--color-accent)" />
+                <Ticket size={14} color="var(--color-accent)" />
                 <span>Have a Gift Card or Voucher?</span>
                 {giftCardCode && (
-                  <span style={{ background: '#10b981', color: '#ffffff', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 800 }}>
+                  <span style={{ background: '#10b981', color: '#ffffff', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 800 }}>
                     Applied
                   </span>
                 )}
               </div>
               <div style={{ color: 'var(--color-label-secondary)' }}>
-                {isVoucherOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                {isVoucherOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
               </div>
             </div>
 
             {isVoucherOpen && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--color-separator)' }}>
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-separator)' }}>
                 {giftCardCode ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(16, 185, 129, 0.12)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(16, 185, 129, 0.12)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: '#059669' }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#059669' }}>
                         🎫 {giftCardCode} Applied
                       </span>
                       <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
@@ -678,19 +764,19 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       type="button"
                       className="btn btn-ghost btn-xs"
                       onClick={removeGiftCard}
-                      style={{ color: '#dc2626', padding: '4px 8px', fontSize: 11, fontWeight: 700 }}
+                      style={{ color: '#dc2626', padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
                     >
                       Remove
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
                     <input
                       className="form-input"
                       placeholder="Enter gift card code (e.g. GC-XXXX)"
                       value={gcInput}
                       onChange={e => setGcInput(e.target.value)}
-                      style={{ height: 36, fontSize: 13, flex: 1, textTransform: 'uppercase', borderRadius: 8 }}
+                      style={{ height: 34, fontSize: 12, flex: 1, textTransform: 'uppercase', borderRadius: 8 }}
                       id="gift-card-redeem-input"
                     />
                     <button
@@ -698,7 +784,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       className="btn btn-primary btn-sm"
                       onClick={handleVerifyGiftCard}
                       disabled={verifyingGc || !gcInput.trim()}
-                      style={{ height: 36, padding: '0 14px', borderRadius: 8, fontWeight: 700 }}
+                      style={{ height: 34, padding: '0 12px', borderRadius: 8, fontWeight: 700, fontSize: 12 }}
                       id="gift-card-redeem-btn"
                     >
                       {verifyingGc ? '...' : 'Apply'}
@@ -711,25 +797,25 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
           {/* ── Tip / Gratuity Section (Segmented Luxury Bar) ── */}
           <div style={{
-            marginTop: 12,
-            padding: '12px 14px',
+            marginTop: 10,
+            padding: '10px 12px',
             background: 'var(--color-bg-secondary)',
-            borderRadius: 14,
+            borderRadius: 12,
             border: '1px solid var(--color-separator)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
-                <HeartHandshake size={14} color="#f59e0b" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                <HeartHandshake size={14} color="var(--color-accent, #3b82f6)" />
                 <span>Tip / Gratuity</span>
               </div>
               {tipAmount > 0 && (
-                <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 800 }}>
+                <div style={{ fontSize: 12, color: '#059669', fontWeight: 800 }}>
                   +{formatCurrency(tipAmount, currency)}
                 </div>
               )}
             </div>
 
-            {/* Apple-style segmented tip chips */}
+            {/* Segmented tip chips */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
               {[
                 { key: 'none', label: 'No Tip' },
@@ -758,22 +844,22 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       }
                     }}
                     style={{
-                      padding: '8px 4px',
-                      borderRadius: 10,
-                      border: isSelected ? '1.5px solid #f59e0b' : '1px solid var(--color-separator-opaque)',
-                      background: isSelected ? '#f59e0b' : '#ffffff',
-                      color: isSelected ? '#000000' : 'var(--color-label)',
-                      fontWeight: 800,
-                      fontSize: 12,
+                      padding: '6px 2px',
+                      borderRadius: 8,
+                      border: isSelected ? '1.5px solid #0f172a' : '1px solid var(--color-separator)',
+                      background: isSelected ? '#0f172a' : 'var(--color-bg-primary, #ffffff)',
+                      color: isSelected ? '#ffffff' : 'var(--color-label)',
+                      fontWeight: 700,
+                      fontSize: 11.5,
                       cursor: 'pointer',
                       fontFamily: 'var(--font-family)',
                       transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? '0 2px 6px rgba(245, 158, 11, 0.3)' : 'none'
+                      boxShadow: isSelected ? '0 2px 8px rgba(15, 23, 42, 0.2)' : 'none'
                     }}
                   >
                     <div>{preset.label}</div>
                     {preset.key !== 'none' && preset.key !== 'custom' && (
-                      <div style={{ fontSize: 9, opacity: 0.85, marginTop: 2, fontWeight: 700 }}>
+                      <div style={{ fontSize: 9, opacity: isSelected ? 0.85 : 0.7, marginTop: 1, fontWeight: 700 }}>
                         {formatCurrency((tipBaseAmount * parseFloat(preset.key)) / 100, currency)}
                       </div>
                     )}
@@ -784,12 +870,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
             {/* Custom tip input */}
             {tipPreset === 'custom' && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <input
                   id="tip-custom-input"
                   type="number"
                   className="form-input"
-                  placeholder="Enter custom tip"
+                  placeholder="Enter custom tip amount"
                   value={customTip}
                   min="0"
                   step="0.01"
@@ -799,12 +885,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                     if (!isNaN(val) && val >= 0) setTip(val);
                     else { setCustomTip(''); setTip(0); }
                   }}
-                  style={{ flex: 1, height: 36, fontSize: 13, borderRadius: 8 }}
+                  style={{ flex: 1, height: 32, fontSize: 12, borderRadius: 8 }}
                 />
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  style={{ height: 36, padding: '0 14px', borderRadius: 8 }}
+                  style={{ height: 32, padding: '0 12px', borderRadius: 8, fontSize: 12 }}
                   onClick={() => {
                     const val = parseFloat(customTip);
                     if (!isNaN(val) && val >= 0) setTip(val);
@@ -818,11 +904,11 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           </div>
 
           {/* Payment Methods (Balanced 5-Card Single Row) */}
-          <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
               {t('paymentMethod')}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
               {METHODS.map(m => {
                 const isSelected = paymentMethod === m.key;
                 return (
@@ -836,22 +922,22 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: '12px 6px',
-                      borderRadius: 14,
-                      border: isSelected ? '2px solid #0f172a' : '1px solid var(--color-separator)',
-                      background: isSelected ? '#0f172a' : '#ffffff',
+                      padding: '10px 4px',
+                      borderRadius: 12,
+                      border: isSelected ? '1.5px solid #0f172a' : '1px solid var(--color-separator)',
+                      background: isSelected ? '#0f172a' : 'var(--color-bg-primary, #ffffff)',
                       color: isSelected ? '#ffffff' : 'var(--color-label)',
-                      boxShadow: isSelected ? '0 6px 18px rgba(15, 23, 42, 0.25)' : 'none',
-                      transform: isSelected ? 'translateY(-2px)' : 'none',
+                      boxShadow: isSelected ? '0 4px 14px rgba(15, 23, 42, 0.25)' : '0 1px 3px rgba(0,0,0,0.03)',
+                      transform: isSelected ? 'translateY(-1px)' : 'none',
                       cursor: 'pointer',
                       transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       fontFamily: 'var(--font-family)',
                     }}
                   >
-                    <div style={{ marginBottom: 4 }}>
-                      <m.icon size={20} color={isSelected ? '#38bdf8' : 'var(--color-label-secondary)'} />
+                    <div style={{ marginBottom: 3 }}>
+                      <m.icon size={18} color={isSelected ? '#38bdf8' : 'var(--color-label-secondary)'} />
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 800 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 800 }}>
                       {m.label}
                     </div>
                   </button>
@@ -1077,10 +1163,11 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
             </div>
           )}
 
+
           {/* Cash tendered field */}
           {paymentMethod === 'cash' && (
             <div style={{
-              marginTop: 14,
+              marginTop: 12,
               padding: '14px 16px',
               background: 'var(--color-bg-secondary)',
               borderRadius: 14,
@@ -1091,30 +1178,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                   Cash Tendered
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                  Due: <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(total, currency)}</strong>
+                  Total Due: <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(total, currency)}</strong>
                 </span>
               </div>
 
-              {/* Input row */}
+              {/* Input row with clear button */}
               <div style={{ position: 'relative', marginBottom: 10 }}>
-                <input
-                  id="cash-tendered-input"
-                  className="form-input"
-                  type="number"
-                  step="any"
-                  placeholder="0.00"
-                  value={cashTendered}
-                  onChange={e => setCashTendered(e.target.value)}
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 800,
-                    height: 48,
-                    borderRadius: 10,
-                    paddingLeft: 38,
-                    letterSpacing: '-0.02em',
-                    fontVariantNumeric: 'tabular-nums'
-                  }}
-                />
                 <span style={{
                   position: 'absolute',
                   left: 14,
@@ -1127,64 +1196,178 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                 }}>
                   {currency === 'INR' ? '₹' : (currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₹')}
                 </span>
+                <input
+                  id="cash-tendered-input"
+                  className="form-input"
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  value={cashTendered}
+                  onChange={e => setCashTendered(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    height: 48,
+                    borderRadius: 10,
+                    paddingLeft: 36,
+                    paddingRight: 36,
+                    letterSpacing: '-0.02em',
+                    fontVariantNumeric: 'tabular-nums',
+                    background: 'var(--color-bg-primary, #ffffff)'
+                  }}
+                />
+                {cashTendered && (
+                  <button
+                    type="button"
+                    onClick={() => setCashTendered('')}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: 'var(--color-bg-tertiary, #e2e8f0)',
+                      border: 'none',
+                      color: 'var(--color-label-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                    title="Clear"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
-              {/* 1-Tap Quick Cash Denomination Chips */}
+              {/* 1-Tap Smart Cash Denomination Chips */}
               {quickCashOptions.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
                   {quickCashOptions.map((opt, idx) => {
-                    const isSelected = parseFloat(cashTendered) === opt;
+                    const isSelected = Math.abs(parseFloat(cashTendered || 0) - opt.amount) < 0.01;
                     return (
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setCashTendered(opt.toString())}
+                        onClick={() => setCashTendered(opt.amount.toString())}
                         style={{
-                          padding: '9px 8px',
-                          background: isSelected ? 'var(--color-accent)' : 'var(--color-bg-primary)',
+                          padding: '8px 12px',
+                          background: isSelected ? '#0f172a' : 'var(--color-bg-primary, #ffffff)',
                           color: isSelected ? '#ffffff' : 'var(--color-label)',
-                          border: `1.5px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
+                          border: `1.5px solid ${isSelected ? '#0f172a' : 'var(--color-separator)'}`,
                           borderRadius: 10,
-                          fontSize: 13,
-                          fontWeight: 700,
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                           display: 'flex',
-                          flexDirection: 'column',
                           alignItems: 'center',
-                          gap: 2,
-                          lineHeight: 1.2,
-                          boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none'
+                          justifyContent: 'space-between',
+                          boxShadow: isSelected ? '0 4px 12px rgba(15, 23, 42, 0.2)' : '0 1px 2px rgba(0,0,0,0.03)'
                         }}
                       >
-                        <span style={{ fontSize: 9, opacity: 0.7, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>
-                          {idx === 0 ? 'Exact' : 'Round'}
-                        </span>
-                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(opt, currency)}</span>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontSize: 9.5, opacity: isSelected ? 0.75 : 0.6, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                            {opt.label}
+                          </div>
+                          <div style={{ fontSize: 13.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                            {formatCurrency(opt.amount, currency)}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 9, opacity: isSelected ? 0.75 : 0.6, textTransform: 'uppercase', fontWeight: 700 }}>
+                            {opt.change > 0 ? 'Change' : 'No Change'}
+                          </div>
+                          <div style={{
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: isSelected ? '#34d399' : (opt.change > 0 ? '#059669' : 'var(--color-label-secondary)'),
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            {opt.change > 0 ? `+${formatCurrency(opt.change, currency)}` : 'Exact'}
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
               )}
 
+              {/* Quick Bill Adder Strip */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Add:</span>
+                {(currency === 'INR' ? [50, 100, 200, 500] : [5, 10, 20, 50]).map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => {
+                      const current = parseFloat(cashTendered) || 0;
+                      setCashTendered((current + val).toString());
+                    }}
+                    className="btn btn-secondary btn-xs"
+                    style={{
+                      flex: 1,
+                      padding: '4px 0',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      borderRadius: 6,
+                      background: 'var(--color-bg-primary, #ffffff)',
+                      border: '1px solid var(--color-separator)'
+                    }}
+                  >
+                    +{currency === 'INR' ? `₹${val}` : `${val}`}
+                  </button>
+                ))}
+              </div>
+
               {/* Live Change / Remaining Bal Display */}
               {change !== null && change >= 0 && (
                 <div style={{
                   padding: '10px 14px',
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                  background: change > 0 
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)'
+                    : 'var(--color-bg-primary, #ffffff)',
                   borderRadius: 10,
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  border: change > 0 ? '1.5px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--color-separator)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  color: '#059669',
-                  animation: 'fadeIn 0.2s ease'
+                  transition: 'all 0.2s ease'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700 }}>
-                    <Coins size={16} />
-                    <span>Change to Return</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      background: change > 0 ? '#10b981' : 'var(--color-bg-tertiary)',
+                      color: change > 0 ? '#ffffff' : 'var(--color-label-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: change > 0 ? '0 2px 6px rgba(16, 185, 129, 0.25)' : 'none'
+                    }}>
+                      <Coins size={15} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: change > 0 ? '#059669' : 'var(--color-label)' }}>
+                        {change > 0 ? 'Change to Return' : 'Exact Tendered'}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--color-label-secondary)' }}>
+                        {change > 0 ? 'Hand cash back to customer' : 'No balance due'}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{
+                    fontSize: 20,
+                    fontWeight: 900,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: change > 0 ? '#059669' : 'var(--color-label)',
+                    letterSpacing: '-0.02em'
+                  }}>
                     {formatCurrency(change, currency)}
                   </div>
                 </div>
@@ -1192,20 +1375,143 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               {change !== null && change < 0 && (
                 <div style={{
                   padding: '10px 14px',
-                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%)',
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.06) 100%)',
                   borderRadius: 10,
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  border: '1.5px solid rgba(239, 68, 68, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   color: '#dc2626'
                 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>Remaining Due</span>
-                  <span style={{ fontSize: 16, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 800 }}>Remaining Due</div>
+                    <div style={{ fontSize: 10, opacity: 0.85 }}>Additional cash needed</div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(Math.abs(change), currency)}
-                  </span>
+                  </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Card payment section */}
+          {paymentMethod === 'card' && (
+            <div style={{
+              marginTop: 12,
+              padding: '16px 18px',
+              background: 'var(--color-bg-secondary)',
+              borderRadius: 14,
+              border: '1px solid var(--color-separator)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                }}>
+                  <CreditCard size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-label)' }}>
+                    External Card Machine / EDC POS
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                    Swipe, insert chip, or tap contactless card on your reader
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--color-bg-primary, #ffffff)',
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid var(--color-separator)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 10
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Amount to Charge:</span>
+                <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-label)', fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(total, currency)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label className="form-label" style={{ fontSize: 11, marginBottom: 0 }}>
+                  Approval Code / Card Ref (Optional)
+                </label>
+                <input
+                  id="card-ref-input"
+                  className="form-input"
+                  placeholder="e.g. Last 4 digits or Auth Code"
+                  value={upiRef || ''}
+                  onChange={e => setUpiRef(e.target.value)}
+                  style={{ height: 34, fontSize: 12, borderRadius: 8 }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Terminal section */}
+          {paymentMethod === 'terminal' && (
+            <div style={{
+              marginTop: 12,
+              padding: '16px 18px',
+              background: 'var(--color-bg-secondary)',
+              borderRadius: 14,
+              border: '1px solid var(--color-separator)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
+                }}>
+                  <CreditCard size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-label)' }}>
+                    Smart Reader / Stripe Terminal
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                    {restaurant?.stripeReaderId ? `Connected to Reader: ${restaurant.stripeReaderId}` : 'Interactive reader simulation mode'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--color-bg-primary, #ffffff)',
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid var(--color-separator)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 10
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Ready for Customer Tap:</span>
+                <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(total, currency)}
+                </span>
+              </div>
+
+              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
+                Clicking <strong>Complete Payment</strong> will prompt the reader to accept Apple Pay, Google Wallet, or physical cards.
+              </div>
             </div>
           )}
 
@@ -1305,8 +1611,13 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                     const noteBase = tableName ? `Table ${tableName}` : (tokenNumber ? `Token ${tokenNumber}` : 'POS Order');
                     const sanitizedNote = noteBase.replace(/[^a-zA-Z0-9]/g, '_');
                     const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${total.toFixed(2)}&cu=${currency || 'INR'}&tn=${sanitizedNote}`;
-                    navigator.clipboard.writeText(upiUrl);
-                    toast.success('UPI link copied!');
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      navigator.clipboard.writeText(upiUrl)
+                        .then(() => toast.success('UPI link copied!'))
+                        .catch(() => toast.error('Could not copy link to clipboard'));
+                    } else {
+                      toast.error('Clipboard access not supported');
+                    }
                   }}
                   style={{ flex: 1, fontSize: 10, padding: '6px 0', height: 28 }}
                 >
