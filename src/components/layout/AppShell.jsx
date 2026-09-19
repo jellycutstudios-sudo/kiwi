@@ -7,9 +7,10 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Globe, Menu, Search, X } from 'lucide-react';
+import { Bell, Globe, Menu, Search, X, Download, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
+import { usePwaInstall } from '../../hooks/usePwaInstall';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
@@ -49,6 +50,52 @@ export default function AppShell() {
   const subscribeTables = useTableStore(s => s.subscribe);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
+  const [showIosInstallModal, setShowIosInstallModal] = useState(false);
+
+  // Listen for Service Worker update prompt and notify cashier/staff gracefully
+  useEffect(() => {
+    window.__swUpdateReady = () => {
+      toast((t) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-label)' }}>New Update Ready!</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>DineOS has an upgrade available.</div>
+          </div>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              if (typeof window.__updateSW === 'function') {
+                window.__updateSW(true);
+              } else {
+                window.location.reload();
+              }
+            }}
+            style={{
+              background: 'var(--color-accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Update Now
+          </button>
+        </div>
+      ), {
+        id: 'sw-update-toast',
+        duration: Infinity,
+        icon: '🚀',
+      });
+    };
+    return () => {
+      window.__swUpdateReady = null;
+    };
+  }, []);
 
   // Close mobile sidebar whenever the route changes
   useEffect(() => {
@@ -57,11 +104,25 @@ export default function AppShell() {
     const id = setTimeout(() => setMobileSidebarOpen(false), 0);
     return () => clearTimeout(id);
   }, [location.pathname]);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('Connection restored — syncing all offline changes!', {
+        id: 'net-status',
+        duration: 3500,
+        icon: '🟢',
+      });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast('Operating in Offline Unbreakable Mode. Orders & billing saved locally.', {
+        id: 'net-status',
+        duration: 4500,
+        icon: '🛡️',
+      });
+    };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -129,17 +190,17 @@ export default function AppShell() {
         />
       )}
 
-      {/* Sticky offline warning banner */}
+      {/* Offline Unbreakable Mode Banner */}
       {!isOnline && (
         <div 
           role="alert"
           style={{ 
-            background: '#dc2626', 
+            background: 'linear-gradient(90deg, #18181b 0%, #09090b 100%)', 
             color: '#ffffff', 
-            padding: '8px 16px', 
+            padding: '9px 16px', 
             textAlign: 'center', 
             fontSize: '13px', 
-            fontWeight: 600, 
+            fontWeight: 500, 
             zIndex: 10000, 
             position: 'sticky', 
             top: 0, 
@@ -147,12 +208,30 @@ export default function AppShell() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+            gap: '10px',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            borderBottom: '1px solid rgba(255,255,255,0.12)'
           }}
         >
-          <span>⚠️</span>
-          <span>Network Disconnected — Operating in offline mode. Orders & changes will sync once connection is restored.</span>
+          <span style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '4px',
+            background: 'rgba(249, 115, 22, 0.2)', 
+            color: '#fb923c', 
+            border: '1px solid rgba(249, 115, 22, 0.35)',
+            padding: '2px 8px', 
+            borderRadius: '999px',
+            fontSize: '11px',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase'
+          }}>
+            🛡️ Offline Unbreakable Mode
+          </span>
+          <span style={{ color: '#e4e4e7' }}>
+            Taking orders, printing receipts &amp; table operations continue seamlessly. All changes will auto-sync when reconnected.
+          </span>
         </div>
       )}
 
@@ -199,6 +278,40 @@ export default function AppShell() {
           )}
 
           <div className="top-bar-actions" style={isPOS ? { marginLeft: 'auto' } : {}}>
+            {/* Install App button if running in browser */}
+            {(canInstall || isIOS) && !isStandalone && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  if (canInstall) {
+                    promptInstall();
+                  } else if (isIOS) {
+                    setShowIosInstallModal(true);
+                  }
+                }}
+                style={{
+                  height: '32px',
+                  padding: '0 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                  cursor: 'pointer'
+                }}
+                title="Install DineOS as a native App"
+                id="install-pwa-btn"
+              >
+                <Download size={14} />
+                <span className="desktop-only">Install App</span>
+              </button>
+            )}
+
             {/* Network status indicator (glowing dot) */}
             <div 
               title={
@@ -324,6 +437,42 @@ export default function AppShell() {
               </button>
               <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => setIsSearchOpen(false)}>
                 Apply Search
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* iOS Add to Home Screen Instructions Modal */}
+      {showIosInstallModal && (
+        <div 
+          className="modal-overlay" 
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }} 
+          onClick={e => e.target === e.currentTarget && setShowIosInstallModal(false)}
+        >
+          <div className="modal animate-slide-up" style={{ maxWidth: '380px', width: '100%', padding: 'var(--space-4)' }}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-separator)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Smartphone size={20} color="var(--color-accent)" />
+                <h3 className="modal-title" style={{ margin: 0, fontSize: '16px' }}>Install DineOS App</h3>
+              </div>
+              <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setShowIosInstallModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: 'var(--space-4) 0', fontSize: '13px', lineHeight: 1.6, color: 'var(--color-label)' }}>
+              <p style={{ margin: '0 0 12px 0', color: 'var(--color-label-secondary)' }}>
+                Install DineOS on your iPad or iPhone home screen for uninterrupted fullscreen and offline access:
+              </p>
+              <ol style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <li>Tap the <strong>Share</strong> button at the bottom of Safari (square with arrow <strong>↑</strong>).</li>
+                <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+                <li>Tap <strong>Add</strong> in the top-right corner to finish.</li>
+              </ol>
+            </div>
+            <div className="modal-footer" style={{ marginTop: 'var(--space-2)' }}>
+              <button className="btn btn-primary" style={{ width: '100%', height: '38px' }} onClick={() => setShowIosInstallModal(false)}>
+                Got It
               </button>
             </div>
           </div>

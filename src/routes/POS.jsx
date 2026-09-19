@@ -26,6 +26,8 @@ import QuickPayBar from '../components/pos/QuickPayBar';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
+import { useWakeLock } from '../hooks/useWakeLock';
+import { hapticTap } from '../utils/soundNotifications';
 
 const COURSE_ICONS = {
   'Appetizers': '🥗',
@@ -200,6 +202,7 @@ export default function POS() {
     }))
   );
   const { issueToken } = useTokenStore();
+  useWakeLock(true);
   const { categories, loading: loadingMenu, search, setSearch } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
@@ -238,6 +241,11 @@ export default function POS() {
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   // Cache original order items when editing — avoids a Firestore getDoc on every cart tap
   const originalOrderItemsRef = useRef(null);
+
+  const handleAddItem = (item) => {
+    hapticTap('light');
+    addItem(item);
+  };
 
   const tables = useTableStore(s => s.tables);
   const [tableOrders, setTableOrders] = useState({});
@@ -618,6 +626,7 @@ export default function POS() {
   };
 
   const handleCartDecrement = async (item) => {
+    hapticTap('light');
     if (!editingOrderId) {
       updateQty(item.id, item.qty - 1, item.selectedModifiers);
       return;
@@ -646,6 +655,7 @@ export default function POS() {
   };
 
   const handleCartRemove = async (item) => {
+    hapticTap('medium');
     if (!editingOrderId) {
       removeItem(item.id, item.selectedModifiers);
       return;
@@ -1317,7 +1327,7 @@ export default function POS() {
                 className="speed-dial-chip"
                 onClick={() => {
                   if (fav.modifierGroups?.length) setActiveModifierItem(fav);
-                  else addItem(fav);
+                  else handleAddItem(fav);
                 }}
                 style={{
                   display: 'inline-flex',
@@ -1377,14 +1387,14 @@ export default function POS() {
                     onClick={() => {
                       if (item.available === false) return;
                       if (hasModifiers) setActiveModifierItem(item);
-                      else addItem(item);
+                      else handleAddItem(item);
                     }}
                     onKeyDown={e => {
                       if (item.available === false) return;
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         if (hasModifiers) setActiveModifierItem(item);
-                        else addItem(item);
+                        else handleAddItem(item);
                       }
                     }}
                   >
@@ -1421,7 +1431,7 @@ export default function POS() {
                     if (hasModifiers) {
                       setActiveModifierItem(item);
                     } else {
-                      addItem(item);
+                      handleAddItem(item);
                     }
                   }}
                   onKeyDown={e => {
@@ -1431,7 +1441,7 @@ export default function POS() {
                       if (hasModifiers) {
                         setActiveModifierItem(item);
                       } else {
-                        addItem(item);
+                        handleAddItem(item);
                       }
                     }
                   }}
@@ -1802,7 +1812,10 @@ export default function POS() {
                             <button 
                               type="button"
                               className="cart-stepper-btn" 
-                              onClick={() => updateQty(i.id, i.qty + 1)}
+                              onClick={() => {
+                                hapticTap('light');
+                                updateQty(i.id, i.qty + 1);
+                              }}
                               title="Increase quantity"
                             >
                               <Plus size={11} strokeWidth={2.5} />

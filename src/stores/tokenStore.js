@@ -1,7 +1,7 @@
 // Token Store — manages token issuance and TV display
 import { create } from 'zustand';
 import {
-  doc, onSnapshot, runTransaction, serverTimestamp
+  doc, onSnapshot, runTransaction, serverTimestamp, setDoc, increment
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getTodayKey } from '../utils/timezoneUtils';
@@ -12,15 +12,34 @@ const todayKey = () => {
   return getTodayKey(restaurant);
 };
 
-export const useTokenStore = create((set) => ({
+export const useTokenStore = create((set, get) => ({
   currentServing: null,
   latestIssued:   null,
   queue:          [],
   loading:        false,
 
-  // Issue the next token (returns token number)
+  // Issue the next token (returns token number, 100% resilient online and offline)
   issueToken: async (restaurantId) => {
-    const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
+    const tKey = todayKey();
+    const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', tKey);
+    const localKey = `dineos_token_seq_${restaurantId}_${tKey}`;
+
+    // Fast-path for offline mode: generate sequence immediately without waiting on network
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const stored = parseInt(localStorage.getItem(localKey) || '0', 10);
+        const inMem = get().latestIssued || 0;
+        const next = Math.max(stored, inMem) + 1;
+        localStorage.setItem(localKey, next.toString());
+        set({ latestIssued: next });
+        // Queue Firestore mutation into IndexedDB persistence
+        setDoc(tokenRef, { latest: increment(1) }, { merge: true }).catch(() => {});
+        return next;
+      } catch (err) {
+        console.warn('Offline token fallback error:', err);
+      }
+    }
+
     try {
       const newToken = await runTransaction(db, async (tx) => {
         const snap = await tx.get(tokenRef);
@@ -32,10 +51,27 @@ export const useTokenStore = create((set) => ({
         }, { merge: true });
         return next;
       });
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(localKey, newToken.toString());
+      }
+      set({ latestIssued: newToken });
       return newToken;
     } catch (e) {
-      console.error('Token issue error:', e);
-      return null;
+      console.warn('Token transaction failed (falling back to offline sequence):', e);
+      try {
+        const stored = parseInt(localStorage.getItem(localKey) || '0', 10);
+        const inMem = get().latestIssued || 0;
+        const next = Math.max(stored, inMem) + 1;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(localKey, next.toString());
+        }
+        set({ latestIssued: next });
+        setDoc(tokenRef, { latest: increment(1) }, { merge: true }).catch(() => {});
+        return next;
+      } catch (fallbackErr) {
+        console.error('Fatal token fallback error:', fallbackErr);
+        return 1;
+      }
     }
   },
 

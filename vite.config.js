@@ -7,24 +7,85 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['ricon.svg', 'favicon.svg', 'icons/*.png'],
+      includeAssets: ['ricon.svg', 'favicon.svg', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
         name: 'DineOS POS',
         short_name: 'DineOS',
-        description: 'Lightning-fast restaurant POS system',
-        theme_color: '#007AFF',
-        background_color: '#FFFFFF',
+        description: 'Lightning-fast restaurant POS system with offline resilience',
+        id: '/',
+        categories: ['business', 'food', 'productivity'],
+        theme_color: '#0c0d11',
+        background_color: '#0c0d11',
         display: 'standalone',
-        orientation: 'landscape-primary',
+        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+        orientation: 'any',
         scope: '/',
         start_url: '/',
+        launch_handler: {
+          client_mode: 'navigate-existing'
+        },
         icons: [
-          { src: '/ricon.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/ricon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+          {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-maskable-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/icons/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+          }
+        ],
+        shortcuts: [
+          {
+            name: 'POS Terminal',
+            short_name: 'POS',
+            description: 'Open Point of Sale terminal to take orders',
+            url: '/pos',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Table Map',
+            short_name: 'Tables',
+            description: 'View table layout and dining status',
+            url: '/tables',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Active Orders',
+            short_name: 'Orders',
+            description: 'Track real-time kitchen and dining orders',
+            url: '/orders',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Kitchen Display (KDS)',
+            short_name: 'Kitchen',
+            description: 'Kitchen order tickets and status',
+            url: '/kds',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,jpg,jpeg,webp,wav,mp3}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/__/],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
@@ -54,7 +115,21 @@ export default defineConfig({
             options: {
               cacheName: 'firebase-storage-images',
               expiration: {
-                maxEntries: 100,
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|webp|gif)$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'menu-assets-cache',
+              expiration: {
+                maxEntries: 200,
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
               },
               cacheableResponse: {

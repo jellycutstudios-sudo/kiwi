@@ -6,13 +6,23 @@ import {
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';
 
+const getInitialTables = () => {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('dineos_cached_tables');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
 export const useTableStore = create((set, get) => {
   let activeUnsub = null;
   let subscribedRestId = null;
   let subCount = 0;
 
   return {
-    tables: [],
+    tables: getInitialTables(),
     selectedTable: null,
 
     subscribe: (restaurantId) => {
@@ -45,13 +55,21 @@ export const useTableStore = create((set, get) => {
       const unsub = onSnapshot(
         collection(db, 'restaurants', restaurantId, 'tables'),
         (snap) => {
-          set({ tables: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+          const tbls = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('dineos_cached_tables', JSON.stringify(tbls));
+            }
+          } catch (e) {
+            console.debug('[useTableStore] LocalStorage cache write skipped:', e);
+          }
+          set({ tables: tbls });
         }
       );
 
       activeUnsub = () => {
         unsub();
-        set({ tables: [] });
+        // Retain tables in memory so offline view never goes blank
       };
 
       return () => {

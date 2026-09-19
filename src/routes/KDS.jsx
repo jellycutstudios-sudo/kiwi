@@ -17,9 +17,11 @@ import {
   VolumeX, 
   Check, 
   Timer,
-  Printer
+  Printer,
+  Sun
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 const STATIONS = ['All', 'Kitchen', 'Grill', 'Fryer', 'Cold', 'Bar', 'Bakery'];
 
@@ -57,6 +59,7 @@ export default function KDS() {
   const [viewTab, setViewTab] = useState('active'); // 'active' | 'recent'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const { isLocked: isWakeLocked, isSupported: isWakeSupported } = useWakeLock(true);
   
   const prevCountRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -397,6 +400,28 @@ export default function KDS() {
           >
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
+
+          {/* Screen Wake Lock Indicator */}
+          {isWakeSupported && (
+            <div
+              title={isWakeLocked ? 'Screen Wake Lock Active: Display will stay on' : 'Screen Wake Lock Inactive'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '6px 10px',
+                borderRadius: 8,
+                background: isWakeLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                border: isWakeLocked ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(255, 255, 255, 0.1)',
+                color: isWakeLocked ? '#4ade80' : '#94a3b8',
+                fontSize: 12,
+                fontWeight: 700
+              }}
+            >
+              <Sun size={14} className={isWakeLocked ? 'animate-pulse' : ''} />
+              <span className="desktop-only">{isWakeLocked ? 'Awake' : 'Sleep OK'}</span>
+            </div>
+          )}
 
           {/* Digital Clock */}
           <div style={{

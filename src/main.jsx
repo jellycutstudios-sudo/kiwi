@@ -10,7 +10,7 @@ import { logError } from './utils/logger.js';
 // registerType='prompt' in vite.config.js — we must NOT pass immediate:true here
 // or it defeats the prompt and silently auto-updates (breaking active POS sessions).
 if (typeof window !== 'undefined') {
-  registerSW({
+  const updateSW = registerSW({
     onNeedRefresh() {
       // A new SW version is available. Show a non-intrusive toast so staff
       // can choose when to refresh (e.g. between shifts, not mid-order).
@@ -22,6 +22,8 @@ if (typeof window !== 'undefined') {
       console.info('[SW] App is ready for offline use.');
     },
   });
+  window.__updateSW = updateSW;
+
 
   // Catch unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {

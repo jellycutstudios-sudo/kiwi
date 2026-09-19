@@ -2,14 +2,25 @@ import { create } from 'zustand';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
+const getInitialCategories = () => {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('dineos_cached_menu');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
 export const useMenuStore = create((set) => {
   let activeUnsub = null;
   let subscribedRestId = null;
   let subCount = 0;
+  const initialCats = getInitialCategories();
 
   return {
-    categories: [],
-    loading: true,
+    categories: initialCats,
+    loading: initialCats.length === 0,
     error: null,
     search: '',
     setSearch: (search) => set({ search }),
@@ -38,7 +49,9 @@ export const useMenuStore = create((set) => {
         subCount = 0;
       }
 
-      set({ loading: true, error: null });
+      // If we have cached categories, keep them visible so there is zero flicker
+      const cached = getInitialCategories();
+      set({ loading: cached.length === 0, error: null });
       subscribedRestId = restaurantId;
       subCount = 1;
 
@@ -47,6 +60,13 @@ export const useMenuStore = create((set) => {
         q,
         (snap) => {
           const cats = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('dineos_cached_menu', JSON.stringify(cats));
+            }
+          } catch (e) {
+            console.debug('[useMenuStore] LocalStorage cache write skipped:', e);
+          }
           set({ categories: cats, loading: false });
         },
         (err) => {
@@ -57,7 +77,7 @@ export const useMenuStore = create((set) => {
 
       activeUnsub = () => {
         unsub();
-        set({ categories: [], loading: true });
+        // Do not clear categories on unsub so offline/tab switching retains the menu instantly
       };
 
       return () => {

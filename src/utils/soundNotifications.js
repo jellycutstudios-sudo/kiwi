@@ -113,3 +113,21 @@ export function vibrateDevice(pattern = [200, 100, 200]) {
     // Ignore unsupported browser environments
   }
 }
+
+/**
+ * hapticTap - Subtle, low-latency tactile feedback for native app-like interactions
+ * @param {'light'|'medium'|'heavy'|'success'} strength 
+ */
+export function hapticTap(strength = 'light') {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (strength === 'light') navigator.vibrate(10);
+      else if (strength === 'medium') navigator.vibrate(22);
+      else if (strength === 'heavy') navigator.vibrate(40);
+      else if (strength === 'success') navigator.vibrate([15, 60, 30]);
+    }
+  } catch {
+    // Unsupported / blocked
+  }
+}
+
