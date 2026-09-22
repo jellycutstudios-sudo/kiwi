@@ -5,9 +5,10 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'fireb
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
-import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth } from 'lucide-react';
+import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, Image, Sparkles } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
-import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket } from '../../utils/print';
+import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
+import { convertLogoForThermal } from '../../utils/thermalLogo';
 import toast from 'react-hot-toast';
 import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker';
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
@@ -53,6 +54,40 @@ export default function Settings() {
   const [copiedSlideshowId, setCopiedSlideshowId] = useState(null);
   const [slideshowList, setSlideshowList] = useState([]);
   const [activeTab, setActiveTab] = useState('general');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    const toastId = toast.loading('Converting logo for thermal POS billing...');
+    try {
+      const res = await convertLogoForThermal(file, {
+        maxWidth: 384,
+        maxHeight: 130,
+        algorithm: 'dither'
+      });
+      setSettings(s => ({
+        ...s,
+        logo: res.originalUrl || res.thermalDataUrl,
+        onlineLogo: res.originalUrl || res.thermalDataUrl,
+        receiptConfig: {
+          ...(s.receiptConfig || {}),
+          logoUrl: res.originalUrl || res.thermalDataUrl,
+          thermalLogo: res.thermalDataUrl,
+          escPosLogo: res.escPosBase64,
+          thermalSettings: { algorithm: 'dither', threshold: 128, invert: false }
+        }
+      }));
+      toast.success('Logo uploaded & converted for thermal billing!', { id: toastId });
+    } catch (err) {
+      console.error('[Logo Upload Error]', err);
+      toast.error('Failed to process logo: ' + err.message, { id: toastId });
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
 
   const { categories, subscribeMenu } = useMenuStore();
 
@@ -361,6 +396,68 @@ export default function Settings() {
                   <div className="form-group">
                     <label className="form-label">Restaurant Name</label>
                     <input id="settings-name" className="form-input" value={settings.name??''} onChange={e=>updateField('name',e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Restaurant Logo (POS Thermal Receipts & Branding)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                      {(settings.receiptConfig?.thermalLogo || settings.receiptConfig?.logoUrl || settings.logo) ? (
+                        <div style={{
+                          width: 80,
+                          height: 56,
+                          borderRadius: 'var(--radius-md)',
+                          border: '1.5px solid var(--color-separator)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#fff',
+                          padding: '4px',
+                          flexShrink: 0
+                        }}>
+                          <img
+                            src={settings.receiptConfig?.thermalLogo || settings.receiptConfig?.logoUrl || settings.logo}
+                            alt="Logo"
+                            style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: 80,
+                          height: 56,
+                          borderRadius: 'var(--radius-md)',
+                          border: '1.5px dashed var(--color-separator-opaque)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '22px',
+                          background: 'var(--color-bg)',
+                          flexShrink: 0
+                        }}>
+                          🍽️
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <input
+                          type="file"
+                          id="settings-brand-logo-file"
+                          accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                          style={{ display: 'none' }}
+                          onChange={handleLogoUpload}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => document.getElementById('settings-brand-logo-file').click()}
+                          disabled={uploadingLogo}
+                          style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Upload size={13} />
+                          {uploadingLogo ? 'Converting...' : ((settings.receiptConfig?.logoUrl || settings.logo) ? 'Change Logo' : 'Upload Logo')}
+                        </button>
+                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                          Auto-dithered & converted into 1-bit monochrome for thermal receipt printers.
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Custom Restaurant ID (for Staff PIN Login)</label>
@@ -1592,7 +1689,7 @@ export default function Settings() {
                                   color: 'var(--color-label-secondary)',
                                   border: '1px solid var(--color-separator-opaque)'
                                 }}>
-                                  {printer.paperSize === '58mm' ? '2" (58mm)' : '3" (80mm)'}
+                                  {printer.paperSize === '58mm' ? '2" (58mm)' : printer.paperSize === 'a4' ? 'A4 (Tax Invoice)' : '3" (80mm)'}
                                 </span>
                               </div>
                               <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '4px' }}>
@@ -1710,7 +1807,22 @@ export default function Settings() {
                         </div>
 
                         <div className="form-group">
-                          <label className="form-label">Thermal Paper Size</label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <label className="form-label" style={{ margin: 0 }}>Paper / Print Format</label>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                const detected = detectPrinterPaperSize(printerForm.name);
+                                setPrinterForm(f => ({ ...f, paperSize: detected }));
+                                toast.success(`Auto-detected ${detected === '58mm' ? '2" (58mm)' : detected === 'a4' ? 'A4 Full Tax Invoice' : '3" (80mm)'} from printer name!`);
+                              }}
+                              style={{ padding: '2px 8px', height: '22px', fontSize: '10.5px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              title="Auto-detect paper size based on printer name"
+                            >
+                              <Sparkles size={11} color="var(--color-accent)" /> Auto-Detect
+                            </button>
+                          </div>
                           <select
                             className="form-select"
                             value={printerForm.paperSize || '80mm'}
@@ -1718,6 +1830,7 @@ export default function Settings() {
                           >
                             <option value="80mm">3-inch (80mm) — Standard Counter / Kitchen (48 cols)</option>
                             <option value="58mm">2-inch (58mm) — Mobile / Portable Bluetooth (32 cols)</option>
+                            <option value="a4">A4 Full Sheet — Laser / Inkjet (Full Tax Invoice)</option>
                           </select>
                         </div>
                       </div>
@@ -1763,7 +1876,14 @@ export default function Settings() {
                             onClick={async () => {
                               const dev = await pairBluetoothPrinter();
                               if (dev) {
-                                setPrinterForm(f => ({ ...f, name: f.name || dev.name || 'Bluetooth Thermal' }));
+                                const devName = dev.name || 'Bluetooth Thermal';
+                                const detectedSize = detectPrinterPaperSize(devName);
+                                setPrinterForm(f => ({
+                                  ...f,
+                                  name: f.name || devName,
+                                  paperSize: detectedSize
+                                }));
+                                toast.success(`Paired ${devName}! Auto-configured as ${detectedSize === '58mm' ? '2" (58mm)' : detectedSize === 'a4' ? 'A4' : '3" (80mm)'}.`);
                               }
                             }}
                             style={{ height: 32, fontSize: 11, padding: '0 12px' }}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Check, X, Share2, Printer, Smartphone, MessageSquare } from 'lucide-react';
+import { Check, X, Share2, Printer, Smartphone, MessageSquare, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function DigitalReceiptModal({
@@ -9,7 +9,8 @@ export default function DigitalReceiptModal({
   restaurant,
   currency = 'INR',
   onClose,
-  onPrint
+  onPrint,
+  onPrintA4
 }) {
   const [qrUrl, setQrUrl] = useState('');
 
@@ -104,34 +105,49 @@ export default function DigitalReceiptModal({
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={handleShareWhatsApp}
               style={{
-                flex: 1,
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
                 borderColor: '#25D366',
-                color: '#15803d'
+                color: '#15803d',
+                height: '36px'
               }}
             >
-              <MessageSquare size={16} color="#25D366" /> WhatsApp Bill
+              <MessageSquare size={16} color="#25D366" /> Share via WhatsApp
             </button>
 
-            {onPrint && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onPrint}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                <Printer size={16} /> Print Receipt
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              {onPrint && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onPrint}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', fontSize: '12px' }}
+                >
+                  <Printer size={15} /> Thermal Receipt
+                </button>
+              )}
+
+              {onPrintA4 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onPrintA4}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', fontSize: '12px' }}
+                  title="Print full A4 tax invoice for GST/tax billing"
+                >
+                  <FileText size={15} color="var(--color-primary)" /> A4 Tax Invoice
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

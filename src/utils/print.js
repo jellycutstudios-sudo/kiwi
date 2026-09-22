@@ -47,6 +47,57 @@ function getCategoryForMenuItem(menuItemId) {
   return cat ? cat.id : null;
 }
 
+// Auto-detect paper size from printer name or Bluetooth device model
+export function detectPrinterPaperSize(name) {
+  if (!name || typeof name !== 'string') return '80mm';
+  const n = name.toLowerCase().trim();
+
+  // 58mm compact indicators (2-inch, 32 cols)
+  if (
+    n.includes('58') ||
+    n.includes('pt-2') ||
+    n.includes('pt2') ||
+    n.includes('mpt-2') ||
+    n.includes('mpt-ii') ||
+    n.includes('mpt2') ||
+    n.includes('pos-58') ||
+    n.includes('pos58') ||
+    n.includes('zj-58') ||
+    n.includes('rpp-02') ||
+    n.includes('ep-58') ||
+    n.includes('g58') ||
+    n.includes('mini') ||
+    n.includes('cat') ||
+    n.includes('2-inch') ||
+    n.includes('2 inch') ||
+    n.includes('2"')
+  ) {
+    return '58mm';
+  }
+
+  // A4 / Full sheet indicators
+  if (
+    n.includes('a4') ||
+    n.includes('laser') ||
+    n.includes('deskjet') ||
+    n.includes('ecotank') ||
+    n.includes('inkjet') ||
+    n.includes('officejet') ||
+    n.includes('brother') ||
+    n.includes('canon') ||
+    n.includes('hp ') ||
+    n.includes('xerox') ||
+    n.includes('letter') ||
+    n.includes('invoice') ||
+    n.includes('pdf')
+  ) {
+    return 'a4';
+  }
+
+  // Default to standard 80mm (3-inch, 48 cols)
+  return '80mm';
+}
+
 // Helper to get line width in characters: 32 for 58mm (2-inch), 48 for 80mm (3-inch)
 function getPrinterLineWidth(printerConfig) {
   return printerConfig?.paperSize === '58mm' ? 32 : 48;
@@ -95,6 +146,23 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     writeBytes(DRAWER_KICK);
   }
   
+  // Restaurant Thermal Logo (ESC/POS Raster Bit Image)
+  const escPosLogoBase64 = restaurant?.receiptConfig?.escPosLogo;
+  if (escPosLogoBase64) {
+    try {
+      const binStr = atob(escPosLogoBase64);
+      const logoBytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) {
+        logoBytes[i] = binStr.charCodeAt(i);
+      }
+      writeBytes(ALIGN_CENTER);
+      writeBytes(logoBytes);
+      writeBytes([LF]);
+    } catch (e) {
+      console.warn('[ESC/POS Logo Parse Warning]', e);
+    }
+  }
+
   // Header
   writeBytes(ALIGN_CENTER);
   writeBytes(BOLD_ON);
@@ -323,14 +391,22 @@ export async function pairBluetoothPrinter() {
   try {
     toast.loading('Searching for Bluetooth Thermal Printers...', { id: 'ble-pair' });
     
-    // Standard thermal printer service UUIDs (Chinese POS, ESC/POS, Star, Epson, Rongta, MPT, Sunmi)
+    // Standard thermal printer service UUIDs (Chinese POS, ESC/POS, Star, Epson, Rongta, MPT, Sunmi, ISSC)
     const printerServices = [
       '000018f0-0000-1000-8000-00805f9b34fb', // Standard ESC/POS
       '0000ffe0-0000-1000-8000-00805f9b34fb', // HMSoft / Common 58mm/80mm BLE
+      '0000ffe5-0000-1000-8000-00805f9b34fb',
+      '0000fff0-0000-1000-8000-00805f9b34fb', // Common POS-58 / Rongta / Chinese mini printers
+      '0000ff00-0000-1000-8000-00805f9b34fb',
       '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC transparent UART
+      '49535343-1e4d-4bd9-ba61-23c647249616', // ISSC SPP
       'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-      '0000fee7-0000-1000-8000-00805f9b34fb',
-      '0000af30-0000-1000-8000-00805f9b34fb'
+      '0000fee7-0000-1000-8000-00805f9b34fb', // WeChat / Tencent BLE POS
+      '0000af30-0000-1000-8000-00805f9b34fb',
+      '0000ae30-0000-1000-8000-00805f9b34fb',
+      '0000ae00-0000-1000-8000-00805f9b34fb',
+      'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f', // Star Micronics BLE
+      '0000180a-0000-1000-8000-00805f9b34fb'  // Device Info
     ];
 
     const device = await navigator.bluetooth.requestDevice({
@@ -346,7 +422,7 @@ export async function pairBluetoothPrinter() {
 
     const server = await device.gatt.connect();
     
-    // Scan services to find writable characteristic
+    // Scan declared services to find writable characteristic
     let writeChar = null;
     for (const serviceUuid of printerServices) {
       try {
@@ -366,19 +442,24 @@ export async function pairBluetoothPrinter() {
 
     if (!writeChar) {
       // Fallback: search all available services
-      const services = await server.getPrimaryServices();
-      for (const s of services) {
-        try {
-          const chars = await s.getCharacteristics();
-          for (const c of chars) {
-            if (c.properties.write || c.properties.writeWithoutResponse) {
-              writeChar = c;
-              break;
+      try {
+        const services = await server.getPrimaryServices();
+        for (const s of services) {
+          try {
+            const chars = await s.getCharacteristics();
+            for (const c of chars) {
+              if (c.properties.write || c.properties.writeWithoutResponse) {
+                writeChar = c;
+                break;
+              }
             }
+          } catch {
+            // Ignore individual service scan error
           }
-        } catch {
-          // Ignore service scanning error and continue
+          if (writeChar) break;
         }
+      } catch (scanErr) {
+        console.warn('[BLE Scan Fallback Error]', scanErr);
       }
     }
 
@@ -403,14 +484,46 @@ export async function pairBluetoothPrinter() {
 
 async function sendToBluetoothPrinter(buffer) {
   try {
-    // Check if we have an active connected characteristic
+    // Check if we have an active connected characteristic; if not, attempt silent reconnect first
     if (!cachedBleDevice || !cachedBleDevice.gatt.connected || !cachedBleCharacteristic) {
-      const device = await pairBluetoothPrinter();
-      if (!device || !cachedBleCharacteristic) return;
+      if (cachedBleDevice && !cachedBleDevice.gatt.connected) {
+        try {
+          const server = await cachedBleDevice.gatt.connect();
+          const services = await server.getPrimaryServices();
+          let writeChar = null;
+          for (const s of services) {
+            try {
+              const chars = await s.getCharacteristics();
+              for (const c of chars) {
+                if (c.properties.write || c.properties.writeWithoutResponse) {
+                  writeChar = c;
+                  break;
+                }
+              }
+            } catch {
+              // Ignore
+            }
+            if (writeChar) break;
+          }
+          if (writeChar) {
+            cachedBleCharacteristic = writeChar;
+          }
+        } catch (silentErr) {
+          console.warn('[BLE Silent Reconnect Failed]', silentErr);
+          cachedBleDevice = null;
+          cachedBleCharacteristic = null;
+        }
+      }
+
+      if (!cachedBleDevice || !cachedBleCharacteristic) {
+        const device = await pairBluetoothPrinter();
+        if (!device || !cachedBleCharacteristic) return;
+      }
     }
 
-    // Packet chunking: send in 50-byte chunks to avoid Bluetooth buffer overflow
-    const CHUNK_SIZE = 50;
+    // Packet chunking: default BLE ATT MTU is 23 (20-byte payload).
+    // Sending in 20-byte chunks with 15ms throttle guarantees zero dropped packets on budget 58mm/80mm printers
+    const CHUNK_SIZE = 20;
     for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
       const chunk = buffer.slice(i, i + CHUNK_SIZE);
       if (cachedBleCharacteristic.properties.writeWithoutResponse) {
@@ -418,7 +531,7 @@ async function sendToBluetoothPrinter(buffer) {
       } else {
         await cachedBleCharacteristic.writeValue(chunk);
       }
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise(r => setTimeout(r, 15));
     }
     toast.success('Printed via Bluetooth! 🖨️');
   } catch (e) {
@@ -472,7 +585,12 @@ export function printReceipt({ restaurant, order, items, taxInfo, staffName }) {
   const receiptPrinters = printers.filter(p => p.type === 'receipt');
 
   if (receiptPrinters.length === 0) {
-    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: '80mm' });
+    const defaultPaper = restaurant?.receiptConfig?.paperSize || '80mm';
+    if (defaultPaper === 'a4') {
+      printInvoiceA4({ restaurant, order, items, taxInfo, staffName });
+    } else {
+      printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: defaultPaper });
+    }
     return;
   }
 
@@ -483,8 +601,14 @@ export function printReceipt({ restaurant, order, items, taxInfo, staffName }) {
 
 // Internal: send receipt to a single specific printer (used by both printReceipt and test-print)
 function _sendReceiptToPrinter({ restaurant, order, items, taxInfo, staffName, printer }) {
+  const paperSize = printer.paperSize || '80mm';
+  if (paperSize === 'a4') {
+    printInvoiceA4({ restaurant, order, items, taxInfo, staffName });
+    return;
+  }
+
   if (printer.mode === 'browser') {
-    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: printer.paperSize || '80mm' });
+    printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize });
   } else {
     const buffer = compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, printerConfig: printer });
     if (printer.mode === 'bluetooth') {
@@ -499,7 +623,15 @@ function _sendReceiptToPrinter({ restaurant, order, items, taxInfo, staffName, p
 
 // Send a test receipt to exactly one specific printer by its config object
 export function printReceiptSingle({ restaurant, order, items, taxInfo, staffName, printer }) {
-  if (!printer) return;
+  if (!printer) {
+    const defaultPaper = restaurant?.receiptConfig?.paperSize || '80mm';
+    if (defaultPaper === 'a4') {
+      printInvoiceA4({ restaurant, order, items, taxInfo, staffName });
+    } else {
+      printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize: defaultPaper });
+    }
+    return;
+  }
   _sendReceiptToPrinter({ restaurant, order, items, taxInfo, staffName, printer });
 }
 
@@ -623,8 +755,14 @@ export function printSingleKitchenTicket({ restaurant, order, items, staffName, 
   }
 }
 
-function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize = '80mm' }) {
+export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize = '80mm' }) {
+  if (paperSize === 'a4') {
+    printInvoiceA4({ restaurant, order, items, taxInfo, staffName });
+    return;
+  }
+
   const { currency = 'INR', name: restName, address = '', phone = '' } = restaurant ?? {};
+  const logoUrl = restaurant?.receiptConfig?.thermalLogo || restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo;
   const is58mm = paperSize === '58mm';
   const win = window.open('', '_blank', 'width=360,height=600');
   if (!win) { alert('Please allow popups to print receipts.'); return; }
@@ -682,6 +820,7 @@ function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, pap
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2px 0; vertical-align: top; }
   td:last-child { white-space: nowrap; }
+  img { image-rendering: -webkit-optimize-contrast; image-rendering: pixelated; }
   .total-row td { font-weight: bold; font-size: ${is58mm ? '12px' : '14px'}; border-top: 1px solid #000; padding-top: 3px; }
   .footer { margin-top: 8px; font-size: 10px; text-align: center; color: #444; }
   @media print {
@@ -691,6 +830,11 @@ function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, pap
 </style>
 </head>
 <body>
+${logoUrl ? `
+<div class="center" style="margin-bottom: 6px;">
+  <img src="${logoUrl}" alt="${restName}" style="max-width: ${is58mm ? '140px' : '180px'}; max-height: 60px; object-fit: contain; filter: contrast(160%) grayscale(100%); display: block; margin: 0 auto 4px;" />
+</div>
+` : ''}
 <div class="center bold large">${restName}</div>
 ${address ? `<div class="center">${address}</div>` : ''}
 ${phone ? `<div class="center">Tel: ${phone}</div>` : ''}
@@ -730,6 +874,250 @@ ${order.upiRef ? `<div style="font-size:10px">UPI Ref: ${order.upiRef}</div>` : 
 </body>
 </html>
 `);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 400);
+}
+
+// Full A4 / Letter Tax Invoice Generator
+export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName }) {
+  const { currency = 'INR', name: restName = 'DineOS Restaurant', address = '', phone = '', email = '' } = restaurant ?? {};
+  const logoUrl = restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo || restaurant?.receiptConfig?.thermalLogo;
+  const gstin = restaurant?.gstin || '';
+  const fssai = restaurant?.fssai || '';
+  const invoiceId = order.id ? (order.id.startsWith('INV-') ? order.id : `INV-${order.id.slice(-8).toUpperCase()}`) : `INV-${Date.now().toString().slice(-6)}`;
+  const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleString() : new Date().toLocaleString();
+
+  const win = window.open('', '_blank', 'width=850,height=900');
+  if (!win) { alert('Please allow popups to print invoices.'); return; }
+
+  const itemRowsHtml = (items || []).map((i, index) => {
+    const itemTotal = (i.price * i.qty).toFixed(2);
+    const sacCode = gstin ? '996331' : '-';
+    return `
+    <tr>
+      <td style="text-align:center; padding: 8px 6px; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb;">
+        <div style="font-weight: 600; color: #111827;">${i.name}</div>
+        ${i.selectedModifiers && i.selectedModifiers.length > 0
+          ? `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</div>`
+          : ''}
+      </td>
+      <td style="text-align:center; padding: 8px 6px; color: #4b5563; border-bottom: 1px solid #e5e7eb;">${sacCode}</td>
+      <td style="text-align:center; padding: 8px 6px; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${i.qty}</td>
+      <td style="text-align:right; padding: 8px 10px; color: #374151; border-bottom: 1px solid #e5e7eb;">${Number(i.price).toFixed(2)}</td>
+      <td style="text-align:right; padding: 8px 10px; font-weight: 600; color: #111827; border-bottom: 1px solid #e5e7eb;">${itemTotal}</td>
+    </tr>
+    `;
+  }).join('');
+
+  const taxRowsHtml = (taxInfo?.lines ?? []).map(l =>
+    `<tr>
+      <td style="padding: 4px 0; color: #4b5563;">${l.label}:</td>
+      <td style="text-align: right; padding: 4px 0; font-weight: 500; color: #111827;">${currency} ${Number(l.amount).toFixed(2)}</td>
+    </tr>`
+  ).join('');
+
+  const orderTypeLabel =
+    order.type === 'dine-in'  ? `Dine-In (${order.tableName ? `Table ${order.tableName}` : 'Table'})` :
+    order.type === 'takeaway' ? `Takeaway (${order.token ? `Token #${order.token}` : 'Pickup'})` :
+    `Online Delivery`;
+
+  win.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Tax Invoice - ${invoiceId}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      color: #1f2937;
+      line-height: 1.4;
+      background: #fff;
+      padding: 24px 32px;
+      margin: 0 auto;
+      max-width: 800px;
+    }
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .badge-invoice {
+      display: inline-block;
+      background: #111827;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .meta-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .items-table th {
+      background: #f3f4f6;
+      color: #374151;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      padding: 10px 8px;
+      border-bottom: 2px solid #d1d5db;
+    }
+    .totals-table { width: 100%; border-collapse: collapse; }
+    .grand-total {
+      font-size: 16px;
+      font-weight: 800;
+      color: #111827;
+      border-top: 2px solid #111827;
+      border-bottom: 2px solid #111827;
+      padding: 8px 0;
+    }
+    @media print {
+      body { max-width: 100%; padding: 0; }
+      @page { size: A4 portrait; margin: 12mm 15mm; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Bar -->
+  <table class="header-table">
+    <tr>
+      <td style="vertical-align: top; width: 60%;">
+        ${logoUrl ? `<img src="${logoUrl}" alt="${restName}" style="max-height: 55px; max-width: 180px; object-fit: contain; margin-bottom: 8px; display: block;" />` : ''}
+        <h1 style="font-size: 22px; font-weight: 800; color: #111827; margin-bottom: 4px;">${restName}</h1>
+        ${address ? `<div style="color: #4b5563; font-size: 12px; margin-bottom: 2px;">${address}</div>` : ''}
+        ${phone ? `<div style="color: #4b5563; font-size: 12px; margin-bottom: 2px;">Tel: ${phone}</div>` : ''}
+        ${email ? `<div style="color: #4b5563; font-size: 12px; margin-bottom: 2px;">Email: ${email}</div>` : ''}
+        <div style="margin-top: 6px;">
+          ${gstin ? `<span style="display: inline-block; font-weight: 700; font-size: 11.5px; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; margin-right: 6px;">GSTIN: ${gstin}</span>` : ''}
+          ${fssai ? `<span style="display: inline-block; font-size: 11.5px; background: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px;">FSSAI: ${fssai}</span>` : ''}
+        </div>
+      </td>
+      <td style="vertical-align: top; width: 40%; text-align: right;">
+        <div class="badge-invoice">Tax Invoice / Bill of Supply</div>
+        <div style="margin-top: 10px; font-size: 12px; color: #4b5563;">
+          <div><strong style="color: #111827;">Invoice No:</strong> ${invoiceId}</div>
+          <div><strong style="color: #111827;">Date & Time:</strong> ${orderDate}</div>
+          <div><strong style="color: #111827;">Service Mode:</strong> ${orderTypeLabel}</div>
+          ${staffName ? `<div><strong style="color: #111827;">Cashier / Server:</strong> ${staffName}</div>` : ''}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Customer & Order Meta -->
+  <div class="meta-box">
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="width: 50%; vertical-align: top;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Billed To / Customer</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827;">${order.customerName || 'Walk-in Customer'}</div>
+          ${order.customerPhone ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">Phone: ${order.customerPhone}</div>` : ''}
+        </td>
+        <td style="width: 50%; vertical-align: top; text-align: right;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Payment Summary</div>
+          <div style="font-size: 13px; font-weight: 700; color: #047857;">PAID - ${(order.paymentMethod ?? 'cash').toUpperCase()}</div>
+          ${order.upiRef ? `<div style="font-size: 11.5px; color: #4b5563; margin-top: 2px;">Ref: ${order.upiRef}</div>` : ''}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Items Table -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width: 5%; text-align: center;">#</th>
+        <th style="width: 45%; text-align: left;">Item Description</th>
+        <th style="width: 12%; text-align: center;">SAC / HSN</th>
+        <th style="width: 10%; text-align: center;">Qty</th>
+        <th style="width: 13%; text-align: right;">Rate (${currency})</th>
+        <th style="width: 15%; text-align: right;">Amount (${currency})</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRowsHtml}
+    </tbody>
+  </table>
+
+  <!-- Calculation & Totals Section -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+    <tr>
+      <td style="width: 55%; vertical-align: top; padding-right: 30px;">
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; font-size: 11.5px; color: #4b5563;">
+          <div style="font-weight: 700; color: #111827; margin-bottom: 4px;">Terms & Conditions:</div>
+          <div>1. Goods & services once supplied cannot be refunded or exchanged.</div>
+          <div>2. This is a computer-generated tax invoice and requires no physical stamp.</div>
+          ${restaurant?.receiptConfig?.footerMessage ? `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #d1d5db; color: #374151;">${restaurant.receiptConfig.footerMessage.replace(/\n/g, '<br/>')}</div>` : ''}
+        </div>
+      </td>
+      <td style="width: 45%; vertical-align: top;">
+        <table class="totals-table">
+          <tr>
+            <td style="padding: 4px 0; color: #4b5563;">Item Subtotal:</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #111827;">${currency} ${(order.subtotal ?? 0).toFixed(2)}</td>
+          </tr>
+          ${order.discountAmount && order.discountAmount > 0 ? `
+          <tr>
+            <td style="padding: 4px 0; color: #dc2626;">Discount${order.discountType === 'percent' ? ` (${order.discount}%)` : ''}:</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #dc2626;">-${currency} ${(order.discountAmount).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${taxRowsHtml}
+          ${(order.serviceChargeAmount || order.serviceCharge) ? `
+          <tr>
+            <td style="padding: 4px 0; color: #4b5563;">Service Charge:</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 500;">${currency} ${((order.serviceChargeAmount || order.serviceCharge) ?? 0).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${(order.tipAmount && order.tipAmount > 0) ? `
+          <tr>
+            <td style="padding: 4px 0; color: #4b5563;">Tip / Gratuity:</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 500;">${currency} ${(order.tipAmount).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${(order.giftCardDeduction && order.giftCardDeduction > 0) ? `
+          <tr>
+            <td style="padding: 4px 0; color: #059669;">Gift Card Applied:</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #059669;">-${currency} ${(order.giftCardDeduction).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          <tr class="grand-total">
+            <td style="padding: 10px 0;">Total Amount Payable:</td>
+            <td style="text-align: right; padding: 10px 0;">${currency} ${(order.total ?? 0).toFixed(2)}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Signatory Box -->
+  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+    <tr>
+      <td style="width: 60%; vertical-align: bottom;">
+        <div style="font-size: 11px; color: #9ca3af;">Thank you for your patronage! Visit again.</div>
+      </td>
+      <td style="width: 40%; text-align: center; vertical-align: top;">
+        <div style="font-size: 12px; font-weight: 700; color: #111827; margin-bottom: 40px;">For ${restName}</div>
+        <div style="border-top: 1px solid #9ca3af; padding-top: 4px; font-size: 11px; color: #6b7280;">Authorized Signatory</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `);
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); win.close(); }, 400);

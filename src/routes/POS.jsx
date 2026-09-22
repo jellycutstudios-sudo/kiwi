@@ -12,7 +12,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets } from '../utils/print';
+import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printInvoiceA4 } from '../utils/print';
 import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
@@ -362,12 +362,6 @@ export default function POS() {
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
   const [isQuickPaying, setIsQuickPaying] = useState(false);
 
-  const topFavorites = useMemo(() => {
-    const all = categories.flatMap(c => c.items || []);
-    const favs = all.filter(i => i.available !== false && (i.highMargin || i.isBestseller));
-    if (favs.length >= 4) return favs.slice(0, 8);
-    return all.filter(i => i.available !== false).slice(0, 8);
-  }, [categories]);
 
   // Global Hardware Barcode Scanner Listener (HID Keyboard Event)
   useEffect(() => {
@@ -1204,10 +1198,12 @@ export default function POS() {
       <div className="pos-menu-panel">
 
 
-        {/* Category chips with counts */}
-        <div className="pos-category-bar">
+        {/* Category Touch Tabs */}
+        <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
           <button
             id="cat-all"
+            role="tab"
+            aria-selected={activeCat === 'all'}
             className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
             onClick={() => { setActiveCat('all'); setSearch(''); }}
           >
@@ -1218,6 +1214,8 @@ export default function POS() {
             <button
               key={c.id}
               id={`cat-${c.id}`}
+              role="tab"
+              aria-selected={activeCat === c.id}
               className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
               onClick={() => { setActiveCat(c.id); setSearch(''); }}
             >
@@ -1231,9 +1229,8 @@ export default function POS() {
           <button
             type="button"
             id="add-custom-item-chip"
-            className="category-chip"
+            className="category-chip category-chip--custom"
             onClick={() => setShowOpenItemModal(true)}
-            style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)', background: 'var(--color-accent-light)', fontWeight: 600 }}
             title="Add off-menu daily special or custom priced item"
           >
             <span>✨</span> + Custom Item
@@ -1241,11 +1238,13 @@ export default function POS() {
         </div>
 
         {/* Dietary Quick Filter Bar + View Density & Focus Controls */}
-        <div className="menu-dietary-bar">
-          {/* Scrollable filter chips */}
-          <div className="menu-dietary-chips">
+        <div className="menu-dietary-bar" role="toolbar" aria-label="Dietary and view filters">
+          {/* Scrollable touch filter chips */}
+          <div className="menu-dietary-chips" role="tablist" aria-label="Dietary filters">
             <button
               type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'all'}
               className={`dietary-chip dietary-chip--all ${dietaryFilter === 'all' ? 'active' : ''}`}
               onClick={() => setDietaryFilter('all')}
             >
@@ -1253,6 +1252,8 @@ export default function POS() {
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'veg'}
               className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
             >
@@ -1260,6 +1261,8 @@ export default function POS() {
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'non-veg'}
               className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
             >
@@ -1267,23 +1270,25 @@ export default function POS() {
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'bestseller'}
               className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
             >
-              <Sparkles size={12} color="#f59e0b" /> Bestsellers
+              <Sparkles size={13} color="#f59e0b" /> Bestsellers
             </button>
           </div>
 
           {/* Sticky right: density toggle + focus */}
           <div className="menu-dietary-controls">
-            <div className="density-toggle">
+            <div className="density-toggle" role="group" aria-label="Menu density">
               <button
                 type="button"
                 onClick={() => setMenuDensity('visual')}
                 title="Visual Cards with photos"
                 className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
               >
-                <LayoutGrid size={12} />
+                <LayoutGrid size={13} />
                 <span className="density-label">Cards</span>
               </button>
               <button
@@ -1302,63 +1307,12 @@ export default function POS() {
               className="btn btn-ghost btn-xs density-expand-btn"
               onClick={() => setIsFocusMode(!isFocusMode)}
               title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
+              aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
-              {isFocusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              {isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
           </div>
         </div>
-
-        {/* Favorites / Speed-Dial Strip for Rapid Queue Busting */}
-        {enableSpeedDial && topFavorites.length > 0 && (
-          <div className="pos-speed-dial-strip" style={{
-            display: 'flex',
-            gap: '8px',
-            overflowX: 'auto',
-            padding: '8px var(--space-4)',
-            scrollbarWidth: 'none',
-            alignItems: 'center',
-            background: 'var(--color-bg-secondary)',
-            borderBottom: '1px solid var(--color-separator-opaque)'
-          }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-accent)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              ⚡ SPEED KEYS:
-            </span>
-            {topFavorites.map(fav => (
-              <button
-                key={fav.id}
-                type="button"
-                className="speed-dial-chip"
-                onClick={() => {
-                  if (fav.modifierGroups?.length) setActiveModifierItem(fav);
-                  else handleAddItem(fav);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '5px 12px',
-                  borderRadius: 'var(--radius-full)',
-                  background: 'var(--color-bg)',
-                  border: '1.5px solid var(--color-separator)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: 'var(--color-label-primary)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  transition: 'all 0.15s ease'
-                }}
-                title={`Quick add ${fav.name}`}
-              >
-                <span>{fav.emoji || '🍽️'}</span>
-                <span>{fav.name}</span>
-                <span style={{ color: 'var(--color-accent)', fontWeight: 700, fontSize: '11px' }}>
-                  {formatCurrency(fav.price, currency)}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Menu grid */}
         {loadingMenu ? (
@@ -2329,6 +2283,14 @@ export default function POS() {
           onClose={() => setDigitalReceiptOrder(null)}
           onPrint={() => {
             printReceiptSingle({
+              restaurant,
+              order: digitalReceiptOrder,
+              items: digitalReceiptOrder.items || [],
+              staffName: staffDoc?.name || 'Cashier'
+            });
+          }}
+          onPrintA4={() => {
+            printInvoiceA4({
               restaurant,
               order: digitalReceiptOrder,
               items: digitalReceiptOrder.items || [],
