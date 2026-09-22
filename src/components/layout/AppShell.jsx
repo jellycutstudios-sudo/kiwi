@@ -308,7 +308,7 @@ export default function AppShell() {
                 id="install-pwa-btn"
               >
                 <Download size={14} />
-                <span className="desktop-only">Install App</span>
+                <span>Install</span>
               </button>
             )}
 

@@ -9,11 +9,12 @@ import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
+import { usePwaInstall } from '../../hooks/usePwaInstall';
 
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
@@ -48,6 +49,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const role = staffDoc?.role ?? 'cashier';
   const { terms } = useBusinessConfig();
+  const { canInstall, isStandalone, promptInstall } = usePwaInstall();
 
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -213,6 +215,30 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Footer */}
       <div className="sidebar-footer" style={{ padding: isCollapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {!isStandalone && canInstall && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={promptInstall}
+            style={{
+              width: '100%',
+              marginBottom: 'var(--space-2)',
+              height: '34px',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              color: 'var(--color-accent)',
+              borderColor: 'var(--color-accent)',
+              background: 'rgba(0, 122, 255, 0.08)'
+            }}
+            title="Install DineOS as an Android / Home screen App"
+          >
+            <Download size={14} /> {!isCollapsed && 'Install App'}
+          </button>
+        )}
         {!isCollapsed && (
           <div style={{ marginBottom: 'var(--space-3)', overflow: 'hidden', width: '100%' }}>
             <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={staffDoc?.email || staffDoc?.name}>

@@ -6,11 +6,12 @@ import { registerSW } from 'virtual:pwa-register';
 import ErrorBoundary from './components/shared/ErrorBoundary.jsx';
 import { logError } from './utils/logger.js';
 
-// Register service worker for offline capability.
-// registerType='prompt' in vite.config.js — we must NOT pass immediate:true here
-// or it defeats the prompt and silently auto-updates (breaking active POS sessions).
+// Register service worker immediately so Android PWA installability criteria
+// are met immediately. registerType='prompt' in vite.config.js ensures
+// onNeedRefresh is triggered gracefully without disrupting active orders.
 if (typeof window !== 'undefined') {
   const updateSW = registerSW({
+    immediate: true,
     onNeedRefresh() {
       // A new SW version is available. Show a non-intrusive toast so staff
       // can choose when to refresh (e.g. between shifts, not mid-order).

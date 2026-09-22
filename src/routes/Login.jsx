@@ -3,17 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Download } from 'lucide-react';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { CURRENCY_OPTIONS } from '../utils/formatCurrency';
 import { notifyAdminOfNewTrial } from '../utils/sendTrialNotification';
+import { usePwaInstall } from '../hooks/usePwaInstall';
 
 export default function Login() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const { loginWithEmail, loginWithPin, loading, error, clearError } = useAuthStore();
+  const { canInstall, isStandalone, promptInstall } = usePwaInstall();
   // Derive initial mode from URL query param at mount — no useEffect needed
   const [mode, setMode] = useState(() => {
     const queryMode = searchParams.get('mode');
@@ -372,6 +374,29 @@ export default function Login() {
                 {registering ? 'Registering…' : 'Register Restaurant'}
               </button>
             </form>
+            </div>
+          )}
+
+          {canInstall && !isStandalone && (
+            <div style={{ marginTop: '16px', textAlign: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={promptInstall}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '999px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid var(--color-separator)'
+                }}
+              >
+                <Download size={14} color="var(--color-primary)" /> Install DineOS App
+              </button>
             </div>
           )}
         </div>
