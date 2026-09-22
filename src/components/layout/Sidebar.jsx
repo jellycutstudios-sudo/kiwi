@@ -139,6 +139,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               const hasRole = n.roles.includes('all') || n.roles.includes(role);
               if (!hasRole) return false;
               if (n.requiredMode) {
+                if (n.key === 'kds') {
+                  const km = restaurant?.kitchenConfig?.mode;
+                  if (km === 'disabled' || km === 'printer_only') return false;
+                  if (km === 'display_only' || km === 'both') return true;
+                }
                 const modes = restaurant?.modes ?? ['pos'];
                 return modes.includes(n.requiredMode);
               }

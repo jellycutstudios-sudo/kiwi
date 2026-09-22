@@ -5,7 +5,7 @@ import { useOrderStore } from '../stores/orderStore';
 import { useTableStore } from '../stores/tableStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
-import { printReceipt } from '../utils/print';
+import { printReceipt, printSingleKitchenTicket } from '../utils/print';
 import { useTokenStore } from '../stores/tokenStore';
 import { 
   ClipboardList, Search, Clock, Printer, Check, ChefHat, 
@@ -222,6 +222,16 @@ export default function ActiveOrders() {
     toast.success('Print command sent!');
   };
 
+  const handlePrintKitchenTicket = (order) => {
+    printSingleKitchenTicket({
+      restaurant,
+      order,
+      items: order.items,
+      staffName: staffDoc?.name || order.staffName || 'Staff'
+    });
+    toast.success('Kitchen ticket sent to printer! 🍳');
+  };
+
   // Filter orders
   const filteredOrders = activeOrders.filter(order => {
     // 1. Search filter (Customer Name, Phone, ID, Table, Token)
@@ -375,6 +385,18 @@ export default function ActiveOrders() {
             style={{ width: 32, height: 32, padding: 0 }}
           >
             <Printer size={14} />
+          </button>
+
+          <button 
+            className="btn btn-secondary btn-icon btn-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePrintKitchenTicket(order);
+            }}
+            title="Print Kitchen Ticket (KOT)"
+            style={{ width: 32, height: 32, padding: 0 }}
+          >
+            <ChefHat size={14} />
           </button>
 
           {order.token && (
@@ -808,6 +830,15 @@ export default function ActiveOrders() {
                   Close
                 </button>
                 <button 
+                  className="btn btn-secondary" 
+                  onClick={() => handlePrintKitchenTicket(selectedOrderDetails)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                  title="Print Kitchen Order Ticket (KOT)"
+                >
+                  <ChefHat size={14} />
+                  <span>Print KOT</span>
+                </button>
+                <button 
                   className="btn btn-primary" 
                   onClick={() => {
                     handlePrint(selectedOrderDetails);
@@ -816,7 +847,7 @@ export default function ActiveOrders() {
                   style={{ display: 'flex', alignItems: 'center', gap: 4 }}
                 >
                   <Printer size={14} />
-                  <span>Print</span>
+                  <span>Print Receipt</span>
                 </button>
               </div>
             </div>

@@ -12,7 +12,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { printReceipt, printTokenTicket, printKitchenTickets } from '../utils/print';
+import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets } from '../utils/print';
 import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
@@ -349,6 +349,9 @@ export default function POS() {
 
   const currency  = restaurant?.currency ?? 'INR';
   const modes     = restaurant?.modes ?? ['pos'];
+  const kitchenConfig = restaurant?.kitchenConfig;
+  const kitchenMode = kitchenConfig?.mode || (modes.includes('kds') ? 'both' : (restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen') ? 'printer_only' : 'disabled'));
+  const isKitchenActive = kitchenMode !== 'disabled';
   const subtotal  = getSubtotal();
   const discountAmount = getDiscountAmount();
   const taxInfo   = getTaxInfo(restaurant);
@@ -481,7 +484,7 @@ export default function POS() {
           staffName: snapStaffName,
         });
 
-        if (modes.includes('kds')) {
+        if (isKitchenActive && kitchenConfig?.autoPrintOnQuickPay !== false) {
           printKitchenTickets({
             restaurant,
             order: printOrder,
@@ -2132,7 +2135,7 @@ export default function POS() {
         )}
 
         {/* Actions */}
-        {(orderType === 'dine-in' && modes.includes('kds')) ? (
+        {(orderType === 'dine-in' && isKitchenActive) ? (
           <div className="cart-action-buttons">
             <button
               className="cart-action-btn-kitchen"
@@ -2141,10 +2144,10 @@ export default function POS() {
               disabled={!items.length}
               type="button"
               style={{ opacity: items.length ? 1 : 0.4 }}
-              title="Send order to Kitchen (KOT)"
+              title={kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)"}
             >
               <span className="btn-3d-emoji">🍳</span>
-              <span>Kitchen</span>
+              <span>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
             </button>
             <button
               className="cart-action-btn-checkout"

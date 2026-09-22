@@ -6,7 +6,7 @@ import { useTableStore } from '../stores/tableStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { Check, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { printReceipt } from '../utils/print';
+import { printReceipt, printKitchenTickets } from '../utils/print';
 import { computeTax } from '../utils/taxUtils';
 import { auth } from '../firebase';
 
@@ -61,6 +61,20 @@ export default function OnlineOrders() {
       );
       } else {
         toast.success('Order accepted — sent to kitchen!', { icon: '✅' });
+      }
+
+      // Auto-print kitchen tickets if configured
+      const kitchenConfig = restaurant?.kitchenConfig;
+      const kitchenMode = kitchenConfig?.mode || (restaurant?.modes?.includes('kds') ? 'both' : 'printer_only');
+      if (kitchenConfig?.autoPrintOnOnlineOrder !== false && (kitchenMode === 'both' || kitchenMode === 'printer_only')) {
+        setTimeout(() => {
+          printKitchenTickets({
+            restaurant,
+            order,
+            items: order.items || [],
+            staffName: 'Online System'
+          });
+        }, 100);
       }
     } catch (err) {
       toast.error('Failed to accept order: ' + err.message);

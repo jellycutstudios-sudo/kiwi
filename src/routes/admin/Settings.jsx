@@ -11,6 +11,7 @@ import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket } fr
 import toast from 'react-hot-toast';
 import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker';
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
+import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
 
 const MODES = [
@@ -18,7 +19,7 @@ const MODES = [
   { key: 'table',        label: '🗺️ Table Management',      desc: 'Floor plan with table assignment' },
   { key: 'token',        label: '🎫 Token / QSR',           desc: 'Token issuance & TV display' },
   { key: 'online',       label: '📱 Online Orders',         desc: 'Customer-facing order page' },
-  { key: 'kds',          label: '🍳 Kitchen Display',       desc: 'KDS screen for kitchen staff' },
+  { key: 'kds',          label: '🍳 Kitchen Display & KOT', desc: 'Display screen, 3" thermal print, or both' },
   { key: 'inventory',    label: '📦 Inventory Management',  desc: 'Track ingredients, stock, and suppliers' },
   { key: 'payroll',      label: '💸 Staff Payroll',         desc: 'Manage staff wages, shifts, and payouts' },
   { key: 'delivery_hub', label: '🛵 Delivery Hub',          desc: 'Manage in-house and third-party delivery orders' },
@@ -35,6 +36,7 @@ const TAX_TYPES = [
 
 const TABS = [
   { id: 'general',       label: 'General & Profile',  icon: '⚙️' },
+  { id: 'kitchen',       label: 'Kitchen & KOT',      icon: '🍳' },
   { id: 'receipts',      label: 'Receipt Designer',   icon: '🧾' },
   { id: 'tax-pay',       label: 'Taxes & Payments',  icon: '💳' },
   { id: 'online-del',    label: 'Online & Delivery', icon: '📱' },
@@ -465,12 +467,37 @@ export default function Settings() {
                                 style={{ marginTop: 3 }}
                                 onChange={e => {
                                   const modes = settings.modes ?? [];
-                                  updateField('modes', e.target.checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
+                                  const checked = e.target.checked;
+                                  updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
+                                  if (m.key === 'kds') {
+                                    updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                                  }
                                 }}
                               />
                               <div>
                                 <div style={{ fontWeight:'var(--weight-semibold)', fontSize:'var(--text-footnote)', color:'var(--color-label-primary)' }}>{m.label}</div>
                                 <div style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-secondary)', marginTop:2, lineHeight:1.3 }}>{m.desc}</div>
+                                {m.key === 'kds' && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('kitchen'); }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      marginTop: 4,
+                                      fontSize: '11px',
+                                      color: 'var(--color-accent)',
+                                      fontWeight: 'var(--weight-bold)',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    ⚙️ Configure Display / 3" Thermal Print
+                                  </button>
+                                )}
                               </div>
                             </label>
                           );
@@ -680,6 +707,11 @@ export default function Settings() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Kitchen & KOT Settings Tab */}
+          {activeTab === 'kitchen' && (
+            <KitchenSettings settings={settings} updateField={updateField} />
           )}
 
           {/* Receipt Designer Tab */}
@@ -1391,6 +1423,65 @@ export default function Settings() {
           {/* Peripherals Tab */}
           {activeTab === 'hardware' && (
             <>
+              {/* Kitchen Routing Overview Banner */}
+              <div style={{
+                padding: 'var(--space-4)',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-separator)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 'var(--space-4)',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-accent-light)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem'
+                  }}>
+                    🍳
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 'var(--weight-bold)', fontSize: '13.5px', color: 'var(--color-label-primary)' }}>
+                        Kitchen Order Routing:
+                      </span>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 'var(--weight-bold)',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        background: (settings.kitchenConfig?.mode === 'disabled') ? 'var(--color-bg-tertiary)' : 'var(--color-accent-light)',
+                        color: (settings.kitchenConfig?.mode === 'disabled') ? 'var(--color-label-tertiary)' : 'var(--color-accent)'
+                      }}>
+                        {settings.kitchenConfig?.mode === 'display_only' ? '🖥️ Display Only (KDS)' :
+                         settings.kitchenConfig?.mode === 'printer_only' ? '🖨️ Thermal 3" Printer Only' :
+                         settings.kitchenConfig?.mode === 'disabled' ? '🚫 Disabled' : '⚡ Both (Display & 3" Thermal Print)'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                      Paper Size: <strong>{settings.kitchenConfig?.paperSize || '80mm'} (3-inch)</strong> · Auto-print & sound alerts configured
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setActiveTab('kitchen')}
+                  style={{ height: '32px', fontSize: '12px' }}
+                >
+                  Configure Kitchen Routing
+                </button>
+              </div>
+
               {/* Hardware Peripherals */}
               <div className="card card-padded">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>

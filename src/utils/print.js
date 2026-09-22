@@ -206,6 +206,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
 function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) {
   const lineWidth = getPrinterLineWidth(printerConfig);
   const is58mm = lineWidth === 32;
+  const ticketTitle = printerConfig?.ticketTitle || 'KITCHEN TICKET';
 
   const ESC = 27;
   const GS = 29;
@@ -243,7 +244,7 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
   writeBytes(ALIGN_CENTER);
   writeBytes(DOUBLE_SIZE);
   writeBytes(BOLD_ON);
-  writeTextLine(`KITCHEN TICKET`);
+  writeTextLine(ticketTitle);
   writeBytes(NORMAL_SIZE);
   writeBytes(BOLD_OFF);
   
@@ -375,8 +376,9 @@ export async function pairBluetoothPrinter() {
               break;
             }
           }
-          if (writeChar) break;
-        } catch {}
+        } catch {
+          // Ignore service scanning error and continue
+        }
       }
     }
 
@@ -503,11 +505,27 @@ export function printReceiptSingle({ restaurant, order, items, taxInfo, staffNam
 
 // Loop through all kitchen printers, filter items by category, and send ticket
 export function printKitchenTickets({ restaurant, order, items, staffName }) {
+  const kitchenConfig = restaurant?.kitchenConfig;
+  // If mode is explicitly set to display_only or disabled, do not physically print tickets
+  const kitchenMode = kitchenConfig?.mode || (restaurant?.modes?.includes('kds') ? 'both' : 'printer_only');
+  if (kitchenMode === 'display_only' || kitchenMode === 'disabled') {
+    return;
+  }
+
   const printers = restaurant?.peripheralConfig?.printers ?? [];
   const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
+  const paperSize = kitchenConfig?.paperSize || '80mm';
+  const ticketTitle = kitchenConfig?.ticketTitle || 'KITCHEN TICKET';
 
+  // Fallback to default 3-inch (80mm) thermal browser print if no specific kitchen printer is registered
   if (kitchenPrinters.length === 0) {
-    // No kitchen printers configured
+    printKitchenBrowser({
+      order,
+      items,
+      printerName: 'Kitchen (3" Thermal)',
+      paperSize,
+      title: ticketTitle
+    });
     return;
   }
 
@@ -525,10 +543,27 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
       return;
     }
 
+    const effectivePaperSize = printer.paperSize || paperSize;
     if (printer.mode === 'browser') {
-      printKitchenBrowser({ order, items: routedItems, printerName: printer.name, paperSize: printer.paperSize || '80mm' });
+      printKitchenBrowser({
+        order,
+        items: routedItems,
+        printerName: printer.name || 'Kitchen',
+        paperSize: effectivePaperSize,
+        title: ticketTitle
+      });
     } else {
-      const buffer = compileEscPosKitchenTicket({ order, items: routedItems, staffName, printerConfig: printer });
+      const buffer = compileEscPosKitchenTicket({
+        order,
+        items: routedItems,
+        staffName,
+        printerConfig: {
+          ...printer,
+          paperSize: effectivePaperSize,
+          soundAlerts: printer.soundAlerts ?? kitchenConfig?.soundBuzzer ?? false,
+          ticketTitle
+        }
+      });
       if (printer.mode === 'bluetooth') {
         sendToBluetoothPrinter(buffer);
       } else if (printer.mode === 'serial') {
@@ -542,6 +577,7 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
 
 // Dedicated single station ticket for KDS on-demand reprints
 export function printSingleKitchenTicket({ restaurant, order, items, staffName, printerId }) {
+  const kitchenConfig = restaurant?.kitchenConfig;
   const printers = restaurant?.peripheralConfig?.printers ?? [];
   const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
   const targetPrinter = (printerId ? kitchenPrinters.find(p => p.id === printerId) : null) || kitchenPrinters[0];
@@ -552,12 +588,16 @@ export function printSingleKitchenTicket({ restaurant, order, items, staffName, 
     return;
   }
 
+  const paperSize = targetPrinter?.paperSize || kitchenConfig?.paperSize || '80mm';
+  const ticketTitle = kitchenConfig?.ticketTitle || 'KITCHEN TICKET';
+
   if (!targetPrinter || targetPrinter.mode === 'browser') {
     printKitchenBrowser({
       order,
       items: orderItems,
-      printerName: targetPrinter?.name || 'Kitchen / KDS Station',
-      paperSize: targetPrinter?.paperSize || '80mm'
+      printerName: targetPrinter?.name || 'Kitchen Station',
+      paperSize,
+      title: ticketTitle
     });
     return;
   }
@@ -566,7 +606,12 @@ export function printSingleKitchenTicket({ restaurant, order, items, staffName, 
     order,
     items: orderItems,
     staffName: staffName || order?.staffName,
-    printerConfig: targetPrinter
+    printerConfig: {
+      ...targetPrinter,
+      paperSize,
+      soundAlerts: targetPrinter.soundAlerts ?? kitchenConfig?.soundBuzzer ?? false,
+      ticketTitle
+    }
   });
 
   if (targetPrinter.mode === 'bluetooth') {
@@ -690,7 +735,7 @@ ${order.upiRef ? `<div style="font-size:10px">UPI Ref: ${order.upiRef}</div>` : 
   setTimeout(() => { win.print(); win.close(); }, 400);
 }
 
-function printKitchenBrowser({ order, items, printerName, paperSize = '80mm' }) {
+function printKitchenBrowser({ order, items, printerName, paperSize = '80mm', title = 'KITCHEN TICKET' }) {
   const is58mm = paperSize === '58mm';
   const win = window.open('', '_blank', 'width=360,height=480');
   if (!win) return;
@@ -717,7 +762,7 @@ function printKitchenBrowser({ order, items, printerName, paperSize = '80mm' }) 
 <html>
 <head>
 <meta charset="UTF-8"/>
-<title>Kitchen Ticket - ${order.tableName || order.token || ''}</title>
+<title>${title} - ${order.tableName || order.token || ''}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -740,7 +785,7 @@ function printKitchenBrowser({ order, items, printerName, paperSize = '80mm' }) 
 </style>
 </head>
 <body>
-<div class="center bold large">KITCHEN TICKET</div>
+<div class="center bold large">${title}</div>
 <div class="center bold" style="font-size: ${is58mm ? '12px' : '14px'};">Station: ${printerName}</div>
 <div class="divider"></div>
 <div style="font-size: ${is58mm ? '13px' : '15px'}; font-weight: 900;">${orderTypeLabel}</div>
