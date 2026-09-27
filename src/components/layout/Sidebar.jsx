@@ -9,12 +9,13 @@ import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen, Download
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen, Download, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { useUpdateStore } from '../../stores/updateStore';
 
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
@@ -50,6 +51,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const role = staffDoc?.role ?? 'cashier';
   const { terms } = useBusinessConfig();
   const { canInstall, isStandalone, promptInstall } = usePwaInstall();
+  const hasUpdate = useUpdateStore(s => s.hasUpdate);
+  const isUpdating = useUpdateStore(s => s.isUpdating);
+  const applyUpdate = useUpdateStore(s => s.applyUpdate);
 
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -215,6 +219,34 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Footer */}
       <div className="sidebar-footer" style={{ padding: isCollapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {hasUpdate && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={applyUpdate}
+            style={{
+              width: '100%',
+              marginBottom: 'var(--space-2)',
+              height: '36px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              color: '#fff',
+              background: 'linear-gradient(135deg, #f97316, #ef4444)',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+              cursor: 'pointer'
+            }}
+            title="A new version of DineOS is ready to install"
+          >
+            <RefreshCw size={14} className={isUpdating ? 'animate-spin' : ''} />
+            {!isCollapsed && (isUpdating ? 'Updating...' : 'Update App')}
+          </button>
+        )}
         {!isStandalone && canInstall && (
           <button
             type="button"

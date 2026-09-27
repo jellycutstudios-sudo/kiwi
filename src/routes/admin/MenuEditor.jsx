@@ -4,7 +4,7 @@ import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Sparkles, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
@@ -44,7 +44,7 @@ const generateId = () => crypto.randomUUID();
 export default function MenuEditor() {
   const { restaurant } = useAuthStore();
   const { categories } = useMenuStore();
-  const { terms, isRetail } = useBusinessConfig();
+  const { terms } = useBusinessConfig();
   const [activeCat, setActiveCat] = useState(null);
   const [showCatForm, setShowCatForm] = useState(false);
   const [showItemForm, setShowItemForm] = useState(false);
@@ -54,6 +54,69 @@ export default function MenuEditor() {
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+
+  // Quick 1-click preset templates for restaurant owners
+  const addModifierPreset = (type) => {
+    const timestamp = Date.now();
+    let newGroup;
+    if (type === 'portions') {
+      newGroup = {
+        id: timestamp.toString(),
+        name: 'Portion / Size',
+        required: true,
+        maxSelect: 1,
+        options: [
+          { id: `${timestamp}-opt-qtr`, name: 'Quarter', priceAdd: 0 },
+          { id: `${timestamp}-opt-hlf`, name: 'Half', priceAdd: 0 },
+          { id: `${timestamp}-opt-ful`, name: 'Full', priceAdd: 0 }
+        ]
+      };
+    } else if (type === 'sizes') {
+      newGroup = {
+        id: timestamp.toString(),
+        name: 'Size',
+        required: true,
+        maxSelect: 1,
+        options: [
+          { id: `${timestamp}-opt-sml`, name: 'Small', priceAdd: 0 },
+          { id: `${timestamp}-opt-med`, name: 'Medium', priceAdd: 0 },
+          { id: `${timestamp}-opt-lrg`, name: 'Large', priceAdd: 0 }
+        ]
+      };
+    } else if (type === 'spice') {
+      newGroup = {
+        id: timestamp.toString(),
+        name: 'Spice Level',
+        required: true,
+        maxSelect: 1,
+        options: [
+          { id: `${timestamp}-opt-mild`, name: 'Mild', priceAdd: 0 },
+          { id: `${timestamp}-opt-med`, name: 'Medium', priceAdd: 0 },
+          { id: `${timestamp}-opt-hot`, name: 'Extra Spicy', priceAdd: 0 }
+        ]
+      };
+    } else if (type === 'addons') {
+      newGroup = {
+        id: timestamp.toString(),
+        name: 'Add-ons & Extras',
+        required: false,
+        maxSelect: 5,
+        options: [
+          { id: `${timestamp}-opt-chz`, name: 'Extra Cheese', priceAdd: 0 },
+          { id: `${timestamp}-opt-dip`, name: 'Garlic Dip / Mayo', priceAdd: 0 }
+        ]
+      };
+    } else {
+      newGroup = {
+        id: timestamp.toString(),
+        name: '',
+        required: false,
+        maxSelect: 1,
+        options: [{ id: `${timestamp}-opt`, name: '', priceAdd: 0 }]
+      };
+    }
+    setItemForm(f => ({ ...f, modifierGroups: [...(f.modifierGroups ?? []), newGroup] }));
+  };
 
   // One-time fetch for inventory (COGS recipe editing)
   useEffect(() => {
@@ -85,13 +148,17 @@ export default function MenuEditor() {
   };
 
   const saveItem = async () => {
-    if (!itemForm.name.trim() || !itemForm.price) return;
+    const parsedPrice = parseFloat(itemForm.price);
+    if (!itemForm.name.trim() || itemForm.price === '' || isNaN(parsedPrice) || parsedPrice < 0) {
+      toast.error('Please enter a valid item name and price (minimum 0)');
+      return;
+    }
     const cat = categories.find(c => c.id === activeCatId);
     if (!cat) return;
     const newItem = {
       id: editItem?.id ?? generateId(),
       name: itemForm.name.trim(),
-      price: parseFloat(itemForm.price),
+      price: parsedPrice,
       description: itemForm.description.trim(),
       emoji: itemForm.emoji.trim() || '🍽️',
       available: itemForm.available,
@@ -231,17 +298,30 @@ export default function MenuEditor() {
                   <div style={{ fontSize: 28, flexShrink: 0 }}>{item.emoji ?? '🍽️'}</div>
                 )}
                 <div style={{ flex: 1, minWidth: 150 }}>
-                  <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {item.name}
+                  <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span>{item.name}</span>
                     {item.highMargin && <span title="High Margin">⭐</span>}
                     {item.barcode && <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px' }}>🏷️ {item.barcode}</span>}
+                    {item.modifierGroups?.length > 0 && (
+                      <span style={{ fontSize: '10.5px', color: 'var(--color-accent)', background: 'var(--color-accent-light, rgba(0,122,255,0.08))', border: '1px solid var(--color-accent)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                        ⚡ {item.modifierGroups.length} {item.modifierGroups.length === 1 ? 'Portion/Size' : 'Portions/Modifiers'}
+                      </span>
+                    )}
                   </div>
                   {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
                 </div>
                 
                 <div className="menu-item-meta-actions">
                   <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', minWidth: 80, textAlign: 'right', fontSize: 'var(--text-subhead)' }}>
-                    {formatCurrency(item.price, restaurant?.currency ?? 'INR')}
+                    {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
+                      (() => {
+                        const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                        const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                        return `From ${formatCurrency(minPrice, restaurant?.currency ?? 'INR')}`;
+                      })()
+                    ) : (
+                      formatCurrency(item.price, restaurant?.currency ?? 'INR')
+                    )}
                     {item.unit && item.unit !== 'pcs' && <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>}
                   </div>
                   <div className="menu-item-actions">
@@ -346,7 +426,7 @@ export default function MenuEditor() {
                   transition: 'all 0.15s ease'
                 }}
               >
-                Modifiers & Variants ({itemForm.modifierGroups?.length ?? 0})
+                Portions & Add-ons ({itemForm.modifierGroups?.length ?? 0})
               </button>
               <button
                 type="button"
@@ -470,6 +550,9 @@ export default function MenuEditor() {
                         style={{ paddingLeft: 24, height: 40 }}
                       />
                     </div>
+                    <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block', lineHeight: 1.3 }}>
+                      💡 If selling portions (Quarter, Half, Full), you can set Base Price to <strong>0</strong> and define exact prices under <strong>Portions & Add-ons</strong>.
+                    </span>
                   </div>
                   
                   <div className="form-group">
@@ -612,83 +695,180 @@ export default function MenuEditor() {
               </div>
             )}
 
-            {/* Tab 2: Modifiers & Variants */}
+            {/* Tab 2: Portions & Add-ons */}
             {activeTab === 'modifiers' && (
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-6)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1.5px solid var(--color-separator-opaque)', paddingBottom: 'var(--space-2)' }}>
-                  <div>
-                    <span style={{ fontWeight: '800', fontSize: 'var(--text-subhead)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Modifier Groups
-                    </span>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-label-tertiary)' }}>
-                      Set up mandatory choices or add-ons (e.g. Size, Toppings)
-                    </p>
+                {/* Header & 1-Click Presets */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', borderBottom: '1.5px solid var(--color-separator-opaque)', paddingBottom: 'var(--space-4)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                    <div>
+                      <span style={{ fontWeight: '800', fontSize: 'var(--text-subhead)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Portions, Sizes & Add-ons
+                      </span>
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                        Manage portions (Full / Half / Quarter) or extras for <strong>{itemForm.name || 'this item'}</strong>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => addModifierPreset('custom')}
+                      style={{ padding: '6px 12px', fontSize: 'var(--text-caption1)' }}
+                    >
+                      + Add Custom Group
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => {
-                      const newGroup = {
-                        id: Date.now().toString(),
-                        name: '',
-                        required: false,
-                        maxSelect: 1,
-                        options: [{ id: Date.now().toString() + '-opt', name: '', priceAdd: 0 }]
-                      };
-                      setItemForm(f => ({ ...f, modifierGroups: [...(f.modifierGroups ?? []), newGroup] }));
-                    }}
-                    style={{ padding: '6px 12px', fontSize: 'var(--text-caption1)' }}
-                  >
-                    + Add Group
-                  </button>
+
+                  {/* 1-Click Presets Bar */}
+                  <div style={{
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    border: '1px solid var(--color-separator-opaque)'
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Sparkles size={13} color="var(--color-accent)" /> 1-Click Templates:
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => addModifierPreset('portions')}
+                      style={{ fontSize: 11, padding: '4px 9px', borderRadius: 'var(--radius-sm)' }}
+                      title="Add Quarter, Half, Full portion group"
+                    >
+                      🍗 Quarter / Half / Full
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => addModifierPreset('sizes')}
+                      style={{ fontSize: 11, padding: '4px 9px', borderRadius: 'var(--radius-sm)' }}
+                      title="Add Small, Medium, Large sizes"
+                    >
+                      📏 Small / Medium / Large
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => addModifierPreset('spice')}
+                      style={{ fontSize: 11, padding: '4px 9px', borderRadius: 'var(--radius-sm)' }}
+                      title="Add Mild, Medium, Hot spice levels"
+                    >
+                      🌶️ Spice Level
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => addModifierPreset('addons')}
+                      style={{ fontSize: 11, padding: '4px 9px', borderRadius: 'var(--radius-sm)' }}
+                      title="Add extra cheese, dips, etc."
+                    >
+                      🧀 Extras & Add-ons
+                    </button>
+                  </div>
+
+                  {/* Friendly Explanation Card */}
+                  <div style={{
+                    background: 'rgba(0,122,255,0.06)',
+                    border: '1px solid rgba(0,122,255,0.2)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 14px',
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                    color: 'var(--color-label)'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>💡</span> How Portions Work for Owners:
+                    </div>
+                    <div>
+                      • If your item has multiple sizes (e.g. <strong>Garlic Chicken</strong>), set Base Price to <strong>0</strong> in General Info.<br/>
+                      • Add a <strong>Portion / Size</strong> group, mark as <em>"Portion / Size (Pick 1)"</em>, and enter the price for Quarter, Half, and Full.<br/>
+                      • The <strong>Customer Price</strong> preview shows the exact price that appears on the POS and customer bill.
+                    </div>
+                  </div>
                 </div>
 
+                {/* Groups List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                  {(itemForm.modifierGroups ?? []).map((group, gIdx) => (
-                    <div key={group.id} style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--color-separator-opaque)' }}>
-                      
-                      {/* Modifier Group Header */}
-                      <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: 200 }}>
-                          <input
-                            className="form-input"
-                            placeholder="Group Name (e.g. Size, Add-ons)"
-                            value={group.name}
-                            onChange={e => {
-                              const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, name: e.target.value } : g);
-                              setItemForm(f => ({ ...f, modifierGroups: updated }));
-                            }}
-                            style={{ height: 36, padding: '4px var(--space-2)', fontSize: 'var(--text-subhead)' }}
-                          />
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-caption1)', cursor: 'pointer', fontWeight: 'var(--weight-semibold)' }}>
+                  {(itemForm.modifierGroups ?? []).map((group, gIdx) => {
+                    const isPortionType = group.required && group.maxSelect === 1;
+                    const basePriceNum = parseFloat(itemForm.price) || 0;
+
+                    return (
+                      <div key={group.id} style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--color-separator-opaque)' }}>
+                        {/* Group Header & Name */}
+                        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: 220 }}>
+                            <label style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.5px', marginBottom: 2, display: 'block' }}>
+                              Group Name
+                            </label>
                             <input
-                              type="checkbox"
-                              checked={group.required}
-                              onChange={e => {
-                                const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, required: e.target.checked } : g);
-                                setItemForm(f => ({ ...f, modifierGroups: updated }));
-                              }}
-                              style={{ width: 15, height: 15 }}
-                            />
-                            Required
-                          </label>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)' }}>
-                            <span>Max Select</span>
-                            <input
-                              type="number"
                               className="form-input"
-                              min={1}
-                              style={{ width: 50, height: 32, padding: '2px 4px', textAlign: 'center', fontSize: 'var(--text-subhead)' }}
-                              value={group.maxSelect}
+                              placeholder="e.g. Portion / Size, Add-ons"
+                              value={group.name}
                               onChange={e => {
-                                const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, maxSelect: parseInt(e.target.value) || 1 } : g);
+                                const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, name: e.target.value } : g);
                                 setItemForm(f => ({ ...f, modifierGroups: updated }));
                               }}
+                              style={{ height: 36, padding: '4px var(--space-2)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-semibold)' }}
                             />
+                          </div>
+
+                          {/* Quick Mode Switch: Portion (Pick 1) vs Optional Extras */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.5px' }}>
+                              Group Type
+                            </span>
+                            <div style={{ display: 'flex', background: 'var(--color-bg)', padding: 2, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator-opaque)' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, required: true, maxSelect: 1 } : g);
+                                  setItemForm(f => ({ ...f, modifierGroups: updated }));
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: isPortionType ? 'var(--color-accent)' : 'transparent',
+                                  color: isPortionType ? '#fff' : 'var(--color-label)',
+                                  padding: '4px 10px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: 11,
+                                  fontWeight: isPortionType ? 700 : 500,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                              >
+                                🎯 Portion / Size (Pick 1)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, required: false, maxSelect: Math.max(g.options?.length || 1, 3) } : g);
+                                  setItemForm(f => ({ ...f, modifierGroups: updated }));
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: !isPortionType ? 'var(--color-accent)' : 'transparent',
+                                  color: !isPortionType ? '#fff' : 'var(--color-label)',
+                                  padding: '4px 10px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: 11,
+                                  fontWeight: !isPortionType ? 700 : 500,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                              >
+                                ➕ Optional Extras
+                              </button>
+                            </div>
                           </div>
 
                           <button
@@ -697,117 +877,180 @@ export default function MenuEditor() {
                               const updated = itemForm.modifierGroups.filter((_, idx) => idx !== gIdx);
                               setItemForm(f => ({ ...f, modifierGroups: updated }));
                             }}
-                            style={{ background: 'none', border: 'none', color: 'var(--color-red)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                            title="Delete Group"
+                            style={{ background: 'none', border: 'none', color: 'var(--color-red)', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center', alignSelf: 'flex-end' }}
+                            title="Delete this group"
                           >
                             <Trash2 size={16} />
                           </button>
                         </div>
-                      </div>
 
-                      {/* Options List */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderLeft: '2px solid var(--color-separator-opaque)', paddingLeft: 'var(--space-3)', marginLeft: 'var(--space-2)' }}>
-                        <span style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.5px' }}>Options & Price Customization</span>
-                        {group.options.map((opt, oIdx) => (
-                          <div key={opt.id} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                            <input
-                              className="form-input"
-                              placeholder="Option Name (e.g. Large, Extra Cheese)"
-                              value={opt.name}
-                              onChange={e => {
-                                const updatedOpts = group.options.map((o, idx) => idx === oIdx ? { ...o, name: e.target.value } : o);
-                                const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
-                                setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
-                              }}
-                              style={{ flex: 1, height: 32, padding: '2px var(--space-2)', fontSize: 'var(--text-footnote)' }}
-                            />
-                            
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: 90 }}>
-                              <span style={{ position: 'absolute', left: 8, fontSize: 10, color: 'var(--color-label-tertiary)' }}>+</span>
-                              <input
-                                className="form-input"
-                                type="number"
-                                placeholder="0.00"
-                                style={{ width: '100%', height: 32, paddingLeft: 18, fontSize: 'var(--text-footnote)' }}
-                                value={opt.priceAdd === 0 ? '' : opt.priceAdd}
-                                onChange={e => {
-                                  const val = parseFloat(e.target.value) || 0;
-                                  const updatedOpts = group.options.map((o, idx) => idx === oIdx ? { ...o, priceAdd: val } : o);
-                                  const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
-                                  setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
-                                }}
-                              />
-                            </div>
-                            
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updatedOpts = group.options.filter((_, idx) => idx !== oIdx);
-                                const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
-                                setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
-                              }}
-                              style={{ background: 'none', border: 'none', color: 'var(--color-label-tertiary)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                            >
-                              <X size={14} />
-                            </button>
+                        {/* Behavior helper note */}
+                        <div style={{ fontSize: 11, color: isPortionType ? 'var(--color-accent)' : 'var(--color-label-secondary)', marginBottom: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+                          {isPortionType ? (
+                            <>
+                              <CheckCircle2 size={13} />
+                              <span><strong>Mandatory Choice:</strong> Customer/Cashier MUST select 1 portion before the item can be added.</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>⚪</span>
+                              <span><strong>Optional Choice:</strong> Customer can choose up to {group.maxSelect} extra add-ons, or skip.</span>
+                              <label style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                Max:
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={group.maxSelect}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 1;
+                                    const updated = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, maxSelect: val } : g);
+                                    setItemForm(f => ({ ...f, modifierGroups: updated }));
+                                  }}
+                                  style={{ width: 44, height: 22, textAlign: 'center', fontSize: 11 }}
+                                  className="form-input"
+                                />
+                              </label>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Options List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderLeft: '2px solid var(--color-separator-opaque)', paddingLeft: 'var(--space-3)', marginLeft: 'var(--space-2)' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 100px 140px 32px', gap: 'var(--space-2)', alignItems: 'center' }}>
+                            <span style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.5px' }}>
+                              Option / Size Name
+                            </span>
+                            <span style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.5px' }}>
+                              Price Added
+                            </span>
+                            <span style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.5px' }}>
+                              Customer Price
+                            </span>
+                            <span />
                           </div>
-                        ))}
-                        
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-xs"
-                          onClick={() => {
-                            const newOpt = { id: Date.now().toString() + '-opt-' + Math.random(), name: '', priceAdd: 0 };
-                            const updatedOpts = [...group.options, newOpt];
-                            const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
-                            setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
-                          }}
-                          style={{ alignSelf: 'flex-start', fontSize: 11, padding: '4px 8px', marginTop: 4, border: '1px dashed var(--color-separator-opaque)' }}
-                        >
-                          + Add Option
-                        </button>
+
+                          {group.options.map((opt, oIdx) => {
+                            const finalPrice = basePriceNum + (opt.priceAdd || 0);
+
+                            return (
+                              <div key={opt.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 100px 140px 32px', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                <input
+                                  className="form-input"
+                                  placeholder="e.g. Quarter, Half, Full"
+                                  value={opt.name}
+                                  onChange={e => {
+                                    const updatedOpts = group.options.map((o, idx) => idx === oIdx ? { ...o, name: e.target.value } : o);
+                                    const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
+                                    setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
+                                  }}
+                                  style={{ height: 34, padding: '2px var(--space-2)', fontSize: 'var(--text-footnote)' }}
+                                />
+                                
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                  <span style={{ position: 'absolute', left: 8, fontSize: 11, color: 'var(--color-label-tertiary)' }}>+</span>
+                                  <input
+                                    className="form-input"
+                                    type="number"
+                                    placeholder="0.00"
+                                    style={{ width: '100%', height: 34, paddingLeft: 18, fontSize: 'var(--text-footnote)' }}
+                                    value={opt.priceAdd === 0 ? '' : opt.priceAdd}
+                                    onChange={e => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      const updatedOpts = group.options.map((o, idx) => idx === oIdx ? { ...o, priceAdd: val } : o);
+                                      const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
+                                      setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Live Customer Price Badge */}
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '4px 8px',
+                                  background: 'var(--color-bg)',
+                                  borderRadius: 'var(--radius-md)',
+                                  border: '1px solid var(--color-separator-opaque)',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: 'var(--color-accent)',
+                                  height: 34,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {formatCurrency(finalPrice, restaurant?.currency ?? 'INR')}
+                                </div>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updatedOpts = group.options.filter((_, idx) => idx !== oIdx);
+                                    const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
+                                    setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: 'var(--color-label-tertiary)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+                                  title="Delete option"
+                                >
+                                  <X size={15} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                          
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => {
+                              const newOpt = { id: Date.now().toString() + '-opt-' + Math.random(), name: '', priceAdd: 0 };
+                              const updatedOpts = [...group.options, newOpt];
+                              const updatedGroups = itemForm.modifierGroups.map((g, idx) => idx === gIdx ? { ...g, options: updatedOpts } : g);
+                              setItemForm(f => ({ ...f, modifierGroups: updatedGroups }));
+                            }}
+                            style={{ alignSelf: 'flex-start', fontSize: 11, padding: '4px 8px', marginTop: 4, border: '1px dashed var(--color-separator-opaque)' }}
+                          >
+                            + Add Another Size / Option
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {(!itemForm.modifierGroups || itemForm.modifierGroups.length === 0) && (
                     <div style={{ 
                       fontSize: 'var(--text-footnote)', 
                       color: 'var(--color-label-tertiary)', 
                       textAlign: 'center', 
-                      padding: 'var(--space-6) var(--space-4)',
+                      padding: 'var(--space-8) var(--space-4)',
                       background: 'var(--color-bg-secondary)',
                       borderRadius: 'var(--radius-lg)',
                       border: '1.5px dashed var(--color-separator-opaque)',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 'var(--space-2)'
+                      gap: 'var(--space-3)'
                     }}>
-                      <div style={{ fontWeight: 600 }}>
-                        {itemForm.name}
-                        {itemForm.highMargin && <span style={{ marginLeft: 6, fontSize: 12 }} title="High Margin">⭐</span>}
+                      <div style={{ fontSize: 32 }}>🍗</div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-label)' }}>
+                        No Portions or Add-ons Added Yet
                       </div>
-                      <div style={{ fontSize: 24 }}>⚙️</div>
-                      <span style={{ fontWeight: 'var(--weight-semibold)' }}>No modifier groups configured</span>
-                      <span>Add modifier groups to customize item sizing or extras.</span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          const newGroup = {
-                            id: Date.now().toString(),
-                            name: '',
-                            required: false,
-                            maxSelect: 1,
-                            options: [{ id: Date.now().toString() + '-opt', name: '', priceAdd: 0 }]
-                          };
-                          setItemForm(f => ({ ...f, modifierGroups: [...(f.modifierGroups ?? []), newGroup] }));
-                        }}
-                        style={{ marginTop: 'var(--space-2)' }}
-                      >
-                        Create First Group
-                      </button>
+                      <span style={{ maxWidth: 360, lineHeight: 1.4 }}>
+                        Does <strong>{itemForm.name || 'this item'}</strong> come in Quarter, Half, or Full sizes? Click below to instantly set up portion sizes:
+                      </span>
+                      <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => addModifierPreset('portions')}
+                        >
+                          🍗 Add Quarter / Half / Full
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => addModifierPreset('custom')}
+                        >
+                          + Custom Group
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

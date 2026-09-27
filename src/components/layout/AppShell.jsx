@@ -7,10 +7,11 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Globe, Menu, Search, X, Download, Smartphone } from 'lucide-react';
+import { Bell, Globe, Menu, Search, X, Download, Smartphone, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { useUpdateStore } from '../../stores/updateStore';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
@@ -53,9 +54,15 @@ export default function AppShell() {
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
   const [showIosInstallModal, setShowIosInstallModal] = useState(false);
 
+  const hasUpdate = useUpdateStore(s => s.hasUpdate);
+  const isUpdating = useUpdateStore(s => s.isUpdating);
+  const applyUpdate = useUpdateStore(s => s.applyUpdate);
+  const setHasUpdate = useUpdateStore(s => s.setHasUpdate);
+
   // Listen for Service Worker update prompt and notify cashier/staff gracefully
   useEffect(() => {
     window.__swUpdateReady = () => {
+      setHasUpdate(true);
       toast((t) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div>
@@ -65,14 +72,10 @@ export default function AppShell() {
           <button
             onClick={() => {
               toast.dismiss(t.id);
-              if (typeof window.__updateSW === 'function') {
-                window.__updateSW(true);
-              } else {
-                window.location.reload();
-              }
+              applyUpdate();
             }}
             style={{
-              background: 'var(--color-accent)',
+              background: 'linear-gradient(135deg, #f97316, #ef4444)',
               color: '#fff',
               border: 'none',
               borderRadius: '6px',
@@ -95,7 +98,7 @@ export default function AppShell() {
     return () => {
       window.__swUpdateReady = null;
     };
-  }, []);
+  }, [applyUpdate, setHasUpdate]);
 
   // Close mobile sidebar whenever the route changes
   useEffect(() => {
@@ -278,6 +281,35 @@ export default function AppShell() {
           )}
 
           <div className="top-bar-actions" style={isPOS ? { marginLeft: 'auto' } : {}}>
+            {/* Direct 1-Click Update Button for Devices */}
+            {hasUpdate && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={applyUpdate}
+                id="topbar-update-app-btn"
+                title="A new version of DineOS is ready. Tap to update now."
+                style={{
+                  height: '32px',
+                  padding: '0 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'linear-gradient(135deg, #f97316, #ef4444)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <RefreshCw size={13} className={isUpdating ? 'animate-spin' : ''} />
+                <span>{isUpdating ? 'Updating...' : 'Update Ready'}</span>
+              </button>
+            )}
             {/* Install App button if running in browser */}
             {(canInstall || isIOS) && !isStandalone && (
               <button

@@ -6,6 +6,8 @@ import { registerSW } from 'virtual:pwa-register';
 import ErrorBoundary from './components/shared/ErrorBoundary.jsx';
 import { logError } from './utils/logger.js';
 
+import { useUpdateStore } from './stores/updateStore.js';
+
 // Register service worker immediately so Android PWA installability criteria
 // are met immediately. registerType='prompt' in vite.config.js ensures
 // onNeedRefresh is triggered gracefully without disrupting active orders.
@@ -13,8 +15,10 @@ if (typeof window !== 'undefined') {
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      // A new SW version is available. Show a non-intrusive toast so staff
-      // can choose when to refresh (e.g. between shifts, not mid-order).
+      // Mark global update store so UI buttons and indicators light up across all devices
+      useUpdateStore.getState().setHasUpdate(true);
+
+      // Trigger toast if AppShell listener is attached
       if (typeof window.__swUpdateReady === 'function') {
         window.__swUpdateReady();
       }
@@ -22,8 +26,37 @@ if (typeof window !== 'undefined') {
     onOfflineReady() {
       console.info('[SW] App is ready for offline use.');
     },
+    onRegisteredSW(swUrl, registration) {
+      if (registration) {
+        window.__swRegistration = registration;
+
+        // Proactively check for new versions every 10 minutes
+        setInterval(() => {
+          registration.update().catch(() => {});
+        }, 10 * 60 * 1000);
+      }
+    }
   });
   window.__updateSW = updateSW;
+
+  // Check for updates when app tab regains focus or visibility
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && window.__swRegistration) {
+      window.__swRegistration.update().catch(() => {});
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (window.__swRegistration) {
+      window.__swRegistration.update().catch(() => {});
+    }
+  });
+
+  window.addEventListener('online', () => {
+    if (window.__swRegistration) {
+      window.__swRegistration.update().catch(() => {});
+    }
+  });
 
 
   // Catch unhandled promise rejections

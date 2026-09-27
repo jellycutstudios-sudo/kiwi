@@ -118,7 +118,9 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
                 {item.name}
               </h2>
               <div style={{ fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
-                Base Price: {formatCurrency(basePrice, currency)}
+                {basePrice > 0 
+                  ? `Base Price: ${formatCurrency(basePrice, currency)}` 
+                  : 'Select your portion / options'}
               </div>
             </div>
           </div>
@@ -199,13 +201,17 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
                             {opt.name}
                           </span>
                         </div>
-                        {opt.priceAdd > 0 && (
+                        {opt.priceAdd > 0 ? (
                           <span style={{
                             fontSize: 'var(--text-caption1)',
                             fontWeight: 'var(--weight-bold)',
                             color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)'
                           }}>
-                            +{formatCurrency(opt.priceAdd, currency)}
+                            {basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-tertiary)' }}>
+                            {basePrice === 0 ? formatCurrency(0, currency) : 'Included'}
                           </span>
                         )}
                       </button>

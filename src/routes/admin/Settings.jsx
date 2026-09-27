@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'fireb
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
-import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, Image, Sparkles } from 'lucide-react';
+import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, Sparkles, RefreshCw } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
 import { convertLogoForThermal } from '../../utils/thermalLogo';
@@ -14,6 +14,7 @@ import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
 import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
+import { useUpdateStore } from '../../stores/updateStore';
 
 const MODES = [
   { key: 'pos',          label: '🧾 Bill Only',            desc: 'Simple cashier-only billing' },
@@ -55,6 +56,7 @@ export default function Settings() {
   const [slideshowList, setSlideshowList] = useState([]);
   const [activeTab, setActiveTab] = useState('general');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const { hasUpdate, isUpdating, applyUpdate, checkForUpdates } = useUpdateStore();
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -800,6 +802,78 @@ export default function Settings() {
                         <option value="yes">Yes (added pre-tax)</option>
                       </select>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Version & App Updates */}
+              <div className="card card-padded">
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>⚡ System Version &amp; App Updates</h3>
+                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
+                  Manage software updates across all connected POS terminals, tablets, and mobile devices.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)', background: 'var(--color-bg-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator-opaque)' }}>
+                  <div>
+                    <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>DineOS Cloud POS</span>
+                      <span className="badge badge-gray" style={{ fontSize: 11 }}>v1.0.0</span>
+                      {hasUpdate ? (
+                        <span className="badge badge-orange" style={{ fontSize: 11, background: 'rgba(249,115,22,0.2)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.4)' }}>
+                          🚀 New Update Ready
+                        </span>
+                      ) : (
+                        <span className="badge badge-green" style={{ fontSize: 11 }}>
+                          ✓ Up to Date
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 4 }}>
+                      {hasUpdate 
+                        ? 'A new version with performance improvements and new features is ready to install.'
+                        : 'Your POS device is currently running the latest certified build.'}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    {hasUpdate ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={applyUpdate}
+                        disabled={isUpdating}
+                        style={{
+                          background: 'linear-gradient(135deg, #f97316, #ef4444)',
+                          color: '#fff',
+                          border: 'none',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <RefreshCw size={14} className={isUpdating ? 'animate-spin' : ''} />
+                        {isUpdating ? 'Updating...' : 'Update App Now'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={async () => {
+                          toast.loading('Checking for updates...', { id: 'check-upd' });
+                          await checkForUpdates();
+                          setTimeout(() => {
+                            if (useUpdateStore.getState().hasUpdate) {
+                              toast.success('New update found and ready to install!', { id: 'check-upd' });
+                            } else {
+                              toast.success('You are running the latest version!', { id: 'check-upd' });
+                            }
+                          }, 1000);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <RefreshCw size={14} /> Check for Updates
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

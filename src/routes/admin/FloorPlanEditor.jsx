@@ -212,7 +212,7 @@ export default function FloorPlanEditor() {
   // Render visual chairs dynamically around a table card
   const renderChairs = (table) => {
     const chairs = [];
-    const capacity = table.capacity || 4;
+    const capacity = parseInt(table.capacity, 10) || 4;
     const size = table.w || 80;
     const shape = table.shape || 'rect';
     const isOccupied = table.status === 'occupied';
@@ -456,7 +456,7 @@ export default function FloorPlanEditor() {
                     {renderChairs(table)}
                     <div className="table-label">{table.name}</div>
                     <div className="table-capacity">
-                      <span>👥</span> {table.capacity}p
+                      <span>👥</span> {table.capacity || 1}p
                     </div>
                   </div>
                 ))}
@@ -503,9 +503,26 @@ export default function FloorPlanEditor() {
                   className="fpe-input"
                   type="number"
                   min={1}
-                  max={20}
-                  value={selectedTable.capacity}
-                  onChange={e => updateTable(restaurant.id, selected, { capacity: parseInt(e.target.value) || 1 })}
+                  max={50}
+                  value={selectedTable.capacity ?? ''}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      updateTable(restaurant.id, selected, { capacity: '' });
+                    } else {
+                      const num = parseInt(raw, 10);
+                      if (!isNaN(num)) {
+                        updateTable(restaurant.id, selected, { capacity: num });
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    if (selectedTable.capacity === '' || !selectedTable.capacity || selectedTable.capacity < 1) {
+                      updateTable(restaurant.id, selected, { capacity: 1 });
+                    } else if (selectedTable.capacity > 50) {
+                      updateTable(restaurant.id, selected, { capacity: 50 });
+                    }
+                  }}
                 />
               </div>
               <div className="fpe-form-group">

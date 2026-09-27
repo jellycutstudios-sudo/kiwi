@@ -1361,7 +1361,17 @@ export default function POS() {
                       {item.highMargin && <span title="Chef's Special" style={{ fontSize: '11px', flexShrink: 0 }}>⭐</span>}
                     </div>
                     <div className="menu-key-footer">
-                      <span className="menu-key-price">{formatCurrency(item.price, currency)}</span>
+                      <span className="menu-key-price">
+                        {hasModifiers && parseFloat(item.price) === 0 ? (
+                          (() => {
+                            const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                            return `From ${formatCurrency(minPrice, currency)}`;
+                          })()
+                        ) : (
+                          formatCurrency(item.price, currency)
+                        )}
+                      </span>
                       {qty > 0 ? (
                         <span className="menu-key-qty-badge">
                           <Check size={10} strokeWidth={3} /> {qty}
@@ -1422,7 +1432,22 @@ export default function POS() {
                       {item.name}
                       {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px' }}>⭐</span>}
                     </div>
-                    <div className="menu-item-price">{formatCurrency(item.price, currency)}</div>
+                    <div className="menu-item-price" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>
+                        {hasModifiers && parseFloat(item.price) === 0 ? (
+                          (() => {
+                            const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                            return `From ${formatCurrency(minPrice, currency)}`;
+                          })()
+                        ) : (
+                          formatCurrency(item.price, currency)
+                        )}
+                      </span>
+                      {hasModifiers && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-accent)', fontWeight: 600 }}>Sizes</span>
+                      )}
+                    </div>
                   </div>
 
                 </div>

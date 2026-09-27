@@ -1048,7 +1048,24 @@ export default function OnlineOrderPage() {
                 <div style={{ flex:1 }}>
                   <div style={{ fontWeight:'var(--weight-semibold)' }}>{item.name}</div>
                   {item.description && <div style={{ fontSize:'var(--text-footnote)', color:'var(--color-label-secondary)', marginTop:2 }}>{item.description}</div>}
-                  <div style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)', marginTop:4 }}>{formatCurrency(item.price, currency)}</div>
+                  <div style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)', marginTop:4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>
+                      {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
+                        (() => {
+                          const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                          const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                          return `From ${formatCurrency(minPrice, currency)}`;
+                        })()
+                      ) : (
+                        formatCurrency(item.price, currency)
+                      )}
+                    </span>
+                    {item.modifierGroups?.length > 0 && (
+                      <span style={{ fontSize: '10.5px', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px', color: 'var(--color-label-secondary)', fontWeight: 'normal' }}>
+                        Customizable
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {cartItem ? (
                   <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
