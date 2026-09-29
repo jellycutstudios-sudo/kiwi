@@ -103,7 +103,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 <h2 className="modal-title" style={{ fontSize: 16.5, fontWeight: 800, color: 'var(--color-label)' }}>
                   {t('selectTable')}
                 </h2>
-                <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(0,0,0,0.06)', padding: '1px 7px', borderRadius: 999 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--color-fill)', color: 'var(--color-label-secondary)', padding: '1px 7px', borderRadius: 999 }}>
                   {filteredTables.length} of {tables.length} tables
                 </span>
               </div>
@@ -207,8 +207,6 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                background: freeFirst ? 'var(--color-accent)' : undefined,
-                color: freeFirst ? '#ffffff' : undefined,
               }}
               title="Prioritize available free tables at the top"
             >

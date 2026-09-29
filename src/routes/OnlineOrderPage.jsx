@@ -7,6 +7,7 @@ import { computeTax } from '../utils/taxUtils';
 import { Plus, Minus, Check, Clock, ChefHat, CheckSquare } from 'lucide-react';
 import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
+import LoadingScreen from '../components/shared/LoadingScreen';
 
 export default function OnlineOrderPage() {
   const { restaurantId } = useParams();
@@ -170,9 +171,11 @@ export default function OnlineOrderPage() {
     textAlign: 'center',
   };
 
-  const addToCart = (item, selectedModifiers = []) => {
+  const addToCart = (item, selectedModifiers = [], flatPrice = null) => {
     setCart(c => {
-      const modifierTotal = selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
+      const isVariant = flatPrice !== null && flatPrice !== undefined;
+      const modifierTotal = isVariant ? 0 : selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
+      const unitPrice = isVariant ? flatPrice : (item.price + modifierTotal);
       const customId = selectedModifiers.length > 0
         ? item.id + '-' + selectedModifiers.map(m => m.id).sort().join('-')
         : item.id;
@@ -186,8 +189,8 @@ export default function OnlineOrderPage() {
           id: customId,
           menuItemId: item.id,
           selectedModifiers,
-          modifierTotal,
-          price: item.price + modifierTotal,
+          modifierTotal: isVariant ? flatPrice : modifierTotal,
+          price: unitPrice,
           qty: 1
         }];
       }
@@ -375,12 +378,7 @@ export default function OnlineOrderPage() {
   };
 
   if (!restaurant) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-family)' }}>
-      <div style={{ textAlign:'center', color:'var(--color-label-tertiary)' }}>
-        <div style={{fontSize:40}}>🍽️</div>
-        <div>Loading menu...</div>
-      </div>
-    </div>
+    <LoadingScreen message="Loading menu…" />
   );
 
   // Check if online mode is enabled for this restaurant
@@ -1163,8 +1161,8 @@ export default function OnlineOrderPage() {
           item={activeModifierItem}
           currency={currency}
           onClose={() => setActiveModifierItem(null)}
-          onConfirm={(selectedModifiers) => {
-            addToCart(activeModifierItem, selectedModifiers);
+          onConfirm={(selectedModifiers, flatPrice) => {
+            addToCart(activeModifierItem, selectedModifiers, flatPrice ?? null);
             setActiveModifierItem(null);
           }}
         />

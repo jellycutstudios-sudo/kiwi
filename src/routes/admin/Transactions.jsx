@@ -278,11 +278,11 @@ export default function Transactions() {
                   const date = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
                   const staffName = staffMap[order.staffId] || (order.staffId ? `Staff` : 'Self');
                   
-                  let paymentColor = '#059669';
-                  let paymentBg = '#ecfdf5';
-                  if (order.paymentMethod === 'card') { paymentColor = '#2563eb'; paymentBg = '#eff6ff'; }
-                  if (order.paymentMethod === 'upi') { paymentColor = '#7c3aed'; paymentBg = '#f5f3ff'; }
-                  if (order.paymentMethod === 'split') { paymentColor = '#d97706'; paymentBg = '#fffbeb'; }
+                  let paymentColor = '#10b981';
+                  let paymentBg = 'rgba(16, 185, 129, 0.12)';
+                  if (order.paymentMethod === 'card') { paymentColor = '#3b82f6'; paymentBg = 'rgba(59, 130, 246, 0.12)'; }
+                  if (order.paymentMethod === 'upi') { paymentColor = '#8b5cf6'; paymentBg = 'rgba(139, 92, 246, 0.12)'; }
+                  if (order.paymentMethod === 'split') { paymentColor = '#f59e0b'; paymentBg = 'rgba(245, 158, 11, 0.12)'; }
 
                   return (
                     <Fragment key={order.id}>

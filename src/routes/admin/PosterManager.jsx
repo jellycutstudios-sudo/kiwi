@@ -648,8 +648,8 @@ export default function PosterManager() {
                     justifyContent: 'space-between',
                     padding: 'var(--space-3)',
                     borderRadius: 'var(--radius-md)',
-                    border: isSelected ? '2px solid var(--accent)' : '1px solid #e2e8f0',
-                    background: isSelected ? 'rgba(var(--accent-rgb, 234, 88, 12), 0.05)' : '#ffffff',
+                    border: isSelected ? '2px solid var(--accent)' : '1px solid var(--color-separator)',
+                    background: isSelected ? 'rgba(var(--accent-rgb, 234, 88, 12), 0.08)' : 'var(--color-bg-elevated)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
@@ -661,8 +661,8 @@ export default function PosterManager() {
                         width: '32px',
                         height: '32px',
                         borderRadius: '8px',
-                        background: isSelected ? 'var(--accent)' : '#f1f5f9',
-                        color: isSelected ? '#ffffff' : '#64748b',
+                        background: isSelected ? 'var(--accent)' : 'var(--color-bg-tertiary)',
+                        color: isSelected ? '#ffffff' : 'var(--color-label-secondary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -736,7 +736,7 @@ export default function PosterManager() {
                 </h3>
 
                 {/* Upload Method Tabs */}
-                <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: '8px' }}>
                   <button 
                     type="button" 
                     className="btn"
@@ -745,8 +745,8 @@ export default function PosterManager() {
                       padding: '0 12px', 
                       fontSize: '12px', 
                       borderRadius: '6px',
-                      background: uploadMethod === 'file' ? '#ffffff' : 'transparent',
-                      color: uploadMethod === 'file' ? '#0f172a' : '#64748b',
+                      background: uploadMethod === 'file' ? 'var(--color-bg-elevated)' : 'transparent',
+                      color: uploadMethod === 'file' ? 'var(--color-label)' : 'var(--color-label-secondary)',
                       boxShadow: uploadMethod === 'file' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                     }}
                     onClick={() => setUploadMethod('file')}
@@ -761,8 +761,8 @@ export default function PosterManager() {
                       padding: '0 12px', 
                       fontSize: '12px', 
                       borderRadius: '6px',
-                      background: uploadMethod === 'url' ? '#ffffff' : 'transparent',
-                      color: uploadMethod === 'url' ? '#0f172a' : '#64748b',
+                      background: uploadMethod === 'url' ? 'var(--color-bg-elevated)' : 'transparent',
+                      color: uploadMethod === 'url' ? 'var(--color-label)' : 'var(--color-label-secondary)',
                       boxShadow: uploadMethod === 'url' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                     }}
                     onClick={() => setUploadMethod('url')}
@@ -773,9 +773,9 @@ export default function PosterManager() {
               </div>
 
               {/* ── Target TV Selector (Multi-TV Assignment) ────────── */}
-              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+              <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-separator-opaque)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
                     📺 Target TV Screen(s) for this upload:
                   </span>
                   <button 
@@ -798,9 +798,9 @@ export default function PosterManager() {
                     fontSize: '12px', 
                     fontWeight: 600,
                     cursor: 'pointer',
-                    background: broadcastToAll ? 'var(--accent)' : '#ffffff',
-                    color: broadcastToAll ? '#ffffff' : '#475569',
-                    border: broadcastToAll ? '1px solid var(--accent)' : '1px solid #cbd5e1'
+                    background: broadcastToAll ? 'var(--accent)' : 'var(--color-bg-elevated)',
+                    color: broadcastToAll ? '#ffffff' : 'var(--color-label)',
+                    border: broadcastToAll ? '1px solid var(--accent)' : '1px solid var(--color-separator)'
                   }}>
                     <input 
                       type="checkbox" 
@@ -826,9 +826,9 @@ export default function PosterManager() {
                           fontSize: '12px', 
                           fontWeight: 500,
                           cursor: 'pointer',
-                          background: isChecked ? '#e0f2fe' : '#ffffff',
-                          color: isChecked ? '#0369a1' : '#475569',
-                          border: isChecked ? '1px solid #38bdf8' : '1px solid #cbd5e1'
+                          background: isChecked ? 'rgba(56, 189, 248, 0.15)' : 'var(--color-bg-elevated)',
+                          color: isChecked ? '#38bdf8' : 'var(--color-label)',
+                          border: isChecked ? '1px solid #38bdf8' : '1px solid var(--color-separator)'
                         }}
                       >
                         <input 
@@ -871,11 +871,11 @@ export default function PosterManager() {
                     {/* Drag & drop multi-file zone */}
                     <div 
                       style={{ 
-                        border: '2px dashed #cbd5e1', 
+                        border: '2px dashed var(--color-separator-opaque)', 
                         borderRadius: 'var(--radius-lg)', 
                         padding: 'var(--space-6)', 
                         textAlign: 'center', 
-                        background: '#fafafa', 
+                        background: 'var(--color-bg-secondary)', 
                         cursor: 'pointer', 
                         position: 'relative',
                         transition: 'border-color 0.2s'
@@ -932,8 +932,8 @@ export default function PosterManager() {
                                 alignItems: 'center', 
                                 gap: '8px', 
                                 padding: '6px 10px', 
-                                background: '#ffffff', 
-                                border: '1px solid #e2e8f0', 
+                                background: 'var(--color-bg-elevated)', 
+                                border: '1px solid var(--color-separator-opaque)', 
                                 borderRadius: '8px',
                                 fontSize: '12px'
                               }}
@@ -959,8 +959,8 @@ export default function PosterManager() {
 
                     {/* Batch progress display */}
                     {uploadProgress && (
-                      <div style={{ marginTop: 'var(--space-3)', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: '#166534', marginBottom: '4px' }}>
+                      <div style={{ marginTop: 'var(--space-3)', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'var(--color-green)', marginBottom: '4px' }}>
                           <span>Uploading {uploadProgress.current} of {uploadProgress.total}: {uploadProgress.fileName}</span>
                           <span>{uploadProgress.percent}%</span>
                         </div>
@@ -1018,7 +1018,7 @@ export default function PosterManager() {
 
                 {/* Bulk Actions Bar if items selected */}
                 {selectedPosterIds.length > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg-secondary)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--color-separator-opaque)', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent)' }}>
                       {selectedPosterIds.length} selected
                     </span>
@@ -1180,13 +1180,13 @@ export default function PosterManager() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                background: '#f1f5f9',
-                                border: '1px solid #e2e8f0',
+                                background: 'var(--color-bg-secondary)',
+                                border: '1px solid var(--color-separator-opaque)',
                                 borderRadius: '12px',
                                 padding: '2px 8px',
                                 fontSize: '11px',
                                 fontWeight: 600,
-                                color: '#0369a1',
+                                color: 'var(--color-blue)',
                                 cursor: 'pointer'
                               }}
                               title="Click to assign or share this poster across other TV screens"
@@ -1273,7 +1273,7 @@ export default function PosterManager() {
           padding: '16px'
         }}>
           <div style={{
-            background: '#ffffff',
+            background: 'var(--color-bg-elevated)',
             borderRadius: '16px',
             maxWidth: '480px',
             width: '100%',
@@ -1401,7 +1401,7 @@ export default function PosterManager() {
           padding: '16px'
         }}>
           <div style={{
-            background: '#ffffff',
+            background: 'var(--color-bg-elevated)',
             borderRadius: '16px',
             maxWidth: '440px',
             width: '100%',
@@ -1411,7 +1411,7 @@ export default function PosterManager() {
             <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Copy size={20} style={{ color: 'var(--accent)' }} /> Clone Playlist
             </h3>
-            <p style={{ fontSize: '13px', color: '#475569', marginBottom: '16px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--color-label-secondary)', marginBottom: '16px' }}>
               Duplicate all <strong>{posters.length} posters</strong> from "{screenName}" to another TV screen channel.
             </p>
 
@@ -1466,7 +1466,7 @@ export default function PosterManager() {
           padding: '16px'
         }}>
           <div style={{
-            background: '#ffffff',
+            background: 'var(--color-bg-elevated)',
             borderRadius: '20px',
             maxWidth: '520px',
             width: '100%',
@@ -1486,7 +1486,7 @@ export default function PosterManager() {
               </button>
             </div>
 
-            <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', marginBottom: '16px' }}>
+            <div style={{ textAlign: 'center', padding: '16px', background: 'var(--color-bg-secondary)', borderRadius: '12px', marginBottom: '16px' }}>
               {qrGenerating ? (
                 <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Loader2 size={32} className="animate-spin text-accent" />
@@ -1498,10 +1498,10 @@ export default function PosterManager() {
                   style={{ width: '220px', height: '220px', margin: '0 auto', display: 'block', borderRadius: '8px' }} 
                 />
               )}
-              <div style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a', marginTop: '10px' }}>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-label)', marginTop: '10px' }}>
                 {screenName}
               </div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
                 Scan with your phone or point your Smart TV's camera/browser to launch
               </div>
             </div>
@@ -1512,7 +1512,7 @@ export default function PosterManager() {
                 type="text" 
                 readOnly 
                 className="form-input"
-                style={{ fontSize: '12px', height: '36px', background: '#f1f5f9' }}
+                style={{ fontSize: '12px', height: '36px', background: 'var(--color-bg-secondary)' }}
                 value={`${window.location.origin}/display/slides/${restaurant?.id}/${effectiveScreenId}`}
               />
               <button 
@@ -1527,8 +1527,8 @@ export default function PosterManager() {
             </div>
 
             {/* 3 Step Setup Instructions */}
-            <div style={{ fontSize: '12px', color: '#334155', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px' }}>
-              <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: '6px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--color-label)', background: 'var(--color-blue-light)', border: '1px solid var(--color-blue)', borderRadius: '10px', padding: '12px 16px' }}>
+              <div style={{ fontWeight: 700, color: 'var(--color-blue)', marginBottom: '6px' }}>
                 📺 Quick 3-Step TV Setup:
               </div>
               <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1613,7 +1613,7 @@ function ScreenSettingsPanel({
       </div>
 
       {/* Settings Sub-Tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px', background: '#f1f5f9', padding: '3px', borderRadius: '8px', marginBottom: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: '8px', marginBottom: 'var(--space-4)' }}>
         {[
           { id: 'display', label: 'Layout' },
           { id: 'motion',  label: 'Motion' },
@@ -1625,8 +1625,8 @@ function ScreenSettingsPanel({
             type="button"
             onClick={() => setSettingsTab(t.id)}
             style={{
-              background: settingsTab === t.id ? '#ffffff' : 'transparent',
-              color: settingsTab === t.id ? '#0f172a' : '#64748b',
+              background: settingsTab === t.id ? 'var(--color-bg-elevated)' : 'transparent',
+              color: settingsTab === t.id ? 'var(--color-label)' : 'var(--color-label-secondary)',
               border: 'none',
               borderRadius: '6px',
               padding: '6px 4px',
@@ -1876,7 +1876,7 @@ function ScreenSettingsPanel({
             type="button" 
             className="btn btn-secondary"
             disabled={sendingRemoteCmd}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '38px', color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '38px', color: 'var(--color-blue)', borderColor: 'var(--color-blue)', background: 'var(--color-blue-light)' }}
             onClick={() => onSendRemoteCommand('identify', slideshowSettings.name)}
           >
             <Zap size={16} /> Identify TV Screen (Flash Banner)

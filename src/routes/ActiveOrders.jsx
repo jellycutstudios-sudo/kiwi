@@ -433,7 +433,7 @@ export default function ActiveOrders() {
                 fontWeight: 700,
                 padding: '0 8px',
                 height: 32,
-                background: '#10b981',
+                background: 'var(--color-green)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
@@ -605,9 +605,9 @@ export default function ActiveOrders() {
       <div className="kanban-grid-container" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)', overflow: 'hidden' }}>
         
         {/* Column 1: Pending */}
-        <div className="kanban-column column-pending" style={{ display: activeTab === 'all' || activeTab === 'pending' ? 'flex' : 'none', flexDirection: 'column', gap: 'var(--space-3)', background: '#fafaf9', borderRadius: 16, padding: 'var(--space-4)', border: '1px solid var(--color-separator-opaque)', maxHeight: '100%', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #fef08a', paddingBottom: 8 }}>
-            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: '#a16207' }}>
+        <div className="kanban-column column-pending" style={{ display: activeTab === 'all' || activeTab === 'pending' ? 'flex' : 'none', flexDirection: 'column', gap: 'var(--space-3)', background: 'var(--color-bg-secondary)', borderRadius: 16, padding: 'var(--space-4)', border: '1px solid var(--color-separator-opaque)', maxHeight: '100%', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--color-brand-ochre)', paddingBottom: 8 }}>
+            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: 'var(--color-brand-ochre)' }}>
               ⏳ Pending ({pendingOrders.length})
             </span>
           </div>
@@ -621,9 +621,9 @@ export default function ActiveOrders() {
         </div>
 
         {/* Column 2: Preparing */}
-        <div className="kanban-column column-preparing" style={{ display: activeTab === 'all' || activeTab === 'preparing' ? 'flex' : 'none', flexDirection: 'column', gap: 'var(--space-3)', background: '#f5f7ff', borderRadius: 16, padding: 'var(--space-4)', border: '1px solid var(--color-separator-opaque)', maxHeight: '100%', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #bfdbfe', paddingBottom: 8 }}>
-            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: '#1e40af' }}>
+        <div className="kanban-column column-preparing" style={{ display: activeTab === 'all' || activeTab === 'preparing' ? 'flex' : 'none', flexDirection: 'column', gap: 'var(--space-3)', background: 'var(--color-bg-secondary)', borderRadius: 16, padding: 'var(--space-4)', border: '1px solid var(--color-separator-opaque)', maxHeight: '100%', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--color-blue)', paddingBottom: 8 }}>
+            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: 'var(--color-blue)' }}>
               🍳 Preparing ({preparingOrders.length})
             </span>
           </div>
@@ -637,9 +637,9 @@ export default function ActiveOrders() {
         </div>
 
         {/* Column 3: Ready */}
-        <div className="kanban-column column-ready" style={{ display: activeTab === 'all' || activeTab === 'ready' ? 'flex' : 'none', flexDirection: 'column', gap: 'var(--space-3)', background: '#f0fdf4', borderRadius: 16, padding: 'var(--space-4)', border: '1px solid var(--color-separator-opaque)', maxHeight: '100%', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #bbf7d0', paddingBottom: 8 }}>
-            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: '#166534' }}>
+        <div className="kanban-column column-ready" style={{ display: activeTab === 'all' || activeTab === 'ready' ? 'flex' : 'none', flexDirection: 'column', gap: 'var(--space-3)', background: 'var(--color-bg-secondary)', borderRadius: 16, padding: 'var(--space-4)', border: '1px solid var(--color-separator-opaque)', maxHeight: '100%', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--color-green)', paddingBottom: 8 }}>
+            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: 'var(--color-green)' }}>
               🔔 Ready ({readyOrders.length})
             </span>
           </div>
@@ -810,7 +810,7 @@ export default function ActiveOrders() {
                 <button 
                   className="btn btn-sm" 
                   style={{
-                    background: '#10b981',
+                    background: 'var(--color-green)',
                     color: '#fff',
                     border: 'none',
                     display: 'flex',

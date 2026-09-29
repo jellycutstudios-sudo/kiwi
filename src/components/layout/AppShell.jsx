@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { useUpdateStore } from '../../stores/updateStore';
+import ThemeToggle from '../shared/ThemeToggle';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
@@ -193,52 +194,50 @@ export default function AppShell() {
         />
       )}
 
-      {/* Offline Unbreakable Mode Banner */}
-      {!isOnline && (
-        <div 
-          role="alert"
-          style={{ 
-            background: 'linear-gradient(90deg, #18181b 0%, #09090b 100%)', 
-            color: '#ffffff', 
-            padding: '9px 16px', 
-            textAlign: 'center', 
-            fontSize: '13px', 
-            fontWeight: 500, 
-            zIndex: 10000, 
-            position: 'sticky', 
-            top: 0, 
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
-            borderBottom: '1px solid rgba(255,255,255,0.12)'
-          }}
-        >
-          <span style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '4px',
-            background: 'rgba(249, 115, 22, 0.2)', 
-            color: '#fb923c', 
-            border: '1px solid rgba(249, 115, 22, 0.35)',
-            padding: '2px 8px', 
-            borderRadius: '999px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase'
-          }}>
-            🛡️ Offline Unbreakable Mode
-          </span>
-          <span style={{ color: '#e4e4e7' }}>
-            Taking orders, printing receipts &amp; table operations continue seamlessly. All changes will auto-sync when reconnected.
-          </span>
-        </div>
-      )}
-
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {/* Offline Unbreakable Mode Banner */}
+        {!isOnline && (
+          <div 
+            role="alert"
+            style={{ 
+              background: 'linear-gradient(90deg, #18181b 0%, #09090b 100%)', 
+              color: '#ffffff', 
+              padding: '9px 16px', 
+              textAlign: 'center', 
+              fontSize: '13px', 
+              fontWeight: 500, 
+              zIndex: 100, 
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+              borderBottom: '1px solid rgba(255,255,255,0.12)'
+            }}
+          >
+            <span style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '4px',
+              background: 'rgba(249, 115, 22, 0.2)', 
+              color: '#fb923c', 
+              border: '1px solid rgba(249, 115, 22, 0.35)',
+              padding: '2px 8px', 
+              borderRadius: '999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase'
+            }}>
+              🛡️ Offline Unbreakable Mode
+            </span>
+            <span style={{ color: '#e4e4e7' }}>
+              Taking orders, printing receipts &amp; table operations continue seamlessly. All changes will auto-sync when reconnected.
+            </span>
+          </div>
+        )}
+
         {/* Top Bar */}
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
           {/* Burger menu button visible only on mobile/tablet */}
@@ -310,8 +309,8 @@ export default function AppShell() {
                 <span>{isUpdating ? 'Updating...' : 'Update Ready'}</span>
               </button>
             )}
-            {/* Install App button if running in browser */}
-            {(canInstall || isIOS) && !isStandalone && (
+            {/* Install App button if running in browser (hidden on POS to keep cashier header clean) */}
+            {!isPOS && (canInstall || isIOS) && !isStandalone && (
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -368,8 +367,8 @@ export default function AppShell() {
               }}
             />
 
-            {/* Language selector */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            {/* Language selector — desktop-only so compact headers don't overflow */}
+            <div className="desktop-only" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <select
                 id="lang-select"
                 value={SUPPORTED_LANGS.some(l => l.code === i18n.language) ? i18n.language : 'en'}
@@ -394,6 +393,9 @@ export default function AppShell() {
                 ))}
               </select>
             </div>
+
+            {/* Theme Toggle (Obsidian Dark / Light) */}
+            <ThemeToggle />
 
             {/* Notification bell */}
             <button

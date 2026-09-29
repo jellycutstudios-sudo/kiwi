@@ -543,9 +543,35 @@ export default function KDS() {
                 </div>
                 <div className="kds-order-items">
                   {order.items?.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span className="kds-item-qty">×{item.qty}</span>
-                      <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>{item.name}</span>
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span className="kds-item-qty">×{item.qty}</span>
+                        <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>{item.name}</span>
+                      </div>
+                      {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
+                        const vm = item.selectedModifiers.filter(m => m.isVariantAxis);
+                        const rm = item.selectedModifiers.filter(m => !m.isVariantAxis);
+                        return (
+                          <div style={{ paddingLeft: 36, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {vm.length > 0 && (
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                                {vm.map((m, i) => (
+                                  <span key={i} style={{ background: i === 0 ? 'rgba(251,191,36,0.2)' : 'rgba(168,85,247,0.2)', color: i === 0 ? '#fbbf24' : '#c084fc', border: `1.5px solid ${i === 0 ? 'rgba(251,191,36,0.4)' : 'rgba(168,85,247,0.4)'}`, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 800, textTransform: 'uppercase' }}>
+                                    {m.modifierGroupName}: {m.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {rm.length > 0 && (
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                {rm.map((m, i) => (
+                                  <span key={i} style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee', border: '1px solid rgba(6,182,212,0.3)', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>+ {m.name}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -790,23 +816,52 @@ export default function KDS() {
                                         {item.name}
                                       </span>
                                     </div>
-                                    {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, paddingLeft: 38, marginTop: 4 }}>
-                                        {item.selectedModifiers.map((m, mIdx) => (
-                                          <span key={mIdx} style={{
-                                            background: 'rgba(6, 182, 212, 0.18)',
-                                            color: '#22d3ee',
-                                            border: '1px solid rgba(6, 182, 212, 0.3)',
-                                            padding: '1px 6px',
-                                            borderRadius: 4,
-                                            fontSize: 11,
-                                            fontWeight: 700
-                                          }}>
-                                            + {m.name}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
+                                    {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
+                                      const variantMods = item.selectedModifiers.filter(m => m.isVariantAxis);
+                                      const regularMods = item.selectedModifiers.filter(m => !m.isVariantAxis);
+                                      return (
+                                        <div style={{ paddingLeft: 38, marginTop: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                          {/* Variant axes — large high-contrast badge */}
+                                          {variantMods.length > 0 && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                              {variantMods.map((m, mIdx) => (
+                                                <span key={mIdx} style={{
+                                                  background: mIdx === 0 ? 'rgba(251,191,36,0.22)' : 'rgba(168,85,247,0.22)',
+                                                  color: mIdx === 0 ? '#fbbf24' : '#c084fc',
+                                                  border: `1.5px solid ${mIdx === 0 ? 'rgba(251,191,36,0.5)' : 'rgba(168,85,247,0.5)'}`,
+                                                  padding: '3px 10px',
+                                                  borderRadius: 6,
+                                                  fontSize: 13,
+                                                  fontWeight: 900,
+                                                  letterSpacing: '0.04em',
+                                                  textTransform: 'uppercase',
+                                                }}>
+                                                  {m.modifierGroupName}: {m.name}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {/* Regular modifiers — small chips as before */}
+                                          {regularMods.length > 0 && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                              {regularMods.map((m, mIdx) => (
+                                                <span key={mIdx} style={{
+                                                  background: 'rgba(6, 182, 212, 0.18)',
+                                                  color: '#22d3ee',
+                                                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                                                  padding: '1px 6px',
+                                                  borderRadius: 4,
+                                                  fontSize: 11,
+                                                  fontWeight: 700
+                                                }}>
+                                                  + {m.name}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
 
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

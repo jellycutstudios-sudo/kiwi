@@ -213,10 +213,17 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
       const amtRight = (i.price * i.qty).toFixed(2).padStart(14, ' ');
       writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
     }
-    if (i.selectedModifiers && i.selectedModifiers.length > 0) {
-      writeTextLine(`  + ${i.selectedModifiers.map(m => m.name).join(', ')}`);
+    // Variant axes on receipt — labeled for customer clarity
+    const varRec = (i.selectedModifiers ?? []).filter(m => m.isVariantAxis);
+    const regRec = (i.selectedModifiers ?? []).filter(m => !m.isVariantAxis);
+    if (varRec.length > 0) {
+      writeTextLine(`  ${varRec.map(m => `${m.modifierGroupName}: ${m.name}`).join(' | ')}`);
+    }
+    if (regRec.length > 0) {
+      writeTextLine(`  + ${regRec.map(m => m.name).join(', ')}`);
     }
   });
+
   
   writeTextLine(divider);
   
@@ -356,8 +363,19 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
       const qtyRight = String(i.qty).padStart(8, ' ');
       writeTextLine(`${itemLeft}${qtyRight}`);
     }
-    if (i.selectedModifiers && i.selectedModifiers.length > 0) {
-      writeTextLine(`  + ${i.selectedModifiers.map(m => m.name).join(', ')}`);
+    // Variant axis modifiers — print on bold dedicated lines
+    const variantMods = (i.selectedModifiers ?? []).filter(m => m.isVariantAxis);
+    const regularMods = (i.selectedModifiers ?? []).filter(m => !m.isVariantAxis);
+    if (variantMods.length > 0) {
+      writeBytes(BOLD_ON);
+      variantMods.forEach(m => {
+        const label = `  *** ${m.modifierGroupName.toUpperCase()}: ${m.name.toUpperCase()}`;
+        writeTextLine(label.slice(0, lineWidth));
+      });
+      writeBytes(BOLD_OFF);
+    }
+    if (regularMods.length > 0) {
+      writeTextLine(`  + ${regularMods.map(m => m.name).join(', ')}`); 
     }
   });
   
@@ -767,18 +785,24 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
   const win = window.open('', '_blank', 'width=360,height=600');
   if (!win) { alert('Please allow popups to print receipts.'); return; }
 
-  const itemRows = items.map(i =>
-    `<tr>
+  const itemRows = items.map(i => {
+    const varMods = (i.selectedModifiers ?? []).filter(m => m.isVariantAxis);
+    const regMods = (i.selectedModifiers ?? []).filter(m => !m.isVariantAxis);
+    const varHtml = varMods.length > 0
+      ? `<div style="font-size:9px;font-weight:bold;color:#333;padding-left:1mm;margin-top:1px;">${varMods.map(m => `${m.modifierGroupName}: ${m.name}`).join(' · ')}</div>`
+      : '';
+    const regHtml = regMods.length > 0
+      ? `<div style="font-size:9px;color:#666;padding-left:1mm;">+ ${regMods.map(m => m.name).join(', ')}</div>`
+      : '';
+    return `<tr>
       <td>
-        <div style="font-weight: ${is58mm ? 'bold' : 'normal'};">${i.name}</div>
-        ${i.selectedModifiers && i.selectedModifiers.length > 0
-          ? `<div style="font-size:9px; color:#555; padding-left:1mm;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</div>`
-          : ''}
+        <div style="font-weight:${is58mm ? 'bold' : 'normal'};">${i.name}</div>
+        ${varHtml}${regHtml}
       </td>
-      <td style="text-align:center; vertical-align:top;">${i.qty}</td>
-      <td style="text-align:right; vertical-align:top;">${(i.price * i.qty).toFixed(2)}</td>
-    </tr>`
-  ).join('');
+      <td style="text-align:center;vertical-align:top;">${i.qty}</td>
+      <td style="text-align:right;vertical-align:top;">${(i.price * i.qty).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
 
   const taxRows = (taxInfo?.lines ?? []).map(l =>
     `<tr><td colspan="2">${l.label}</td><td style="text-align:right">${l.amount.toFixed(2)}</td></tr>`

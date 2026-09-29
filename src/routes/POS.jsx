@@ -1467,7 +1467,7 @@ export default function POS() {
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShoppingCart size={18} />
-                <span className="badge badge-blue" style={{ background: 'var(--color-accent)', color: '#fff', padding: '2px 6px', borderRadius: '50%' }}>
+                <span style={{ background: '#10b981', color: '#ffffff', minWidth: '20px', height: '20px', padding: '0 5px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
                   {items.reduce((sum, i) => sum + i.qty, 0)}
                 </span>
               </div>
@@ -2271,8 +2271,15 @@ export default function POS() {
           item={activeModifierItem}
           currency={currency}
           onClose={() => setActiveModifierItem(null)}
-          onConfirm={(selectedModifiers) => {
-            const modifierTotal = selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
+          onConfirm={(selectedModifiers, flatPrice) => {
+            // flatPrice is set by VariantMatrixPicker — it IS the total price (no base added)
+            const isVariant = flatPrice !== undefined && flatPrice !== null;
+            const modifierTotal = isVariant
+              ? 0
+              : selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
+            const unitPrice = isVariant
+              ? flatPrice
+              : (activeModifierItem.price + modifierTotal);
             const customId = activeModifierItem.id + '-' + selectedModifiers.map(m => m.id).sort().join('-');
             const cartItem = {
               ...activeModifierItem,
@@ -2280,14 +2287,15 @@ export default function POS() {
               menuItemId: activeModifierItem.id,
               name: activeModifierItem.name,
               selectedModifiers,
-              modifierTotal,
-              price: activeModifierItem.price + modifierTotal
+              modifierTotal: isVariant ? flatPrice : modifierTotal,
+              price: unitPrice
             };
             addItem(cartItem);
             setActiveModifierItem(null);
           }}
         />
       )}
+
 
       {/* Open / Custom Item Modal */}
       {showOpenItemModal && (
@@ -3173,17 +3181,17 @@ export default function POS() {
             </div>
             
             <div style={{
-              background: '#fffdf9',
-              color: '#1c1c1c',
+              background: 'var(--color-bg-elevated)',
+              color: 'var(--color-label)',
               padding: '28px 24px',
               fontFamily: '"SF Mono", "Courier New", Courier, monospace',
               fontSize: '13px',
               lineHeight: '1.5',
               whiteSpace: 'pre',
               borderRadius: '2px',
-              border: '1px solid #e0dfd5',
-              borderTop: '2px dashed #d1d0c5',
-              borderBottom: '2px dashed #d1d0c5',
+              border: '1px solid var(--color-separator-opaque)',
+              borderTop: '2px dashed var(--color-separator-opaque)',
+              borderBottom: '2px dashed var(--color-separator-opaque)',
               boxShadow: 'inset 0 0 20px rgba(0,0,0,0.02), 0 4px 10px rgba(0,0,0,0.05)',
               maxHeight: '50vh',
               overflowY: 'auto',

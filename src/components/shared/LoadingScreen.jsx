@@ -1,45 +1,84 @@
+import './LoadingScreen.css';
 
-export default function LoadingScreen() {
+/**
+ * LoadingScreen — Minimal, clean & premium preloader
+ * Distraction-free Apple & Linear caliber elegance.
+ */
+export default function LoadingScreen({
+  message = 'DineOS',
+  fullScreen = true,
+  compact = false,
+  showProgress = true,
+}) {
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--color-bg-secondary)',
-      gap: 'var(--space-4)',
-    }}>
-      <div style={{
-        width: 56,
-        height: 56,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'bounceIn 0.6s var(--ease-spring)',
-      }}>
-        <img src="/ricon.svg" alt="Loading..." style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={message}
+      className={`dine-loading-wrapper ${compact || !fullScreen ? 'is-compact' : ''}`}
+    >
+      <div className="dine-loading-content">
+        {/* Unboxed Brand Mark */}
+        <img
+          src="/ricon.svg"
+          alt="DineOS"
+          className="dine-loading-logo"
+        />
+
+        <div className="dine-loading-title">DineOS</div>
+
+        {/* Minimal Hairline Progress Bar */}
+        {showProgress && (
+          <div className="dine-loading-bar">
+            <div className="dine-loading-bar-beam" />
+          </div>
+        )}
+
+        {/* Single Quiet Label */}
+        {message && message !== 'DineOS' && (
+          <span className="dine-loading-label">{message}</span>
+        )}
       </div>
-      <div style={{ fontSize: 'var(--text-title3)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-label)' }}>
-        DineOS
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: 'var(--color-accent)',
-            animation: `bounce 1.2s ${i * 0.2}s ease-in-out infinite`,
-          }} />
-        ))}
-      </div>
-      <style>{`
-        @keyframes bounce {
-          0%,80%,100%{transform:translateY(0)}
-          40%{transform:translateY(-10px)}
-        }
-      `}</style>
     </div>
+  );
+}
+
+/**
+ * InlineSpinner — High-precision minimal hairline spinner for buttons & inline elements
+ */
+export function InlineSpinner({ size = 16, color = 'currentColor', strokeWidth = 1.8, className = '' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      style={{
+        animation: 'dineGlide 1s linear infinite',
+        transformOrigin: 'center center',
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        flexShrink: 0,
+      }}
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeOpacity="0.15"
+      />
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeDasharray="18 45"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

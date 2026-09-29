@@ -411,7 +411,7 @@ export default function Settings() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          background: '#fff',
+                          background: 'var(--color-bg-elevated)',
                           padding: '4px',
                           flexShrink: 0
                         }}>

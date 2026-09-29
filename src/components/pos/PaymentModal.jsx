@@ -843,19 +843,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                         setCustomTip(tipAmount > 0 ? tipAmount.toFixed(2) : '');
                       }
                     }}
-                    style={{
-                      padding: '6px 2px',
-                      borderRadius: 8,
-                      border: isSelected ? '1.5px solid #0f172a' : '1px solid var(--color-separator)',
-                      background: isSelected ? '#0f172a' : 'var(--color-bg-primary, #ffffff)',
-                      color: isSelected ? '#ffffff' : 'var(--color-label)',
-                      fontWeight: 700,
-                      fontSize: 11.5,
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-family)',
-                      transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? '0 2px 8px rgba(15, 23, 42, 0.2)' : 'none'
-                    }}
+                    className={`payment-preset-btn ${isSelected ? 'selected' : ''}`}
                   >
                     <div>{preset.label}</div>
                     {preset.key !== 'none' && preset.key !== 'custom' && (
@@ -917,22 +905,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                     id={`payment-method-${m.key}`}
                     type="button"
                     onClick={() => setPaymentMethod(m.key)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '10px 4px',
-                      borderRadius: 12,
-                      border: isSelected ? '1.5px solid #0f172a' : '1px solid var(--color-separator)',
-                      background: isSelected ? '#0f172a' : 'var(--color-bg-primary, #ffffff)',
-                      color: isSelected ? '#ffffff' : 'var(--color-label)',
-                      boxShadow: isSelected ? '0 4px 14px rgba(15, 23, 42, 0.25)' : '0 1px 3px rgba(0,0,0,0.03)',
-                      transform: isSelected ? 'translateY(-1px)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-                      fontFamily: 'var(--font-family)',
-                    }}
+                    className={`payment-method-btn ${isSelected ? 'selected' : ''}`}
                   >
                     <div style={{ marginBottom: 3 }}>
                       <m.icon size={18} color={isSelected ? '#38bdf8' : 'var(--color-label-secondary)'} />
@@ -1198,24 +1171,13 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                 </span>
                 <input
                   id="cash-tendered-input"
-                  className="form-input"
+                  className="form-input payment-cash-input"
                   type="number"
                   step="any"
                   placeholder="0.00"
                   value={cashTendered}
                   onChange={e => setCashTendered(e.target.value)}
                   onFocus={e => e.target.select()}
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 800,
-                    height: 48,
-                    borderRadius: 10,
-                    paddingLeft: 36,
-                    paddingRight: 36,
-                    letterSpacing: '-0.02em',
-                    fontVariantNumeric: 'tabular-nums',
-                    background: 'var(--color-bg-primary, #ffffff)'
-                  }}
                 />
                 {cashTendered && (
                   <button
@@ -1256,19 +1218,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                         key={idx}
                         type="button"
                         onClick={() => setCashTendered(opt.amount.toString())}
-                        style={{
-                          padding: '8px 12px',
-                          background: isSelected ? '#0f172a' : 'var(--color-bg-primary, #ffffff)',
-                          color: isSelected ? '#ffffff' : 'var(--color-label)',
-                          border: `1.5px solid ${isSelected ? '#0f172a' : 'var(--color-separator)'}`,
-                          borderRadius: 10,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          boxShadow: isSelected ? '0 4px 12px rgba(15, 23, 42, 0.2)' : '0 1px 2px rgba(0,0,0,0.03)'
-                        }}
+                        className={`payment-denom-btn ${isSelected ? 'selected' : ''}`}
                       >
                         <div style={{ textAlign: 'left' }}>
                           <div style={{ fontSize: 9.5, opacity: isSelected ? 0.75 : 0.6, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
@@ -1308,16 +1258,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       const current = parseFloat(cashTendered) || 0;
                       setCashTendered((current + val).toString());
                     }}
-                    className="btn btn-secondary btn-xs"
-                    style={{
-                      flex: 1,
-                      padding: '4px 0',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderRadius: 6,
-                      background: 'var(--color-bg-primary, #ffffff)',
-                      border: '1px solid var(--color-separator)'
-                    }}
+                    className="payment-bill-btn"
                   >
                     +{currency === 'INR' ? `₹${val}` : `${val}`}
                   </button>
@@ -1326,18 +1267,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
               {/* Live Change / Remaining Bal Display */}
               {change !== null && change >= 0 && (
-                <div style={{
-                  padding: '10px 14px',
-                  background: change > 0 
-                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)'
-                    : 'var(--color-bg-primary, #ffffff)',
-                  borderRadius: 10,
-                  border: change > 0 ? '1.5px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--color-separator)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.2s ease'
-                }}>
+                <div className={`payment-change-bar ${change > 0 ? 'has-change' : ''}`}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{
                       width: 28,
@@ -1428,16 +1358,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                 </div>
               </div>
 
-              <div style={{
-                background: 'var(--color-bg-primary, #ffffff)',
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid var(--color-separator)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 10
-              }}>
+              <div className="payment-info-box">
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Amount to Charge:</span>
                 <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-label)', fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(total, currency)}
@@ -1493,16 +1414,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                 </div>
               </div>
 
-              <div style={{
-                background: 'var(--color-bg-primary, #ffffff)',
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid var(--color-separator)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 10
-              }}>
+              <div className="payment-info-box">
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Ready for Customer Tap:</span>
                 <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(total, currency)}
@@ -1646,7 +1558,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           borderTop: '1px solid var(--color-separator)',
           display: 'flex',
           gap: 12,
-          background: 'var(--color-bg-primary)',
+          background: 'var(--color-bg-elevated)',
           borderBottomLeftRadius: 24,
           borderBottomRightRadius: 24,
           flexShrink: 0

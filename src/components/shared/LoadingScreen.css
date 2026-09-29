@@ -1,0 +1,126 @@
+/* ============================================================
+   DineOS Minimal & Premium Loading Experience
+   Obsidian Dark Luxury Theme (matches #0c0d11 DineOS brand identity)
+   ============================================================ */
+
+.dine-loading-wrapper {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0c0d11;
+  box-sizing: border-box;
+  animation: dineFadeIn 0.25s ease-out forwards;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dine-loading-wrapper.is-compact {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: auto;
+  min-height: 160px;
+  background: transparent;
+  z-index: 1;
+}
+
+.dine-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+}
+
+/* Crisp Brand Mark */
+.dine-loading-logo {
+  width: 38px;
+  height: 50px;
+  object-fit: contain;
+  display: block;
+  filter: brightness(0) invert(1);
+  animation: dineBreathe 2.4s ease-in-out infinite;
+}
+
+/* Brand Title */
+.dine-loading-title {
+  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1;
+}
+
+/* Minimal Hairline Progress Bar */
+.dine-loading-bar {
+  width: 120px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  position: relative;
+}
+
+.dine-loading-bar-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  border-radius: 999px;
+  background: #ffffff;
+  animation: dineGlide 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* Quiet, clean label */
+.dine-loading-label {
+  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: #787a85;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+}
+
+/* Entrance */
+@keyframes dineFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Subtle luxury breathing pulse */
+@keyframes dineBreathe {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.97);
+  }
+}
+
+/* Silky gliding beam */
+@keyframes dineGlide {
+  0% {
+    left: -40%;
+  }
+  50% {
+    left: 35%;
+  }
+  100% {
+    left: 105%;
+  }
+}

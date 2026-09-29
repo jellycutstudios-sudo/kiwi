@@ -469,13 +469,13 @@ export default function Dashboard() {
               animationDelay: `${i * 60}ms`,
               background: s.highlight 
                 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                : '#fffdf9',
+                : 'var(--color-bg-elevated)',
               color: s.highlight ? '#fff' : 'inherit',
               borderRadius: 'var(--clay-radius-card)',
               padding: 'var(--space-5) var(--space-6)',
               boxShadow: s.highlight 
                 ? '0 12px 28px -4px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.3)' 
-                : 'var(--clay-shadow-md)',
+                : 'var(--shadow-md)',
               display: 'flex',
               flexDirection: 'column',
               gap: 'var(--space-2)',
@@ -483,19 +483,19 @@ export default function Dashboard() {
               overflow: 'hidden',
               transition: 'transform 0.2s var(--ease-spring-pop), box-shadow 0.2s var(--ease-spring-pop)',
               cursor: 'pointer',
-              border: s.highlight ? 'none' : '1px solid rgba(0,0,0,0.04)'
+              border: s.highlight ? 'none' : '1px solid var(--color-separator)'
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'translateY(-3px)';
               e.currentTarget.style.boxShadow = s.highlight 
                 ? '0 16px 32px -4px rgba(5, 150, 105, 0.45)' 
-                : 'var(--clay-shadow-lg)';
+                : 'var(--shadow-lg)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'none';
               e.currentTarget.style.boxShadow = s.highlight 
                 ? '0 12px 28px -4px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.3)' 
-                : 'var(--clay-shadow-md)';
+                : 'var(--shadow-md)';
             }}
           >
             {/* Background design circle */}
@@ -506,7 +506,7 @@ export default function Dashboard() {
               width: '80px',
               height: '80px',
               borderRadius: '50%',
-              background: s.highlight ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.02)',
+              background: s.highlight ? 'rgba(255,255,255,0.08)' : 'var(--color-fill-tertiary)',
               pointerEvents: 'none'
             }} />
 
@@ -896,23 +896,16 @@ export default function Dashboard() {
           
           {/* Growth Insights Card */}
           <div 
-            className="card card-padded" 
-            style={{ 
-              background: 'linear-gradient(135deg, #fffcf5 0%, #fff7e6 100%)', 
-              border: '1px solid #ffe8cc', 
-              borderRadius: 'var(--radius-xl)',
-              boxShadow: '0 4px 12px rgba(255, 232, 204, 0.1)'
-            }}
+            className="card card-padded dashboard-insights-card"
           >
-            <h3 className="text-title3" style={{ marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: '#d97706' }}>
-              <Lightbulb size={20} color="#d97706" strokeWidth={2.5} />
+            <h3 className="text-title3 dashboard-insights-title" style={{ marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+              <Lightbulb size={20} strokeWidth={2.5} />
               <span>Business Growth Insights</span>
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               {growthTips.map((tip, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
-                  <div style={{
-                    background: 'rgba(217, 119, 6, 0.08)',
+                  <div className="dashboard-insights-icon-box" style={{
                     padding: 8,
                     borderRadius: 'var(--radius-lg)',
                     display: 'flex',
@@ -923,9 +916,9 @@ export default function Dashboard() {
                     <tip.icon size={16} color={tip.color} strokeWidth={2.5} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#92400e' }}>{tip.title}</h4>
-                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#78350f', lineHeight: '1.45', fontWeight: 500 }}>
-                      {tip.description.split('**').map((part, i) => i % 2 === 1 ? <strong key={i} style={{ color: '#000', fontWeight: 700 }}>{part}</strong> : part)}
+                    <h4 className="dashboard-insights-tip-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700 }}>{tip.title}</h4>
+                    <p className="dashboard-insights-tip-desc" style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45', fontWeight: 500 }}>
+                      {tip.description.split('**').map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
                     </p>
                   </div>
                 </div>

@@ -63,11 +63,11 @@
 .fpe-floor-tabs {
   display: flex;
   gap: 6px;
-  background: #f1f0eb;
+  background: var(--color-bg-secondary);
   padding: 4px;
   border-radius: 12px;
   width: fit-content;
-  border: 1px solid rgba(0,0,0,0.04);
+  border: 1px solid var(--color-separator);
 }
 
 .fpe-floor-btn {
@@ -106,8 +106,8 @@
 }
 
 .fpe-floor-btn.active .fpe-floor-count {
-  background: #000000;
-  color: #ffffff;
+  background: var(--color-label);
+  color: var(--color-bg);
 }
 
 /* --- Layout Workspace --- */
@@ -128,7 +128,7 @@
   justify-content: center;
   color: var(--color-label-tertiary);
   gap: var(--space-3);
-  background: #fafaf7;
+  background: var(--color-bg);
   text-align: center;
   padding: var(--space-8);
 }
@@ -194,11 +194,11 @@
 /* --- Figma-style Segmented Control for shape --- */
 .fpe-segmented {
   display: flex;
-  background: #f1f0eb;
+  background: var(--color-bg-secondary);
   padding: 3px;
   border-radius: 10px;
   gap: 2px;
-  border: 1px solid rgba(0,0,0,0.04);
+  border: 1px solid var(--color-separator);
 }
 
 .fpe-segment-btn {
@@ -224,7 +224,7 @@
 
 .fpe-segment-btn.active {
   background: var(--color-bg-elevated);
-  color: #000000;
+  color: var(--color-label);
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
@@ -308,7 +308,7 @@
   border: 1px dashed var(--color-separator-opaque);
   border-radius: 14px;
   padding: var(--space-3);
-  background: #fafaf9;
+  background: var(--color-bg-secondary);
   display: flex;
   flex-direction: column;
   align-items: center;

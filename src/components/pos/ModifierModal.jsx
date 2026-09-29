@@ -1,7 +1,222 @@
-import { useState, useRef } from 'react';
-import { X, Check } from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { X, Check, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+
+/* ─────────────────────────────────────────────────────────────
+   VARIANT MATRIX MODE
+   Triggered when an item has item.variantMatrix defined.
+
+   Data shape:
+   {
+     styleAxis:   ['Gravy', 'Paste', 'Dry'],
+     portionAxis: ['Quarter', 'Half', 'Full'],
+     prices: {
+       'Gravy|Quarter': 150,
+       'Gravy|Half': 300,
+       'Gravy|Full': 600,
+       'Paste|Quarter': 125,
+       ...
+     }
+   }
+────────────────────────────────────────────────────────────── */
+
+export function getEffectiveVariantMatrix(item) {
+  if (!item) return null;
+  if (item.variantMatrix) return item.variantMatrix;
+
+  const groups = item.modifierGroups ?? [];
+  // Find all mandatory pick-1 groups (e.g. "Gravy" Pick 1, "Paste" Pick 1)
+  const mandatoryPickOneGroups = groups.filter(g => g.required && g.maxSelect === 1 && g.options?.length > 0);
+
+  // If there are 2 or more mandatory pick-1 groups, synthesize a 2-D Variant Matrix (Style x Portion)
+  if (mandatoryPickOneGroups.length >= 2) {
+    const styleAxis = mandatoryPickOneGroups.map(g => g.name);
+    const portionSet = new Set();
+    mandatoryPickOneGroups.forEach(g => {
+      g.options.forEach(opt => portionSet.add(opt.name));
+    });
+    const portionAxis = Array.from(portionSet);
+
+    const prices = {};
+    mandatoryPickOneGroups.forEach(g => {
+      g.options.forEach(opt => {
+        prices[`${g.name}|${opt.name}`] = opt.priceAdd ?? 0;
+      });
+    });
+
+    return {
+      styleLabel: 'Preparation / Style',
+      portionLabel: 'Portion / Size',
+      styleAxis,
+      portionAxis,
+      prices
+    };
+  }
+
+  return null;
+}
+
+function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, onClose }) {
+  const matrix = passedMatrix || getEffectiveVariantMatrix(item);
+  const styles  = matrix?.styleAxis  ?? [];
+  const portions = matrix?.portionAxis ?? [];
+  const prices  = matrix?.prices ?? {};
+
+  const [selectedStyle,   setSelectedStyle]   = useState(styles[0]   ?? null);
+  const [selectedPortion, setSelectedPortion] = useState(null);
+
+  const currentPrice = (selectedStyle && selectedPortion)
+    ? (prices[`${selectedStyle}|${selectedPortion}`] ?? 0)
+    : null;
+
+  const canConfirm = selectedStyle && selectedPortion && currentPrice !== null;
+
+  const styleColors = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4'];
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    // Emit as two flat modifiers so the rest of the system (cart, KDS, print) stays unchanged
+    const mods = [
+      {
+        modifierGroupId: '__style__',
+        modifierGroupName: matrix.styleLabel  ?? 'Style',
+        id: `style-${selectedStyle}`,
+        name: selectedStyle,
+        priceAdd: 0,
+        isVariantAxis: true,
+      },
+      {
+        modifierGroupId: '__portion__',
+        modifierGroupName: matrix.portionLabel ?? 'Portion',
+        id: `portion-${selectedPortion}`,
+        name: selectedPortion,
+        priceAdd: currentPrice,
+        isVariantAxis: true,
+      }
+    ];
+    onConfirm(mods, currentPrice);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal animate-slide-up" style={{ maxWidth: 420 }}>
+
+        {/* Header */}
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ fontSize: 24 }}>{item.emoji ?? '🍽️'}</span>
+            <div>
+              <h2 className="modal-title" style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)' }}>
+                {item.name}
+              </h2>
+              <div style={{ fontSize: 12, color: 'var(--color-label-tertiary)' }}>
+                Pick style then portion — 1 item
+              </div>
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-icon" onClick={onClose}><X size={16} /></button>
+        </div>
+
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+
+          {/* Step 1 — Style selector */}
+          <div>
+            <div className="vm-step-header">
+              <span className="vm-step-num">1</span>
+              <span className="vm-step-title">{matrix.styleLabel ?? 'Style'}</span>
+              {selectedStyle && <span className="vm-step-selected">✓ {selectedStyle}</span>}
+            </div>
+            <div className="vm-style-grid">
+              {styles.map((s, idx) => {
+                const isActive = selectedStyle === s;
+                const col = styleColors[idx % styleColors.length];
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`vm-style-btn ${isActive ? 'vm-style-btn--active' : ''}`}
+                    style={isActive ? { borderColor: col, background: col + '18', color: col } : {}}
+                    onClick={() => {
+                      setSelectedStyle(s);
+                      // Reset portion if current combo doesn't exist
+                      if (selectedPortion && prices[`${s}|${selectedPortion}`] === undefined) {
+                        setSelectedPortion(null);
+                      }
+                    }}
+                  >
+                    {isActive && <Check size={13} strokeWidth={3} />}
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step 2 — Portion selector (enabled only after style chosen) */}
+          <div style={{ opacity: selectedStyle ? 1 : 0.4, pointerEvents: selectedStyle ? 'all' : 'none', transition: 'opacity 0.2s' }}>
+            <div className="vm-step-header">
+              <span className="vm-step-num" style={selectedStyle ? {} : { background: 'var(--color-separator)', color: 'var(--color-label-tertiary)' }}>2</span>
+              <span className="vm-step-title">{matrix.portionLabel ?? 'Portion'}</span>
+              {selectedPortion && <span className="vm-step-selected">✓ {selectedPortion}</span>}
+              {!selectedStyle && <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>Select style first</span>}
+            </div>
+            <div className="vm-portion-grid">
+              {portions.map(p => {
+                const price = selectedStyle ? (prices[`${selectedStyle}|${p}`] ?? null) : null;
+                const isActive = selectedPortion === p;
+                const unavailable = price === null || price === undefined;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`vm-portion-btn ${isActive ? 'vm-portion-btn--active' : ''} ${unavailable ? 'vm-portion-btn--disabled' : ''}`}
+                    disabled={unavailable}
+                    onClick={() => setSelectedPortion(p)}
+                  >
+                    <span className="vm-portion-name">{p}</span>
+                    <span className="vm-portion-price">
+                      {price !== null && price !== undefined ? formatCurrency(price, currency) : '—'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Summary pill */}
+          {canConfirm && (
+            <div className="vm-summary">
+              <span className="vm-summary-combo">
+                {selectedStyle} · {selectedPortion}
+              </span>
+              <ChevronRight size={14} style={{ color: 'var(--color-label-tertiary)' }} />
+              <span className="vm-summary-price">{formatCurrency(currentPrice, currency)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button
+            className="btn btn-primary btn-lg"
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            style={{ padding: '10px var(--space-6)', height: 44, borderRadius: 'var(--radius-lg)' }}
+          >
+            {canConfirm
+              ? `Add to Cart · ${formatCurrency(currentPrice, currency)}`
+              : 'Select style & portion'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CLASSIC MODIFIER MODE (unchanged behaviour)
+────────────────────────────────────────────────────────────── */
 
 function getInitialSelections(item) {
   if (!item?.modifierGroups) return {};
@@ -16,11 +231,10 @@ function getInitialSelections(item) {
   return initial;
 }
 
-export default function ModifierModal({ item, currency, onConfirm, onClose }) {
+function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   const [prevItem, setPrevItem] = useState(item);
   const [selections, setSelections] = useState(() => getInitialSelections(item));
   const modalRef = useRef(null);
-  
   useFocusTrap(modalRef, !!item);
 
   if (item !== prevItem) {
@@ -32,63 +246,39 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
 
   const modifierGroups = item.modifierGroups ?? [];
 
-  // Toggle option selection
   const handleSelect = (group, option) => {
     const groupId = group.id;
     const current = selections[groupId] ?? [];
     const maxSelect = group.maxSelect ?? 1;
-
     let updated = [];
+
     if (maxSelect === 1) {
-      // Single select: replace selection
       const isAlreadySelected = current.some(o => o.id === option.id);
-      if (isAlreadySelected && !group.required) {
-        // If not required, allow deselecting
-        updated = [];
-      } else {
-        updated = [option];
-      }
+      updated = (isAlreadySelected && !group.required) ? [] : [option];
     } else {
-      // Multi-select: toggle selection
       const exists = current.some(o => o.id === option.id);
       if (exists) {
         updated = current.filter(o => o.id !== option.id);
       } else {
-        if (current.length < maxSelect) {
-          updated = [...current, option];
-        } else {
-          // If at limit, remove first and add new (sliding window) or just ignore?
-          // Let's do sliding window so it feels responsive, or we can just ignore.
-          // Sliding window is nice, but keeping it simple: replace the oldest or ignore.
-          // Let's ignore (do nothing) or alert. Actually, just replace oldest is very smooth!
-          updated = [...current.slice(1), option];
-        }
+        updated = current.length < maxSelect
+          ? [...current, option]
+          : [...current.slice(1), option];
       }
     }
-
-    setSelections(prev => ({
-      ...prev,
-      [groupId]: updated
-    }));
+    setSelections(prev => ({ ...prev, [groupId]: updated }));
   };
 
-  // Calculate prices
   const basePrice = item.price ?? 0;
-  const modifierTotal = Object.values(selections).reduce((sum, opts) => {
-    return sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0), 0);
-  }, 0);
+  const modifierTotal = Object.values(selections).reduce((sum, opts) =>
+    sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0), 0), 0);
   const totalUnitPrice = basePrice + modifierTotal;
 
-  // Validation
   const isGroupSatisfied = (group) => {
     if (!group.required) return true;
-    const selectedCount = selections[group.id]?.length ?? 0;
-    return selectedCount > 0;
+    return (selections[group.id]?.length ?? 0) > 0;
   };
-
   const isValid = modifierGroups.every(isGroupSatisfied);
 
-  // Compile selected modifiers list
   const handleSubmit = () => {
     if (!isValid) return;
     const flatModifiers = [];
@@ -100,7 +290,7 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
           modifierGroupName: group?.name ?? '',
           id: opt.id,
           name: opt.name,
-          priceAdd: opt.priceAdd ?? 0
+          priceAdd: opt.priceAdd ?? 0,
         });
       });
     });
@@ -118,15 +308,13 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
                 {item.name}
               </h2>
               <div style={{ fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
-                {basePrice > 0 
-                  ? `Base Price: ${formatCurrency(basePrice, currency)}` 
+                {basePrice > 0
+                  ? `Base Price: ${formatCurrency(basePrice, currency)}`
                   : 'Select your portion / options'}
               </div>
             </div>
           </div>
-          <button className="btn btn-secondary btn-icon" onClick={onClose}>
-            <X size={16} />
-          </button>
+          <button className="btn btn-secondary btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
 
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
@@ -134,15 +322,11 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
             const groupSelections = selections[group.id] ?? [];
             const satisfied = isGroupSatisfied(group);
             const maxSelect = group.maxSelect ?? 1;
-
             return (
               <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {/* Group Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>
-                      {group.name}
-                    </span>
+                    <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{group.name}</span>
                     {group.required && (
                       <span className={`badge ${satisfied ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
                         {satisfied ? '✓ Selected' : 'Required'}
@@ -153,8 +337,6 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
                     {maxSelect === 1 ? 'Choose 1' : `Choose up to ${maxSelect}`}
                   </span>
                 </div>
-
-                {/* Options list */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
                   {group.options?.map(opt => {
                     const isSelected = groupSelections.some(o => o.id === opt.id);
@@ -179,19 +361,15 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                          {/* Selection indicator */}
                           <div style={{
-                            width: 16,
-                            height: 16,
+                            width: 16, height: 16,
                             borderRadius: maxSelect === 1 ? '50%' : 'var(--radius-xs)',
                             border: `1.5px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-label-tertiary)'}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                             background: isSelected ? 'var(--color-accent)' : 'transparent',
                             transition: 'all var(--duration-fast)',
                           }}>
-                            {isSelected && <Check size={10} color="#fff" strokeWidth={3} />}
+                            {isSelected && <Check size={10} color="var(--color-bg)" strokeWidth={3} />}
                           </div>
                           <span style={{
                             fontSize: 'var(--text-footnote)',
@@ -202,11 +380,7 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
                           </span>
                         </div>
                         {opt.priceAdd > 0 ? (
-                          <span style={{
-                            fontSize: 'var(--text-caption1)',
-                            fontWeight: 'var(--weight-bold)',
-                            color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)'
-                          }}>
+                          <span style={{ fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)' }}>
                             {basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`}
                           </span>
                         ) : (
@@ -224,9 +398,7 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button
             className="btn btn-primary btn-lg"
             onClick={handleSubmit}
@@ -238,5 +410,38 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MAIN EXPORT — router between matrix & classic mode
+────────────────────────────────────────────────────────────── */
+export default function ModifierModal({ item, currency, onConfirm, onClose }) {
+  if (!item) return null;
+
+  const effectiveMatrix = getEffectiveVariantMatrix(item);
+
+  if (effectiveMatrix) {
+    return (
+      <VariantMatrixPicker
+        item={item}
+        matrix={effectiveMatrix}
+        currency={currency}
+        onClose={onClose}
+        onConfirm={(mods, flatPrice) => {
+          // For variant matrix: price IS the flat price, no base
+          onConfirm(mods, flatPrice);
+        }}
+      />
+    );
+  }
+
+  return (
+    <ClassicModifierPicker
+      item={item}
+      currency={currency}
+      onConfirm={onConfirm}
+      onClose={onClose}
+    />
   );
 }

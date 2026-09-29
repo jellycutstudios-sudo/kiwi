@@ -9,12 +9,11 @@ import {
   LayoutDashboard, ShoppingCart, LayoutGrid,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen, Download, RefreshCw
+  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
-import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { useUpdateStore } from '../../stores/updateStore';
 
 const NAV = [
@@ -50,7 +49,6 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const role = staffDoc?.role ?? 'cashier';
   const { terms } = useBusinessConfig();
-  const { canInstall, isStandalone, promptInstall } = usePwaInstall();
   const hasUpdate = useUpdateStore(s => s.hasUpdate);
   const isUpdating = useUpdateStore(s => s.isUpdating);
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
@@ -102,22 +100,33 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Header */}
-      <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div 
+        className="sidebar-header" 
+        style={{ 
+          display: 'flex', 
+          justifyContent: isCollapsed ? 'center' : 'space-between', 
+          alignItems: 'center', 
+          width: '100%',
+          padding: isCollapsed ? 0 : '0 var(--space-4)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', width: isCollapsed ? '100%' : 'auto' }}>
           {isCollapsed ? (
-            <img src="/ricon.svg" alt="Icon" style={{ width: '32px', height: '32px' }} />
+            <img src="/ricon.svg" alt="Icon" style={{ width: '32px', height: '32px', display: 'block', margin: '0 auto' }} />
           ) : (
             <img src="/ricon.svg" alt="Logo" style={{ height: '28px', marginLeft: '4px' }} />
           )}
         </div>
-        <button
-          className="btn btn-ghost btn-icon sidebar-close-btn"
-          onClick={() => setMobileOpen(false)}
-          title="Close menu"
-          style={{ width: '32px', height: '32px', padding: 0 }}
-        >
-          <X size={18} />
-        </button>
+        {!isCollapsed && (
+          <button
+            className="btn btn-ghost btn-icon sidebar-close-btn"
+            onClick={() => setMobileOpen(false)}
+            title="Close menu"
+            style={{ width: '32px', height: '32px', padding: 0 }}
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Restaurant name */}
@@ -247,30 +256,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             {!isCollapsed && (isUpdating ? 'Updating...' : 'Update App')}
           </button>
         )}
-        {!isStandalone && canInstall && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={promptInstall}
-            style={{
-              width: '100%',
-              marginBottom: 'var(--space-2)',
-              height: '34px',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              color: 'var(--color-accent)',
-              borderColor: 'var(--color-accent)',
-              background: 'rgba(0, 122, 255, 0.08)'
-            }}
-            title="Install DineOS as an Android / Home screen App"
-          >
-            <Download size={14} /> {!isCollapsed && 'Install App'}
-          </button>
-        )}
+
         {!isCollapsed && (
           <div style={{ marginBottom: 'var(--space-3)', overflow: 'hidden', width: '100%' }}>
             <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={staffDoc?.email || staffDoc?.name}>

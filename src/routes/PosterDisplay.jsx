@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import { doc, getDoc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { usePosterStore } from '../stores/posterStore';
-import { Loader2, Tv, Wifi, Maximize, Minimize } from 'lucide-react';
+import { Tv, Wifi, Maximize, Minimize } from 'lucide-react';
 import './PosterDisplay.css';
+import LoadingScreen from '../components/shared/LoadingScreen';
 
 export default function PosterDisplay() {
   const { restaurantId, slideshowId: paramSlideshowId } = useParams();
@@ -270,10 +271,7 @@ export default function PosterDisplay() {
 
   if (loadingPosters || !resolvedId) {
     return (
-      <div className="poster-display-loading">
-        <Loader2 size={48} className="animate-spin text-accent" />
-        <p>Loading TV Poster Display...</p>
-      </div>
+      <LoadingScreen message="Loading display…" />
     );
   }
 

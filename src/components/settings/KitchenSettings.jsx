@@ -534,7 +534,7 @@ export default function KitchenSettings({ settings, updateField }) {
           </div>
         ) : (
           <div style={{
-            background: 'var(--color-bg-primary)',
+            background: 'var(--color-bg-elevated)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--space-6) var(--space-4)',
             textAlign: 'center',
