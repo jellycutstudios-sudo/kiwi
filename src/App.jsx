@@ -114,7 +114,7 @@ export default function App() {
                 <Route path="/admin/inventory"    element={<Inventory />} />
                 <Route path="/admin/customers"    element={<Customers />} />
                 <Route path="/admin/reservations" element={<Reservations />} />
-                <Route path="/admin/floor"        element={<FloorPlanEditor />} />
+                <Route path="/admin/floor"        element={<Navigate to="/tables?edit=true" replace />} />
                 <Route path="/admin/transactions" element={<Transactions />} />
                 <Route path="/admin/settings"     element={<Settings />} />
                 <Route path="/admin/delivery-hub" element={<DeliveryHub />} />

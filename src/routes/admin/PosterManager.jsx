@@ -11,6 +11,33 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import toast from 'react-hot-toast';
 
+const SAMPLE_POSTERS = [
+  {
+    label: '🍔 Burger Combo',
+    title: 'Gourmet Burger Special',
+    url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
+    duration: 6
+  },
+  {
+    label: '🍕 Artisan Pizza',
+    title: 'Wood-Fired Pizza Deal',
+    url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=1200&q=80',
+    duration: 6
+  },
+  {
+    label: '🍹 Happy Hour',
+    title: 'Craft Cocktails & Drinks',
+    url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=1200&q=80',
+    duration: 8
+  },
+  {
+    label: '☕ Artisan Coffee',
+    title: 'Morning Brew & Pastries',
+    url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=1200&q=80',
+    duration: 6
+  }
+];
+
 export default function PosterManager() {
   const { restaurant } = useAuthStore();
   const { 
@@ -30,11 +57,15 @@ export default function PosterManager() {
   // Target screens selection for upload
   const [broadcastToAll, setBroadcastToAll] = useState(false);
   const [targetScreenIds, setTargetScreenIds] = useState([]);
+  const [showCustomTargetScreens, setShowCustomTargetScreens] = useState(false);
 
-  // Upload Method: 'file' | 'url'
-  const [uploadMethod, setUploadMethod] = useState('file');
+  // Upload Method: 'url' (Postimages / Image URL) | 'file' (direct device upload)
+  const [uploadMethod, setUploadMethod] = useState('url');
   const [pastedUrl, setPastedUrl] = useState('');
+  const [pastedTitle, setPastedTitle] = useState('');
   const [uploadDuration, setUploadDuration] = useState(6);
+  const [previewStatus, setPreviewStatus] = useState('idle'); // 'idle' | 'loading' | 'valid' | 'error'
+  const [previewDims, setPreviewDims] = useState(null);
   
   // Multi-file selection state
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -123,6 +154,68 @@ export default function PosterManager() {
         return [...currentList, screenId];
       }
     });
+  };
+
+  // Smart cleaner for pasted image links (e.g. from Postimages, markdown, bbcode, html)
+  const handleUrlInput = (rawVal) => {
+    let clean = rawVal.trim();
+    // 1. Extract markdown image: ![...](URL)
+    const mdMatch = clean.match(/!\[.*?\]\((https?:\/\/[^\s\)]+)\)/);
+    if (mdMatch) clean = mdMatch[1];
+    
+    // 2. Extract HTML img tag: <img src="URL"...>
+    const htmlMatch = clean.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+    if (htmlMatch) clean = htmlMatch[1];
+
+    // 3. Extract BBCode [img]URL[/img]
+    const bbMatch = clean.match(/\[img\](https?:\/\/[^\[]+)\[\/img\]/i);
+    if (bbMatch) clean = bbMatch[1];
+
+    setPastedUrl(clean);
+  };
+
+  const isPostimgPageLink = Boolean(
+    pastedUrl && 
+    (pastedUrl.includes('postimg.cc/') || pastedUrl.includes('postimages.org/')) && 
+    !pastedUrl.includes('i.postimg.cc/')
+  );
+
+  // Debounced live image preview validation
+  useEffect(() => {
+    const trimmed = pastedUrl.trim();
+    if (!trimmed) {
+      setPreviewStatus('idle');
+      setPreviewDims(null);
+      return;
+    }
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setPreviewStatus('error');
+      setPreviewDims(null);
+      return;
+    }
+
+    setPreviewStatus('loading');
+    const timer = setTimeout(() => {
+      const img = new Image();
+      img.onload = () => {
+        setPreviewStatus('valid');
+        setPreviewDims({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = () => {
+        setPreviewStatus('error');
+        setPreviewDims(null);
+      };
+      img.src = trimmed;
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [pastedUrl]);
+
+  // Select demo sample poster
+  const handleSelectSample = (sample) => {
+    setPastedUrl(sample.url);
+    setPastedTitle(sample.title);
+    setUploadDuration(sample.duration || 6);
   };
 
   // Create Screen
@@ -305,15 +398,20 @@ export default function PosterManager() {
         await addPosterLink(
           restaurant.id,
           resolvedTargetIds,
-          'Slide URL',
+          pastedTitle.trim() || 'Food Special',
           pastedUrl.trim(),
-          Number(uploadDuration)
+          Number(uploadDuration) || 6
         );
-        const screenCountStr = resolvedTargetIds.length === 1 ? '1 TV' : `${resolvedTargetIds.length} TVs`;
-        toast.success(`Poster URL distributed to ${screenCountStr}!`);
+        const screenCountStr = resolvedTargetIds.length === 1 
+          ? (activeScreenDoc?.name ? `"${activeScreenDoc.name}"` : '1 TV') 
+          : `All ${resolvedTargetIds.length} TVs`;
+        toast.success(`Poster added to ${screenCountStr}!`, { icon: '📺' });
         setPastedUrl('');
-      } catch {
-        toast.error('Failed to add poster link');
+        setPastedTitle('');
+        setPreviewStatus('idle');
+        setPreviewDims(null);
+      } catch (err) {
+        toast.error('Failed to add poster link: ' + (err?.message || 'Unknown error'));
       } finally {
         setIsUploading(false);
       }
@@ -550,10 +648,10 @@ export default function PosterManager() {
       {/* ── Top Header ───────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
         <div>
-          <h2 className="text-title2" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <Tv size={28} style={{ color: 'var(--accent)' }} /> TV Digital Poster Boards
+          <h2 className="text-title2" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', color: '#0f172a', fontWeight: 800 }}>
+            <Tv size={28} style={{ color: '#059669' }} /> TV Digital Poster Boards
           </h2>
-          <p className="text-secondary text-caption1">
+          <p style={{ margin: 0, fontSize: '13px', color: '#475569', fontWeight: 500 }}>
             Display menus, special offers, and animated announcements across 1 or multiple TV screens in your restaurant.
           </p>
         </div>
@@ -562,7 +660,7 @@ export default function PosterManager() {
           <button 
             type="button" 
             className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
             onClick={handleOpenQrModal}
           >
             <QrCode size={16} /> Smart TV Pairing & QR
@@ -574,25 +672,25 @@ export default function PosterManager() {
                 type="text" 
                 placeholder="Screen name (e.g. Bar TV)" 
                 className="form-input"
-                style={{ width: '180px', height: '40px' }}
+                style={{ width: '180px', height: '40px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
                 value={newScreenName}
                 onChange={e => setNewScreenName(e.target.value)}
                 autoFocus
               />
               <select 
                 className="form-select"
-                style={{ width: '140px', height: '40px' }}
+                style={{ width: '140px', height: '40px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
                 value={newScreenOrientation}
                 onChange={e => setNewScreenOrientation(e.target.value)}
               >
                 <option value="landscape">📺 Landscape (16:9)</option>
                 <option value="portrait">📱 Portrait (9:16)</option>
               </select>
-              <button type="submit" className="btn btn-primary" style={{ height: '40px' }}>Create</button>
+              <button type="submit" className="btn btn-primary" style={{ height: '40px', background: '#059669', color: '#ffffff', fontWeight: 700 }}>Create</button>
               <button 
                 type="button" 
                 className="btn btn-secondary" 
-                style={{ height: '40px' }} 
+                style={{ height: '40px', border: '1.5px solid #cbd5e1', color: '#475569', fontWeight: 700 }} 
                 onClick={() => { setIsCreatingScreen(false); setNewScreenName(''); }}
               >
                 Cancel
@@ -601,7 +699,7 @@ export default function PosterManager() {
           ) : (
             <button 
               className="btn btn-primary" 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', background: '#0f172a', color: '#ffffff', fontWeight: 800 }}
               onClick={() => setIsCreatingScreen(true)}
             >
               <Plus size={16} /> Add TV Screen
@@ -611,16 +709,16 @@ export default function PosterManager() {
       </div>
 
       {/* ── TV Screen Management Strip ───────────────────────────── */}
-      <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)', background: 'var(--surface)' }}>
+      <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)', background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Connected TV Channels ({slideshows.length})
           </span>
           {slideshows.length > 1 && (
             <button 
               type="button"
               className="btn btn-secondary"
-              style={{ height: '30px', fontSize: '12px', padding: '0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ height: '30px', fontSize: '12px', padding: '0 12px', display: 'flex', alignItems: 'center', gap: '6px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
               onClick={() => setIsCloneModalOpen(true)}
             >
               <Copy size={13} /> Clone Playlist to Another TV
@@ -631,7 +729,7 @@ export default function PosterManager() {
         {/* Screen Cards Strip */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--space-3)' }}>
           {loadingSlideshows ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', color: '#475569', fontWeight: 600 }}>
               <Loader2 size={18} className="animate-spin text-secondary" /> Loading TV Screens...
             </div>
           ) : (
@@ -647,59 +745,59 @@ export default function PosterManager() {
                     flexDirection: 'column',
                     justifyContent: 'space-between',
                     padding: 'var(--space-3)',
-                    borderRadius: 'var(--radius-md)',
-                    border: isSelected ? '2px solid var(--accent)' : '1px solid var(--color-separator)',
-                    background: isSelected ? 'rgba(var(--accent-rgb, 234, 88, 12), 0.08)' : 'var(--color-bg-elevated)',
+                    borderRadius: '12px',
+                    border: isSelected ? '2px solid #059669' : '1.5px solid #cbd5e1',
+                    background: isSelected ? '#f0fdf4' : '#ffffff',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
+                    boxShadow: isSelected ? '0 4px 14px rgba(5, 150, 105, 0.15)' : '0 1px 3px rgba(0,0,0,0.03)'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{
-                        width: '32px',
-                        height: '32px',
+                        width: '34px',
+                        height: '34px',
                         borderRadius: '8px',
-                        background: isSelected ? 'var(--accent)' : 'var(--color-bg-tertiary)',
-                        color: isSelected ? '#ffffff' : 'var(--color-label-secondary)',
+                        background: isSelected ? '#059669' : '#f1f5f9',
+                        color: isSelected ? '#ffffff' : '#334155',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        <Tv size={16} />
+                        <Tv size={18} />
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '14px', color: isSelected ? 'var(--accent)' : 'inherit' }}>
+                        <div style={{ fontWeight: 800, fontSize: '14px', color: isSelected ? '#065f46' : '#0f172a' }}>
                           {s.name}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ fontSize: '11.5px', color: isSelected ? '#047857' : '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>{isPortrait ? '📱 9:16 Portrait' : '📺 16:9 Landscape'}</span>
                         </div>
                       </div>
                     </div>
 
                     {isSelected && (
-                      <span style={{ fontSize: '10px', fontWeight: 800, background: 'var(--accent)', color: '#fff', padding: '2px 6px', borderRadius: '10px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, background: '#059669', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', letterSpacing: '0.04em' }}>
                         ACTIVE
                       </span>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: isSelected ? '1px solid #bbf7d0' : '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', color: isSelected ? '#047857' : '#475569', fontWeight: 600 }}>
                       {s.transition || 'kenburns'}
                     </span>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <button
                         type="button"
                         className="btn btn-secondary btn-icon"
-                        style={{ width: '26px', height: '26px', padding: 0 }}
+                        style={{ width: '28px', height: '28px', padding: 0, border: '1px solid #cbd5e1', color: '#334155', background: '#ffffff' }}
                         title="Copy TV Link"
                         onClick={(e) => { e.stopPropagation(); copyDisplayUrl(s.id); }}
                       >
-                        {copiedId === s.id ? <Check size={12} color="var(--color-green)" /> : <Copy size={12} />}
+                        {copiedId === s.id ? <Check size={12} color="#059669" /> : <Copy size={12} />}
                       </button>
                       <a
                         href={`/display/slides/${restaurant?.id}/${s.id}`}
@@ -728,91 +826,154 @@ export default function PosterManager() {
           {/* Left Column: Multi-File Upload & Playlist */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             
-            {/* ── Add Posters Card ────────────────────────────────────── */}
-            <div className="card card-padded">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)', flexWrap: 'wrap', gap: '8px' }}>
-                <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Upload size={18} style={{ color: 'var(--accent)' }} /> Add Posters to TV Screens
-                </h3>
+            {/* ── Add Posters Card (Streamlined URL-First with Live Preview) ── */}
+            <div className="card card-padded" style={{ borderRadius: '16px', border: '1.5px solid #cbd5e1', background: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                    <Plus size={18} style={{ color: '#059669' }} /> Add Poster Slide
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#475569', fontWeight: 500 }}>
+                    Use free Postimages links or direct device upload with instant TV preview.
+                  </p>
+                </div>
 
-                {/* Upload Method Tabs */}
-                <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: '8px' }}>
+                {/* Method Switcher: Postimages / Web Link & Device File Upload */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', border: '1.5px solid #cbd5e1', padding: '3px', borderRadius: '10px' }}>
                   <button 
                     type="button" 
                     className="btn"
                     style={{
-                      height: '30px', 
-                      padding: '0 12px', 
+                      height: '32px', 
+                      padding: '0 14px', 
                       fontSize: '12px', 
-                      borderRadius: '6px',
-                      background: uploadMethod === 'file' ? 'var(--color-bg-elevated)' : 'transparent',
-                      color: uploadMethod === 'file' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                      boxShadow: uploadMethod === 'file' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      fontWeight: 800,
+                      borderRadius: '7px',
+                      background: uploadMethod === 'url' ? '#0f172a' : 'transparent',
+                      color: uploadMethod === 'url' ? '#ffffff' : '#334155',
+                      border: 'none',
+                      boxShadow: uploadMethod === 'url' ? '0 1px 3px rgba(15,23,42,0.2)' : 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
                     }}
-                    onClick={() => setUploadMethod('file')}
+                    onClick={() => setUploadMethod('url')}
                   >
-                    📁 Upload Files
+                    <span>🔗 Postimages / Image URL</span>
                   </button>
                   <button 
                     type="button" 
                     className="btn"
-                    style={{ 
-                      height: '30px', 
-                      padding: '0 12px', 
+                    style={{
+                      height: '32px', 
+                      padding: '0 14px', 
                       fontSize: '12px', 
-                      borderRadius: '6px',
-                      background: uploadMethod === 'url' ? 'var(--color-bg-elevated)' : 'transparent',
-                      color: uploadMethod === 'url' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                      boxShadow: uploadMethod === 'url' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      fontWeight: 800,
+                      borderRadius: '7px',
+                      background: uploadMethod === 'file' ? '#0f172a' : 'transparent',
+                      color: uploadMethod === 'file' ? '#ffffff' : '#334155',
+                      border: 'none',
+                      boxShadow: uploadMethod === 'file' ? '0 1px 3px rgba(15,23,42,0.2)' : 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
                     }}
-                    onClick={() => setUploadMethod('url')}
+                    onClick={() => setUploadMethod('file')}
                   >
-                    🔗 Image URL
+                    <Upload size={13} />
+                    <span>Upload from Device (Free)</span>
                   </button>
                 </div>
               </div>
 
-              {/* ── Target TV Selector (Multi-TV Assignment) ────────── */}
-              <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-separator-opaque)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
-                    📺 Target TV Screen(s) for this upload:
+              {/* High-Contrast Target TV Switcher */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '12px',
+                padding: '10px 14px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                    Display on:
                   </span>
-                  <button 
-                    type="button"
-                    style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                    onClick={() => setBroadcastToAll(!broadcastToAll)}
-                  >
-                    {broadcastToAll ? 'Switch to custom screen select' : '⚡ Broadcast to All TVs'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '3px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setBroadcastToAll(false); setShowCustomTargetScreens(false); }}
+                      style={{
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: !broadcastToAll ? '#0f172a' : 'transparent',
+                        color: !broadcastToAll ? '#ffffff' : '#334155',
+                        boxShadow: !broadcastToAll ? '0 2px 5px rgba(15,23,42,0.25)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Tv size={13} /> {activeScreenDoc?.name ? `"${activeScreenDoc.name}" only` : 'Current TV'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setBroadcastToAll(true); setShowCustomTargetScreens(false); }}
+                      style={{
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: broadcastToAll ? '#0f172a' : 'transparent',
+                        color: broadcastToAll ? '#ffffff' : '#334155',
+                        boxShadow: broadcastToAll ? '0 2px 5px rgba(15,23,42,0.25)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Zap size={13} /> All TVs ({slideshows.length})
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {/* Broadcast to All Button */}
-                  <label style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '6px', 
-                    padding: '6px 12px', 
-                    borderRadius: '6px', 
-                    fontSize: '12px', 
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: broadcastToAll ? 'var(--accent)' : 'var(--color-bg-elevated)',
-                    color: broadcastToAll ? '#ffffff' : 'var(--color-label)',
-                    border: broadcastToAll ? '1px solid var(--accent)' : '1px solid var(--color-separator)'
-                  }}>
-                    <input 
-                      type="checkbox" 
-                      checked={broadcastToAll} 
-                      onChange={e => setBroadcastToAll(e.target.checked)}
-                      style={{ display: 'none' }}
-                    />
-                    ⚡ All TVs ({slideshows.length} screens)
-                  </label>
+                {slideshows.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomTargetScreens(v => !v)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#0369a1',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      padding: '4px 8px'
+                    }}
+                  >
+                    {showCustomTargetScreens ? 'Hide selection ▲' : 'Custom TVs ▼'}
+                  </button>
+                )}
+              </div>
 
-                  {/* Individual TV screen checkboxes */}
-                  {!broadcastToAll && slideshows.map(s => {
+              {/* Custom TV screen checkboxes (collapsed by default) */}
+              {showCustomTargetScreens && !broadcastToAll && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px 14px 14px', marginTop: '-8px', marginBottom: '14px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                  {slideshows.map(s => {
                     const isChecked = targetScreenIds.includes(s.id);
                     return (
                       <label 
@@ -822,211 +983,578 @@ export default function PosterManager() {
                           alignItems: 'center', 
                           gap: '6px', 
                           padding: '6px 12px', 
-                          borderRadius: '6px', 
+                          borderRadius: '8px', 
                           fontSize: '12px', 
-                          fontWeight: 500,
+                          fontWeight: 700,
                           cursor: 'pointer',
-                          background: isChecked ? 'rgba(56, 189, 248, 0.15)' : 'var(--color-bg-elevated)',
-                          color: isChecked ? '#38bdf8' : 'var(--color-label)',
-                          border: isChecked ? '1px solid #38bdf8' : '1px solid var(--color-separator)'
+                          background: isChecked ? '#e0f2fe' : '#ffffff',
+                          color: isChecked ? '#0369a1' : '#0f172a',
+                          border: isChecked ? '1.5px solid #0284c7' : '1.5px solid #cbd5e1',
+                          transition: 'all 0.15s ease'
                         }}
                       >
                         <input 
                           type="checkbox" 
                           checked={isChecked} 
                           onChange={() => handleToggleTargetScreen(s.id)}
-                          style={{ accentColor: 'var(--accent)' }}
+                          style={{ accentColor: '#059669' }}
                         />
                         {s.name}
                       </label>
                     );
                   })}
                 </div>
-              </div>
+              )}
 
-              {/* Upload Form */}
-              <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label className="form-label" style={{ margin: 0, fontSize: '13px', whiteSpace: 'nowrap' }}>Slide Duration:</label>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      max="300"
-                      className="form-input"
-                      style={{ width: '75px', height: '36px' }}
-                      value={uploadDuration}
-                      onChange={e => setUploadDuration(e.target.value)}
-                    />
-                    <span style={{ fontSize: '13px', color: '#64748b' }}>seconds</span>
-                  </div>
+              {/* ── Mode 1: Device File Upload ── */}
+              {uploadMethod === 'file' && (
+                <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <input 
+                    ref={fileInputRef} 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    onChange={handleFileChange} 
+                    style={{ display: 'none' }} 
+                  />
 
-                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Target: <strong>{broadcastToAll ? `All ${slideshows.length} TV screens` : `${resolvedTargetIds.length} TV screen(s)`}</strong>
-                  </span>
-                </div>
-
-                {uploadMethod === 'file' ? (
-                  <div>
-                    {/* Drag & drop multi-file zone */}
-                    <div 
-                      style={{ 
-                        border: '2px dashed var(--color-separator-opaque)', 
-                        borderRadius: 'var(--radius-lg)', 
-                        padding: 'var(--space-6)', 
-                        textAlign: 'center', 
-                        background: 'var(--color-bg-secondary)', 
-                        cursor: 'pointer', 
-                        position: 'relative',
-                        transition: 'border-color 0.2s'
-                      }}
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={e => {
+                  {selectedFiles.length === 0 ? (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
                         e.preventDefault();
+                        e.stopPropagation();
                         if (e.dataTransfer.files) {
                           handleFileChange({ target: { files: e.dataTransfer.files } });
                         }
                       }}
+                      style={{
+                        border: '2px dashed #059669',
+                        borderRadius: '12px',
+                        padding: '36px 20px',
+                        background: '#f0fdf4',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease'
+                      }}
                     >
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        multiple
-                        onChange={handleFileChange}
-                        ref={fileInputRef}
-                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <Upload size={32} style={{ color: 'var(--accent)' }} />
-                        <span style={{ fontWeight: 700, fontSize: '15px' }}>
-                          Drag & drop posters here, or <span style={{ color: 'var(--accent)', textDecoration: 'underline' }}>browse</span>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
+                        <Upload size={26} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '15px', color: '#0f172a' }}>
+                          Click to select poster images from your device
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '3px' }}>
+                          or drag & drop files here • JPG, PNG, WEBP (automatically optimized for 1080p TV)
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ height: '36px', fontSize: '12px', fontWeight: 800, background: '#059669', color: '#ffffff', borderRadius: '8px', border: 'none', padding: '0 18px', marginTop: '4px' }}
+                      >
+                        Browse Files
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                          Selected Images ({selectedFiles.length})
                         </span>
-                        <span style={{ fontSize: '12px', color: '#64748b' }}>
-                          Select 1 or multiple posters at once (PNG, JPG, WebP • Max 10MB each)
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            background: '#f1f5f9',
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Plus size={13} /> Add More Files
+                        </button>
+                      </div>
+
+                      {/* File Cards Strip */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '10px' }}>
+                        {selectedFiles.map((file, idx) => {
+                          const previewUrl = URL.createObjectURL(file);
+                          const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+                          return (
+                            <div 
+                              key={idx}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '8px 10px',
+                                borderRadius: '10px',
+                                border: '1.5px solid #cbd5e1',
+                                background: '#ffffff',
+                                position: 'relative'
+                              }}
+                            >
+                              <img 
+                                src={previewUrl} 
+                                alt={file.name} 
+                                style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', background: '#0f172a', flexShrink: 0 }} 
+                              />
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {file.name}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                                  {sizeMb} MB
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeSelectedFile(idx)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#dc2626',
+                                  cursor: 'pointer',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Remove file"
+                              >
+                                <X size={15} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Duration Setting */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
+                          Display Duration per Slide:
+                        </label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '90px' }}>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            max="300" 
+                            className="form-input"
+                            style={{ height: '36px', fontSize: '13px', fontWeight: 700, borderRadius: '8px', paddingRight: '22px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+                            value={uploadDuration}
+                            onChange={e => setUploadDuration(e.target.value)}
+                          />
+                          <span style={{ position: 'absolute', right: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', pointerEvents: 'none' }}>
+                            s
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Progress Bar if active */}
+                  {uploadProgress && (
+                    <div style={{ marginTop: '8px', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                        <span>Uploading {uploadProgress.fileName}... ({uploadProgress.current}/{uploadProgress.total})</span>
+                        <span>{uploadProgress.percent}%</span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div style={{ width: `${uploadProgress.percent}%`, height: '100%', background: '#059669', transition: 'width 0.2s ease' }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Action for File Upload */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={isUploading || selectedFiles.length === 0}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        height: '42px',
+                        padding: '0 24px',
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        borderRadius: '10px',
+                        background: '#059669',
+                        boxShadow: '0 2px 8px rgba(5,150,105,0.35)',
+                        border: 'none',
+                        color: '#ffffff',
+                        cursor: isUploading || selectedFiles.length === 0 ? 'not-allowed' : 'pointer',
+                        opacity: isUploading || selectedFiles.length === 0 ? 0.6 : 1
+                      }}
+                    >
+                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                      {isUploading 
+                        ? 'Optimizing & Uploading...' 
+                        : broadcastToAll 
+                        ? `+ Upload & Broadcast to All TVs (${selectedFiles.length || 0})` 
+                        : `+ Upload & Add to "${activeScreenDoc?.name || 'Screen'}" (${selectedFiles.length || 0})`}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* ── Mode 2: Web Image Link (URL & Postimages) ── */}
+              {uploadMethod === 'url' && (
+                <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Postimages Free Service Helper Card */}
+                  <div style={{
+                    background: '#f0fdf4',
+                    border: '1.5px solid #86efac',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '240px', flex: 1 }}>
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '10px',
+                        background: '#059669',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 900,
+                        fontSize: '18px',
+                        flexShrink: 0
+                      }}>
+                        P
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Upload Free on Postimages (postimages.org)
+                          <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px', border: '1px solid #86efac', fontWeight: 700 }}>
+                            100% Free • No Account
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#047857', marginTop: '2px', lineHeight: 1.4 }}>
+                          Upload your image → Copy the <strong>"Direct link"</strong> (starts with <code>https://i.postimg.cc/...</code>) → Paste below!
+                        </div>
+                      </div>
+                    </div>
+                    <a
+                      href="https://postimages.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn"
+                      style={{
+                        height: '34px',
+                        padding: '0 14px',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        background: '#059669',
+                        color: '#ffffff',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 4px rgba(5,150,105,0.2)'
+                      }}
+                    >
+                      <span>Open Postimages.org</span>
+                      <ExternalLink size={13} />
+                    </a>
+                  </div>
+
+                  {/* Inputs Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 140px 100px', gap: '10px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
+                        Image Link (URL) *
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input 
+                          type="url" 
+                          placeholder="Paste direct image link (e.g. https://i.postimg.cc/.../burger.jpg)" 
+                          className="form-input"
+                          style={{
+                            paddingRight: pastedUrl ? '32px' : '12px',
+                            height: '42px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            borderRadius: '10px',
+                            border: previewStatus === 'valid' ? '2px solid #059669' : previewStatus === 'error' ? '2px solid #dc2626' : '1.5px solid #cbd5e1',
+                            background: '#ffffff',
+                            color: '#0f172a'
+                          }}
+                          value={pastedUrl}
+                          onChange={e => handleUrlInput(e.target.value)}
+                          autoFocus
+                        />
+                        {pastedUrl && (
+                          <button
+                            type="button"
+                            onClick={() => { setPastedUrl(''); setPastedTitle(''); setPreviewStatus('idle'); }}
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#64748b',
+                              cursor: 'pointer',
+                              padding: '4px'
+                            }}
+                            title="Clear URL"
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Previews of selected files */}
-                    {selectedFiles.length > 0 && (
-                      <div style={{ marginTop: 'var(--space-3)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                            {selectedFiles.length} file(s) selected:
-                          </span>
-                          <button 
-                            type="button" 
-                            style={{ background: 'none', border: 'none', color: 'var(--color-red)', fontSize: '12px', cursor: 'pointer' }}
-                            onClick={() => setSelectedFiles([])}
-                          >
-                            Clear all
-                          </button>
-                        </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
+                        Title (Optional)
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Combo Deal" 
+                        className="form-input"
+                        style={{ height: '42px', fontSize: '13px', fontWeight: 600, borderRadius: '10px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+                        value={pastedTitle}
+                        onChange={e => setPastedTitle(e.target.value)}
+                      />
+                    </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
-                          {selectedFiles.map((file, idx) => (
-                            <div 
-                              key={idx}
-                              style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px', 
-                                padding: '6px 10px', 
-                                background: 'var(--color-bg-elevated)', 
-                                border: '1px solid var(--color-separator-opaque)', 
-                                borderRadius: '8px',
-                                fontSize: '12px'
-                              }}
-                            >
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontWeight: 500 }}>
-                                {file.name}
-                              </span>
-                              <span style={{ fontSize: '10px', color: '#94a3b8', flexShrink: 0 }}>
-                                {(file.size / 1024 / 1024).toFixed(1)}MB
-                              </span>
-                              <button 
-                                type="button" 
-                                onClick={() => removeSelectedFile(idx)}
-                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94a3b8' }}
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
+                        Duration
+                      </label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="300" 
+                          className="form-input"
+                          style={{ height: '42px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', paddingRight: '24px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+                          value={uploadDuration}
+                          onChange={e => setUploadDuration(e.target.value)}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', fontSize: '12px', fontWeight: 800, color: '#475569', pointerEvents: 'none' }}>
+                          s
+                        </span>
                       </div>
-                    )}
-
-                    {/* Batch progress display */}
-                    {uploadProgress && (
-                      <div style={{ marginTop: 'var(--space-3)', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'var(--color-green)', marginBottom: '4px' }}>
-                          <span>Uploading {uploadProgress.current} of {uploadProgress.total}: {uploadProgress.fileName}</span>
-                          <span>{uploadProgress.percent}%</span>
-                        </div>
-                        <div style={{ width: '100%', height: '6px', background: '#dcfce7', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${uploadProgress.percent}%`, height: '100%', background: '#22c55e', transition: 'width 0.2s ease' }} />
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="form-group">
-                    <label className="form-label">Image URL</label>
-                    <input 
-                      type="url" 
-                      placeholder="e.g. https://images.unsplash.com/photo-example.jpg" 
-                      className="form-input"
-                      value={pastedUrl}
-                      onChange={e => setPastedUrl(e.target.value)}
-                    />
-                    <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
-                      Must be a direct image link ending in .jpg, .png, or .webp
+
+                  {/* Warning if user pasted postimg.cc gallery page instead of direct link */}
+                  {isPostimgPageLink && (
+                    <div style={{
+                      background: '#fffbeb',
+                      border: '1.5px solid #f59e0b',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      fontSize: '12.5px',
+                      color: '#92400e',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px'
+                    }}>
+                      <span style={{ fontSize: '18px', lineHeight: 1 }}>💡</span>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '13px', color: '#b45309' }}>
+                          Postimages Direct Link Needed
+                        </div>
+                        <div style={{ marginTop: '2px', color: '#78350f', lineHeight: 1.4 }}>
+                          You pasted the Postimages viewer page link (<code style={{ background: '#fef3c7', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>{pastedUrl}</code>). 
+                          TV screens need the direct image file to show your poster. On Postimages, look for the row labeled <strong>"Direct link"</strong> (starts with <code style={{ background: '#fef3c7', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>https://i.postimg.cc/...</code> and ends in .jpg/.png) and paste that here!
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick Sample Presets */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Quick Presets:
                     </span>
+                    {SAMPLE_POSTERS.map((sample, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectSample(sample)}
+                        style={{
+                          background: pastedUrl === sample.url ? '#ecfdf5' : '#ffffff',
+                          border: pastedUrl === sample.url ? '1.5px solid #059669' : '1.5px solid #cbd5e1',
+                          color: pastedUrl === sample.url ? '#065f46' : '#0f172a',
+                          padding: '5px 12px',
+                          borderRadius: '999px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: pastedUrl === sample.url ? '0 1px 3px rgba(5,150,105,0.2)' : '0 1px 2px rgba(0,0,0,0.03)',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {sample.label}
+                      </button>
+                    ))}
                   </div>
-                )}
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary"
-                    disabled={isUploading || (uploadMethod === 'file' ? selectedFiles.length === 0 : !pastedUrl.trim())}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px', justifyContent: 'center' }}
-                  >
-                    {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                    {isUploading 
-                      ? 'Uploading to TVs...' 
-                      : uploadMethod === 'file' 
-                        ? `Upload ${selectedFiles.length > 0 ? `(${selectedFiles.length})` : ''} to TVs` 
-                        : 'Add URL to TVs'}
-                  </button>
-                </div>
-              </form>
+                  {/* Live Image Preview Window */}
+                  {pastedUrl.trim() && (
+                    <div style={{
+                      marginTop: '6px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      border: previewStatus === 'valid' ? '2px solid #059669' : previewStatus === 'error' ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
+                      background: '#090d16',
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      {/* Status header */}
+                      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                        <span style={{ fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.04em' }}>
+                          LIVE TV PREVIEW ({activeScreenDoc?.orientation === 'portrait' ? '9:16 Portrait' : '16:9 Landscape'})
+                        </span>
+                        {previewStatus === 'valid' && (
+                          <span style={{ color: '#34d399', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={13} /> Valid Image {previewDims ? `(${previewDims.width}×${previewDims.height}px)` : ''}
+                          </span>
+                        )}
+                        {previewStatus === 'loading' && (
+                          <span style={{ color: '#60a5fa', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Loader2 size={12} className="animate-spin" /> Verifying link...
+                          </span>
+                        )}
+                        {previewStatus === 'error' && (
+                          <span style={{ color: '#f87171', fontWeight: 700 }}>
+                            ⚠️ Unable to load image link
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Aspect Ratio Preview Canvas */}
+                      <div style={{
+                        width: '100%',
+                        maxWidth: activeScreenDoc?.orientation === 'portrait' ? '200px' : '440px',
+                        aspectRatio: activeScreenDoc?.orientation === 'portrait' ? '9/16' : '16/9',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        background: '#000000',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {previewStatus === 'valid' && (
+                          <img 
+                            src={pastedUrl} 
+                            alt="Live Preview" 
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: activeScreenDoc?.fitMode === 'cover' ? 'cover' : 'contain'
+                            }}
+                          />
+                        )}
+                        {previewStatus === 'loading' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#94a3b8' }}>
+                            <Loader2 size={24} className="animate-spin" />
+                            <span style={{ fontSize: '11px', fontWeight: 600 }}>Loading preview...</span>
+                          </div>
+                        )}
+                        {previewStatus === 'error' && (
+                          <div style={{ textAlign: 'center', padding: '16px', color: '#f87171', fontSize: '11px' }}>
+                            <p style={{ margin: 0, fontWeight: 800 }}>Cannot display image</p>
+                            <p style={{ margin: '4px 0 0', opacity: 0.9, fontSize: '10px', color: '#cbd5e1' }}>Direct link must end in .jpg, .png, or .webp</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Action for URL */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={isUploading || !pastedUrl.trim() || previewStatus === 'error' || previewStatus === 'loading'}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        height: '42px',
+                        padding: '0 24px',
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        borderRadius: '10px',
+                        background: '#059669',
+                        boxShadow: '0 2px 8px rgba(5,150,105,0.35)',
+                        border: 'none',
+                        color: '#ffffff',
+                        cursor: isUploading || !pastedUrl.trim() || previewStatus === 'error' ? 'not-allowed' : 'pointer',
+                        opacity: isUploading || !pastedUrl.trim() || previewStatus === 'error' ? 0.6 : 1
+                      }}
+                    >
+                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                      {isUploading ? 'Adding to TV...' : broadcastToAll ? `+ Broadcast to All TVs (${slideshows.length})` : `+ Add to "${activeScreenDoc?.name || 'Screen'}"`}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* ── Slideshow Playlist Card ─────────────────────────────── */}
-            <div className="card card-padded">
+            <div className="card card-padded" style={{ borderRadius: '16px', border: '1.5px solid #cbd5e1', background: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h3 className="text-title3" style={{ margin: 0 }}>
+                  <h3 className="text-title3" style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
                     Playlist for "{screenName}"
                   </h3>
-                  <p className="text-secondary text-caption2" style={{ marginTop: '2px' }}>
+                  <p style={{ marginTop: '2px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>
                     {posters.length} slide{posters.length !== 1 ? 's' : ''} total • {totalDuration}s loop cycle
                   </p>
                 </div>
 
                 {/* Bulk Actions Bar if items selected */}
                 {selectedPosterIds.length > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg-secondary)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--color-separator-opaque)', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '4px 10px', borderRadius: '8px', border: '1.5px solid #cbd5e1', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#065f46' }}>
                       {selectedPosterIds.length} selected
                     </span>
 
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 700 }}
                       title="Broadcast selected to all TV screens"
                       onClick={handleBulkBroadcastToAll}
                     >
@@ -1037,16 +1565,16 @@ export default function PosterManager() {
                       <input 
                         type="number" 
                         min="1" 
-                        max="300"
+                        max="300" 
                         placeholder="Sec"
-                        style={{ width: '44px', height: '28px', fontSize: '11px', padding: '0 4px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                        style={{ width: '48px', height: '28px', fontSize: '11px', padding: '0 4px', border: '1.5px solid #cbd5e1', borderRadius: '4px', background: '#ffffff', color: '#0f172a', fontWeight: 700 }}
                         value={bulkDurationInput}
                         onChange={e => setBulkDurationInput(e.target.value)}
                       />
                       <button 
                         type="button" 
                         className="btn btn-secondary"
-                        style={{ height: '28px', fontSize: '11px', padding: '0 6px' }}
+                        style={{ height: '28px', fontSize: '11px', padding: '0 6px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 700 }}
                         onClick={handleBulkSetDuration}
                       >
                         Set Duration
@@ -1056,7 +1584,7 @@ export default function PosterManager() {
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 700 }}
                       onClick={() => handleBulkToggleActive(true)}
                     >
                       Activate
@@ -1065,7 +1593,7 @@ export default function PosterManager() {
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', color: 'var(--color-red)' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 700 }}
                       onClick={handleBulkDelete}
                     >
                       <Trash2 size={12} /> Delete
@@ -1076,7 +1604,7 @@ export default function PosterManager() {
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '30px', fontSize: '12px', padding: '0 10px' }}
+                      style={{ height: '32px', fontSize: '12px', padding: '0 12px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
                       onClick={handleSelectAllPosters}
                     >
                       Select All
@@ -1090,10 +1618,10 @@ export default function PosterManager() {
                   <Loader2 size={32} className="animate-spin text-secondary" />
                 </div>
               ) : posters.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: '#64748b' }}>
-                  <Tv size={48} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-                  <p style={{ fontWeight: 600 }}>No posters uploaded yet for "{screenName}".</p>
-                  <p style={{ fontSize: '13px', marginTop: '4px' }}>Upload 1 or multiple posters above to start your TV slideshow.</p>
+                <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: '#475569' }}>
+                  <Tv size={48} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                  <p style={{ fontWeight: 700, color: '#0f172a' }}>No posters uploaded yet for "{screenName}".</p>
+                  <p style={{ fontSize: '13px', marginTop: '4px', color: '#475569' }}>Upload 1 or multiple posters above to start your TV slideshow.</p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -1107,11 +1635,12 @@ export default function PosterManager() {
                           alignItems: 'center', 
                           gap: 'var(--space-3)', 
                           padding: 'var(--space-3)', 
-                          border: isSelected ? '1.5px solid var(--accent)' : '1px solid #e2e8f0', 
-                          borderRadius: 'var(--radius-md)',
-                          background: isSelected ? 'rgba(var(--accent-rgb, 234, 88, 12), 0.03)' : (poster.isActive ? '#fff' : '#f8fafc'),
+                          border: isSelected ? '2px solid #059669' : '1.5px solid #cbd5e1', 
+                          borderRadius: '12px',
+                          background: isSelected ? '#f0fdf4' : (poster.isActive ? '#ffffff' : '#f8fafc'),
                           opacity: poster.isActive ? 1 : 0.75,
-                          transition: 'border-color 0.15s ease'
+                          transition: 'border-color 0.15s ease',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
                         }}
                       >
                         {/* Checkbox for bulk actions */}
@@ -1119,11 +1648,11 @@ export default function PosterManager() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleToggleSelectPoster(poster.id)}
-                          style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+                          style={{ accentColor: '#059669', width: '16px', height: '16px', cursor: 'pointer' }}
                         />
 
                         {/* Order index badge */}
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', width: '22px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', width: '22px', textAlign: 'center' }}>
                           #{index + 1}
                         </span>
 
@@ -1145,31 +1674,41 @@ export default function PosterManager() {
                           <img 
                             src={poster.imageUrl} 
                             alt={poster.title} 
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              if (e.currentTarget.nextElementSibling) {
+                                e.currentTarget.nextElementSibling.style.display = 'flex';
+                              }
+                            }}
                             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                           />
+                          <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', background: '#1e293b', color: '#94a3b8', fontSize: '9px', gap: '2px', flexDirection: 'column' }}>
+                            <Tv size={14} />
+                            <span>Preview</span>
+                          </div>
                         </div>
 
                         {/* Poster Details */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {poster.title}
                             </span>
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', flexWrap: 'wrap' }}>
                             {/* Duration input */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ fontSize: '11px', color: '#64748b' }}>Duration:</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600 }}>Duration:</span>
                               <input 
                                 type="number" 
                                 min="1" 
                                 max="300"
-                                style={{ width: '48px', height: '22px', padding: '0 4px', fontSize: '11px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                style={{ width: '48px', height: '24px', padding: '0 6px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '5px', background: '#ffffff', color: '#0f172a', fontWeight: 700 }}
                                 value={poster.duration || defaultDuration}
                                 onChange={e => handleUpdatePosterDuration(poster.id, e.target.value)}
                               />
-                              <span style={{ fontSize: '11px', color: '#64748b' }}>s</span>
+                              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600 }}>s</span>
                             </div>
 
                             {/* Assign to TVs button / pill */}
@@ -1180,13 +1719,13 @@ export default function PosterManager() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                background: 'var(--color-bg-secondary)',
-                                border: '1px solid var(--color-separator-opaque)',
+                                background: '#eff6ff',
+                                border: '1px solid #bfdbfe',
                                 borderRadius: '12px',
-                                padding: '2px 8px',
+                                padding: '3px 10px',
                                 fontSize: '11px',
-                                fontWeight: 600,
-                                color: 'var(--color-blue)',
+                                fontWeight: 700,
+                                color: '#1d4ed8',
                                 cursor: 'pointer'
                               }}
                               title="Click to assign or share this poster across other TV screens"
@@ -1202,7 +1741,7 @@ export default function PosterManager() {
                           {/* Toggle Active */}
                           <button 
                             className={`btn btn-icon ${poster.isActive ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ width: '30px', height: '30px', borderRadius: '50%', padding: 0 }}
+                            style={{ width: '30px', height: '30px', borderRadius: '50%', padding: 0, background: poster.isActive ? '#0f172a' : '#ffffff', color: poster.isActive ? '#ffffff' : '#475569', border: '1px solid #cbd5e1' }}
                             title={poster.isActive ? 'Deactivate' : 'Activate'}
                             onClick={() => handleTogglePosterActive(poster)}
                           >
@@ -1212,7 +1751,7 @@ export default function PosterManager() {
                           {/* Reorder Buttons */}
                           <button 
                             className="btn btn-secondary btn-icon"
-                            style={{ width: '30px', height: '30px', padding: 0 }}
+                            style={{ width: '30px', height: '30px', padding: 0, border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155' }}
                             disabled={index === 0}
                             onClick={() => handleMovePoster(index, -1)}
                           >
@@ -1220,7 +1759,7 @@ export default function PosterManager() {
                           </button>
                           <button 
                             className="btn btn-secondary btn-icon"
-                            style={{ width: '30px', height: '30px', padding: 0 }}
+                            style={{ width: '30px', height: '30px', padding: 0, border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155' }}
                             disabled={index === posters.length - 1}
                             onClick={() => handleMovePoster(index, 1)}
                           >
@@ -1230,7 +1769,7 @@ export default function PosterManager() {
                           {/* Delete */}
                           <button 
                             className="btn btn-secondary btn-icon"
-                            style={{ width: '30px', height: '30px', padding: 0, color: 'var(--color-red)' }}
+                            style={{ width: '30px', height: '30px', padding: 0, color: '#dc2626', border: '1px solid #fca5a5', background: '#ffffff' }}
                             onClick={() => handleDeletePoster(poster)}
                           >
                             <Trash2 size={13} />
@@ -1331,8 +1870,8 @@ export default function PosterManager() {
                         justifyContent: 'space-between',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        border: isChecked ? '1.5px solid var(--accent)' : '1px solid #e2e8f0',
-                        background: isChecked ? 'rgba(var(--accent-rgb, 234, 88, 12), 0.04)' : '#ffffff',
+                        border: isChecked ? '2px solid #059669' : '1.5px solid #cbd5e1',
+                        background: isChecked ? '#f0fdf4' : '#ffffff',
                         cursor: 'pointer'
                       }}
                     >
@@ -1345,18 +1884,18 @@ export default function PosterManager() {
                               prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
                             );
                           }}
-                          style={{ accentColor: 'var(--accent)' }}
+                          style={{ accentColor: '#059669', width: '16px', height: '16px' }}
                         />
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '14px' }}>{s.name}</div>
-                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{s.name}</div>
+                          <div style={{ fontSize: '11.5px', color: isChecked ? '#047857' : '#475569', fontWeight: 600 }}>
                             {s.orientation === 'portrait' ? '📱 9:16 Portrait' : '📺 16:9 Landscape'}
                           </div>
                         </div>
                       </div>
 
                       {isChecked && (
-                        <CheckCircle2 size={16} color="var(--accent)" />
+                        <CheckCircle2 size={18} color="#059669" />
                       )}
                     </label>
                   );
@@ -1601,19 +2140,19 @@ function ScreenSettingsPanel({
   }));
 
   return (
-    <div className="card card-padded" style={{ position: 'sticky', top: 'var(--space-6)' }}>
+    <div className="card card-padded" style={{ position: 'sticky', top: 'var(--space-6)', borderRadius: '16px', border: '1.5px solid #cbd5e1', background: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-        <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+        <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
           <Settings size={18} /> TV Settings
         </h3>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent)', background: 'rgba(var(--accent-rgb, 234, 88, 12), 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '10px' }}>
           {slideshowSettings.name}
         </span>
       </div>
 
       {/* Settings Sub-Tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: '8px', marginBottom: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#e2e8f0', padding: '4px', borderRadius: '10px', border: '1px solid #cbd5e1', marginBottom: 'var(--space-4)' }}>
         {[
           { id: 'display', label: 'Layout' },
           { id: 'motion',  label: 'Motion' },
@@ -1625,15 +2164,16 @@ function ScreenSettingsPanel({
             type="button"
             onClick={() => setSettingsTab(t.id)}
             style={{
-              background: settingsTab === t.id ? 'var(--color-bg-elevated)' : 'transparent',
-              color: settingsTab === t.id ? 'var(--color-label)' : 'var(--color-label-secondary)',
+              background: settingsTab === t.id ? '#0f172a' : 'transparent',
+              color: settingsTab === t.id ? '#ffffff' : '#334155',
               border: 'none',
-              borderRadius: '6px',
-              padding: '6px 4px',
-              fontSize: '11px',
-              fontWeight: 700,
+              borderRadius: '7px',
+              padding: '7px 4px',
+              fontSize: '11.5px',
+              fontWeight: 800,
               cursor: 'pointer',
-              boxShadow: settingsTab === t.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              boxShadow: settingsTab === t.id ? '0 2px 4px rgba(15,23,42,0.2)' : 'none',
+              transition: 'all 0.15s ease'
             }}
           >
             {t.label}
@@ -1645,19 +2185,21 @@ function ScreenSettingsPanel({
       {settingsTab === 'display' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div className="form-group">
-            <label className="form-label">Screen Channel Name</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Screen Channel Name</label>
             <input 
               type="text" 
               className="form-input"
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
               value={slideshowSettings.name}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, name: e.target.value })}
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Orientation & Aspect Ratio</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Orientation & Aspect Ratio</label>
             <select 
               className="form-select"
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
               value={slideshowSettings.orientation}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, orientation: e.target.value })}
             >
@@ -1667,9 +2209,10 @@ function ScreenSettingsPanel({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Poster Image Fit Mode</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Poster Image Fit Mode</label>
             <select 
               className="form-select"
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
               value={slideshowSettings.fitMode}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, fitMode: e.target.value })}
             >
@@ -1679,15 +2222,15 @@ function ScreenSettingsPanel({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Screen Background Color</label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Screen Background Color</label>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <input 
                 type="color" 
                 value={slideshowSettings.backgroundColor || '#000000'}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, backgroundColor: e.target.value })}
-                style={{ width: '38px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', padding: 0 }}
+                style={{ width: '40px', height: '40px', border: '1.5px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', padding: 0 }}
               />
-              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#64748b' }}>
+              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#0f172a', fontWeight: 700 }}>
                 {slideshowSettings.backgroundColor || '#000000'}
               </span>
             </div>
@@ -1699,9 +2242,10 @@ function ScreenSettingsPanel({
       {settingsTab === 'motion' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div className="form-group">
-            <label className="form-label">Transition Animation</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Transition Animation</label>
             <select 
               className="form-select"
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
               value={slideshowSettings.transition}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, transition: e.target.value })}
             >
@@ -1714,9 +2258,9 @@ function ScreenSettingsPanel({
           </div>
 
           <div className="form-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <label className="form-label">Transition Speed</label>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Transition Speed</label>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#065f46' }}>
                 {slideshowSettings.transitionSpeed}s
               </span>
             </div>
@@ -1727,43 +2271,44 @@ function ScreenSettingsPanel({
               step="0.2"
               value={slideshowSettings.transitionSpeed}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, transitionSpeed: parseFloat(e.target.value) })}
-              style={{ width: '100%', accentColor: 'var(--accent)' }}
+              style={{ width: '100%', accentColor: '#059669' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#475569', fontWeight: 600 }}>
               <span>Fast (0.4s)</span>
               <span>Cinematic (3.0s)</span>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Default Slide Duration (seconds)</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Default Slide Duration (seconds)</label>
             <input 
               type="number" 
               min="1" 
-              max="300"
+              max="300" 
               className="form-input"
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 700 }}
               value={slideshowSettings.defaultDuration}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, defaultDuration: e.target.value })}
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#0f172a', cursor: 'pointer' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.shuffle}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, shuffle: e.target.checked })}
-                style={{ accentColor: 'var(--accent)' }}
+                style={{ accentColor: '#059669', width: '16px', height: '16px' }}
               />
               <span>Shuffle / Randomize slide order</span>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#0f172a', cursor: 'pointer' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.showProgressBar}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, showProgressBar: e.target.checked })}
-                style={{ accentColor: 'var(--accent)' }}
+                style={{ accentColor: '#059669', width: '16px', height: '16px' }}
               />
               <span>Show slide timer countdown progress bar</span>
             </label>
@@ -1775,35 +2320,35 @@ function ScreenSettingsPanel({
       {settingsTab === 'overlays' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {/* Live Clock */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer' }}>
             <input 
               type="checkbox" 
               checked={slideshowSettings.showClock}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, showClock: e.target.checked })}
-              style={{ accentColor: 'var(--accent)' }}
+              style={{ accentColor: '#059669', width: '16px', height: '16px' }}
             />
             <span>Show Live Clock & Date Overlay</span>
           </label>
 
           {/* DineOS Branding */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer' }}>
             <input 
               type="checkbox" 
               checked={slideshowSettings.showBranding}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, showBranding: e.target.checked })}
-              style={{ accentColor: 'var(--accent)' }}
+              style={{ accentColor: '#059669', width: '16px', height: '16px' }}
             />
             <span>Show Restaurant & DineOS Badge</span>
           </label>
 
           {/* Announcement Ticker */}
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', marginBottom: '8px' }}>
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer', marginBottom: '8px' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.showTicker}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, showTicker: e.target.checked })}
-                style={{ accentColor: 'var(--accent)' }}
+                style={{ accentColor: '#059669', width: '16px', height: '16px' }}
               />
               <span>Running Announcement Ticker</span>
             </label>
@@ -1813,7 +2358,7 @@ function ScreenSettingsPanel({
                 className="form-input"
                 rows="2"
                 placeholder="e.g. 🎉 Happy Hour 4-7 PM: 20% off all beverages • Ask your server for chef dessert specials!"
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 500 }}
                 value={slideshowSettings.tickerText}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, tickerText: e.target.value })}
               />
@@ -1821,8 +2366,8 @@ function ScreenSettingsPanel({
           </div>
 
           {/* Guest Wi-Fi */}
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', marginBottom: '8px' }}>
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer', marginBottom: '8px' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.wifiInfo?.show}
@@ -1830,18 +2375,18 @@ function ScreenSettingsPanel({
                   ...slideshowSettings, 
                   wifiInfo: { ...slideshowSettings.wifiInfo, show: e.target.checked } 
                 })}
-                style={{ accentColor: 'var(--accent)' }}
+                style={{ accentColor: '#059669', width: '16px', height: '16px' }}
               />
               <span>Show Guest Wi-Fi Info Pill</span>
             </label>
 
             {slideshowSettings.wifiInfo?.show && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <input 
                   type="text" 
                   placeholder="Wi-Fi SSID (Name)" 
                   className="form-input"
-                  style={{ height: '32px', fontSize: '12px' }}
+                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
                   value={slideshowSettings.wifiInfo?.ssid || ''}
                   onChange={e => setSlideshowSettings({
                     ...slideshowSettings,
@@ -1852,7 +2397,7 @@ function ScreenSettingsPanel({
                   type="text" 
                   placeholder="Password" 
                   className="form-input"
-                  style={{ height: '32px', fontSize: '12px' }}
+                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
                   value={slideshowSettings.wifiInfo?.password || ''}
                   onChange={e => setSlideshowSettings({
                     ...slideshowSettings,
@@ -1868,7 +2413,7 @@ function ScreenSettingsPanel({
       {/* ── Tab 4: Live Remote Actions ───────────────────────── */}
       {settingsTab === 'remote' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+          <p style={{ fontSize: '12.5px', color: '#475569', margin: 0, fontWeight: 500 }}>
             Control physical TVs located in your dining area remotely without touching the TV remote.
           </p>
 
@@ -1876,7 +2421,7 @@ function ScreenSettingsPanel({
             type="button" 
             className="btn btn-secondary"
             disabled={sendingRemoteCmd}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '38px', color: 'var(--color-blue)', borderColor: 'var(--color-blue)', background: 'var(--color-blue-light)' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', color: '#0369a1', border: '1.5px solid #7dd3fc', background: '#f0f9ff', fontWeight: 700 }}
             onClick={() => onSendRemoteCommand('identify', slideshowSettings.name)}
           >
             <Zap size={16} /> Identify TV Screen (Flash Banner)
@@ -1886,7 +2431,7 @@ function ScreenSettingsPanel({
             type="button" 
             className="btn btn-secondary"
             disabled={sendingRemoteCmd}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '38px' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
             onClick={() => onSendRemoteCommand('reload', slideshowSettings.name)}
           >
             <RefreshCw size={16} /> Force TV Remote Reload
@@ -1897,7 +2442,7 @@ function ScreenSettingsPanel({
             target="_blank" 
             rel="noopener noreferrer" 
             className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '38px', textDecoration: 'none' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', textDecoration: 'none', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
           >
             <ExternalLink size={16} /> Open TV Screen in New Tab
           </a>
@@ -1905,7 +2450,7 @@ function ScreenSettingsPanel({
           <button 
             type="button" 
             className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '38px', color: 'var(--color-red)', borderColor: 'rgba(239, 68, 68, 0.3)', marginTop: '8px' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', color: '#dc2626', border: '1.5px solid #fca5a5', background: '#fef2f2', fontWeight: 700, marginTop: '8px' }}
             onClick={() => onDeleteScreen(slideshowSettings.name)}
           >
             <Trash2 size={16} /> Delete This TV Channel
@@ -1914,11 +2459,11 @@ function ScreenSettingsPanel({
       )}
 
       {/* Save Settings Button */}
-      <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid #e2e8f0', paddingTop: 'var(--space-3)' }}>
+      <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid #cbd5e1', paddingTop: 'var(--space-3)' }}>
         <button 
           type="button"
           className="btn btn-primary"
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '38px' }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '42px', borderRadius: '10px', background: '#0f172a', color: '#ffffff', fontWeight: 800, fontSize: '13.5px', boxShadow: '0 2px 8px rgba(15,23,42,0.25)', border: 'none', cursor: 'pointer' }}
           onClick={() => onSave(slideshowSettings)}
         >
           <Save size={16} /> Save Screen Config

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
@@ -7,6 +7,7 @@ import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { getKitchenStations } from '../../utils/stations';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -59,8 +60,57 @@ export default function MenuEditor() {
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+  const [isAddingCustomStation, setIsAddingCustomStation] = useState(false);
+  const [newCustomStation, setNewCustomStation] = useState('');
+
+  const availableStations = useMemo(() => {
+    const configured = getKitchenStations(restaurant);
+    const current = itemForm.station;
+    if (current && !configured.some(s => s.toLowerCase() === current.toLowerCase())) {
+      return [...configured, current];
+    }
+    return configured;
+  }, [restaurant, itemForm.station]);
+
+  const handleCreateCustomStation = async () => {
+    const clean = newCustomStation.trim();
+    if (!clean) {
+      setIsAddingCustomStation(false);
+      return;
+    }
+    const currentStations = getKitchenStations(restaurant);
+    const exists = currentStations.find(s => s.toLowerCase() === clean.toLowerCase());
+    const stationName = exists || clean;
+    
+    setItemForm(f => ({ ...f, station: stationName }));
+    setIsAddingCustomStation(false);
+    setNewCustomStation('');
+
+    if (!exists && restaurant?.id) {
+      const updated = [...currentStations, clean];
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id), {
+          'kitchenConfig.stations': updated
+        });
+        useAuthStore.setState(s => ({
+          restaurant: {
+            ...s.restaurant,
+            kitchenConfig: {
+              ...(s.restaurant?.kitchenConfig || {}),
+              stations: updated
+            }
+          }
+        }));
+        toast.success(`Station "${clean}" added to kitchen stations!`);
+      } catch (err) {
+        console.warn('Could not save station to restaurant config:', err);
+      }
+    }
+  };
 
   const openAddItemModal = () => {
+    setIsAddingCustomStation(false);
+    setNewCustomStation('');
     setEditItem(null);
     setItemForm({
       name: '',
@@ -82,6 +132,8 @@ export default function MenuEditor() {
   };
 
   const openEditItemModal = (item) => {
+    setIsAddingCustomStation(false);
+    setNewCustomStation('');
     setEditItem(item);
     setItemForm({
       name: item.name,
@@ -825,21 +877,86 @@ export default function MenuEditor() {
                   </div>
                   
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>Kitchen Station</label>
-                    <select 
-                      id="item-station-select" 
-                      className="form-select" 
-                      value={itemForm.station ?? 'Kitchen'} 
-                      onChange={e => setItemForm(f=>({...f,station:e.target.value}))}
-                      style={{ height: 40, padding: '0 12px' }}
-                    >
-                      <option value="Kitchen">Kitchen</option>
-                      <option value="Grill">Grill</option>
-                      <option value="Fryer">Fryer</option>
-                      <option value="Cold">Cold</option>
-                      <option value="Bar">Bar</option>
-                      <option value="Bakery">Bakery</option>
-                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>Kitchen Station</label>
+                      {!isAddingCustomStation && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingCustomStation(true)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--color-accent)',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            padding: '0 2px'
+                          }}
+                        >
+                          + Custom
+                        </button>
+                      )}
+                    </div>
+                    {isAddingCustomStation ? (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={{ height: 40, padding: '0 10px', fontSize: '13px', flex: 1 }}
+                          placeholder="e.g. Pizza Oven, Sushi Bar"
+                          value={newCustomStation}
+                          onChange={e => setNewCustomStation(e.target.value)}
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCreateCustomStation();
+                            } else if (e.key === 'Escape') {
+                              setIsAddingCustomStation(false);
+                              setNewCustomStation('');
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{ height: 40, padding: '0 12px', flexShrink: 0 }}
+                          onClick={handleCreateCustomStation}
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ height: 40, padding: '0 8px', flexShrink: 0 }}
+                          onClick={() => {
+                            setIsAddingCustomStation(false);
+                            setNewCustomStation('');
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <select 
+                        id="item-station-select" 
+                        className="form-select" 
+                        value={itemForm.station ?? 'Kitchen'} 
+                        onChange={e => {
+                          if (e.target.value === '__add_custom__') {
+                            setIsAddingCustomStation(true);
+                          } else {
+                            setItemForm(f => ({ ...f, station: e.target.value }));
+                          }
+                        }}
+                        style={{ height: 40, padding: '0 12px' }}
+                      >
+                        {availableStations.map(st => (
+                          <option key={st} value={st}>{st}</option>
+                        ))}
+                        <option value="__add_custom__">+ Add Custom Station...</option>
+                      </select>
+                    )}
                   </div>
                 </div>
 

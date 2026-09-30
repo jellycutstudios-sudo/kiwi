@@ -34,7 +34,6 @@ const ADMIN_NAV = [
   { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory', requiredMode: 'inventory' },
   { key: 'customers',   path: '/admin/customers',    icon: HeartHandshake,   label: 'customers', requiredMode: 'customers' },
   { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
-  { key: 'floor',       path: '/admin/floor',        icon: Layers,           label: 'floorPlan', requiredMode: 'table' },
   { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions' },
   { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
@@ -230,7 +229,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       {/* Navigation Links */}
       <nav className="sidebar-nav">
         {!isSuperAdmin && (
-          <>
+          <div className="sidebar-nav-group">
             {!isCollapsed && (
               <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>{t('pos')}</span>
@@ -312,15 +311,16 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 </NavLink>
               );
             })}
-          </>
+          </div>
         )}
 
         {/* Admin / Management Section */}
         {isAdmin && (
-          <div style={{ marginTop: 'var(--space-2)' }}>
+          <div className="sidebar-admin-section">
             {!isCollapsed ? (
               <button
                 type="button"
+                className="sidebar-admin-toggle"
                 onClick={() => setAdminExpanded(v => !v)}
                 style={{
                   display: 'flex',
@@ -356,22 +356,26 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 {adminExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
               </button>
             ) : (
-              <div className="sidebar-section-divider" style={{ height: '1px', background: 'var(--color-separator)', margin: '8px 10px' }} />
+              <div className="sidebar-section-divider" />
             )}
 
             {/* If collapsed on desktop, always show icons. If expanded, toggle via adminExpanded */}
-            {(isCollapsed || adminExpanded) && filteredAdminNav.map(n => (
-              <NavLink
-                key={n.key}
-                to={n.path}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                title={isCollapsed ? t(n.label) : undefined}
-                onClick={handleItemClick}
-              >
-                <span className="nav-item-icon"><n.icon size={20} strokeWidth={1.9} /></span>
-                {!isCollapsed && <span>{n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label)}</span>}
-              </NavLink>
-            ))}
+            {(isCollapsed || adminExpanded) && (
+              <div className="sidebar-admin-items">
+                {filteredAdminNav.map(n => (
+                  <NavLink
+                    key={n.key}
+                    to={n.path}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    title={isCollapsed ? t(n.label) : undefined}
+                    onClick={handleItemClick}
+                  >
+                    <span className="nav-item-icon"><n.icon size={20} strokeWidth={1.9} /></span>
+                    {!isCollapsed && <span>{n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label)}</span>}
+                  </NavLink>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </nav>

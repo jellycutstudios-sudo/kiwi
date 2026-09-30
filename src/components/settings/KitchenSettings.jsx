@@ -1,9 +1,11 @@
-import React from 'react';
-import { ChefHat, Printer, Monitor, Zap, Volume2, Sliders } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChefHat, Printer, Monitor, Zap, Volume2, Sliders, Plus, X, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { printSingleKitchenTicket } from '../../utils/print';
+import { getKitchenStations, DEFAULT_KITCHEN_STATIONS, SUGGESTED_KITCHEN_STATIONS } from '../../utils/stations';
 
 export default function KitchenSettings({ settings, updateField }) {
+  const [newStationInput, setNewStationInput] = useState('');
   const kitchenConfig = settings?.kitchenConfig || {};
   const currentMode = kitchenConfig.mode || (settings?.modes?.includes('kds') ? 'both' : 'printer_only');
   const paperSize = kitchenConfig.paperSize || '80mm';
@@ -14,6 +16,39 @@ export default function KitchenSettings({ settings, updateField }) {
   const autoPrintOnQuickPay = kitchenConfig.autoPrintOnQuickPay ?? true;
   const autoPrintOnOnlineOrder = kitchenConfig.autoPrintOnOnlineOrder ?? true;
   const highlightNotes = kitchenConfig.highlightNotes ?? true;
+
+  const activeStations = getKitchenStations(settings);
+  const availableSuggestions = SUGGESTED_KITCHEN_STATIONS.filter(
+    sugg => !activeStations.some(s => s.toLowerCase() === sugg.toLowerCase())
+  );
+
+  const handleAddStation = (rawName) => {
+    const clean = (rawName || '').trim();
+    if (!clean) return;
+    if (activeStations.some(s => s.toLowerCase() === clean.toLowerCase())) {
+      toast.error(`Station "${clean}" already exists`);
+      return;
+    }
+    const updated = [...activeStations, clean];
+    updateField('kitchenConfig.stations', updated);
+    setNewStationInput('');
+    toast.success(`Added kitchen station "${clean}"`);
+  };
+
+  const handleRemoveStation = (stationToRemove) => {
+    if (activeStations.length <= 1) {
+      toast.error('You must keep at least one station');
+      return;
+    }
+    const updated = activeStations.filter(s => s !== stationToRemove);
+    updateField('kitchenConfig.stations', updated);
+    toast.success(`Removed "${stationToRemove}"`);
+  };
+
+  const handleResetStations = () => {
+    updateField('kitchenConfig.stations', [...DEFAULT_KITCHEN_STATIONS]);
+    toast.success('Reset stations to defaults');
+  };
 
   const handleModeSelect = (modeKey) => {
     updateField('kitchenConfig.mode', modeKey);
@@ -413,6 +448,136 @@ export default function KitchenSettings({ settings, updateField }) {
                 />
               </label>
             </div>
+          </div>
+        )}
+
+        {/* Kitchen Stations Management Section (KDS & Menu Routing) */}
+        {currentMode !== 'disabled' && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-3)',
+            borderTop: '1px solid var(--color-separator)',
+            paddingTop: 'var(--space-4)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ChefHat size={16} color="var(--color-accent)" />
+                <span style={{ fontSize: '13px', fontWeight: 'var(--weight-bold)', color: 'var(--color-label-primary)' }}>
+                  Kitchen Stations (KDS & Menu Items)
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleResetStations}
+                style={{ fontSize: '11.5px', color: 'var(--color-label-tertiary)', padding: '2px 8px', height: 'auto' }}
+                title="Restore default stations"
+              >
+                <RotateCcw size={12} style={{ marginRight: 4 }} /> Reset to defaults
+              </button>
+            </div>
+
+            <div className="text-caption2 text-secondary" style={{ marginTop: -4 }}>
+              Define the preparation stations in your kitchen (e.g. Grill, Bar, Pizza Oven). These appear on menu items and filter tickets on the Kitchen Display System.
+            </div>
+
+            {/* Current Active Station Badges */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: '36px', alignItems: 'center' }}>
+              {activeStations.map(station => (
+                <div
+                  key={station}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 10px',
+                    borderRadius: 'var(--radius-full, 9999px)',
+                    background: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-separator)',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'var(--color-label-primary)'
+                  }}
+                >
+                  <span>{station}</span>
+                  {activeStations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveStation(station)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: 'var(--color-label-tertiary)',
+                        lineHeight: 1
+                      }}
+                      title={`Remove ${station}`}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Input to add custom station */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: 4 }}>
+              <input
+                className="form-input"
+                style={{ height: '36px', fontSize: '13px' }}
+                placeholder="Add custom station (e.g. Pizza Oven, Sushi Bar)..."
+                value={newStationInput}
+                onChange={e => setNewStationInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddStation(newStationInput);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleAddStation(newStationInput)}
+                style={{ flexShrink: 0, height: '36px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Plus size={14} /> Add Station
+              </button>
+            </div>
+
+            {/* Suggestions */}
+            {availableSuggestions.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: 2 }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', fontWeight: 500 }}>
+                  Suggestions:
+                </span>
+                {availableSuggestions.slice(0, 5).map(sugg => (
+                  <button
+                    key={sugg}
+                    type="button"
+                    onClick={() => handleAddStation(sugg)}
+                    style={{
+                      border: '1px dashed var(--color-separator)',
+                      background: 'transparent',
+                      borderRadius: '12px',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      color: 'var(--color-accent)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px'
+                    }}
+                  >
+                    <Plus size={10} /> {sugg}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

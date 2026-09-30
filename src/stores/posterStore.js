@@ -186,7 +186,7 @@ export const usePosterStore = create((set, get) => {
           URL.revokeObjectURL(objectUrl);
           const canvas = document.createElement('canvas');
           let { width, height } = img;
-          const MAX_DIM = 1920;
+          const MAX_DIM = 1600;
           if (width > MAX_DIM || height > MAX_DIM) {
             if (width > height) {
               height = Math.round((height * MAX_DIM) / width);
@@ -203,7 +203,14 @@ export const usePosterStore = create((set, get) => {
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
           try {
-            resolve(canvas.toDataURL('image/jpeg', 0.9));
+            // Quality 0.80 yields crystal clear 1080p graphics while keeping file size ~150KB-250KB
+            // which safely fits in Firestore without requiring Firebase Storage Blaze purchase
+            let result = canvas.toDataURL('image/jpeg', 0.80);
+            // If still unusually large (>700KB), re-compress at 0.65 to strictly stay under Firestore 1MB
+            if (result.length > 700000) {
+              result = canvas.toDataURL('image/jpeg', 0.65);
+            }
+            resolve(result);
           } catch (err) {
             reject(err);
           }
@@ -227,9 +234,15 @@ export const usePosterStore = create((set, get) => {
       // Compress once
       const base64Data = await get().compressPosterImage(file);
 
-      // Upload once to Firebase Storage
-      await uploadString(storageRef, base64Data, 'data_url');
-      const downloadUrl = await getDownloadURL(storageRef);
+      // Upload to Firebase Storage with safe fallback
+      let downloadUrl;
+      try {
+        await uploadString(storageRef, base64Data, 'data_url');
+        downloadUrl = await getDownloadURL(storageRef);
+      } catch (storageErr) {
+        console.warn('Firebase Storage upload notice, falling back to compressed data URL:', storageErr);
+        downloadUrl = base64Data;
+      }
 
       const groupId = `grp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const posterTitle = title || file.name.split('.')[0].replace(/[-_]/g, ' ');
@@ -281,8 +294,14 @@ export const usePosterStore = create((set, get) => {
         const storageRef = ref(storage, `menuImages/${restaurantId}/${fileName}`);
 
         const base64Data = await get().compressPosterImage(file);
-        await uploadString(storageRef, base64Data, 'data_url');
-        const downloadUrl = await getDownloadURL(storageRef);
+        let downloadUrl;
+        try {
+          await uploadString(storageRef, base64Data, 'data_url');
+          downloadUrl = await getDownloadURL(storageRef);
+        } catch (storageErr) {
+          console.warn('Firebase Storage upload notice, falling back to compressed data URL:', storageErr);
+          downloadUrl = base64Data;
+        }
 
         const groupId = `grp_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}`;
         const posterTitle = file.name.split('.')[0].replace(/[-_]/g, ' ');

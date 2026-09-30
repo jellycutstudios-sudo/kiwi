@@ -22,8 +22,7 @@ import {
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
-
-const STATIONS = ['All', 'Kitchen', 'Grill', 'Fryer', 'Cold', 'Bar', 'Bakery'];
+import { getKitchenStations } from '../utils/stations';
 
 // Pleasant Web Audio synthesizer for kitchen notifications
 function playKitchenChime() {
@@ -63,6 +62,31 @@ export default function KDS() {
   
   const prevCountRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  const stationsList = useMemo(() => {
+    const configured = getKitchenStations(restaurant);
+    const orderStations = new Set();
+    activeOrders.forEach(o => {
+      (o.items || []).forEach(i => {
+        if (i.station && i.station !== 'All') {
+          orderStations.add(i.station);
+        }
+      });
+    });
+    const combined = ['All', ...configured];
+    orderStations.forEach(st => {
+      if (!combined.some(s => s.toLowerCase() === st.toLowerCase())) {
+        combined.push(st);
+      }
+    });
+    return combined;
+  }, [restaurant, activeOrders]);
+
+  useEffect(() => {
+    if (activeStation !== 'All' && !stationsList.some(s => s.toLowerCase() === activeStation.toLowerCase())) {
+      setActiveStation('All');
+    }
+  }, [stationsList, activeStation]);
 
   // 1-second interval for real-time kitchen stopwatches & digital clock
   useEffect(() => {
@@ -448,7 +472,7 @@ export default function KDS() {
         paddingBottom: 6,
         borderBottom: '1px solid var(--color-separator-opaque)'
       }}>
-        {STATIONS.map(station => {
+        {stationsList.map(station => {
           const count = getStationOrderCount(station);
           const isActive = activeStation === station;
           return (

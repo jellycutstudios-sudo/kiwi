@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
-import { Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, Sparkles, RefreshCw } from 'lucide-react';
+import { 
+  Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
+  Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, RotateCcw, Coins
+} from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
 import { convertLogoForThermal } from '../../utils/thermalLogo';
@@ -37,26 +40,52 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',       label: 'General & Profile',  icon: '⚙️' },
-  { id: 'kitchen',       label: 'Kitchen & KOT',      icon: '🍳' },
-  { id: 'receipts',      label: 'Receipt Designer',   icon: '🧾' },
-  { id: 'tax-pay',       label: 'Taxes & Payments',  icon: '💳' },
-  { id: 'online-del',    label: 'Online & Delivery', icon: '📱' },
-  { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔' },
-  { id: 'hardware',      label: 'Peripherals',       icon: '🖨️' },
+  { id: 'general',       label: 'General & Identity',      icon: '🏪', keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update'] },
+  { id: 'workflows',     label: 'Workflows & Operations',  icon: '⚙️', keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode'] },
+  { id: 'features',      label: 'Modules & Features',      icon: '🧩', keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty'] },
+  { id: 'kitchen',       label: 'Kitchen & KDS',           icon: '🍳', keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
+  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  icon: '💳', keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi'] },
+  { id: 'receipts',      label: 'Receipt Designer',        icon: '🧾', keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
+  { id: 'displays',      label: 'Digital Displays & TV',   icon: '📺', keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
+  { id: 'online-del',    label: 'Online Store & Delivery', icon: '📱', keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
+  { id: 'hardware',      label: 'Peripherals & Hardware',  icon: '🖨️', keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
+  { id: 'notifications', label: 'Alerts & Reports',        icon: '🔔', keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
 ];
 
 export default function Settings() {
   const { restaurant } = useAuthStore();
   const [settings, setSettings] = useState(null);
+  const initialSettingsRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedSlideshowId, setCopiedSlideshowId] = useState(null);
   const [slideshowList, setSlideshowList] = useState([]);
   const [activeTab, setActiveTab] = useState('general');
+  const [searchQuery, setSearchQuery] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const { hasUpdate, isUpdating, applyUpdate, checkForUpdates } = useUpdateStore();
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!settings || !initialSettingsRef.current) return false;
+    return JSON.stringify(settings) !== initialSettingsRef.current;
+  }, [settings]);
+
+  const handleDiscard = () => {
+    if (initialSettingsRef.current) {
+      setSettings(JSON.parse(initialSettingsRef.current));
+      toast('Unsaved changes discarded', { icon: '↩️' });
+    }
+  };
+
+  const filteredTabs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return TABS;
+    return TABS.filter(t => 
+      t.label.toLowerCase().includes(q) ||
+      t.keywords?.some(k => k.includes(q))
+    );
+  }, [searchQuery]);
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -220,7 +249,11 @@ export default function Settings() {
   useEffect(() => {
     if (!restaurant?.id) return;
     getDoc(doc(db, 'restaurants', restaurant.id)).then(d => {
-      if (d.exists()) setSettings({ ...d.data() });
+      if (d.exists()) {
+        const data = d.data();
+        setSettings({ ...data });
+        initialSettingsRef.current = JSON.stringify(data);
+      }
     });
   }, [restaurant?.id]);
 
@@ -273,6 +306,7 @@ export default function Settings() {
 
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
       setSettings(settingsToSave);
+      initialSettingsRef.current = JSON.stringify(settingsToSave);
       useAuthStore.setState({ restaurant: { id: restaurant.id, ...settingsToSave } });
       toast.success('Settings saved!');
     } catch (e) {
@@ -342,30 +376,102 @@ export default function Settings() {
   if (!settings) return <div style={{padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)'}}>Loading settings...</div>;
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-6)', maxWidth: 960, width: '100%' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-4)' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-6)', maxWidth: 1240, width: '100%', margin: '0 auto', paddingBottom: 80 }}>
+      {/* Header Banner */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
-          <h2 className="text-title2" style={{ marginBottom: '2px' }}>Restaurant Settings</h2>
-          <p className="text-secondary text-caption1">Configure your restaurant identity, modes, billing, and integrations.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 className="text-title2" style={{ margin: 0 }}>Restaurant Settings</h2>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '2px 10px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)' }}>
+              {TABS.find(t => t.id === activeTab)?.icon} {TABS.find(t => t.id === activeTab)?.label}
+            </span>
+          </div>
+          <p className="text-secondary text-caption1" style={{ marginTop: 4, marginBottom: 0 }}>
+            Configure operational workflows, branding, hardware, digital displays, and billing policies.
+          </p>
         </div>
-        <button className="btn btn-primary" id="save-settings-btn" onClick={save} disabled={saving} style={{ height: '40px', padding: '0 var(--space-4)' }}>
-          <Save size={16}/> {saving ? 'Saving...' : 'Save Settings'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {hasUnsavedChanges && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleDiscard}
+              disabled={saving}
+              style={{ height: '38px' }}
+            >
+              Discard
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            id="save-settings-btn"
+            onClick={save}
+            disabled={saving || !hasUnsavedChanges}
+            style={{
+              height: '38px',
+              padding: '0 var(--space-4)',
+              opacity: !hasUnsavedChanges ? 0.75 : 1,
+              boxShadow: hasUnsavedChanges ? '0 0 0 2px var(--color-accent-light)' : 'none'
+            }}
+          >
+            <Save size={15}/> {saving ? 'Saving...' : (hasUnsavedChanges ? 'Save Changes' : 'Saved')}
+          </button>
+        </div>
       </div>
 
       <div className="settings-container">
         {/* Navigation Sidebar */}
         <div className="settings-nav">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`settings-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+          {/* Quick Search */}
+          <div className="settings-search-wrap">
+            <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              className="settings-search-input"
+              placeholder="Search settings..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: 9,
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-label-tertiary)',
+                  cursor: 'pointer',
+                  padding: 2,
+                  fontSize: 12
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {filteredTabs.map(tab => {
+            const isActive = activeTab === tab.id;
+            const isMatch = searchQuery && tab.keywords.some(k => k.includes(searchQuery.toLowerCase()));
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`settings-nav-item ${isActive ? 'active' : ''}`}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </div>
+                {isMatch && (
+                  <span className="settings-nav-badge">Match</span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Content Area */}
@@ -374,33 +480,16 @@ export default function Settings() {
           {/* General Tab */}
           {activeTab === 'general' && (
             <>
-              {/* Business Type Preset Picker */}
-              <BusinessPresetPicker
-                currentBusinessType={settings.businessType}
-                currentModes={settings.modes}
-                onApplyPreset={(preset) => {
-                  setSettings(s => ({
-                    ...s,
-                    businessType: preset.id,
-                    modes: preset.recommendedModes,
-                    shiftMode: preset.recommendedShiftMode,
-                    quickPayEnabled: preset.features.enableQuickPay,
-                    barcodeEnabled: preset.features.enableBarcode,
-                    speedDialEnabled: preset.features.enableSpeedDial,
-                  }));
-                }}
-              />
-
               {/* Basic Info */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Basic Info</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Store Identity &amp; Profile</h3>
                 <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
                   <div className="form-group">
                     <label className="form-label">Restaurant Name</label>
                     <input id="settings-name" className="form-input" value={settings.name??''} onChange={e=>updateField('name',e.target.value)} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Restaurant Logo (POS Thermal Receipts & Branding)</label>
+                    <label className="form-label">Restaurant Logo (POS Thermal Receipts &amp; Branding)</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                       {(settings.receiptConfig?.thermalLogo || settings.receiptConfig?.logoUrl || settings.logo) ? (
                         <div style={{
@@ -418,7 +507,7 @@ export default function Settings() {
                           <img
                             src={settings.receiptConfig?.thermalLogo || settings.receiptConfig?.logoUrl || settings.logo}
                             alt="Logo"
-                            style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                           />
                         </div>
                       ) : (
@@ -426,7 +515,7 @@ export default function Settings() {
                           width: 80,
                           height: 56,
                           borderRadius: 'var(--radius-md)',
-                          border: '1.5px dashed var(--color-separator-opaque)',
+                          border: '1.5px dashed var(--color-separator)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -456,7 +545,7 @@ export default function Settings() {
                           {uploadingLogo ? 'Converting...' : ((settings.receiptConfig?.logoUrl || settings.logo) ? 'Change Logo' : 'Upload Logo')}
                         </button>
                         <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
-                          Auto-dithered & converted into 1-bit monochrome for thermal receipt printers.
+                          Auto-dithered &amp; converted into 1-bit monochrome for thermal receipt printers.
                         </span>
                       </div>
                     </div>
@@ -496,311 +585,6 @@ export default function Settings() {
                     <div className="form-group">
                       <label className="form-label">FSSAI License No. (India)</label>
                       <input id="settings-fssai" className="form-input" placeholder="e.g. 10012011000123" value={settings.fssai??''} onChange={e=>updateField('fssai', e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="form-group" style={{ marginTop: 'var(--space-2)' }}>
-                    <label className="form-label">Cash Management Mode</label>
-                    <select 
-                      className="form-select" 
-                      value={settings.shiftMode || 'global'} 
-                      onChange={e => updateField('shiftMode', e.target.value)}
-                    >
-                      <option value="global">Single Till (Shared by all staff)</option>
-                      <option value="staff">Individual Staff Banks (Each staff member opens their own shift)</option>
-                    </select>
-                    <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
-                      Determines if cash shifts are shared across the restaurant or tracked individually per staff member.
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modes */}
-              <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Active Modes</h3>
-                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Enable or disable features for your restaurant type
-                </p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
-                  {[
-                    {
-                      title: '⚡ Core Operations & Billing',
-                      desc: 'Basic modes for managing service types and kitchen workflow.',
-                      keys: ['pos', 'table', 'token', 'kds']
-                    },
-                    {
-                      title: '🌐 Sales Channels & Bookings',
-                      desc: 'Enable customer-facing ordering, reservations, and deliveries.',
-                      keys: ['online', 'delivery_hub', 'reservations']
-                    },
-                    {
-                      title: '💼 Back Office & Admin',
-                      desc: 'Tools for tracking inventory, staff payroll, and customer loyalty.',
-                      keys: ['inventory', 'payroll', 'customers']
-                    }
-                  ].map(group => (
-                    <div key={group.title} style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-                      <div style={{ borderBottom:'1px solid var(--color-separator)', paddingBottom:'var(--space-2)' }}>
-                        <h4 style={{ fontWeight:'var(--weight-bold)', fontSize:'var(--text-subhead)', color:'var(--color-label-primary)' }}>{group.title}</h4>
-                        <p className="text-secondary text-caption1" style={{ marginTop:2 }}>{group.desc}</p>
-                      </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'var(--space-3)' }}>
-                        {group.keys.map(key => {
-                          const m = MODES.find(x => x.key === key);
-                          if (!m) return null;
-                          const active = (settings.modes ?? []).includes(m.key);
-                          return (
-                            <label key={m.key} style={{
-                              display:'flex', alignItems:'flex-start', gap:'var(--space-3)',
-                              padding:'var(--space-3) var(--space-4)',
-                              border:`1px solid ${active ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                              borderRadius:'var(--radius-md)',
-                              background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                              cursor:'pointer',
-                              transition:'all var(--duration-fast)',
-                            }}>
-                              <input
-                                type="checkbox"
-                                id={`mode-${m.key}`}
-                                checked={active}
-                                style={{ marginTop: 3 }}
-                                onChange={e => {
-                                  const modes = settings.modes ?? [];
-                                  const checked = e.target.checked;
-                                  updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
-                                  if (m.key === 'kds') {
-                                    updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
-                                  }
-                                }}
-                              />
-                              <div>
-                                <div style={{ fontWeight:'var(--weight-semibold)', fontSize:'var(--text-footnote)', color:'var(--color-label-primary)' }}>{m.label}</div>
-                                <div style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-secondary)', marginTop:2, lineHeight:1.3 }}>{m.desc}</div>
-                                {m.key === 'kds' && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('kitchen'); }}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      padding: 0,
-                                      marginTop: 4,
-                                      fontSize: '11px',
-                                      color: 'var(--color-accent)',
-                                      fontWeight: 'var(--weight-bold)',
-                                      cursor: 'pointer',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 4
-                                    }}
-                                  >
-                                    ⚙️ Configure Display / 3" Thermal Print
-                                  </button>
-                                )}
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Fast Checkout & POS Speed Options */}
-              <div className="card card-padded">
-                <h3 className="text-title3" style={{ marginBottom: 'var(--space-2)' }}>⚡ Fast Checkout & POS Speed Options</h3>
-                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
-                  Tailor the checkout flow for speed, queue busting, and hardware scanning.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>1-Tap Quick-Pay Bar in POS</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Displays instant cash tender, round amount, and UPI buttons directly in the cart drawer.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.quickPayEnabled ?? true}
-                      onChange={e => updateField('quickPayEnabled', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Favorites & Speed-Dial Bar</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Shows a pinned strip of your top fast-selling items at the top of the menu grid for 1-tap ordering.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.speedDialEnabled ?? true}
-                      onChange={e => updateField('speedDialEnabled', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Hardware Barcode Scanner & SKU Lookup</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Enables USB & Bluetooth HID barcode guns to automatically add scanned items to cart.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.barcodeEnabled ?? false}
-                      onChange={e => updateField('barcodeEnabled', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* QSR TV Display Link */}
-              {(settings.modes ?? []).includes('token') && (
-                <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                  <div>
-                    <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>📺 QSR TV Token Display Link</h3>
-                    <p className="text-secondary text-footnote">
-                      Open this URL on a TV or monitor in the waiting area to show the live token queue to customers.
-                    </p>
-                  </div>
-                  <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
-                    <input
-                      className="form-input"
-                      readOnly
-                      value={`${window.location.origin}/display/tokens/${restaurant?.id}`}
-                      style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
-                    />
-                    <button className="btn btn-primary" id="copy-token-link-btn" onClick={copyTokenDisplayLink} type="button">
-                      {copiedToken ? <Check size={16}/> : <Copy size={16}/>}
-                      {copiedToken ? 'Copied!' : 'Copy'}
-                    </button>
-                    <a 
-                      href={`/display/tokens/${restaurant?.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="btn btn-secondary btn-icon"
-                      title="Open in new tab"
-                      style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}
-                    >
-                      🔗
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* TV Slideshow Links */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div>
-                  <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>📺 TV Poster Board Links</h3>
-                  <p className="text-secondary text-footnote">
-                    Open these URLs on TVs or monitors around the restaurant to show your offer boards or menu slideshows.
-                  </p>
-                </div>
-                {slideshowList.length === 0 ? (
-                  <p className="text-secondary text-caption2">
-                    No TV Screen channels created yet. Go to <a href="/admin/posters" style={{color:'var(--accent)', fontWeight:600}}>TV Poster Boards</a> to create a screen.
-                  </p>
-                ) : (
-                  <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
-                    {slideshowList.map(s => (
-                      <div key={s.id} style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
-                        <span className="text-caption2" style={{ fontWeight: 600 }}>{s.name}</span>
-                        <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
-                          <input
-                            className="form-input"
-                            readOnly
-                            value={`${window.location.origin}/display/slides/${restaurant?.id}/${s.id}`}
-                            style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
-                          />
-                          <button 
-                            className="btn btn-primary" 
-                            style={{ minWidth: '85px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                            onClick={() => copySlideshowLink(s.id)} 
-                            type="button"
-                          >
-                            {copiedSlideshowId === s.id ? <Check size={16}/> : <Copy size={16}/>}
-                            {copiedSlideshowId === s.id ? 'Copied!' : 'Copy'}
-                          </button>
-                          <a 
-                            href={`/display/slides/${restaurant?.id}/${s.id}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn btn-secondary btn-icon"
-                            title="Open in new window"
-                            style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}
-                          >
-                            🔗
-                          </a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Service Charge & Gratuity */}
-              <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Service Charge & Gratuity</h3>
-                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Configure default service charge percentage applied to bills.
-                </p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
-                    <div className="form-group">
-                      <label className="form-label">Service Charge Rate %</label>
-                      <input
-                        id="service-charge-rate-input"
-                        className="form-input"
-                        type="number"
-                        min={0}
-                        max={30}
-                        step={0.5}
-                        value={settings.serviceChargeRate ?? 0}
-                        onChange={e => updateField('serviceChargeRate', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Apply Tax on Service Charge</label>
-                      <select
-                        id="service-charge-taxable-select"
-                        className="form-select"
-                        value={settings.serviceChargeTaxable ?? 'no'}
-                        onChange={e => updateField('serviceChargeTaxable', e.target.value)}
-                      >
-                        <option value="no">No (added post-tax)</option>
-                        <option value="yes">Yes (added pre-tax)</option>
-                      </select>
                     </div>
                   </div>
                 </div>
@@ -880,6 +664,546 @@ export default function Settings() {
             </>
           )}
 
+          {/* Workflows & Operations Tab */}
+          {activeTab === 'workflows' && (
+            <>
+              {/* Business Type Preset Picker */}
+              <BusinessPresetPicker
+                currentBusinessType={settings.businessType}
+                currentModes={settings.modes}
+                onApplyPreset={(preset) => {
+                  setSettings(s => ({
+                    ...s,
+                    businessType: preset.id,
+                    modes: preset.recommendedModes,
+                    shiftMode: preset.recommendedShiftMode,
+                    quickPayEnabled: preset.features.enableQuickPay,
+                    barcodeEnabled: preset.features.enableBarcode,
+                    speedDialEnabled: preset.features.enableSpeedDial,
+                    workflowConfig: {
+                      ...(s.workflowConfig || {}),
+                      serviceFlow: preset.id === 'qsr' || preset.id === 'cafe' ? 'counter' : (preset.id === 'restaurant' ? 'table' : 'counter')
+                    }
+                  }));
+                }}
+              />
+
+              {/* Service Flow Style */}
+              <div className="card card-padded">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Sliders size={18} color="var(--color-accent)" />
+                  <h3 className="text-title3" style={{ margin: 0 }}>Restaurant Service &amp; Ordering Flow</h3>
+                </div>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Tailor how orders are taken, routed, and paid based on your service model.
+                </p>
+
+                <div className="settings-flow-grid">
+                  {[
+                    {
+                      key: 'counter',
+                      icon: '⚡',
+                      title: 'Quick Counter / Pay-First',
+                      badge: 'Fast Casual / QSR / Cafe',
+                      desc: 'Customers pay immediately at the counter. Orders fire to kitchen or issue a token upon payment.'
+                    },
+                    {
+                      key: 'table',
+                      icon: '🍽️',
+                      title: 'Table Service / Pay-at-End',
+                      badge: 'Dine-In / Full Service',
+                      desc: 'Staff seat guests, send courses to kitchen, print bill at table, and settle payment upon departure.'
+                    },
+                    {
+                      key: 'tab',
+                      icon: '🍸',
+                      title: 'Open Bar & Lounge Tabs',
+                      badge: 'Bar / Nightclub / Lounge',
+                      desc: 'Keep open tabs under customer names or cards. Fast drink speed-dial and batch settlement.'
+                    }
+                  ].map(flow => {
+                    const currentFlow = settings.workflowConfig?.serviceFlow || (settings.businessType === 'restaurant' ? 'table' : 'counter');
+                    const isSelected = currentFlow === flow.key;
+                    return (
+                      <div
+                        key={flow.key}
+                        className={`settings-flow-card ${isSelected ? 'active' : ''}`}
+                        onClick={() => updateField('workflowConfig.serviceFlow', flow.key)}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 24 }}>{flow.icon}</span>
+                          {isSelected ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-accent)', fontWeight: 700, fontSize: 11 }}>
+                              <CheckCircle2 size={14} /> Selected
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', fontWeight: 600 }}>{flow.badge}</span>
+                          )}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-label-primary)' }}>{flow.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>{flow.desc}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* POS Security & Checkout Rules */}
+              <div className="card card-padded">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Shield size={18} color="var(--color-accent)" />
+                  <h3 className="text-title3" style={{ margin: 0 }}>POS Security &amp; Checkout Rules</h3>
+                </div>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Set cashier controls, PIN auto-lock, and customer information requirements.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {/* Auto-Lock POS on completion */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Auto-Lock POS to PIN Screen on Checkout</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Immediately returns to the Staff PIN screen after each completed or printed bill. Essential for shared terminals.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.workflowConfig?.autoLockOnComplete ?? false}
+                      onChange={e => updateField('workflowConfig.autoLockOnComplete', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  {/* Customer Phone Requirement */}
+                  <div style={{
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Customer Phone Number at Checkout</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Choose whether cashiers must collect customer phone numbers before checkout.
+                      </div>
+                    </div>
+                    <select
+                      className="form-select"
+                      style={{ width: 'auto', minWidth: 200, height: 36, fontSize: 12.5 }}
+                      value={settings.workflowConfig?.phoneRequirement ?? 'optional'}
+                      onChange={e => updateField('workflowConfig.phoneRequirement', e.target.value)}
+                    >
+                      <option value="optional">Optional (Fastest checkout)</option>
+                      <option value="loyalty_only">Prompt for Loyalty / Points</option>
+                      <option value="mandatory">Mandatory for all bills</option>
+                    </select>
+                  </div>
+
+                  {/* Fast Checkout Speed Options */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>1-Tap Quick-Pay Bar in POS</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Displays instant cash tender, round amount, and UPI buttons directly in the cart drawer.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.quickPayEnabled ?? true}
+                      onChange={e => updateField('quickPayEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Favorites &amp; Speed-Dial Bar</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Shows a pinned strip of your top fast-selling items at the top of the menu grid.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.speedDialEnabled ?? true}
+                      onChange={e => updateField('speedDialEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    cursor: 'pointer'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Hardware Barcode Scanner &amp; SKU Lookup</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Enables USB &amp; Bluetooth HID barcode guns to automatically add scanned items to cart.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.barcodeEnabled ?? false}
+                      onChange={e => updateField('barcodeEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Order Numbering & Token Logic */}
+              <div className="card card-padded">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Hash size={18} color="var(--color-accent)" />
+                  <h3 className="text-title3" style={{ margin: 0 }}>Order &amp; Token Numbering</h3>
+                </div>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Format ticket numbers and token queuing behavior for customer recognition.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
+                  <div className="form-group">
+                    <label className="form-label">Order Number Prefix</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. ORD-, DINE-, #"
+                      value={settings.workflowConfig?.orderPrefix ?? 'ORD-'}
+                      onChange={e => updateField('workflowConfig.orderPrefix', e.target.value.toUpperCase())}
+                    />
+                    <span className="text-secondary text-caption2" style={{ marginTop: 4, display: 'block' }}>
+                      Preview: <strong>{settings.workflowConfig?.orderPrefix || 'ORD-'}1042</strong>
+                    </span>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">QSR Token Queue Cycle</label>
+                    <select
+                      className="form-select"
+                      value={settings.workflowConfig?.tokenResetCycle ?? 'daily'}
+                      onChange={e => updateField('workflowConfig.tokenResetCycle', e.target.value)}
+                    >
+                      <option value="daily">Daily Reset (Starts from #1 every morning)</option>
+                      <option value="loop99">Continuous Loop 1 to 99</option>
+                      <option value="loop999">Continuous Loop 1 to 999</option>
+                    </select>
+                  </div>
+                </div>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-secondary)',
+                  cursor: 'pointer',
+                  marginTop: 'var(--space-3)'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>🔊 Voice Token Callout on Customer TV Screen</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                      Automatically announces token numbers via synthetic voice when marked ready on KDS or called by staff.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.workflowConfig?.tokenVoiceCallout ?? true}
+                    onChange={e => updateField('workflowConfig.tokenVoiceCallout', e.target.checked)}
+                    style={{ width: 18, height: 18, cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
+
+              {/* Billing, Rounding & Bill Splitting */}
+              <div className="card card-padded">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Coins size={18} color="var(--color-accent)" />
+                  <h3 className="text-title3" style={{ margin: 0 }}>Billing, Rounding &amp; Bill Splitting</h3>
+                </div>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Control currency rounding, split bill access, and gratuity suggestions.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
+                  <div className="form-group">
+                    <label className="form-label">Cash Total Rounding</label>
+                    <select
+                      className="form-select"
+                      value={settings.workflowConfig?.cashRounding ?? 'exact'}
+                      onChange={e => updateField('workflowConfig.cashRounding', e.target.value)}
+                    >
+                      <option value="exact">Exact (No rounding — e.g. 14.65)</option>
+                      <option value="nearest_integer">Round to Nearest Integer (e.g. 14.65 → 15.00)</option>
+                      <option value="nearest_half">Round to Nearest 0.50 (e.g. 14.65 → 14.50)</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Suggested Tip Percentages</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. 5, 10, 15"
+                      value={settings.workflowConfig?.tipPresets ?? '5, 10, 15'}
+                      onChange={e => updateField('workflowConfig.tipPresets', e.target.value)}
+                    />
+                    <span className="text-secondary text-caption2" style={{ marginTop: 4, display: 'block' }}>
+                      Comma-separated quick tip chips shown on payment screen.
+                    </span>
+                  </div>
+                </div>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-secondary)',
+                  cursor: 'pointer',
+                  marginTop: 'var(--space-3)'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>Enable Bill Splitting in POS</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                      Allows cashiers to divide a single check equally or item-by-item across multiple guests and payment methods.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.workflowConfig?.splitBillEnabled ?? true}
+                    onChange={e => updateField('workflowConfig.splitBillEnabled', e.target.checked)}
+                    style={{ width: 18, height: 18, cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
+            </>
+          )}
+
+          {/* Modules & Features Tab */}
+          {activeTab === 'features' && (
+            <div className="card card-padded">
+              <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Active Modules &amp; POS Capabilities</h3>
+              <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
+                Toggle system modules to fit your restaurant format. Changes reflect instantly on your POS sidebar.
+              </p>
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
+                {[
+                  {
+                    title: '⚡ Core Operations & Billing',
+                    desc: 'Essential modules for managing service stations, kitchen orders, and cashier registers.',
+                    keys: ['pos', 'table', 'token', 'kds']
+                  },
+                  {
+                    title: '🌐 Sales Channels & Ordering',
+                    desc: 'Expand ordering across digital storefronts, table bookings, and food aggregators.',
+                    keys: ['online', 'delivery_hub', 'reservations']
+                  },
+                  {
+                    title: '💼 Back Office & Growth',
+                    desc: 'Inventory control, staff shift wages, and guest loyalty retention.',
+                    keys: ['inventory', 'payroll', 'customers']
+                  }
+                ].map(group => (
+                  <div key={group.title} style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
+                    <div style={{ borderBottom:'1px solid var(--color-separator)', paddingBottom:'var(--space-2)' }}>
+                      <h4 style={{ fontWeight:'var(--weight-bold)', fontSize:'var(--text-subhead)', color:'var(--color-label-primary)' }}>{group.title}</h4>
+                      <p className="text-secondary text-caption1" style={{ marginTop:2 }}>{group.desc}</p>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'var(--space-3)' }}>
+                      {group.keys.map(key => {
+                        const m = MODES.find(x => x.key === key);
+                        if (!m) return null;
+                        const active = (settings.modes ?? []).includes(m.key);
+                        return (
+                          <label key={m.key} style={{
+                            display:'flex', alignItems:'flex-start', gap:'var(--space-3)',
+                            padding:'var(--space-3) var(--space-4)',
+                            border:`1.5px solid ${active ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                            borderRadius:'var(--radius-md)',
+                            background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
+                            cursor:'pointer',
+                            transition:'all var(--duration-fast)',
+                          }}>
+                            <input
+                              type="checkbox"
+                              id={`mode-${m.key}`}
+                              checked={active}
+                              style={{ marginTop: 3 }}
+                              onChange={e => {
+                                const modes = settings.modes ?? [];
+                                const checked = e.target.checked;
+                                updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
+                                if (m.key === 'kds') {
+                                  updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                                }
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight:'var(--weight-semibold)', fontSize:'var(--text-footnote)', color:'var(--color-label-primary)' }}>{m.label}</div>
+                              <div style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-secondary)', marginTop:2, lineHeight:1.3 }}>{m.desc}</div>
+                              {m.key === 'kds' && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('kitchen'); }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    marginTop: 4,
+                                    fontSize: '11px',
+                                    color: 'var(--color-accent)',
+                                    fontWeight: 'var(--weight-bold)',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}
+                                >
+                                  ⚙️ Configure Display / Stations →
+                                </button>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Displays & TV Hub Tab */}
+          {activeTab === 'displays' && (
+            <>
+              {/* QSR TV Token Display */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Tv size={18} color="var(--color-accent)" />
+                    <h3 className="text-title3" style={{ margin: 0 }}>QSR Live Token TV Display</h3>
+                  </div>
+                  <p className="text-secondary text-footnote">
+                    Open this URL on a TV or monitor in your waiting lounge or collection counter to show live preparing and ready tokens.
+                  </p>
+                </div>
+                <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+                  <input
+                    className="form-input"
+                    readOnly
+                    value={`${window.location.origin}/display/tokens/${restaurant?.id}`}
+                    style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
+                  />
+                  <button className="btn btn-primary" id="copy-token-link-btn" onClick={copyTokenDisplayLink} type="button">
+                    {copiedToken ? <Check size={16}/> : <Copy size={16}/>}
+                    {copiedToken ? 'Copied!' : 'Copy Link'}
+                  </button>
+                  <a 
+                    href={`/display/tokens/${restaurant?.id}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    title="Open on screen"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <ExternalLink size={14} /> Open Screen
+                  </a>
+                </div>
+              </div>
+
+              {/* TV Poster Boards */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <h3 className="text-title3" style={{ margin: 0, marginBottom: 4 }}>TV Digital Poster &amp; Menu Boards</h3>
+                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                      Broadcast marketing offers, animated combo deals, and live menu boards onto smart TVs.
+                    </p>
+                  </div>
+                  <a href="/admin/posters" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Manage Screens in Poster Studio →
+                  </a>
+                </div>
+
+                {slideshowList.length === 0 ? (
+                  <div style={{ padding: 'var(--space-4)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                    <p className="text-secondary text-caption1" style={{ margin: 0 }}>
+                      No TV Screen channels created yet. Go to <a href="/admin/posters" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>TV Poster Boards</a> to design your first screen.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
+                    {slideshowList.map(s => (
+                      <div key={s.id} style={{ display:'flex', flexDirection:'column', gap:'6px', padding: '12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>📺 {s.name}</span>
+                        <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+                          <input
+                            className="form-input"
+                            readOnly
+                            value={`${window.location.origin}/display/slides/${restaurant?.id}/${s.id}`}
+                            style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg)' }}
+                          />
+                          <button 
+                            className="btn btn-primary btn-sm" 
+                            style={{ minWidth: '85px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                            onClick={() => copySlideshowLink(s.id)} 
+                            type="button"
+                          >
+                            {copiedSlideshowId === s.id ? <Check size={14}/> : <Copy size={14}/>}
+                            {copiedSlideshowId === s.id ? 'Copied!' : 'Copy'}
+                          </button>
+                          <a 
+                            href={`/display/slides/${restaurant?.id}/${s.id}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary btn-sm btn-icon"
+                            title="Open on screen"
+                            style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* Kitchen & KOT Settings Tab */}
           {activeTab === 'kitchen' && (
             <KitchenSettings settings={settings} updateField={updateField} />
@@ -947,6 +1271,65 @@ export default function Settings() {
                 currency={settings.currency || 'INR'}
                 onSelectMode={(mode) => updateField('taxConfig.mode', mode)}
               />
+
+              {/* Service Charge & Gratuity */}
+              <div className="card card-padded">
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Service Charge &amp; Gratuity</h3>
+                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
+                  Configure default service charge percentage automatically applied to dine-in bills.
+                </p>
+                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">Service Charge Rate %</label>
+                      <input
+                        id="service-charge-rate-input"
+                        className="form-input"
+                        type="number"
+                        min={0}
+                        max={30}
+                        step={0.5}
+                        value={settings.serviceChargeRate ?? 0}
+                        onChange={e => updateField('serviceChargeRate', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Apply Tax on Service Charge</label>
+                      <select
+                        id="service-charge-taxable-select"
+                        className="form-select"
+                        value={settings.serviceChargeTaxable ?? 'no'}
+                        onChange={e => updateField('serviceChargeTaxable', e.target.value)}
+                      >
+                        <option value="no">No (added post-tax)</option>
+                        <option value="yes">Yes (added pre-tax)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cash Management Shift Mode */}
+              <div className="card card-padded">
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Cash Drawer &amp; Till Management</h3>
+                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
+                  Configure how cash shifts, float balance, and end-of-day counts are tracked across terminals.
+                </p>
+                <div className="form-group">
+                  <label className="form-label">Cash Shift Mode</label>
+                  <select 
+                    className="form-select" 
+                    value={settings.shiftMode || 'global'} 
+                    onChange={e => updateField('shiftMode', e.target.value)}
+                  >
+                    <option value="global">Single Central Till (Shared by all staff on duty)</option>
+                    <option value="staff">Individual Staff Banks (Each cashier opens &amp; settles their own bank)</option>
+                  </select>
+                  <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
+                    Determines whether shifts and cash drops are consolidated across the venue or balanced per staff member.
+                  </span>
+                </div>
+              </div>
 
               {/* Stripe Payment Terminal */}
               <div className="card card-padded">
@@ -2049,6 +2432,36 @@ export default function Settings() {
 
         </div>
       </div>
+
+      {/* Floating Glassmorphic Unsaved Changes Bar */}
+      {hasUnsavedChanges && (
+        <div className="settings-floating-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }} />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>You have unsaved changes</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleDiscard}
+              disabled={saving}
+              style={{ color: '#e2e8f0', borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)' }}
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={save}
+              disabled={saving}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+            >
+              <Save size={13} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

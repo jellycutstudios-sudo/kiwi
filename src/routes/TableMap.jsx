@@ -1,15 +1,20 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useTableStore } from '../stores/tableStore';
 import { useOrderStore } from '../stores/orderStore';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt } from '../utils/print';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
-import { ZoomIn, ZoomOut, Maximize2, LayoutGrid, Grid, Map, Search, X, Plus, Printer, ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp, Users, Banknote, CreditCard, QrCode } from 'lucide-react';
+import {
+  ZoomIn, ZoomOut, Maximize2, LayoutGrid, Grid, Map as MapIcon, Search, X, Plus, Printer,
+  ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
+  Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download
+} from 'lucide-react';
+import './admin/FloorPlanEditor.css';
 
 /* ─── Elapsed time badge helper ─────────────────────────────── */
 function elapsedColor(mins) {
@@ -31,10 +36,18 @@ function formatElapsed(mins) {
 
 export default function TableMap() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const restaurant = useAuthStore(s => s.restaurant);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const canEditLayout = !staffDoc || ['admin', 'super_admin', 'manager', 'owner'].includes(staffDoc?.role);
+
   const tables = useTableStore(s => s.tables);
   const subscribe = useTableStore(s => s.subscribe);
   const freeTable = useTableStore(s => s.freeTable);
+  const addTable = useTableStore(s => s.addTable);
+  const updateTable = useTableStore(s => s.updateTable);
+  const deleteTable = useTableStore(s => s.deleteTable);
+
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const loadOrderToCart = useOrderStore(s => s.loadOrderToCart);
   const settleOrder = useOrderStore(s => s.settleOrder);
@@ -51,13 +64,33 @@ export default function TableMap() {
   const [showMerge, setShowMerge] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
 
+  // Layout Editing state
+  const [isEditingLayout, setIsEditingLayout] = useState(() => searchParams.get('edit') === 'true');
+  const [selectedEditTableId, setSelectedEditTableId] = useState(null);
+  const [dragging, setDragging] = useState(null);
+  const [dragTablePos, setDragTablePos] = useState(null);
+  const activeDragRef = useRef(null);
+  const isActuallyDragged = useRef(false);
+  const [emptyFloors, setEmptyFloors] = useState([]);
+  const [showAddFloorModal, setShowAddFloorModal] = useState(false);
+  const [newFloorName, setNewFloorName] = useState('');
+  const [autoAddFirstTable, setAutoAddFirstTable] = useState(true);
+
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const todayStr = new Date().toISOString().split('T')[0];
 
   // View mode: 'grid' (clean, organized Petpooja-style table cards) or 'map' (2D layout)
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState(() => (searchParams.get('edit') === 'true' ? 'map' : 'grid'));
+
+  // Ensure map mode when edit parameter is present
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true') {
+      setIsEditingLayout(true);
+      setViewMode('map');
+    }
+  }, [searchParams]);
 
   // Grid density: 'compact' (fits 30+ tables on screen with zero scroll) vs 'comfortable' (larger cards with inline buttons)
   const [gridDensity, setGridDensity] = useState(() => {
@@ -71,8 +104,16 @@ export default function TableMap() {
 
   const [activeFloor, setActiveFloor] = useState('Ground Floor');
   const allFloors = useMemo(() => {
-    return Array.from(new Set(['Ground Floor', ...tables.map(t => t.floor || 'Ground Floor')]));
-  }, [tables]);
+    const list = ['Ground Floor'];
+    if (restaurant?.floors && Array.isArray(restaurant.floors)) {
+      list.push(...restaurant.floors);
+    }
+    tables.forEach(t => {
+      if (t.floor) list.push(t.floor);
+    });
+    list.push(...emptyFloors);
+    return Array.from(new Set(list.filter(Boolean)));
+  }, [tables, emptyFloors, restaurant?.floors]);
 
   const [zoom, setZoom] = useState(1);
   const wrapperRef = useRef(null);
@@ -97,27 +138,29 @@ export default function TableMap() {
   }, [floorTables]);
 
   const resolvedTables = useMemo(() => {
-    const list = floorTables.map(t => ({
-      ...t,
-      renderX: t.x ?? 80,
-      renderY: t.y ?? 80,
-      renderW: t.w ?? 90,
-      renderH: t.h ?? 90
-    }));
-    for (let i = 0; i < list.length; i++) {
-      for (let j = 0; j < list.length; j++) {
-        if (i === j) continue;
-        const a = list[i]; const b = list[j];
-        const ox = (a.renderX < b.renderX + b.renderW) && (a.renderX + a.renderW > b.renderX);
-        const oy = (a.renderY < b.renderY + b.renderH) && (a.renderY + a.renderH > b.renderY);
-        if (ox && oy) {
-          if (a.renderX <= b.renderX) b.renderX = a.renderX + a.renderW + 45;
-          else a.renderX = b.renderX + b.renderW + 45;
-        }
-      }
-    }
-    return list;
-  }, [floorTables]);
+    return floorTables.map((t, idx) => {
+      const isThisDragging = isEditingLayout && dragTablePos && dragTablePos.id === t.id;
+      // Default to neat grid slot if table has no saved coordinates
+      const defaultX = 70 + (idx % 4) * 200;
+      const defaultY = 60 + Math.floor(idx / 4) * 170;
+      return {
+        ...t,
+        renderX: isThisDragging ? dragTablePos.x : (t.x ?? defaultX),
+        renderY: isThisDragging ? dragTablePos.y : (t.y ?? defaultY),
+        renderW: t.w ?? ((Number(t.capacity) || 4) > 6 ? 110 : 90),
+        renderH: t.h ?? ((Number(t.capacity) || 4) > 6 ? 110 : 90),
+      };
+    });
+  }, [floorTables, isEditingLayout, dragTablePos]);
+
+  const canvasHeight = useMemo(() => {
+    let maxY = 650;
+    resolvedTables.forEach(t => {
+      const bottom = (t.renderY || 0) + (t.renderH || 90) + 80;
+      if (bottom > maxY) maxY = bottom;
+    });
+    return maxY;
+  }, [resolvedTables]);
 
   const floorMetrics = useMemo(() => {
     let free = 0, occupied = 0, reserved = 0, liveRevenue = 0;
@@ -133,21 +176,373 @@ export default function TableMap() {
   }, [floorTables, tableOrders, reservations]);
 
   const handleAutoAlign = async () => {
-    if (!floorTables.length || !restaurant?.id) return;
-    const sorted = [...floorTables].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true }));
-    const COLS = 4, COL_W = 190, ROW_H = 160, MX = 60, MY = 50;
-    toast.loading('Auto-aligning...', { id: 'aa' });
+    if (!floorTables.length) {
+      toast.error('No tables on this floor to align');
+      return;
+    }
+    if (!restaurant?.id) {
+      toast.error('Restaurant details not loaded');
+      return;
+    }
+
+    // Switch to map view so the aligned layout is visible
+    setViewMode('map');
+
+    const sorted = [...floorTables].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '', undefined, { numeric: true })
+    );
+
+    const COLS = 4;
+    const COL_W = 200;
+    const ROW_H = 170;
+    const MX = 70;
+    const MY = 60;
+
+    // Prepare target coordinates
+    const updatesMap = new Map();
+    sorted.forEach((t, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const isLarge = (Number(t.capacity) || 4) > 6;
+      updatesMap.set(t.id, {
+        x: MX + col * COL_W,
+        y: MY + row * ROW_H,
+        w: isLarge ? 110 : 90,
+        h: isLarge ? 110 : 90,
+      });
+    });
+
+    // 1. Instant optimistic update: tables glide into position with 0ms delay
+    useTableStore.setState(prev => ({
+      tables: prev.tables.map(t => {
+        const u = updatesMap.get(t.id);
+        return u ? { ...t, ...u } : t;
+      })
+    }));
+
+    toast.loading('Auto-aligning tables...', { id: 'auto-align' });
+
+    // 2. Persist atomically to Firestore via writeBatch
     try {
-      const updateTable = useTableStore.getState().updateTable;
-      await Promise.all(sorted.map((t, i) => updateTable(restaurant.id, t.id, {
-        x: MX + (i % COLS) * COL_W,
-        y: MY + Math.floor(i / COLS) * ROW_H,
-        w: (t.capacity || 4) > 6 ? 110 : 90,
-        h: (t.capacity || 4) > 6 ? 110 : 90,
-      })));
-      toast.success('Tables aligned!', { id: 'aa', icon: '📐' });
-    } catch (e) { toast.error('Failed: ' + e.message, { id: 'aa' }); }
+      await useAuthStore.getState().ensureAnonymousAuth();
+      const batch = writeBatch(db);
+      sorted.forEach(t => {
+        const ref = doc(db, 'restaurants', restaurant.id, 'tables', t.id);
+        batch.update(ref, updatesMap.get(t.id));
+      });
+      await batch.commit();
+      toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align', icon: '📐' });
+    } catch (e) {
+      console.warn('Batch write failed, attempting individual updates:', e);
+      try {
+        await Promise.all(sorted.map(t => updateTable(restaurant.id, t.id, updatesMap.get(t.id))));
+        toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align', icon: '📐' });
+      } catch (err) {
+        toast.error('Failed to save layout: ' + err.message, { id: 'auto-align' });
+      }
+    }
   };
+
+  const toggleEditLayout = () => {
+    setIsEditingLayout(prev => {
+      const next = !prev;
+      if (next) {
+        setViewMode('map');
+        setSelected(null);
+      } else {
+        setSelectedEditTableId(null);
+        setDragging(null);
+      }
+      return next;
+    });
+  };
+
+  const handleAddTable = async () => {
+    if (!restaurant?.id) return;
+    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
+    const count = currentFloorTables.length;
+    const prefix = activeFloor === 'Ground Floor' ? 'T' : activeFloor[0].toUpperCase();
+
+    // Calculate smart grid position so newly added tables don't stack on top of each other
+    const col = count % 4;
+    const row = Math.floor(count / 4);
+    const posX = 60 + col * 180;
+    const posY = 60 + row * 160;
+
+    try {
+      await addTable(restaurant.id, {
+        name: `${prefix}${count + 1}`,
+        capacity: 4,
+        shape: 'rect',
+        x: Math.min(posX, 800),
+        y: Math.min(posY, 500),
+        w: 90,
+        h: 90,
+        floor: activeFloor,
+      });
+      toast.success(`Table ${prefix}${count + 1} added to ${activeFloor}! Drag to position it.`, { icon: '🍽️' });
+    } catch (err) {
+      toast.error('Failed to add table: ' + err.message);
+    }
+  };
+
+  const handleAddFloor = () => {
+    setNewFloorName('');
+    setAutoAddFirstTable(true);
+    setShowAddFloorModal(true);
+  };
+
+  const handleConfirmAddFloor = async (e) => {
+    if (e) e.preventDefault();
+    const cleanName = newFloorName.trim();
+    if (!cleanName) {
+      toast.error('Please enter a floor or area name');
+      return;
+    }
+    if (allFloors.some(f => f.toLowerCase() === cleanName.toLowerCase())) {
+      toast.error('A floor with this name already exists');
+      return;
+    }
+
+    try {
+      setEmptyFloors(prev => Array.from(new Set([...prev, cleanName])));
+      setActiveFloor(cleanName);
+
+      // Persist floor to restaurant document in Firestore
+      if (restaurant?.id) {
+        try {
+          await updateDoc(doc(db, 'restaurants', restaurant.id), {
+            floors: arrayUnion(cleanName)
+          });
+        } catch (dbErr) {
+          console.warn('Could not save floor to restaurant doc:', dbErr);
+        }
+      }
+
+      // Auto-create initial table if enabled
+      if (autoAddFirstTable && restaurant?.id) {
+        const prefix = cleanName[0].toUpperCase();
+        await addTable(restaurant.id, {
+          name: `${prefix}1`,
+          capacity: 4,
+          shape: 'rect',
+          x: 80,
+          y: 80,
+          w: 90,
+          h: 90,
+          floor: cleanName,
+        });
+        toast.success(`Floor "${cleanName}" created with Table ${prefix}1!`, { icon: '🏗️' });
+      } else {
+        toast.success(`Floor "${cleanName}" created! Add tables to design your layout.`, { icon: '🏗️' });
+      }
+
+      setNewFloorName('');
+      setShowAddFloorModal(false);
+    } catch (err) {
+      toast.error('Failed to create floor: ' + err.message);
+    }
+  };
+
+  const handleDeleteFloor = async (floorToDelete) => {
+    if (floorToDelete === 'Ground Floor') {
+      toast.error('Cannot delete default Ground Floor');
+      return;
+    }
+    const hasTables = tables.some(t => (t.floor || 'Ground Floor') === floorToDelete);
+    if (hasTables) {
+      toast.error(`Cannot delete "${floorToDelete}" while it has tables. Remove or move tables first.`);
+      return;
+    }
+    if (!window.confirm(`Delete empty floor "${floorToDelete}"?`)) return;
+    setEmptyFloors(prev => prev.filter(f => f !== floorToDelete));
+    if (restaurant?.id) {
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id), {
+          floors: arrayRemove(floorToDelete)
+        });
+      } catch (err) {
+        console.warn('Could not remove floor from restaurant doc:', err);
+      }
+    }
+    setActiveFloor('Ground Floor');
+    toast.success(`Floor "${floorToDelete}" removed`);
+  };
+
+  const handlePrintAllQRs = () => {
+    if (!restaurant || tables.length === 0) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Pop-up blocked! Please allow popups for this site.');
+      return;
+    }
+
+    const qrCardsHTML = tables.map(t => {
+      const url = `${window.location.origin}/order/${restaurant.id}?tableId=${t.id}&tableName=${encodeURIComponent(t.name)}`;
+      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      return `
+        <div class="qr-card">
+          <div class="rest-name">${restaurant.name || 'Restaurant'}</div>
+          <div class="table-name">Table ${t.name}</div>
+          <img class="qr-img" src="${qrSrc}" alt="QR for Table ${t.name}" />
+          <div class="scan-instructions">Scan to view menu & order</div>
+        </div>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Table QR Codes - ${restaurant.name}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              background: #f4f4f7;
+              display: flex;
+              flex-wrap: wrap;
+              gap: 20px;
+              justify-content: center;
+            }
+            .qr-card {
+              background: #ffffff;
+              border: 1.5px dashed #cccccc;
+              border-radius: 12px;
+              padding: 20px;
+              width: 240px;
+              text-align: center;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+              page-break-inside: avoid;
+            }
+            .rest-name {
+              font-size: 12px;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              color: #666666;
+              margin-bottom: 4px;
+            }
+            .table-name {
+              font-size: 24px;
+              font-weight: 800;
+              color: #111111;
+              margin-bottom: 15px;
+            }
+            .qr-img {
+              width: 180px;
+              height: 180px;
+              display: block;
+              margin: 0 auto 12px auto;
+            }
+            .scan-instructions {
+              font-size: 11px;
+              color: #888888;
+              font-weight: 500;
+            }
+            @media print {
+              body { background: #ffffff; padding: 0; }
+              .qr-card { box-shadow: none; border: 1px dashed #666666; }
+            }
+          </style>
+        </head>
+        <body>
+          ${qrCardsHTML}
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 1000);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleCanvasMouseDown = (e, table) => {
+    if (!isEditingLayout) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isActuallyDragged.current = false;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const curX = table.x ?? 80;
+    const curY = table.y ?? 80;
+    const offsetX = (e.clientX - rect.left) / zoom - curX;
+    const offsetY = (e.clientY - rect.top) / zoom - curY;
+
+    activeDragRef.current = {
+      id: table.id,
+      tableW: table.w ?? 90,
+      tableH: table.h ?? 90,
+      offsetX,
+      offsetY,
+      currentX: curX,
+      currentY: curY,
+      startX: e.clientX,
+      startY: e.clientY
+    };
+
+    setDragging(table.id);
+    setDragTablePos({ id: table.id, x: curX, y: curY });
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handleWindowMouseMove = (e) => {
+      const active = activeDragRef.current;
+      if (!active) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      if (Math.hypot(e.clientX - active.startX, e.clientY - active.startY) > 5) {
+        isActuallyDragged.current = true;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const rawX = (e.clientX - rect.left) / zoom - active.offsetX;
+      const rawY = (e.clientY - rect.top) / zoom - active.offsetY;
+      const x = Math.max(0, Math.min(rawX, 1000 - active.tableW));
+      const y = Math.max(0, Math.min(rawY, 650 - active.tableH));
+      const snapX = Math.round(x / 20) * 20;
+      const snapY = Math.round(y / 20) * 20;
+
+      active.currentX = snapX;
+      active.currentY = snapY;
+      setDragTablePos({ id: active.id, x: snapX, y: snapY });
+    };
+
+    const handleWindowMouseUp = async () => {
+      const active = activeDragRef.current;
+      if (active && restaurant?.id && isActuallyDragged.current) {
+        try {
+          await updateTable(restaurant.id, active.id, {
+            x: active.currentX,
+            y: active.currentY
+          });
+        } catch (err) {
+          console.warn('Failed to save table position:', err);
+        }
+      }
+      activeDragRef.current = null;
+      setDragging(null);
+      setDragTablePos(null);
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [dragging, zoom, restaurant?.id, updateTable]);
+
+  const selectedEditTable = useMemo(() => {
+    return tables.find(t => t.id === selectedEditTableId);
+  }, [tables, selectedEditTableId]);
 
   // Resize zoom
   useEffect(() => {
@@ -257,6 +652,15 @@ export default function TableMap() {
   };
 
   const handleTableClick = useCallback((t, e, effectiveStatus) => {
+    if (isEditingLayout) {
+      if (isActuallyDragged.current) {
+        isActuallyDragged.current = false;
+        return;
+      }
+      e.stopPropagation();
+      setSelectedEditTableId(t.id);
+      return;
+    }
     if (effectiveStatus === 'free') {
       // Direct one-click: open POS for this table
       clearCart();
@@ -268,7 +672,7 @@ export default function TableMap() {
     }
     // Occupied / reserved: toggle modal
     setSelected(prev => (prev === t.id ? null : t.id));
-  }, [clearCart, setTable, setOrderType, navigate]);
+  }, [isEditingLayout, clearCart, setTable, setOrderType, navigate]);
 
   /* ─── Chairs renderer (clean, non-distracting) ────────────── */
   const renderChairs = (table, isOccupied) => {
@@ -327,60 +731,76 @@ export default function TableMap() {
 
   return (
     <div className="tm-root">
-      {/* ═══ HEADER STATS BAR ═══ */}
-      <div className="tm-stats-bar">
-        <div className="tm-stat">
-          <span className="tm-stat-dot tm-stat-dot--free" />
-          <span className="tm-stat-label">Available</span>
-          <span className="tm-stat-val">{floorMetrics.free}</span>
+      {/* ═══ CONSOLIDATED UNIFIED TOOLBAR ═══ */}
+      <div className="tm-toolbar" style={{ alignItems: 'center', gap: 10, padding: '6px 0', flexWrap: 'wrap' }}>
+        {/* 1. Floor Tabs */}
+        <div className="tm-floor-tabs">
+          {allFloors.map(floor => {
+            const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
+            const isCanDelete = isEditingLayout && floor !== 'Ground Floor' && floorCount === 0;
+            return (
+              <div key={floor} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className={`tm-floor-tab ${activeFloor === floor ? 'tm-floor-tab--active' : ''}`}
+                  onClick={() => { setActiveFloor(floor); setSelected(null); }}
+                >
+                  {floor}
+                  <span className="tm-floor-badge">
+                    {floorCount}
+                  </span>
+                </button>
+                {isCanDelete && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteFloor(floor); }}
+                    style={{
+                      border: 'none',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      color: '#ef4444',
+                      borderRadius: '50%',
+                      width: 18,
+                      height: 18,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      marginLeft: -10,
+                      marginRight: 4,
+                      zIndex: 3
+                    }}
+                    title={`Delete empty floor "${floor}"`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {isEditingLayout && (
+            <button
+              type="button"
+              className="tm-floor-tab"
+              onClick={handleAddFloor}
+              style={{ border: '1px dashed var(--color-separator-opaque)', color: 'var(--color-accent)', fontWeight: 700, gap: 4 }}
+              title="Add a new dining floor or area"
+            >
+              <Plus size={12} /> Add Floor
+            </button>
+          )}
         </div>
-        <div className="tm-stat-divider" />
-        <div className="tm-stat">
-          <span className="tm-stat-dot tm-stat-dot--occupied" />
-          <span className="tm-stat-label">Seated</span>
-          <span className="tm-stat-val">{floorMetrics.occupied}</span>
-        </div>
-        {floorMetrics.reserved > 0 && <>
-          <div className="tm-stat-divider" />
-          <div className="tm-stat">
-            <span className="tm-stat-dot tm-stat-dot--reserved" />
-            <span className="tm-stat-label">Reserved</span>
-            <span className="tm-stat-val">{floorMetrics.reserved}</span>
-          </div>
-        </>}
-        {floorMetrics.liveRevenue > 0 && <>
-          <div className="tm-stat-divider" />
-          <div className="tm-stat">
-            <TrendingUp size={13} style={{ color: '#10b981' }} />
-            <span className="tm-stat-label">Live Floor</span>
-            <span className="tm-stat-val tm-stat-val--revenue">{formatCurrency(floorMetrics.liveRevenue, currency)}</span>
-          </div>
-        </>}
 
-        <div style={{ flex: 1 }} />
+        <div style={{ width: 1, height: 22, background: 'var(--color-separator)', margin: '0 2px' }} />
 
-        {/* Search */}
-        <div className="tm-search">
-          <Search size={13} className="tm-search-icon" />
-          <input
-            type="text"
-            placeholder="Find table…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="tm-search-input"
-          />
-          {searchQuery && <button className="tm-search-clear" onClick={() => setSearchQuery('')}><X size={12} /></button>}
-        </div>
-      </div>
-
-      {/* ═══ FILTER PILLS + FLOOR TABS + VIEW TOGGLE ═══ */}
-      <div className="tm-toolbar" style={{ flexWrap: 'wrap', gap: 10 }}>
-        <div className="tm-filter-pills">
+        {/* 2. Filter Pills with live counts & Revenue chip */}
+        <div className="tm-filter-pills" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {[
             { key: 'all', label: `All (${floorTables.length})` },
-            { key: 'free', label: `🟢 Free`, count: floorMetrics.free },
-            { key: 'occupied', label: `🔴 Seated`, count: floorMetrics.occupied },
-            ...(floorMetrics.reserved > 0 ? [{ key: 'reserved', label: `⭐ Reserved`, count: floorMetrics.reserved }] : []),
+            { key: 'free', label: `🟢 Free (${floorMetrics.free})` },
+            { key: 'occupied', label: `🔴 Seated (${floorMetrics.occupied})` },
+            ...(floorMetrics.reserved > 0 ? [{ key: 'reserved', label: `⭐ Reserved (${floorMetrics.reserved})` }] : []),
           ].map(p => (
             <button
               key={p.key}
@@ -391,81 +811,218 @@ export default function TableMap() {
               {p.label}
             </button>
           ))}
-        </div>
-
-        <div className="tm-floor-tabs">
-          {allFloors.map(floor => (
-            <button
-              key={floor}
-              type="button"
-              className={`tm-floor-tab ${activeFloor === floor ? 'tm-floor-tab--active' : ''}`}
-              onClick={() => { setActiveFloor(floor); setSelected(null); }}
+          {floorMetrics.liveRevenue > 0 && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#10b981',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '3px 9px',
+                borderRadius: 999
+              }}
+              title="Current live dining room revenue on this floor"
             >
-              {floor}
-              <span className="tm-floor-badge">
-                {tables.filter(t => (t.floor || 'Ground Floor') === floor).length}
-              </span>
-            </button>
-          ))}
+              <TrendingUp size={12} /> {formatCurrency(floorMetrics.liveRevenue, currency)}
+            </span>
+          )}
         </div>
 
-        {/* Density + View Mode Switcher */}
+        {/* 3. Right: Search + Density + View Switcher + Edit Layout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+          {/* Compact Search */}
+          <div className="tm-search" style={{ height: 30, minWidth: 150, maxWidth: 200 }}>
+            <Search size={12} className="tm-search-icon" />
+            <input
+              type="text"
+              placeholder="Find table…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="tm-search-input"
+              style={{ fontSize: 12 }}
+            />
+            {searchQuery && <button className="tm-search-clear" onClick={() => setSearchQuery('')}><X size={11} /></button>}
+          </div>
+
+          {/* Density toggle (Grid mode only) */}
           {viewMode === 'grid' && (
             <div style={{
               display: 'inline-flex',
-              padding: 3,
+              padding: 2,
               background: 'var(--color-bg-secondary)',
-              borderRadius: 10,
+              borderRadius: 8,
               border: '1px solid var(--color-separator)'
             }}>
               <button
                 type="button"
                 className={`btn btn-xs ${gridDensity === 'compact' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ borderRadius: 8, height: 28, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 10px' }}
+                style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
                 onClick={() => handleDensityChange('compact')}
-                title="High-density zero-scroll grid (ideal for 20+ tables)"
+                title="High-density zero-scroll grid"
               >
-                <Grid size={13} /> Compact (20+)
+                <Grid size={12} /> Compact
               </button>
               <button
                 type="button"
                 className={`btn btn-xs ${gridDensity === 'comfortable' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ borderRadius: 8, height: 28, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 10px' }}
+                style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
                 onClick={() => handleDensityChange('comfortable')}
-                title="Detailed cards with inline action buttons"
+                title="Detailed cards with buttons"
               >
-                <LayoutGrid size={13} /> Detailed
+                <LayoutGrid size={12} /> Detailed
               </button>
             </div>
           )}
 
+          {/* View mode toggle */}
           <div style={{
             display: 'inline-flex',
-            padding: 3,
+            padding: 2,
             background: 'var(--color-bg-secondary)',
-            borderRadius: 10,
+            borderRadius: 8,
             border: '1px solid var(--color-separator)'
           }}>
             <button
               type="button"
               className={`btn btn-xs ${viewMode === 'grid' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ borderRadius: 8, height: 28, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 12px' }}
+              style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 10px' }}
               onClick={() => setViewMode('grid')}
             >
-              <LayoutGrid size={13} /> Quick Grid
+              <LayoutGrid size={12} /> Grid
             </button>
             <button
               type="button"
               className={`btn btn-xs ${viewMode === 'map' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ borderRadius: 8, height: 28, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 12px' }}
+              style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 10px' }}
               onClick={() => setViewMode('map')}
             >
-              <Map size={13} /> Floor Map
+              <MapIcon size={12} /> Floor Map
+            </button>
+          </div>
+
+          {/* Edit Layout toggle */}
+          {canEditLayout && (
+            <button
+              type="button"
+              className={`btn btn-xs ${isEditingLayout ? 'btn-primary' : 'btn-ghost'}`}
+              style={{
+                borderRadius: 8,
+                height: 30,
+                fontSize: 11,
+                fontWeight: 700,
+                gap: 5,
+                padding: '0 12px',
+                background: isEditingLayout ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'var(--color-bg-secondary)',
+                border: isEditingLayout ? 'none' : '1px solid var(--color-separator)',
+                color: isEditingLayout ? '#fff' : 'var(--color-label)',
+                boxShadow: isEditingLayout ? '0 2px 8px rgba(37,99,235,0.3)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+              onClick={toggleEditLayout}
+              title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+            >
+              {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
+              {isEditingLayout ? 'Done' : 'Edit Layout'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ═══ STUDIO TOOLBAR (Active when editing layout) ═══ */}
+      {isEditingLayout && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 16px',
+          background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.06))',
+          border: '1.5px solid rgba(59,130,246,0.3)',
+          borderRadius: 14,
+          gap: 12,
+          flexWrap: 'wrap',
+          marginBottom: 10,
+          boxShadow: '0 4px 12px rgba(59,130,246,0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              background: '#2563eb',
+              color: '#fff',
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.02em'
+            }}>
+              <Sliders size={12} /> Studio Mode
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--color-label-secondary)', fontWeight: 500 }}>
+              Drag tables to position (snaps to grid) • Click any table to customize seats, shape, or delete
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-xs btn-primary"
+              onClick={handleAddTable}
+              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
+            >
+              <Plus size={13} /> Add Table
+            </button>
+            <button
+              type="button"
+              className="btn btn-xs btn-secondary"
+              onClick={handleAddFloor}
+              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
+            >
+              <Layers size={13} /> Add Floor
+            </button>
+            <button
+              type="button"
+              className="btn btn-xs btn-secondary"
+              onClick={handlePrintAllQRs}
+              disabled={tables.length === 0}
+              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
+            >
+              <Printer size={13} /> Print All QRs
+            </button>
+            <button
+              type="button"
+              className="btn btn-xs btn-secondary"
+              onClick={handleAutoAlign}
+              disabled={floorTables.length === 0}
+              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
+            >
+              <LayoutGrid size={13} /> Auto-Align
+            </button>
+            <button
+              type="button"
+              className="btn btn-xs"
+              onClick={() => setIsEditingLayout(false)}
+              style={{
+                height: 30,
+                fontSize: 11,
+                fontWeight: 800,
+                gap: 5,
+                padding: '0 14px',
+                background: '#10b981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8
+              }}
+            >
+              <CheckCircle2 size={13} /> Done Editing
             </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ═══ VIEW MODE: QUICK GRID (PETPOOJA / TOAST STYLE) ═══ */}
       {viewMode === 'grid' ? (
@@ -858,19 +1415,34 @@ export default function TableMap() {
 
           {/* Legend overlay */}
           <div className="tm-canvas-legend">
-            <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#22c55e' }} />Free → click to start order</span>
-            <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#ef4444' }} />Seated → click for actions</span>
+            {isEditingLayout ? (
+              <>
+                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#3b82f6' }} />Editing Layout (Snaps to 20px grid)</span>
+                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#10b981' }} />Click table to edit name & seats</span>
+              </>
+            ) : (
+              <>
+                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#22c55e' }} />Free → click to start order</span>
+                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#ef4444' }} />Seated → click for actions</span>
+              </>
+            )}
           </div>
 
           <div className="table-canvas-scroll-area">
-            <div className="table-canvas-scroll-container" style={{ width: `${1000 * zoom}px`, height: `${650 * zoom}px` }}>
-              <div className="table-canvas" ref={canvasRef} style={{ transform: `scale(${zoom})` }}>
+            <div className="table-canvas-scroll-container" style={{ width: `${1000 * zoom}px`, height: `${canvasHeight * zoom}px` }}>
+              <div
+                className={`table-canvas ${isEditingLayout ? 'editing' : ''}`}
+                ref={canvasRef}
+                style={{ transform: `scale(${zoom})`, height: `${canvasHeight}px` }}
+              >
                 {resolvedTables.map(t => {
                   const order = tableOrders[t.id];
                   const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
                   const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
                   const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
                   const isSelected = selected === t.id;
+                  const isEditSelected = isEditingLayout && selectedEditTableId === t.id;
+                  const isCurrentDragging = isEditingLayout && dragging === t.id;
 
                   if (statusFilter === 'free' && effectiveStatus !== 'free') return null;
                   if (statusFilter === 'occupied' && effectiveStatus !== 'occupied') return null;
@@ -890,16 +1462,28 @@ export default function TableMap() {
                       key={t.id}
                       id={`map-table-${t.id}`}
                       onClick={e => handleTableClick(t, e, effectiveStatus)}
-                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} status-${isSelected ? 'selected' : effectiveStatus}`}
+                      onMouseDown={isEditingLayout ? e => handleCanvasMouseDown(e, t) : undefined}
+                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} ${isEditSelected ? 'status-selected' : isSelected ? 'status-selected' : `status-${effectiveStatus}`}`}
                       style={{
                         position: 'absolute',
                         left: t.renderX, top: t.renderY,
                         width: t.renderW, height: t.renderH,
                         opacity: isMatch ? 1 : 0.2,
                         filter: isMatch ? 'none' : 'grayscale(80%)',
-                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                        cursor: isEditingLayout ? (isCurrentDragging ? 'grabbing' : 'grab') : 'pointer',
+                        outline: isEditSelected ? '2px solid #3b82f6' : 'none',
+                        boxShadow: isEditSelected ? '0 0 0 4px rgba(59,130,246,0.35), 0 8px 24px rgba(0,0,0,0.35)' : undefined,
+                        zIndex: isCurrentDragging ? 100 : isEditSelected ? 50 : 1,
+                        transition: isCurrentDragging ? 'none' : 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                        userSelect: 'none',
                       }}
-                      title={effectiveStatus === 'free' ? `Click to start order at ${t.name}` : `Click to manage ${t.name}`}
+                      title={
+                        isEditingLayout
+                          ? `Drag to reposition ${t.name}, click to edit properties`
+                          : effectiveStatus === 'free'
+                          ? `Click to start order at ${t.name}`
+                          : `Click to manage ${t.name}`
+                      }
                     >
                       {renderChairs(t, effectiveStatus === 'occupied')}
 
@@ -907,28 +1491,50 @@ export default function TableMap() {
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                         <span className="table-capacity">👥 {t.capacity}p</span>
-                        {hasOrder && elapsedMins > 0 && (
+                        {!isEditingLayout && hasOrder && elapsedMins > 0 && (
                           <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '999px', background: ec.bg, color: ec.color, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
                             ⏱️ {elapsedMins < 60 ? `${elapsedMins}m` : elapsedMins < 1440 ? `${Math.floor(elapsedMins / 60)}h` : `${Math.floor(elapsedMins / 1440)}d`}
                           </span>
                         )}
                       </div>
 
-                      {hasOrder && (
+                      {!isEditingLayout && hasOrder && (
                         <span style={{ fontSize: '10px', fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)', padding: '2px 7px', borderRadius: '999px', marginTop: '4px', boxShadow: '0 2px 6px rgba(220,38,38,0.35)', letterSpacing: '-0.2px', fontVariantNumeric: 'tabular-nums' }}>
                           {formatCurrency(order.total ?? 0, currency)}
                         </span>
                       )}
 
-                      {isReserved && effectiveStatus === 'free' && (
+                      {!isEditingLayout && isReserved && effectiveStatus === 'free' && (
                         <span style={{ position: 'absolute', top: -6, right: -6, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', boxShadow: '0 2px 6px rgba(217,119,6,.35)', fontWeight: 'bold', border: '2px solid #fff', zIndex: 4 }} title="Reserved Today">
                           ⭐
                         </span>
                       )}
 
-                      {/* Quick action hint on hover for free tables */}
-                      {effectiveStatus === 'free' && (
+                      {/* Quick action hint on hover for free tables in service mode */}
+                      {!isEditingLayout && effectiveStatus === 'free' && (
                         <span className="tm-quick-hint">⚡ Start</span>
+                      )}
+
+                      {/* Edit mode indicator on table card */}
+                      {isEditingLayout && (
+                        <span style={{
+                          position: 'absolute',
+                          top: 4,
+                          right: 4,
+                          fontSize: 10,
+                          background: 'rgba(0,0,0,0.5)',
+                          borderRadius: '50%',
+                          width: 16,
+                          height: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          pointerEvents: 'none',
+                          zIndex: 5
+                        }}>
+                          ✎
+                        </span>
                       )}
                     </button>
                   );
@@ -937,7 +1543,11 @@ export default function TableMap() {
                 {tables.length === 0 && (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-label-tertiary)', gap: 'var(--space-3)' }}>
                     <div style={{ fontSize: 40 }}>🗺️</div>
-                    <div>No tables — set up your floor plan in Admin → Floor Plan Editor</div>
+                    <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--color-label)' }}>No tables configured yet</div>
+                    <div style={{ fontSize: 13 }}>Click below to create your first table in this floor plan</div>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={handleAddTable} style={{ marginTop: 8, gap: 5 }}>
+                      <Plus size={14} /> Add Table
+                    </button>
                   </div>
                 )}
               </div>
@@ -1454,6 +2064,269 @@ export default function TableMap() {
           </div>
         )}
 
+        {/* ═══ TABLE PROPERTIES MODAL (Studio / Edit Mode) ═══ */}
+        {isEditingLayout && selectedEditTable && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1100,
+              background: 'rgba(0, 0, 0, 0.65)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              backdropFilter: 'blur(5px)',
+            }}
+            onClick={() => setSelectedEditTableId(null)}
+          >
+            <div
+              className="animate-scale-in"
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: 440,
+                background: 'var(--color-bg-elevated)',
+                border: '1.5px solid var(--color-separator-opaque)',
+                borderRadius: 20,
+                boxShadow: '0 24px 60px rgba(0,0,0,0.3)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--color-separator)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🪑</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
+                      Table {selectedEditTable.name}
+                    </h3>
+                    <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                      Customize seats, shape & QR code
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-xs"
+                    onClick={() => {
+                      if (window.confirm(`Delete Table ${selectedEditTable.name}?`)) {
+                        deleteTable(restaurant.id, selectedEditTable.id);
+                        setSelectedEditTableId(null);
+                        toast.success(`Table ${selectedEditTable.name} removed`);
+                      }
+                    }}
+                    style={{ height: 28, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
+                  >
+                    <Trash2 size={12} /> Delete
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => setSelectedEditTableId(null)}
+                    style={{ width: 28, height: 28, padding: 0, borderRadius: '50%' }}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '75vh', overflowY: 'auto' }}>
+                {/* Table Name */}
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Table Name / Number</label>
+                  <input
+                    className="fpe-input"
+                    value={selectedEditTable.name}
+                    onChange={e => updateTable(restaurant.id, selectedEditTable.id, { name: e.target.value })}
+                    placeholder="e.g. T1, Bar 2, Patio 4"
+                  />
+                </div>
+
+                {/* Capacity */}
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Capacity (Seats)</label>
+                  <input
+                    className="fpe-input"
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={selectedEditTable.capacity ?? ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        updateTable(restaurant.id, selectedEditTable.id, { capacity: '' });
+                      } else {
+                        const num = parseInt(val, 10);
+                        if (!isNaN(num)) updateTable(restaurant.id, selectedEditTable.id, { capacity: num });
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!selectedEditTable.capacity || selectedEditTable.capacity < 1) {
+                        updateTable(restaurant.id, selectedEditTable.id, { capacity: 1 });
+                      } else if (selectedEditTable.capacity > 50) {
+                        updateTable(restaurant.id, selectedEditTable.id, { capacity: 50 });
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Shape */}
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Table Shape</label>
+                  <div className="fpe-segmented">
+                    <button
+                      type="button"
+                      className={`fpe-segment-btn ${selectedEditTable.shape !== 'round' ? 'active' : ''}`}
+                      onClick={() => updateTable(restaurant.id, selectedEditTable.id, { shape: 'rect' })}
+                    >
+                      <span>▭</span> Rectangle
+                    </button>
+                    <button
+                      type="button"
+                      className={`fpe-segment-btn ${selectedEditTable.shape === 'round' ? 'active' : ''}`}
+                      onClick={() => updateTable(restaurant.id, selectedEditTable.id, { shape: 'round' })}
+                    >
+                      <span>⭕</span> Circle
+                    </button>
+                  </div>
+                </div>
+
+                {/* Size */}
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Display Size</label>
+                  <div className="fpe-range-container">
+                    <input
+                      type="range"
+                      min={60}
+                      max={150}
+                      className="fpe-range"
+                      value={selectedEditTable.w ?? 90}
+                      onChange={e => {
+                        const s = parseInt(e.target.value, 10);
+                        updateTable(restaurant.id, selectedEditTable.id, { w: s, h: s });
+                      }}
+                    />
+                    <span className="fpe-range-val">{selectedEditTable.w ?? 90}px</span>
+                  </div>
+                </div>
+
+                {/* Floor Location */}
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Floor / Area</label>
+                  <select
+                    className="fpe-input"
+                    value={selectedEditTable.floor ?? 'Ground Floor'}
+                    onChange={e => {
+                      const nextFloor = e.target.value;
+                      updateTable(restaurant.id, selectedEditTable.id, { floor: nextFloor });
+                      setActiveFloor(nextFloor);
+                      toast.success(`Moved table to ${nextFloor}`);
+                    }}
+                  >
+                    {allFloors.map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* QR Code Section */}
+                <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 14 }}>
+                  <label className="fpe-label">Customer Dine-In QR Code</label>
+                  {(() => {
+                    const qrUrl = `${window.location.origin}/order/${restaurant?.id}?tableId=${selectedEditTable.id}&tableName=${encodeURIComponent(selectedEditTable.name)}`;
+                    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}`;
+                    return (
+                      <div className="fpe-qr-card">
+                        <div className="fpe-qr-wrapper">
+                          <img className="fpe-qr-img" src={qrSrc} alt={`QR for Table ${selectedEditTable.name}`} />
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center' }}>
+                          Customers can scan this code to browse menu & order directly.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ flex: 1, fontSize: 12, gap: 5 }}
+                            onClick={() => window.open(qrSrc, '_blank')}
+                          >
+                            <Download size={13} /> Download
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ flex: 1, fontSize: 12, gap: 5 }}
+                            onClick={() => {
+                              const pw = window.open('', '_blank');
+                              if (!pw) { toast.error('Pop-up blocked'); return; }
+                              pw.document.write(`
+                                <html>
+                                  <head>
+                                    <title>Table ${selectedEditTable.name} QR</title>
+                                    <style>
+                                      body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                                      .card { border: 2px dashed #999; border-radius: 12px; padding: 24px; text-align: center; width: 220px; }
+                                      h2 { margin: 0 0 12px; font-size: 20px; }
+                                      p { font-size: 11px; color: #666; margin-top: 10px; }
+                                    </style>
+                                  </head>
+                                  <body>
+                                    <div class="card">
+                                      <h2>${restaurant?.name || 'Restaurant'}</h2>
+                                      <div style="font-weight: 800; font-size: 24px; margin-bottom: 12px;">Table ${selectedEditTable.name}</div>
+                                      <img src="${qrSrc}" width="160" height="160" />
+                                      <p>Scan to order & pay</p>
+                                    </div>
+                                    <script>window.onload = function() { setTimeout(function(){ window.print(); }, 500); }</script>
+                                  </body>
+                                </html>
+                              `);
+                              pw.document.close();
+                            }}
+                          >
+                            <Printer size={13} /> Print
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: '12px 20px',
+                borderTop: '1px solid var(--color-separator)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                background: 'var(--color-bg-secondary)',
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setSelectedEditTableId(null)}
+                  style={{ padding: '0 20px', fontWeight: 700 }}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       {/* ═══ MOVE TABLE MODAL ═══ */}
       {showTransfer && selectedTable && selOrder && (
         <div className="modal-overlay" onClick={() => setShowTransfer(false)}>
@@ -1559,6 +2432,151 @@ export default function TableMap() {
                 {settlingUpi ? 'Settling…' : 'Confirm Settled'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ═══ ADD FLOOR MODAL ═══ */}
+      {showAddFloorModal && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1200,
+            background: 'rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            backdropFilter: 'blur(5px)',
+          }}
+          onClick={() => setShowAddFloorModal(false)}
+        >
+          <div
+            className="animate-scale-in"
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: 440,
+              background: 'var(--color-bg-elevated)',
+              border: '1.5px solid var(--color-separator-opaque)',
+              borderRadius: 20,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--color-separator)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🏗️</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
+                    Add New Dining Floor / Area
+                  </h3>
+                  <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                    Organize tables across rooms, patios, or floors
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => setShowAddFloorModal(false)}
+                style={{ width: 28, height: 28, padding: 0, borderRadius: '50%' }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleConfirmAddFloor} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="fpe-form-group">
+                <label className="fpe-label">Floor or Area Name</label>
+                <input
+                  autoFocus
+                  className="fpe-input"
+                  placeholder="e.g. First Floor, Rooftop, Patio, Garden"
+                  value={newFloorName}
+                  onChange={e => setNewFloorName(e.target.value)}
+                />
+              </div>
+
+              {/* Quick suggestions */}
+              <div>
+                <label className="fpe-label" style={{ marginBottom: 6, display: 'block' }}>Quick Suggestions</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['First Floor', 'Second Floor', 'Rooftop', 'Outdoor Patio', 'Terrace', 'Garden', 'VIP Lounge', 'Bar Area', 'Mezzanine'].map(sugg => (
+                    <button
+                      key={sugg}
+                      type="button"
+                      className="btn btn-xs btn-ghost"
+                      style={{
+                        borderRadius: 999,
+                        fontSize: 11,
+                        background: 'var(--color-bg-secondary)',
+                        border: '1px solid var(--color-separator)',
+                        padding: '4px 10px',
+                        color: newFloorName === sugg ? 'var(--color-accent)' : 'var(--color-label-secondary)',
+                        fontWeight: newFloorName === sugg ? 700 : 500
+                      }}
+                      onClick={() => setNewFloorName(sugg)}
+                    >
+                      + {sugg}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option to auto-add first table */}
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 14px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 12,
+                border: '1px solid var(--color-separator)',
+                cursor: 'pointer',
+                fontSize: 12,
+                color: 'var(--color-label)'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={autoAddFirstTable}
+                  onChange={e => setAutoAddFirstTable(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#2563eb' }}
+                />
+                <span style={{ fontWeight: 600 }}>Create first table automatically (Table 1)</span>
+              </label>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setShowAddFloorModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  style={{ padding: '0 18px', fontWeight: 700 }}
+                  disabled={!newFloorName.trim()}
+                >
+                  Create Floor
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
