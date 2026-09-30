@@ -14,6 +14,7 @@ export default function OnlineOrderPage() {
   const [searchParams] = useSearchParams();
   const tableId = searchParams.get('tableId');
   const tableName = searchParams.get('tableName');
+  const orderIdParam = searchParams.get('orderId');
 
   const [restaurant, setRestaurant] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -33,10 +34,17 @@ export default function OnlineOrderPage() {
 
   // Active order tracking states
   const [activeOrderId, setActiveOrderId] = useState(() => {
-    return localStorage.getItem(`dineOS_${restaurantId}_active_order`) || null;
+    return orderIdParam || localStorage.getItem(`dineOS_${restaurantId}_active_order`) || null;
   });
   const [activeOrder, setActiveOrder] = useState(null);
   const [viewMode, setViewMode] = useState('tracker'); // 'tracker' | 'menu'
+
+  useEffect(() => {
+    if (orderIdParam && orderIdParam !== activeOrderId) {
+      setActiveOrderId(orderIdParam);
+      setViewMode('tracker');
+    }
+  }, [orderIdParam, activeOrderId]);
 
   const [prevTableId, setPrevTableId] = useState(tableId);
   if (tableId !== prevTableId) {

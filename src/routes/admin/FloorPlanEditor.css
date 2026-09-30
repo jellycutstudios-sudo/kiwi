@@ -421,3 +421,55 @@
     flex-shrink: 0;
   }
 }
+
+/* Dark Theme Overrides */
+[data-theme="dark"] .fpe-header {
+  background: #12141e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .fpe-floor-tabs {
+  background: #161824;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .fpe-floor-btn {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .fpe-floor-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .fpe-floor-btn.active {
+  background: #282c40;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .fpe-floor-count {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .fpe-floor-btn.active .fpe-floor-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .fpe-sidebar {
+  background: #12141e;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .fpe-property-card {
+  background: #181b28;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .table-canvas-wrapper {
+  background: #090a0f;
+}
+

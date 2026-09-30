@@ -270,16 +270,16 @@ export default function KDS() {
               <span style={{
                 padding: '2px 10px',
                 borderRadius: 'var(--radius-full)',
-                background: 'rgba(245, 158, 11, 0.2)',
-                color: '#f59e0b',
+                background: 'var(--color-yellow-light)',
+                color: 'var(--color-yellow)',
                 fontSize: 12,
                 fontWeight: 800,
-                border: '1px solid rgba(245, 158, 11, 0.4)'
+                border: '1px solid var(--color-yellow)'
               }}>
                 {kdsOrders.length} ACTIVE
               </span>
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
               Real-time line production & bump bar
             </div>
           </div>
@@ -295,13 +295,13 @@ export default function KDS() {
               gap: 5,
               padding: '5px 10px',
               borderRadius: 8,
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-separator-opaque)',
               fontSize: 12,
               fontWeight: 700,
-              color: '#cbd5e1'
+              color: 'var(--color-label)'
             }}>
-              <Timer size={14} color="#38bdf8" />
+              <Timer size={14} color="var(--color-accent)" />
               <span>Avg: {kitchenMetrics.avgWaitMins}m</span>
             </div>
 
@@ -311,24 +311,24 @@ export default function KDS() {
               gap: 5,
               padding: '5px 10px',
               borderRadius: 8,
-              background: kitchenMetrics.maxWaitMins > 20 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: kitchenMetrics.maxWaitMins > 20 ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
+              background: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red-light)' : 'var(--color-bg-secondary)',
+              border: kitchenMetrics.maxWaitMins > 20 ? '1px solid var(--color-red)' : '1px solid var(--color-separator-opaque)',
               fontSize: 12,
               fontWeight: 700,
-              color: kitchenMetrics.maxWaitMins > 20 ? '#f87171' : '#cbd5e1'
+              color: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-label)'
             }}>
-              <Flame size={14} color={kitchenMetrics.maxWaitMins > 20 ? '#ef4444' : '#f59e0b'} />
+              <Flame size={14} color={kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-orange)'} />
               <span>Max: {kitchenMetrics.maxWaitMins}m</span>
             </div>
           </div>
 
           {/* Active vs Ready Tabs */}
-          <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.4)', borderRadius: 10, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', background: 'var(--color-bg-secondary)', borderRadius: 10, padding: 3, border: '1px solid var(--color-separator-opaque)' }}>
             <button
               onClick={() => setViewTab('active')}
               style={{
-                background: viewTab === 'active' ? '#f59e0b' : 'transparent',
-                color: viewTab === 'active' ? '#000000' : '#94a3b8',
+                background: viewTab === 'active' ? '#10b981' : 'transparent',
+                color: viewTab === 'active' ? '#ffffff' : 'var(--color-label-secondary)',
                 border: 'none',
                 borderRadius: 7,
                 padding: '6px 12px',
@@ -344,7 +344,7 @@ export default function KDS() {
               onClick={() => setViewTab('recent')}
               style={{
                 background: viewTab === 'recent' ? '#10b981' : 'transparent',
-                color: viewTab === 'recent' ? '#ffffff' : '#94a3b8',
+                color: viewTab === 'recent' ? '#ffffff' : 'var(--color-label-secondary)',
                 border: 'none',
                 borderRadius: 7,
                 padding: '6px 12px',
@@ -369,9 +369,9 @@ export default function KDS() {
               width: 36,
               height: 36,
               borderRadius: 8,
-              background: soundEnabled ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-              border: soundEnabled ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
-              color: soundEnabled ? '#38bdf8' : '#64748b',
+              background: soundEnabled ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+              border: soundEnabled ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
+              color: soundEnabled ? 'var(--color-accent)' : 'var(--color-label-tertiary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -389,9 +389,9 @@ export default function KDS() {
               width: 36,
               height: 36,
               borderRadius: 8,
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#cbd5e1',
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-separator-opaque)',
+              color: 'var(--color-label)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -411,9 +411,9 @@ export default function KDS() {
                 gap: 5,
                 padding: '6px 10px',
                 borderRadius: 8,
-                background: isWakeLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                border: isWakeLocked ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(255, 255, 255, 0.1)',
-                color: isWakeLocked ? '#4ade80' : '#94a3b8',
+                background: isWakeLocked ? 'var(--color-green-light)' : 'var(--color-bg-secondary)',
+                border: isWakeLocked ? '1px solid var(--color-green)' : '1px solid var(--color-separator-opaque)',
+                color: isWakeLocked ? 'var(--color-green)' : 'var(--color-label-secondary)',
                 fontSize: 12,
                 fontWeight: 700
               }}
@@ -428,11 +428,11 @@ export default function KDS() {
             fontFamily: 'monospace',
             fontSize: 14,
             fontWeight: 800,
-            color: '#f8fafc',
-            background: 'rgba(0,0,0,0.5)',
+            color: 'var(--color-label)',
+            background: 'var(--color-bg-secondary)',
             padding: '6px 10px',
             borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.1)'
+            border: '1px solid var(--color-separator-opaque)'
           }}>
             {new Date(currentTime).toLocaleTimeString()}
           </div>
@@ -446,7 +446,7 @@ export default function KDS() {
         overflowX: 'auto',
         marginBottom: 'var(--space-4)',
         paddingBottom: 6,
-        borderBottom: '1px solid rgba(255,255,255,0.08)'
+        borderBottom: '1px solid var(--color-separator-opaque)'
       }}>
         {STATIONS.map(station => {
           const count = getStationOrderCount(station);
@@ -456,33 +456,11 @@ export default function KDS() {
               key={station}
               onClick={() => setActiveStation(station)}
               title={station === 'All' ? 'Show all orders from every station' : `Show only orders for the ${station} station`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-lg)',
-                background: isActive ? '#f59e0b' : '#1e293b',
-                color: isActive ? '#000000' : '#cbd5e1',
-                border: isActive ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.08)',
-                fontWeight: 800,
-                fontSize: 13,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
-                boxShadow: isActive ? '0 4px 12px rgba(245, 158, 11, 0.3)' : 'none'
-              }}
+              className={`kds-station-pill ${isActive ? 'active' : ''}`}
             >
               <span>{station}</span>
               {count > 0 && (
-                <span style={{
-                  padding: '2px 7px',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: 11,
-                  background: isActive ? '#000000' : '#f59e0b',
-                  color: isActive ? '#f59e0b' : '#000000',
-                  fontWeight: 900
-                }}>
+                <span className="kds-station-pill-count">
                   {count}
                 </span>
               )}
@@ -496,10 +474,10 @@ export default function KDS() {
         recentReadyOrders.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '50vh', color: '#64748b', gap: 'var(--space-4)',
+            height: '50vh', color: 'var(--color-label-tertiary)', gap: 'var(--space-4)',
           }}>
             <div style={{ fontSize: 52 }}>✅</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#94a3b8' }}>No completed orders in the last 30 minutes</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-label)' }}>No completed orders in the last 30 minutes</div>
           </div>
         ) : (
           <div className="kds-grid">
@@ -507,7 +485,7 @@ export default function KDS() {
               <div key={order.id} className="kds-order-card status-normal" id={`kds-recent-${order.id}`}>
                 <div style={{
                   padding: '8px 14px',
-                  background: 'linear-gradient(90deg, #065f46 0%, #047857 100%)',
+                  background: 'linear-gradient(90deg, #059669 0%, #10b981 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -523,30 +501,30 @@ export default function KDS() {
                     <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {order.token && (
                         <span style={{
-                          background: 'rgba(56, 189, 248, 0.2)',
-                          color: '#38bdf8',
+                          background: 'var(--color-accent-light)',
+                          color: 'var(--color-accent)',
                           padding: '2px 8px',
                           borderRadius: 6,
                           fontSize: 13,
                           fontWeight: 800,
-                          border: '1px solid rgba(56, 189, 248, 0.4)'
+                          border: '1px solid var(--color-accent)'
                         }}>
                           Token #{order.token}
                         </span>
                       )}
                       <span>{order.tableName ? `Table ${order.tableName}` : (order.type === 'takeaway' ? '🛍️ Takeaway' : (order.type === 'online' ? '🌐 Online' : 'Dine-In'))}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                    <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 3 }}>
                       Order #{order.id.slice(-6).toUpperCase()}
                     </div>
                   </div>
                 </div>
                 <div className="kds-order-items">
                   {order.items?.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '6px 0', borderBottom: '1px solid var(--color-separator-opaque)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span className="kds-item-qty">×{item.qty}</span>
-                        <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>{item.name}</span>
+                        <span style={{ color: 'var(--color-label)', fontSize: 14, fontWeight: 600 }}>{item.name}</span>
                       </div>
                       {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
                         const vm = item.selectedModifiers.filter(m => m.isVariantAxis);
@@ -556,7 +534,7 @@ export default function KDS() {
                             {vm.length > 0 && (
                               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                                 {vm.map((m, i) => (
-                                  <span key={i} style={{ background: i === 0 ? 'rgba(251,191,36,0.2)' : 'rgba(168,85,247,0.2)', color: i === 0 ? '#fbbf24' : '#c084fc', border: `1.5px solid ${i === 0 ? 'rgba(251,191,36,0.4)' : 'rgba(168,85,247,0.4)'}`, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 800, textTransform: 'uppercase' }}>
+                                  <span key={i} style={{ background: i === 0 ? 'var(--color-yellow-light)' : 'var(--color-purple-light)', color: i === 0 ? 'var(--color-yellow)' : 'var(--color-purple)', border: `1.5px solid ${i === 0 ? 'var(--color-yellow)' : 'var(--color-purple)'}`, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 800, textTransform: 'uppercase' }}>
                                     {m.modifierGroupName}: {m.name}
                                   </span>
                                 ))}
@@ -565,7 +543,7 @@ export default function KDS() {
                             {rm.length > 0 && (
                               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                 {rm.map((m, i) => (
-                                  <span key={i} style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee', border: '1px solid rgba(6,182,212,0.3)', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>+ {m.name}</span>
+                                  <span key={i} style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-label-secondary)', border: '1px solid var(--color-separator-opaque)', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>+ {m.name}</span>
                                 ))}
                               </div>
                             )}
@@ -583,9 +561,9 @@ export default function KDS() {
                       padding: '10px',
                       fontSize: 13,
                       fontWeight: 800,
-                      background: 'rgba(245, 158, 11, 0.15)',
-                      color: '#f59e0b',
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      background: 'var(--color-yellow-light)',
+                      color: 'var(--color-yellow)',
+                      border: '1px solid var(--color-yellow)',
                       borderRadius: 10,
                       cursor: 'pointer',
                       display: 'flex',
@@ -605,11 +583,11 @@ export default function KDS() {
         kdsOrders.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '50vh', color: '#64748b', gap: 'var(--space-4)',
+            height: '50vh', color: 'var(--color-label-tertiary)', gap: 'var(--space-4)',
           }}>
             <div style={{ fontSize: 52 }}>🍳</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#94a3b8' }}>All orders cleared! Kitchen queue is empty.</div>
-            <div style={{ fontSize: 14, color: '#475569' }}>New tickets will appear here with sound alert.</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-label)' }}>All orders cleared! Kitchen queue is empty.</div>
+            <div style={{ fontSize: 14, color: 'var(--color-label-secondary)' }}>New tickets will appear here with sound alert.</div>
           </div>
         ) : (
           <div className="kds-grid">
@@ -692,7 +670,7 @@ export default function KDS() {
                           {order.type === 'dine-in' ? `🪑 ${order.tableName ?? 'Table'}` : (order.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online')}
                         </span>
                       </div>
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3, fontWeight: 600 }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 3, fontWeight: 600 }}>
                         {order.type.toUpperCase()} · #{order.id.slice(-6).toUpperCase()}
                       </div>
                     </div>
@@ -711,9 +689,9 @@ export default function KDS() {
                           });
                         }}
                         style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid rgba(255, 255, 255, 0.18)',
-                          color: '#e2e8f0',
+                          background: 'var(--color-bg-secondary)',
+                          border: '1px solid var(--color-separator-opaque)',
+                          color: 'var(--color-label)',
                           borderRadius: 8,
                           padding: '4px 8px',
                           cursor: 'pointer',
@@ -736,9 +714,9 @@ export default function KDS() {
                         borderRadius: 8,
                         fontSize: 11,
                         fontWeight: 800,
-                        background: order.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(168, 85, 247, 0.25)',
-                        color: order.status === 'pending' ? '#f59e0b' : '#c084fc',
-                        border: order.status === 'pending' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(168, 85, 247, 0.5)'
+                        background: order.status === 'pending' ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
+                        color: order.status === 'pending' ? 'var(--color-yellow)' : 'var(--color-purple)',
+                        border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)'
                       }}>
                         {order.status === 'pending' ? '⏳ WAITING' : '🍳 COOKING'}
                       </div>
@@ -767,8 +745,8 @@ export default function KDS() {
                               fontSize: 10,
                               fontWeight: 900,
                               textTransform: 'uppercase',
-                              color: '#64748b',
-                              borderBottom: '1px solid rgba(255,255,255,0.08)',
+                              color: 'var(--color-label-secondary)',
+                              borderBottom: '1px solid var(--color-separator-opaque)',
                               paddingBottom: 3,
                               letterSpacing: '0.06em'
                             }}>
@@ -791,24 +769,24 @@ export default function KDS() {
                                     padding: '7px 8px',
                                     borderRadius: 8,
                                     cursor: 'pointer',
-                                    background: isPreparing ? 'rgba(168, 85, 247, 0.12)' : (isReady ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)'),
-                                    border: isPreparing ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid transparent',
+                                    background: isPreparing ? 'var(--color-purple-light)' : (isReady ? 'transparent' : 'var(--color-bg-secondary)'),
+                                    border: isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-separator-opaque)',
                                     transition: 'all 0.15s ease',
-                                    opacity: isReady ? 0.4 : 1,
+                                    opacity: isReady ? 0.45 : 1,
                                   }}
                                   title="Click to advance item prep status"
                                 >
                                   <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                       <span className="kds-item-qty" style={{
-                                        background: isReady ? '#475569' : '#f59e0b',
-                                        color: isReady ? '#cbd5e1' : '#000000'
+                                        background: isReady ? 'var(--color-fill-secondary)' : '#f59e0b',
+                                        color: isReady ? 'var(--color-label-secondary)' : '#000000'
                                       }}>
                                         ×{item.qty}
                                       </span>
                                       <span style={{ 
                                         textDecoration: isReady ? 'line-through' : 'none',
-                                        color: isReady ? '#64748b' : '#ffffff',
+                                        color: isReady ? 'var(--color-label-tertiary)' : 'var(--color-label)',
                                         fontSize: 15,
                                         fontWeight: isPreparing ? 800 : 700,
                                         letterSpacing: '-0.2px'
@@ -826,9 +804,9 @@ export default function KDS() {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                               {variantMods.map((m, mIdx) => (
                                                 <span key={mIdx} style={{
-                                                  background: mIdx === 0 ? 'rgba(251,191,36,0.22)' : 'rgba(168,85,247,0.22)',
-                                                  color: mIdx === 0 ? '#fbbf24' : '#c084fc',
-                                                  border: `1.5px solid ${mIdx === 0 ? 'rgba(251,191,36,0.5)' : 'rgba(168,85,247,0.5)'}`,
+                                                  background: mIdx === 0 ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
+                                                  color: mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)',
+                                                  border: `1.5px solid ${mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)'}`,
                                                   padding: '3px 10px',
                                                   borderRadius: 6,
                                                   fontSize: 13,
@@ -846,9 +824,9 @@ export default function KDS() {
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                               {regularMods.map((m, mIdx) => (
                                                 <span key={mIdx} style={{
-                                                  background: 'rgba(6, 182, 212, 0.18)',
-                                                  color: '#22d3ee',
-                                                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                                                  background: 'var(--color-bg-secondary)',
+                                                  color: 'var(--color-label-secondary)',
+                                                  border: '1px solid var(--color-separator-opaque)',
                                                   padding: '1px 6px',
                                                   borderRadius: 4,
                                                   fontSize: 11,
@@ -870,8 +848,8 @@ export default function KDS() {
                                         fontSize: 9,
                                         padding: '2px 6px',
                                         borderRadius: 4,
-                                        background: 'rgba(255,255,255,0.08)',
-                                        color: '#94a3b8',
+                                        background: 'var(--color-fill-secondary)',
+                                        color: 'var(--color-label-secondary)',
                                         fontWeight: 700
                                       }}>
                                         {item.station}
@@ -882,9 +860,9 @@ export default function KDS() {
                                       padding: '3px 8px',
                                       borderRadius: 6,
                                       fontWeight: 800,
-                                      background: isReady ? 'rgba(16, 185, 129, 0.2)' : (isPreparing ? 'rgba(168, 85, 247, 0.2)' : 'rgba(245, 158, 11, 0.2)'),
-                                      color: isReady ? '#34d399' : (isPreparing ? '#c084fc' : '#f59e0b'),
-                                      border: isReady ? '1px solid rgba(16, 185, 129, 0.4)' : (isPreparing ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)'),
+                                      background: isReady ? 'var(--color-green-light)' : (isPreparing ? 'var(--color-purple-light)' : 'var(--color-yellow-light)'),
+                                      color: isReady ? 'var(--color-green)' : (isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)'),
+                                      border: isReady ? '1px solid var(--color-green)' : (isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-yellow)'),
                                       display: 'flex',
                                       alignItems: 'center',
                                       gap: 3
@@ -903,9 +881,9 @@ export default function KDS() {
                     {order.note && (
                       <div style={{
                         marginTop: 6,
-                        color: '#fde047',
-                        background: 'rgba(234, 179, 8, 0.1)',
-                        border: '1px solid rgba(234, 179, 8, 0.25)',
+                        color: 'var(--color-label)',
+                        background: 'var(--color-brand-ochre-light)',
+                        border: '1px solid var(--color-brand-ochre)',
                         padding: '6px 10px',
                         borderRadius: 6,
                         fontSize: 12,
@@ -922,13 +900,13 @@ export default function KDS() {
                       <div style={{
                         flex: 1,
                         textAlign: 'center',
-                        color: '#34d399',
+                        color: 'var(--color-green)',
                         fontSize: 13,
                         fontWeight: 800,
                         padding: '10px 0',
-                        background: 'rgba(16, 185, 129, 0.15)',
+                        background: 'var(--color-green-light)',
                         borderRadius: 10,
-                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                        border: '1px solid var(--color-green)'
                       }}>
                         ✓ All Items Ready for Serving
                       </div>
@@ -936,22 +914,8 @@ export default function KDS() {
                       <>
                         {anyStationPending && (
                           <button
+                            className="kds-cook-btn"
                             onClick={() => handleStartPreparing(order, activeStation)}
-                            style={{
-                              flex: 1,
-                              background: '#334155',
-                              color: '#f8fafc',
-                              border: '1px solid rgba(255,255,255,0.15)',
-                              borderRadius: 10,
-                              padding: '10px',
-                              fontSize: 13,
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 6
-                            }}
                           >
                             🍳 Start Cooking
                           </button>

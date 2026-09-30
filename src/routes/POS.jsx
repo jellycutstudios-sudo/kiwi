@@ -1334,6 +1334,14 @@ export default function POS() {
               const isVegItem = item.isVeg === true || item.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(item.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(item.name));
               
               if (menuDensity === 'dense') {
+                const formattedPrice = hasModifiers && parseFloat(item.price) === 0 ? (
+                  (() => {
+                    const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                    const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                    return { isFrom: true, text: formatCurrency(minPrice, currency) };
+                  })()
+                ) : { isFrom: false, text: formatCurrency(item.price, currency) };
+
                 return (
                   <div
                     key={item.id}
@@ -1355,32 +1363,46 @@ export default function POS() {
                       }
                     }}
                   >
-                    <div className="menu-key-header">
-                      <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} />
-                      <span className="menu-key-name" title={item.name}>{item.name}</span>
-                      {item.highMargin && <span title="Chef's Special" style={{ fontSize: '11px', flexShrink: 0 }}>⭐</span>}
-                    </div>
-                    <div className="menu-key-footer">
-                      <span className="menu-key-price">
-                        {hasModifiers && parseFloat(item.price) === 0 ? (
-                          (() => {
-                            const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                            return `From ${formatCurrency(minPrice, currency)}`;
-                          })()
-                        ) : (
-                          formatCurrency(item.price, currency)
+                    {/* Top Meta Bar: Dietary badge, Custom/Special pills & Quantity */}
+                    <div className="menu-key-meta-row">
+                      <div className="menu-key-badges-left">
+                        <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                        {item.highMargin && (
+                          <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
+                            ★ Special
+                          </span>
                         )}
-                      </span>
-                      {qty > 0 ? (
-                        <span className="menu-key-qty-badge">
+                        {hasModifiers && (
+                          <span className="menu-key-pill menu-key-pill-mod">
+                            Options
+                          </span>
+                        )}
+                      </div>
+                      {qty > 0 && (
+                        <span className="menu-key-qty-pill">
                           <Check size={10} strokeWidth={3} /> {qty}
                         </span>
-                      ) : (
-                        <span className="menu-key-add-btn">
-                          <Plus size={11} strokeWidth={2.5} />
-                        </span>
                       )}
+                    </div>
+
+                    {/* Card Body: Item Title with comfortable line height and breathing room */}
+                    <div className="menu-key-body">
+                      <span className="menu-key-name" title={item.name}>{item.name}</span>
+                    </div>
+
+                    {/* Bottom Row: Price display & Subtle Tactile Action Button */}
+                    <div className="menu-key-footer">
+                      <div className="menu-key-price-wrap">
+                        {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
+                        <span className="menu-key-price">{formattedPrice.text}</span>
+                      </div>
+                      <span className={`menu-key-action-btn ${qty > 0 ? 'added' : ''}`} title={qty > 0 ? `${qty} in cart` : "Add to cart"}>
+                        {qty > 0 ? (
+                          <Check size={12} strokeWidth={2.8} />
+                        ) : (
+                          <Plus size={13} strokeWidth={2.5} />
+                        )}
+                      </span>
                     </div>
                   </div>
                 );

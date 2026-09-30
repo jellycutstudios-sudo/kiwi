@@ -13,12 +13,14 @@ import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { useUpdateStore } from '../../stores/updateStore';
 import ThemeToggle from '../shared/ThemeToggle';
+import { triggerMorningCheer } from '../../utils/morningCheer';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
   '/pos':               'pos',
   '/tables':            'tables',
   '/online-orders':     'onlineOrders',
+  '/orders':            'onlineOrders',
   '/kds':               'kitchen',
   '/reports':           'reports',
   '/admin/staff':       'staff',
@@ -59,6 +61,22 @@ export default function AppShell() {
   const isUpdating = useUpdateStore(s => s.isUpdating);
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
   const setHasUpdate = useUpdateStore(s => s.setHasUpdate);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+
+  // Morning Cheer: confetti shower & encouraging greeting on first open of the day
+  useEffect(() => {
+    // Expose test helper on window so user or developer can trigger it anytime via window.testMorningCheer()
+    if (typeof window !== 'undefined') {
+      window.testMorningCheer = (force = true) => {
+        triggerMorningCheer({ staffName: staffDoc?.name || restaurant?.name, force });
+      };
+    }
+
+    const timer = setTimeout(() => {
+      triggerMorningCheer({ staffName: staffDoc?.name || restaurant?.name });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [staffDoc?.name, restaurant?.name]);
 
   // Listen for Service Worker update prompt and notify cashier/staff gracefully
   useEffect(() => {

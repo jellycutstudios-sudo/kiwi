@@ -6,10 +6,10 @@ import { useOrderStore } from '../../stores/orderStore';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import {
-  LayoutDashboard, ShoppingCart, LayoutGrid,
+  LayoutDashboard, Utensils, Armchair,
   ChefHat, BarChart3, Users, UtensilsCrossed,
-  Map, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Truck, Package, Contact, Calendar, ClipboardList, X, Sliders, Tv, Receipt, BookOpen, RefreshCw,
+  Layers, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
+  Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, ClipboardList, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
   ChevronDown, ChevronUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -19,11 +19,10 @@ import { useUpdateStore } from '../../stores/updateStore';
 
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
-  { key: 'pos',            path: '/pos',                  icon: ShoppingCart,    label: 'pos',          roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
-  { key: 'tables',         path: '/tables',               icon: LayoutGrid,      label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'], requiredMode: 'table' },
-  { key: 'active_orders',  path: '/orders',               icon: ClipboardList,   label: 'activeOrders', roles: ['admin', 'super_admin', 'cashier', 'waiter'], badgeType: 'activeOrders' },
-  { key: 'online_orders',  path: '/online-orders',        icon: Truck,           label: 'deliveryOrders', roles: ['admin', 'super_admin', 'cashier'], badgeType: 'onlineOrders', requiredMode: 'online' },
-  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Sliders,         label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'], requiredMode: 'delivery_hub' },
+  { key: 'pos',            path: '/pos',                  icon: Utensils,        label: 'pos',          roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
+  { key: 'tables',         path: '/tables',               icon: Armchair,        label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'], requiredMode: 'table' },
+  { key: 'online_orders',  path: '/online-orders',        icon: Smartphone,      label: 'onlineOrders', roles: ['admin', 'super_admin', 'cashier', 'waiter'], badgeType: 'onlineOrders', requiredMode: 'online' },
+  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Bike,            label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'], requiredMode: 'delivery_hub' },
   { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen'], requiredMode: 'kds' },
   { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin'] },
 ];
@@ -33,11 +32,11 @@ const ADMIN_NAV = [
   { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll', requiredMode: 'payroll' },
   { key: 'menu',        path: '/admin/menu',         icon: UtensilsCrossed,  label: 'menu' },
   { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory', requiredMode: 'inventory' },
-  { key: 'customers',   path: '/admin/customers',    icon: Contact,          label: 'customers', requiredMode: 'customers' },
+  { key: 'customers',   path: '/admin/customers',    icon: HeartHandshake,   label: 'customers', requiredMode: 'customers' },
   { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
-  { key: 'floor',       path: '/admin/floor',        icon: Map,              label: 'floorPlan', requiredMode: 'table' },
-  { key: 'transactions', path: '/admin/transactions', icon: Receipt,          label: 'transactions' },
-  { key: 'posters',     path: '/admin/posters',     icon: Tv,               label: 'posters' },
+  { key: 'floor',       path: '/admin/floor',        icon: Layers,           label: 'floorPlan', requiredMode: 'table' },
+  { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions' },
+  { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];
@@ -49,6 +48,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const signOut = useAuthStore(s => s.signOut);
   const restaurant = useAuthStore(s => s.restaurant);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount ?? 0);
+  const onlineOrders = useOrderStore(s => s.onlineOrders ?? []);
   const activeOrdersCount = useOrderStore(s => s.activeOrders?.length ?? 0);
   const role = staffDoc?.role ?? 'cashier';
   const { terms } = useBusinessConfig();
@@ -248,14 +248,17 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   if (km === 'display_only' || km === 'both') return true;
                 }
                 const modes = restaurant?.modes ?? ['pos'];
+                if (n.key === 'online_orders') {
+                  return modes.includes('online') || unreadOnlineCount > 0;
+                }
                 return modes.includes(n.requiredMode);
               }
               return true;
             }).map(n => {
-              const badgeCount = n.badgeType === 'activeOrders'
+              const badgeCount = n.badgeType === 'onlineOrders'
+                ? (unreadOnlineCount > 0 ? unreadOnlineCount : onlineOrders.filter(o => o.status === 'pending').length)
+                : n.badgeType === 'activeOrders'
                 ? activeOrdersCount
-                : n.badgeType === 'onlineOrders'
-                ? unreadOnlineCount
                 : 0;
 
               return (
