@@ -8,7 +8,7 @@ import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
   Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle,
-  Zap, X, Check
+  Zap, X, Check, ArrowUp, ArrowDown, CalendarClock, XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
@@ -16,6 +16,9 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -51,6 +54,10 @@ export default function Dashboard() {
   const [analyticsOrders, setAnalyticsOrders] = useState([]);
   const [tablesCount, setTablesCount] = useState(0);
   const currency = restaurant?.currency ?? 'INR';
+  // ── Owner Intelligence State ──
+  const [yesterdayStats, setYesterdayStats] = useState({ sales: 0, orders: 0 });
+  const [cancellations, setCancellations] = useState(0);
+  const [reservationsToday, setReservationsToday] = useState({ count: 0, next: null });
 
   const handleQuickSettle = async (order, method = 'cash') => {
     if (!order?.id || !restaurant?.id) return;
@@ -88,6 +95,43 @@ export default function Dashboard() {
     });
   }, [restaurant?.id]);
 
+  // Fetch yesterday's sales for delta comparison
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const yesterdayEnd = new Date(yesterday);
+    yesterdayEnd.setHours(23, 59, 59, 999);
+    getDocs(query(
+      collection(db, 'restaurants', restaurant.id, 'orders'),
+      where('createdAt', '>=', yesterday),
+      where('createdAt', '<=', yesterdayEnd),
+      limit(500)
+    )).then(snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const billed = docs.filter(d =>
+        (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) &&
+        d.status !== 'cancelled'
+      );
+      setYesterdayStats({ sales: billed.reduce((s, d) => s + (d.total ?? 0), 0), orders: billed.length });
+    }).catch(err => console.error('Yesterday stats failed:', err));
+  }, [restaurant?.id]);
+
+  // Fetch today's reservations count
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    getDocs(query(
+      collection(db, 'restaurants', restaurant.id, 'reservations'),
+      where('date', '==', new Date().toISOString().split('T')[0]),
+      limit(20)
+    )).then(snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const sorted = [...docs].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      setReservationsToday({ count: docs.length, next: sorted[0] || null });
+    }).catch(() => setReservationsToday({ count: 0, next: null }));
+  }, [restaurant?.id]);
+
   // Unpack menu items from categories
   const menuItems = useMemo(() => {
     const allItems = [];
@@ -115,11 +159,6 @@ export default function Dashboard() {
     });
     return Object.values(counts).sort((a, b) => b.qty - a.qty).slice(0, 3);
   }, [analyticsOrders]);
-
-  // Total items sold in best sellers for percentage calculations
-  const totalBestsellerQty = useMemo(() => {
-    return bestSellers.reduce((acc, curr) => acc + curr.qty, 0);
-  }, [bestSellers]);
 
   // Aggregate Slow Movers (menu items with lowest sales in last 7 days)
   const slowMovers = useMemo(() => {
@@ -162,6 +201,35 @@ export default function Dashboard() {
   const topPeakHours = useMemo(() => {
     return [...peakHours].sort((a, b) => b.count - a.count).slice(0, 2);
   }, [peakHours]);
+
+  // 7-day revenue sparkline (reuses already-fetched analyticsOrders — no extra query)
+  const weeklySparkline = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const nextD = new Date(d);
+      nextD.setDate(nextD.getDate() + 1);
+      const label = i === 0 ? 'Today' : d.toLocaleDateString('en', { weekday: 'short' });
+      const dayRevenue = analyticsOrders
+        .filter(o => {
+          const date = typeof o.createdAt?.toDate === 'function' ? o.createdAt.toDate() : new Date(o.createdAt);
+          return date >= d && date < nextD;
+        })
+        .reduce((s, o) => s + (o.total ?? 0), 0);
+      days.push({ label, rev: dayRevenue, isToday: i === 0 });
+    }
+    return days;
+  }, [analyticsOrders]);
+
+  // End-of-day revenue projection based on current hourly pace
+  const eodProjection = useMemo(() => {
+    const now = new Date();
+    const hoursElapsed = Math.max(0.5, now.getHours() - 9 + now.getMinutes() / 60);
+    if (todayStats.totalSales === 0 || hoursElapsed >= 14) return null;
+    return Math.round((todayStats.totalSales / hoursElapsed) * 14);
+  }, [todayStats.totalSales]);
 
   // Dynamic Growth Insights / Tips
   const growthTips = useMemo(() => {
@@ -313,7 +381,10 @@ export default function Dashboard() {
         });
       });
       const topItem = Object.values(itemCounts).sort((a,b) => b.qty - a.qty)[0] || null;
-      
+
+      // Track today's cancellations
+      setCancellations(docs.filter(d => d.status === 'cancelled').length);
+
       setTodayStats({ 
         settledSales: billedSales,
         openSales,
@@ -357,6 +428,11 @@ export default function Dashboard() {
   const displayedSales = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
   const displayedOrders = salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders;
   const displayedAvg = displayedOrders ? displayedSales / displayedOrders : 0;
+
+  // Yesterday comparison delta (positive = growth, negative = decline)
+  const salesDelta = yesterdayStats.sales > 0
+    ? Number(((displayedSales - yesterdayStats.sales) / yesterdayStats.sales * 100).toFixed(1))
+    : null;
 
   const stats = [
     { 
@@ -442,6 +518,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+
       {/* Greeting Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
@@ -455,98 +532,86 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Modern Stat Cards Grid */}
+      {/* Stat Cards — 2-column compact grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: 'var(--space-4)'
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '10px'
       }}>
         {stats.map((s, i) => (
-          <div 
-            key={i} 
-            className="animate-fade-in" 
-            style={{ 
-              animationDelay: `${i * 60}ms`,
-              background: s.highlight 
-                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+          <div
+            key={i}
+            className="animate-fade-in"
+            style={{
+              animationDelay: `${i * 50}ms`,
+              gridColumn: i === 0 ? '1 / -1' : 'auto',
+              background: s.highlight
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
                 : 'var(--color-bg-elevated)',
               color: s.highlight ? '#fff' : 'inherit',
-              borderRadius: 'var(--clay-radius-card)',
-              padding: 'var(--space-5) var(--space-6)',
-              boxShadow: s.highlight 
-                ? '0 12px 28px -4px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.3)' 
-                : 'var(--shadow-md)',
+              borderRadius: '14px',
+              padding: i === 0 ? '16px 18px' : '13px 14px',
+              boxShadow: s.highlight
+                ? '0 8px 20px -4px rgba(5, 150, 105, 0.32)'
+                : '0 1px 3px rgba(0,0,0,0.06)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--space-2)',
-              position: 'relative',
-              overflow: 'hidden',
-              transition: 'transform 0.2s var(--ease-spring-pop), box-shadow 0.2s var(--ease-spring-pop)',
-              cursor: 'pointer',
+              gap: '4px',
+              transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+              cursor: 'default',
               border: s.highlight ? 'none' : '1px solid var(--color-separator)'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-3px)';
-              e.currentTarget.style.boxShadow = s.highlight 
-                ? '0 16px 32px -4px rgba(5, 150, 105, 0.45)' 
-                : 'var(--shadow-lg)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = s.highlight
+                ? '0 12px 24px -4px rgba(5, 150, 105, 0.42)'
+                : '0 4px 12px rgba(0,0,0,0.1)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = s.highlight 
-                ? '0 12px 28px -4px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.3)' 
-                : 'var(--shadow-md)';
+              e.currentTarget.style.boxShadow = s.highlight
+                ? '0 8px 20px -4px rgba(5, 150, 105, 0.32)'
+                : '0 1px 3px rgba(0,0,0,0.06)';
             }}
           >
-            {/* Background design circle */}
-            <div style={{
-              position: 'absolute',
-              right: '-10px',
-              top: '-10px',
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              background: s.highlight ? 'rgba(255,255,255,0.08)' : 'var(--color-fill-tertiary)',
-              pointerEvents: 'none'
-            }} />
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ 
-                fontSize: '11px', 
-                fontWeight: 700, 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.5px',
-                color: s.highlight ? 'rgba(255,255,255,0.8)' : 'var(--color-label-secondary)',
+              <span style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.6px',
+                color: s.highlight ? 'rgba(255,255,255,0.75)' : 'var(--color-label-secondary)',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                gap: '4px'
               }}>
                 {s.label}
-                {s.tooltip && <InfoTooltip text={s.tooltip} size={12} />}
+                {s.tooltip && <InfoTooltip text={s.tooltip} size={11} />}
               </span>
-              <div style={{ 
-                background: s.highlight ? 'rgba(255,255,255,0.2)' : s.bg, 
-                padding: '6px', 
+              <div style={{
+                background: s.highlight ? 'rgba(255,255,255,0.18)' : s.bg,
+                padding: '5px',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <s.icon size={16} color={s.highlight ? '#fff' : s.color} strokeWidth={2.5} />
+                <s.icon size={14} color={s.highlight ? '#fff' : s.color} strokeWidth={2.5} />
               </div>
             </div>
 
-            <div style={{ 
-              fontSize: '28px', 
-              fontWeight: 800, 
+            <div style={{
+              fontSize: i === 0 ? '26px' : '20px',
+              fontWeight: 800,
               lineHeight: 1.1,
-              marginTop: '4px',
+              marginTop: '2px',
               display: 'flex',
               alignItems: 'baseline',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '6px'
             }}>
-              <span>{loading ? <div className="skeleton" style={{ height: 28, width: 80, borderRadius: 6, background: s.highlight ? 'rgba(255,255,255,0.2)' : undefined }} /> : s.value}</span>
+              <span>{loading ? <div className="skeleton" style={{ height: i === 0 ? 26 : 20, width: 72, borderRadius: 5, background: s.highlight ? 'rgba(255,255,255,0.2)' : undefined }} /> : s.value}</span>
               {s.hasToggle && (
                 <button
                   type="button"
@@ -555,38 +620,156 @@ export default function Dashboard() {
                     setSalesViewMode(v => v === 'pipeline' ? 'settled' : 'pipeline');
                   }}
                   style={{
-                    background: 'rgba(255,255,255,0.22)',
-                    border: '1px solid rgba(255,255,255,0.4)',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '1px solid rgba(255,255,255,0.35)',
                     borderRadius: '999px',
-                    padding: '3px 8px',
+                    padding: '2px 7px',
                     fontSize: '10px',
                     fontWeight: 700,
                     color: '#fff',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '3px',
                     backdropFilter: 'blur(4px)',
-                    transition: 'all 0.15s ease'
                   }}
-                  title="Switch between Realtime Total Pipeline and Settled-only revenue"
                 >
-                  <Zap size={11} fill="#fff" />
-                  {salesViewMode === 'pipeline' ? 'Live Pipeline' : 'Settled Only'}
+                  <Zap size={10} fill="#fff" />
+                  {salesViewMode === 'pipeline' ? 'Live' : 'Settled'}
                 </button>
               )}
             </div>
 
-            <span style={{ 
-              fontSize: '11px', 
-              color: s.highlight ? 'rgba(255,255,255,0.85)' : 'var(--color-label-tertiary)',
-              marginTop: 'auto'
+            <span style={{
+              fontSize: '10px',
+              color: s.highlight ? 'rgba(255,255,255,0.8)' : 'var(--color-label-tertiary)',
+              marginTop: '1px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}>
               {s.desc}
             </span>
           </div>
         ))}
       </div>
+
+      {/* ── Owner Intelligence Row ── */}
+      {(salesDelta !== null || eodProjection !== null || cancellations > 0 || reservationsToday.count > 0 || weeklySparkline.some(d => d.rev > 0)) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
+
+          {/* Yesterday delta */}
+          {salesDelta !== null && (
+            <div style={{
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: '12px',
+              padding: '12px 14px'
+            }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {salesDelta >= 0 ? <ArrowUp size={11} color="#10b981" /> : <ArrowDown size={11} color="#ef4444" />}
+                vs Yesterday
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: salesDelta >= 0 ? '#10b981' : '#ef4444', lineHeight: 1.2, marginTop: '4px' }}>
+                {salesDelta >= 0 ? '+' : ''}{salesDelta}%
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>{formatCurrency(yesterdayStats.sales, currency)}</div>
+            </div>
+          )}
+
+          {/* EOD projection */}
+          {eodProjection !== null && (
+            <div style={{
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: '12px',
+              padding: '12px 14px'
+            }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <TrendingUp size={11} color="#8b5cf6" /> Projected
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#8b5cf6', lineHeight: 1.2, marginTop: '4px' }}>{formatCurrency(eodProjection, currency)}</div>
+              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>at current pace</div>
+            </div>
+          )}
+
+          {/* Cancellations */}
+          {cancellations > 0 && (
+            <div style={{
+              background: 'rgba(239,68,68,0.05)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              borderRadius: '12px',
+              padding: '12px 14px'
+            }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <XCircle size={11} color="#ef4444" /> Cancelled
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#ef4444', lineHeight: 1.2, marginTop: '4px' }}>{cancellations}</div>
+              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>today</div>
+            </div>
+          )}
+
+          {/* Reservations */}
+          {reservationsToday.count > 0 && (
+            <div style={{
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: '12px',
+              padding: '12px 14px'
+            }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CalendarClock size={11} color="#3b82f6" /> Reservations
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#3b82f6', lineHeight: 1.2, marginTop: '4px' }}>{reservationsToday.count}</div>
+              {reservationsToday.next && (
+                <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}{reservationsToday.next.time ? ` @ ${reservationsToday.next.time}` : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 7-day sparkline */}
+          {weeklySparkline.some(d => d.rev > 0) && (
+            <div style={{
+              gridColumn: 'span 2',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: '12px',
+              padding: '12px 14px'
+            }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>7-Day Revenue</div>
+              <ResponsiveContainer width="100%" height={36}>
+                <BarChart data={weeklySparkline} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <Bar dataKey="rev" radius={[3, 3, 0, 0]}>
+                    {weeklySparkline.map((entry, index) => (
+                      <Cell key={index} fill={entry.isToday ? '#10b981' : 'var(--color-fill-secondary)'} />
+                    ))}
+                  </Bar>
+                  <Tooltip
+                    cursor={false}
+                    content={({ active, payload }) => {
+                      if (active && payload?.[0]) {
+                        return (
+                          <div style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-separator)', padding: '4px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
+                            {payload[0].payload.label}: {formatCurrency(payload[0].value, currency)}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                {weeklySparkline.map((d, i) => (
+                  <span key={i} style={{ fontSize: '9px', color: d.isToday ? '#10b981' : 'var(--color-label-tertiary)', fontWeight: d.isToday ? 700 : 400 }}>{d.label}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Today's 3 Action Items */}
       <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', border: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
@@ -630,13 +813,19 @@ export default function Dashboard() {
               <div><strong>UPI is popular today:</strong> Over half your orders are paid via UPI. Consider putting a QR code stand right on the tables to speed up checkout.</div>
             </div>
           )}
+          {cancellations > 1 && (
+            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #dc2626' }}>
+              <XCircle size={16} color="#dc2626" style={{ flexShrink: 0, marginTop: 2 }} />
+              <div><strong>{cancellations} cancellations today ({Math.round(cancellations / Math.max(1, todayStats.totalOrders + cancellations) * 100)}%):</strong> Review if wait times, out-of-stock items, or payment issues are causing drops.</div>
+            </div>
+          )}
           {todayStats.tableTurnover < 2 && tablesCount > 0 && todayStats.orders > 5 && (
             <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-orange)' }}>
               <Clock size={16} color="var(--color-orange)" style={{ flexShrink: 0, marginTop: 2 }} />
               <div><strong>Tables are turning slowly:</strong> Customers are staying longer. Ask staff to clear empty plates faster to free up tables for new walk-ins.</div>
             </div>
           )}
-          {todayStats.openOrders === 0 && (!todayStats.avgCookTime || todayStats.avgCookTime <= 20) && (!todayStats.paymentSplit.upi || todayStats.paymentSplit.upi <= (todayStats.orders * 0.5)) && (todayStats.tableTurnover >= 2 || tablesCount === 0 || todayStats.orders <= 5) && (
+          {todayStats.openOrders === 0 && cancellations <= 1 && (!todayStats.avgCookTime || todayStats.avgCookTime <= 20) && (!todayStats.paymentSplit.upi || todayStats.paymentSplit.upi <= (todayStats.orders * 0.5)) && (todayStats.tableTurnover >= 2 || tablesCount === 0 || todayStats.orders <= 5) && (
             <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontStyle: 'italic', padding: '4px' }}>
               Everything looks good so far today! Keep it up.
             </div>
@@ -651,57 +840,57 @@ export default function Dashboard() {
         </h3>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 'var(--space-4)'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+          gap: '10px'
         }}>
           {/* Avg Kitchen Time */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <Clock size={14} /> Avg Kitchen Time
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <Clock size={13} /> Avg Kitchen Time
               <InfoTooltip text="How long it takes the kitchen to prepare an order on average today" />
             </div>
-            <div style={{ fontSize: '24px', fontWeight: 800 }}>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-label)' }}>
               {todayStats.avgCookTime > 0 ? `${todayStats.avgCookTime} mins` : 'N/A'}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Based on today's kitchen workflow</div>
+            <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Based on today's kitchen workflow</div>
           </div>
 
           {/* Times per Table */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <TrendingUp size={14} /> Times per Table
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <TrendingUp size={13} /> Times per Table
               <InfoTooltip text="How many groups of customers sat at each table today on average" />
             </div>
-            <div style={{ fontSize: '24px', fontWeight: 800 }}>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-label)' }}>
               {tablesCount > 0 ? (todayStats.orders / tablesCount).toFixed(1) : '0'} 
-              <span style={{ fontSize: '14px', color: 'var(--color-label-secondary)', fontWeight: 600, marginLeft: 4 }}>orders/table</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontWeight: 600, marginLeft: 4 }}>orders/table</span>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Average turns per table today</div>
+            <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Average turns per table today</div>
           </div>
 
           {/* How Customers Paid */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <Percent size={14} /> How Customers Paid
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <Percent size={13} /> How Customers Paid
               <InfoTooltip text="Percentage breakdown of payment methods used today" />
             </div>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
               {(() => {
                 const total = todayStats.orders || 1;
                 const p = todayStats.paymentSplit || { cash: 0, card: 0, upi: 0 };
                 return (
                   <>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#059669' }}>{Math.round((p.cash / total) * 100)}%</div>
-                      <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)' }}>CASH</div>
+                    <div style={{ flex: 1, textAlign: 'center', background: 'var(--color-bg-secondary)', padding: '6px 4px', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#10b981' }}>{Math.round((p.cash / total) * 100)}%</div>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-label-secondary)', marginTop: '2px' }}>CASH</div>
                     </div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#2563eb' }}>{Math.round((p.card / total) * 100)}%</div>
-                      <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)' }}>CARD</div>
+                    <div style={{ flex: 1, textAlign: 'center', background: 'var(--color-bg-secondary)', padding: '6px 4px', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#38bdf8' }}>{Math.round((p.card / total) * 100)}%</div>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-label-secondary)', marginTop: '2px' }}>CARD</div>
                     </div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#7c3aed' }}>{Math.round((p.upi / total) * 100)}%</div>
-                      <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)' }}>UPI</div>
+                    <div style={{ flex: 1, textAlign: 'center', background: 'var(--color-bg-secondary)', padding: '6px 4px', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#a855f7' }}>{Math.round((p.upi / total) * 100)}%</div>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-label-secondary)', marginTop: '2px' }}>UPI</div>
                     </div>
                   </>
                 );
@@ -710,22 +899,41 @@ export default function Dashboard() {
           </div>
 
           {/* Top Item Today */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <Flame size={14} color="#d97706" /> Top Item Today
+          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+              <Flame size={13} color="#f59e0b" /> Top Item Today
             </div>
             {todayStats.topItem ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '2px' }}>
-                <div style={{ fontSize: '28px' }}>{todayStats.topItem.emoji}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
+                <div style={{ fontSize: '24px' }}>{todayStats.topItem.emoji}</div>
                 <div>
-                  <div style={{ fontSize: '16px', fontWeight: 800 }}>{todayStats.topItem.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>{todayStats.topItem.qty} orders today</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-label)' }}>{todayStats.topItem.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>{todayStats.topItem.qty} orders today</div>
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: '14px', color: 'var(--color-label-tertiary)', marginTop: '8px' }}>No items sold yet</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-label-tertiary)', marginTop: '6px' }}>No items sold yet</div>
             )}
           </div>
+
+          {/* Today's Reservations — surfaces data from Reservations module */}
+          {reservationsToday.count > 0 && (
+            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+                <CalendarClock size={13} color="#38bdf8" /> Reservations Today
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: '#38bdf8' }}>{reservationsToday.count}</div>
+              {reservationsToday.next ? (
+                <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>
+                  Next: <strong>{reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}</strong>
+                  {reservationsToday.next.guests && ` · ${reservationsToday.next.guests} guests`}
+                  {reservationsToday.next.time && ` @ ${reservationsToday.next.time}`}
+                </div>
+              ) : (
+                <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>All reservations for today</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -734,19 +942,21 @@ export default function Dashboard() {
         display: 'flex',
         flexWrap: 'wrap',
         gap: 'var(--space-5)',
-        alignItems: 'start'
+        alignItems: 'start',
+        minWidth: 0,
+        width: '100%'
       }}>
         
         {/* Left Column (Main POS details: Active Orders + Peak Hours) */}
-        <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+        <div style={{ flex: '1 1 360px', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
           
           {/* Active Orders Card */}
-          <div className="card" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-xl)' }}>
+          <div className="card" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-xl)', minWidth: 0 }}>
             <div className="card-header" style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--color-separator)' }}>
               <span className="card-title" style={{ fontSize: 'var(--text-title3)', fontWeight: 700 }}>Active Orders</span>
               <span className="badge badge-blue" style={{ fontSize: '11px', fontWeight: 700 }}>{activeOrders.length}</span>
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
               {activeOrders.length === 0 ? (
                 <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
                   <div style={{ fontSize: 32, marginBottom: 'var(--space-2)' }}>🎉</div>

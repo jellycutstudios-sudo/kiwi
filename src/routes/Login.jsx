@@ -142,65 +142,42 @@ export default function Login() {
           <div className="login-brand-logo-wrap">
             <img src="/logorupos.svg" alt="RUPOS" />
           </div>
-          <h1 className="login-brand-title">The modern OS<br />for restaurants</h1>
-          <p className="login-brand-subtitle">
-            Everything your restaurant needs — POS, Tables, Kitchen Display, Reports &amp; more — in one seamless platform.
-          </p>
-          <div className="login-brand-features">
-            {[
-              { icon: '🏪', label: 'Multi-outlet ready' },
-              { icon: '📊', label: 'Real-time analytics' },
-              { icon: '🔒', label: 'Secure & role-based' },
-              { icon: '📱', label: 'Works on any device' },
-            ].map(f => (
-              <div key={f.label} className="login-brand-feature">
-                <span className="login-brand-feature-icon">{f.icon}</span>
-                {f.label}
-              </div>
-            ))}
+          <div className="login-brand-hero">
+            <h1 className="login-brand-title">Welcome<br />back.</h1>
+            <p className="login-brand-tagline">The modern OS for restaurants.</p>
           </div>
         </div>
         <div className="login-brand-footer">
-          © {new Date().getFullYear()} RUPOS. All rights reserved.
+          <Link to="/" className="login-footer-link">← Home</Link>
+          <span>© {new Date().getFullYear()} RUPOS</span>
         </div>
-        {/* Decorative circles */}
-        <div className="login-brand-deco login-brand-deco-1" />
-        <div className="login-brand-deco login-brand-deco-2" />
       </div>
 
       {/* ── Right form panel ── */}
       <div className="login-form-panel">
         <div className="login-form-card">
-          <Link to="/" className="login-back-home">← Home</Link>
-
           <div className="login-card-header">
-            <div className="login-logo-wrap">
+            <div className="login-logo-wrap mobile-only">
               <img src="/logorupos.svg" alt="Logo" />
             </div>
             <h2 className="login-card-title">
-              {mode === 'email' ? t('adminLogin') : mode === 'pin' ? t('staffLogin') : 'Register Restaurant'}
+              {mode === 'email' ? 'Sign in' : mode === 'pin' ? 'Staff PIN' : 'Create Restaurant'}
             </h2>
-            <p className="login-card-subtitle">
-              {mode === 'email'
-                ? 'Sign in with your admin credentials'
-                : mode === 'pin'
-                  ? 'Enter your restaurant ID and PIN'
-                  : 'Start your modern restaurant POS journey today'}
-            </p>
           </div>
 
           {/* Mode toggle */}
           <div className="login-mode-toggle">
             {[
-              { m: 'email', label: '📧 Admin' },
-              { m: 'pin',   label: '🔢 Staff PIN' },
-              { m: 'register', label: '🚀 Register' },
+              { m: 'email', label: 'Admin' },
+              { m: 'pin',   label: 'Staff' },
+              { m: 'register', label: 'Register' },
             ].map(item => (
               <button
                 key={item.m}
                 id={`login-mode-${item.m}`}
                 onClick={() => { setMode(item.m); clearError(); setPin(''); }}
                 className={`login-mode-btn ${mode === item.m ? 'active' : ''}`}
+                type="button"
               >
                 {item.label}
               </button>
@@ -219,48 +196,40 @@ export default function Login() {
                   onChange={e => setEmail(e.target.value)} required />
               </div>
               <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-1)' }}>
-                  <label className="form-label" style={{ margin: 0 }}>Password</label>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!email.trim()) {
-                        toast.error('Please enter your email above to reset password.');
-                        return;
-                      }
-                      try {
-                        await sendPasswordResetEmail(auth, email.trim());
-                        toast.success('Password reset email sent! Check your inbox.');
-                      } catch (err) {
-                        toast.error('Failed to send reset email: ' + err.message);
-                      }
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-primary)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'underline'
-                    }}
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
+                <label className="form-label">Password</label>
                 <div className="password-input-wrapper">
                   <input id="login-password" className="form-input password-input"
                     type={showPw ? 'text' : 'password'} placeholder={t('passwordPlaceholder')}
                     value={password} onChange={e => setPassword(e.target.value)} required />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="password-toggle-btn">
-                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  <button type="button" onClick={() => setShowPw(!showPw)} className="password-toggle-btn" aria-label="Toggle password visibility">
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
-              <button id="login-submit-btn" className="btn btn-primary btn-lg login-submit-btn"
+              <button id="login-submit-btn" className="login-submit-btn"
                 type="submit" disabled={loading}>
                 {loading ? 'Signing in…' : t('signIn')}
               </button>
+              <div className="login-forgot-wrapper">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!email.trim()) {
+                      toast.error('Please enter your email above to reset password.');
+                      return;
+                    }
+                    try {
+                      await sendPasswordResetEmail(auth, email.trim());
+                      toast.success('Password reset email sent! Check your inbox.');
+                    } catch (err) {
+                      toast.error('Failed to send reset email: ' + err.message);
+                    }
+                  }}
+                  className="login-forgot-btn"
+                >
+                  Forgot password?
+                </button>
+              </div>
             </form>
 
           /* ── Staff PIN login ── */
@@ -282,7 +251,8 @@ export default function Login() {
                   <button key={i} id={k ? `pin-key-${k}` : undefined}
                     className={`pin-key ${k === '' ? 'empty' : ''}`}
                     onClick={() => { if (k === '⌫') setPin(p => p.slice(0,-1)); else if (k) handlePinKey(k); }}
-                    disabled={loading}>
+                    disabled={loading}
+                    type="button">
                     {k}
                   </button>
                 ))}
@@ -292,35 +262,11 @@ export default function Login() {
 
           /* ── Registration ── */
           ) : (
-            <div className="login-form register-form" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* How it works banner */}
-              <div style={{
-                background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
-                border: '1px solid #bfdbfe',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                fontSize: '12.5px',
-                color: '#1e40af',
-              }}>
-                <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px', color: '#1d4ed8' }}>
-                  ✅ How registration works
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', color: '#374151' }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <span style={{ fontWeight: 700, color: '#2563eb', minWidth: 16 }}>1.</span>
-                    <span>Fill in the form below and click <strong>Register Restaurant</strong></span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <span style={{ fontWeight: 700, color: '#2563eb', minWidth: 16 }}>2.</span>
-                    <span>Your account is created and sent for <strong>approval</strong></span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <span style={{ fontWeight: 700, color: '#2563eb', minWidth: 16 }}>3.</span>
-                    <span>Once approved, log in with the <strong>📧 Admin</strong> tab using your email &amp; password</span>
-                  </div>
-                </div>
-              </div>
-            <form onSubmit={handleRegister} style={{ display: 'contents' }}>
+            <div className="login-form register-form">
+              <p className="register-notice-text">
+                Create your restaurant workspace. Accounts are verified swiftly upon registration.
+              </p>
+            <form onSubmit={handleRegister} className="register-form-inner">
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Owner Name *</label>
@@ -369,7 +315,7 @@ export default function Login() {
                     value={regAddress} onChange={e => setRegAddress(e.target.value)} />
                 </div>
               </div>
-              <button id="reg-submit-btn" className="btn btn-primary btn-lg login-submit-btn"
+              <button id="reg-submit-btn" className="login-submit-btn"
                 type="submit" disabled={registering}>
                 {registering ? 'Registering…' : 'Register Restaurant'}
               </button>
@@ -378,24 +324,13 @@ export default function Login() {
           )}
 
           {canInstall && !isStandalone && (
-            <div style={{ marginTop: '16px', textAlign: 'center' }}>
+            <div className="login-install-wrapper">
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="login-install-btn"
                 onClick={promptInstall}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '999px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid var(--color-separator)'
-                }}
               >
-                <Download size={14} color="var(--color-primary)" /> Install DineOS App
+                <Download size={14} /> Install DineOS App
               </button>
             </div>
           )}
