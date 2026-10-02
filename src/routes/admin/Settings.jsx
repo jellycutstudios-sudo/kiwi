@@ -17,6 +17,7 @@ import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
 import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
+import AdminSecuritySettings from '../../components/settings/AdminSecuritySettings';
 import { useUpdateStore } from '../../stores/updateStore';
 
 const MODES = [
@@ -41,6 +42,7 @@ const TAX_TYPES = [
 
 const TABS = [
   { id: 'general',       label: 'General & Identity',      icon: '🏪', keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update'] },
+  { id: 'security',      label: 'Security & Password',     icon: '🔐', keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account'] },
   { id: 'workflows',     label: 'Workflows & Operations',  icon: '⚙️', keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode'] },
   { id: 'features',      label: 'Modules & Features',      icon: '🧩', keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty'] },
   { id: 'kitchen',       label: 'Kitchen & KDS',           icon: '🍳', keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
@@ -661,7 +663,59 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+
+              {/* Security & Password Quick Link Card */}
+              <div 
+                className="card card-padded"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-separator)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px'
+                  }}>
+                    🔐
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--color-label)' }}>
+                      Admin Password &amp; Security
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                      Update your login password or dispatch a one-click reset link to your email.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setActiveTab('security')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
+                >
+                  <span>Manage Password</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
             </>
+          )}
+
+          {/* Security & Password Tab */}
+          {activeTab === 'security' && (
+            <AdminSecuritySettings />
           )}
 
           {/* Workflows & Operations Tab */}
