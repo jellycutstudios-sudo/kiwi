@@ -21,9 +21,11 @@ import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
 import AdminSecuritySettings from '../../components/settings/AdminSecuritySettings';
 import { useUpdateStore } from '../../stores/updateStore';
+import { saveLocalGroqApiKey } from '../../services/groqService';
 
 const MODES = [
   // 1. Core POS & Service Formats
+  { key: 'ai_advisor',       label: '✨ AI Business Advisor',     desc: 'Hybrid local analytics & Groq Llama 3.1 8B instant natural language advisor', tab: 'features', tabName: 'Modules' },
   { key: 'pos',              label: '🧾 Bill Only / Express POS', desc: 'Simple cashier-only billing with fast 1-click checkout', tab: 'workflows', tabName: 'Workflows' },
   { key: 'table',            label: '🗺️ Table & Floor Management', desc: 'Floor plan with visual table assignment & timers', tab: 'workflows', tabName: 'Workflows' },
   { key: 'token',            label: '🎫 Token / QSR Numbering',   desc: 'Token issuance & live TV queue callouts', tab: 'displays', tabName: 'Displays' },
@@ -1463,6 +1465,73 @@ export default function Settings() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* ✨ AI Business Advisor (Groq Engine) Card */}
+              <div style={{
+                marginTop: 'var(--space-3)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-3)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={18} color="#8b5cf6" />
+                    <h4 style={{ margin: 0, fontSize: 'var(--text-body)', fontWeight: 700 }}>
+                      AI Business Advisor (Groq Cloud)
+                    </h4>
+                    <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
+                      Llama 3.1 8B Instant (100% Free)
+                    </span>
+                  </div>
+                  <a
+                    href="https://console.groq.com/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: '12px', color: '#818cf8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    Get Free Groq API Key <ExternalLink size={12} />
+                  </a>
+                </div>
+
+                <p style={{ margin: 0, fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
+                  Connect your free Groq API key to unlock natural language executive consulting in the Dashboard and Reports. DineOS sends compact, pre-calculated local metrics so your queries consume minimal tokens with zero rate limit stress.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Groq API Key</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="gsk_..."
+                      value={settings.groqApiKey || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setSettings(s => ({ ...s, groqApiKey: val }));
+                        saveLocalGroqApiKey(val);
+                      }}
+                      style={{ fontSize: '13px', height: '36px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Advisor AI Model</label>
+                    <select
+                      className="form-input"
+                      value={settings.groqModel || 'llama-3.1-8b-instant'}
+                      onChange={e => setSettings(s => ({ ...s, groqModel: e.target.value }))}
+                      style={{ fontSize: '13px', height: '36px' }}
+                    >
+                      <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (14,400 req/day - Recommended)</option>
+                      <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Deep Reasoning)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* 🛡️ Sovereign Data Trust Banner (PetPooja Antidote) */}

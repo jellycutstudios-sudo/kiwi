@@ -154,8 +154,6 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  editingOrderId: null,
-
   loadOrderToCart: (order) => set({
     items: order.items.map(i => ({
       id: i.id,

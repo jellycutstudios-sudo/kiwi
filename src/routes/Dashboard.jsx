@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
+import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -58,6 +59,7 @@ export default function Dashboard() {
   const [yesterdayStats, setYesterdayStats] = useState({ sales: 0, orders: 0 });
   const [cancellations, setCancellations] = useState(0);
   const [reservationsToday, setReservationsToday] = useState({ count: 0, next: null });
+  const [showAiAdvisor, setShowAiAdvisor] = useState(false);
 
   const handleQuickSettle = async (order, method = 'cash') => {
     if (!order?.id || !restaurant?.id) return;
@@ -530,6 +532,28 @@ export default function Dashboard() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setShowAiAdvisor(true)}
+          style={{
+            background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+            border: 'none',
+            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            borderRadius: '12px',
+            fontWeight: 700,
+            fontSize: '13.5px',
+            cursor: 'pointer'
+          }}
+        >
+          <Sparkles size={16} />
+          <span>AI Business Advisor</span>
+        </button>
       </div>
 
       {/* Stat Cards — 2-column compact grid */}
@@ -1341,6 +1365,16 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* AI Business Advisor Modal */}
+      <AiBusinessAdvisorModal
+        isOpen={showAiAdvisor}
+        onClose={() => setShowAiAdvisor(false)}
+        orders={analyticsOrders}
+        menuItems={menuItems}
+        restaurant={restaurant}
+        periodLabel="Last 7 Days"
+      />
     </div>
   );
 }
