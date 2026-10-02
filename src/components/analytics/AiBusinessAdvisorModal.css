@@ -53,6 +53,20 @@
     transform: translateX(-100%);
     width: 270px;
   }
+.ai-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .ai-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 15;
+    animation: aiWorkspaceFade 0.15s ease;
+  }
 }
 
 .ai-sidebar-header {

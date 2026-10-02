@@ -107,7 +107,7 @@ CORE BUSINESS LOGIC:
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: model || 'llama-3.1-8b-instant',
+        model: model || 'openai/gpt-oss-20b',
         messages,
         temperature: 0.5,
         max_tokens: 650,

@@ -267,7 +267,7 @@ export default function AiBusinessAdvisorModal({
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 900 : true);
   const [tempKeyInput, setTempKeyInput] = useState('');
   const [copiedMsgId, setCopiedMsgId] = useState(null);
 
@@ -329,6 +329,10 @@ export default function AiBusinessAdvisorModal({
     setMessages(newMessages);
     setInputQuestion('');
     setIsAiLoading(true);
+
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+      setSidebarOpen(false);
+    }
 
     const activeKey = getEffectiveGroqApiKey(restaurant);
 
@@ -411,6 +415,17 @@ export default function AiBusinessAdvisorModal({
       role="dialog"
       aria-modal="true"
     >
+      {/* Mobile Backdrop Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="ai-sidebar-backdrop" 
+          onClick={() => setSidebarOpen(false)} 
+          role="button" 
+          tabIndex={-1} 
+          aria-label="Close sidebar" 
+        />
+      )}
+
       {/* Collapsible Left Sidebar (Claude / ChatGPT style) */}
       <aside className={`ai-sidebar ${sidebarOpen ? '' : 'collapsed'}`}>
         <div className="ai-sidebar-header">
