@@ -6,7 +6,7 @@ import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'f
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { downloadTallyXML } from '../utils/tallyExport';
-import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake, Receipt, UtensilsCrossed, FileText, FileSpreadsheet, FileCode, Sparkles } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake, Receipt, UtensilsCrossed, FileText, FileSpreadsheet, FileCode, Sparkles, Bot } from 'lucide-react';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
 import toast from 'react-hot-toast';
@@ -543,19 +543,14 @@ export default function Reports() {
         <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap' }}>
           <button 
             type="button" 
-            className="btn btn-primary btn-sm" 
+            className="advisor-trigger-btn advisor-trigger-btn-sm" 
             onClick={() => setShowAiAdvisor(true)}
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-              border: 'none',
-              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontWeight: 700
-            }}
+            title="Analyze with AI Advisor"
           >
-            <Sparkles size={14} /> AI Advisor
+            <span className="advisor-btn-icon">
+              <Bot size={13} />
+            </span>
+            <span>Advisor</span>
           </button>
           <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Download size={14} /> PDF

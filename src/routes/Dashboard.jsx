@@ -8,7 +8,7 @@ import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
   Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle,
-  Zap, X, Check, ArrowUp, ArrowDown, CalendarClock, XCircle
+  Zap, X, Check, ArrowUp, ArrowDown, CalendarClock, XCircle, Bot
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
@@ -535,24 +535,15 @@ export default function Dashboard() {
 
         <button
           type="button"
-          className="btn btn-primary"
+          className="advisor-trigger-btn"
           onClick={() => setShowAiAdvisor(true)}
-          style={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-            border: 'none',
-            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '9px 18px',
-            borderRadius: '12px',
-            fontWeight: 700,
-            fontSize: '13.5px',
-            cursor: 'pointer'
-          }}
+          title="Open Business Advisor"
         >
-          <Sparkles size={16} />
-          <span>AI Business Advisor</span>
+          <span className="advisor-btn-icon">
+            <Bot size={14} />
+          </span>
+          <span>Advisor</span>
+          <span className="advisor-btn-badge">AI</span>
         </button>
       </div>
 

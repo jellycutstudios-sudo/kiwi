@@ -898,6 +898,91 @@ ul, ol { list-style: none; }
 }
 
 /* ============================================================
+   Business Advisor Clean Trigger Button (Modern, Clean, Zero Slop)
+   ============================================================ */
+.advisor-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 10px;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.advisor-trigger-btn:hover:not(:disabled) {
+  background-color: var(--color-bg-secondary);
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.advisor-trigger-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.advisor-trigger-btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  gap: 6px;
+}
+
+.advisor-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.advisor-trigger-btn-sm .advisor-btn-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.advisor-btn-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1.5px 5px;
+  border-radius: 5px;
+  background-color: var(--color-fill-secondary);
+  color: var(--color-label-secondary);
+  letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] .advisor-trigger-btn,
+html.dark .advisor-trigger-btn {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-separator);
+  color: var(--color-label);
+}
+
+[data-theme="dark"] .advisor-trigger-btn:hover:not(:disabled),
+html.dark .advisor-trigger-btn:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+[data-theme="dark"] .advisor-btn-icon,
+html.dark .advisor-btn-icon {
+  background-color: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+/* ============================================================
    Cards (Claymorphism Puffy)
    ============================================================ */
 .card {

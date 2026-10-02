@@ -8,7 +8,7 @@ import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, RotateCcw, Coins,
-  Download, Database, ShieldCheck, FileSpreadsheet, Lock, Sparkle
+  Download, Database, ShieldCheck, FileSpreadsheet, Lock, Sparkle, Bot
 } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
@@ -25,7 +25,7 @@ import { saveLocalGroqApiKey } from '../../services/groqService';
 
 const MODES = [
   // 1. Core POS & Service Formats
-  { key: 'ai_advisor',       label: '✨ AI Business Advisor',     desc: 'Hybrid local analytics & Groq Llama 3.1 8B instant natural language advisor', tab: 'features', tabName: 'Modules' },
+  { key: 'ai_advisor',       label: 'Business Advisor (AI)',     desc: 'Hybrid local analytics & Groq Cloud instant natural language business advisor', tab: 'features', tabName: 'Modules' },
   { key: 'pos',              label: '🧾 Bill Only / Express POS', desc: 'Simple cashier-only billing with fast 1-click checkout', tab: 'workflows', tabName: 'Workflows' },
   { key: 'table',            label: '🗺️ Table & Floor Management', desc: 'Floor plan with visual table assignment & timers', tab: 'workflows', tabName: 'Workflows' },
   { key: 'token',            label: '🎫 Token / QSR Numbering',   desc: 'Token issuance & live TV queue callouts', tab: 'displays', tabName: 'Displays' },
@@ -1467,25 +1467,36 @@ export default function Settings() {
                 ))}
               </div>
 
-              {/* ✨ AI Business Advisor (Groq Engine) Card */}
+              {/* Business Advisor (Groq Engine) Card */}
               <div style={{
                 marginTop: 'var(--space-3)',
                 padding: 'var(--space-4)',
                 borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.05) 100%)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
+                background: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-separator)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 'var(--space-3)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} color="#8b5cf6" />
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      color: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Bot size={16} />
+                    </div>
                     <h4 style={{ margin: 0, fontSize: 'var(--text-body)', fontWeight: 700 }}>
-                      AI Business Advisor (Groq Cloud)
+                      Business Advisor (Groq Engine)
                     </h4>
-                    <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
-                      Llama 3.1 8B Instant (100% Free)
+                    <span style={{ fontSize: '11px', background: 'var(--color-fill)', color: 'var(--color-label-secondary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      Fast Tier (Free)
                     </span>
                   </div>
                   <a
