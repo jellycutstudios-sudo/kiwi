@@ -7,8 +7,20 @@ import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 export default function Customers() {
-  const { restaurant } = useAuthStore();
+  const { restaurant, staffDoc } = useAuthStore();
   const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'giftcards'
+
+  const isPrivacyActive = Boolean(restaurant?.modes?.includes('customer_privacy'));
+  const isPrivileged = ['admin', 'super_admin'].includes(staffDoc?.role);
+
+  const formatDisplayPhone = (rawPhone) => {
+    if (!rawPhone) return '—';
+    if (isPrivacyActive && !isPrivileged) {
+      const clean = String(rawPhone).trim();
+      return clean.length > 5 ? `${clean.slice(0, 3)} •••• ${clean.slice(-2)}` : '••••••••';
+    }
+    return rawPhone;
+  };
   
   // CRM States
   const [customers, setCustomers] = useState([]);
@@ -368,7 +380,7 @@ export default function Customers() {
                         {cust.name}
                       </td>
                       <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', color: 'var(--color-label-secondary)' }}>
-                        {cust.phone}
+                        {formatDisplayPhone(cust.phone)}
                       </td>
                       <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-semibold)' }}>
                         {cust.visitCount ?? 0}

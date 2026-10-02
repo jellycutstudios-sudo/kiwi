@@ -1530,6 +1530,18 @@ ul, ol { list-style: none; }
   box-shadow: 0 3px 10px rgba(16, 185, 129, 0.28);
 }
 
+/* Compact Icon-Only Dietary Badges (Veg, Non-Veg, Bestseller) across whole UI */
+.dietary-chip--veg,
+.dietary-chip--nonveg,
+.dietary-chip--bestseller {
+  padding: 0 !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 34px !important;
+  justify-content: center !important;
+  border-radius: var(--radius-full, 999px) !important;
+}
+
 /* Pure Veg */
 .dietary-chip--veg {
   background: #ffffff;
@@ -1659,12 +1671,18 @@ ul, ol { list-style: none; }
   color: #0f172a !important;
 }
 
+/* Hide fullscreen focus mode toggle on mobile & small tablets (<=768px) */
+@media (max-width: 768px) {
+  .density-expand-btn {
+    display: none !important;
+  }
+}
+
 /* Mobile: clean compact view controls while preserving legible font on chips */
 @media (max-width: 540px) {
   .density-label { display: none; }
   .density-btn { padding: 0 8px; width: 32px; justify-content: center; }
   .menu-dietary-chips { padding: 2px 0; gap: 5px; }
-  .dietary-chip { padding: 6px 12px; font-size: 12.5px; min-height: 34px; }
   .menu-dietary-controls { padding-left: 6px; gap: 4px; }
 }
 

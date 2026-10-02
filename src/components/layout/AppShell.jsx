@@ -300,7 +300,7 @@ export default function AppShell() {
                 <Search size={15} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
                 <input
                   className="form-input"
-                  placeholder="Search menu items, SKU, or barcode..."
+                  placeholder="Search menu..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   id="menu-search-input"

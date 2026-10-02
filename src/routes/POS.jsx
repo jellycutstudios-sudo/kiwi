@@ -1186,7 +1186,7 @@ export default function POS() {
 
         {/* ── Unified Category & Dietary Filter Bar (Row 2) ─────────── */}
         <div className="pos-category-bar" role="tablist" aria-label="Menu Categories and Filters">
-          {/* Dietary Quick Filters */}
+          {/* Dietary Quick Filters (Icon-only across UI) */}
           <div className="pos-dietary-strip" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
             <button
               type="button"
@@ -1194,10 +1194,10 @@ export default function POS() {
               aria-selected={dietaryFilter === 'veg'}
               className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
-              title="Filter Pure Veg items"
+              title="Pure Veg (Filter vegetarian items)"
+              aria-label="Pure Veg"
             >
               <span className="food-badge-veg" />
-              <span>Pure Veg</span>
             </button>
             <button
               type="button"
@@ -1205,10 +1205,10 @@ export default function POS() {
               aria-selected={dietaryFilter === 'non-veg'}
               className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
-              title="Filter Non-Veg items"
+              title="Non-Veg (Filter non-vegetarian items)"
+              aria-label="Non-Veg"
             >
               <span className="food-badge-nonveg" />
-              <span>Non-Veg</span>
             </button>
             <button
               type="button"
@@ -1216,10 +1216,10 @@ export default function POS() {
               aria-selected={dietaryFilter === 'bestseller'}
               className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-              title="Filter Bestsellers"
+              title="Bestsellers (Filter popular items)"
+              aria-label="Bestsellers"
             >
-              <Sparkles size={13} color="#f59e0b" />
-              <span>Bestsellers</span>
+              <Sparkles size={14} color="#f59e0b" />
             </button>
           </div>
 

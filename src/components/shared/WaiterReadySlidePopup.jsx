@@ -38,17 +38,10 @@ export default function WaiterReadySlidePopup() {
       return;
     }
 
-    // STRICT: Cashiers never see the slide popup so checkout and billing are never blocked
-    if (userRole === 'cashier') {
-      currentOrderIdRef.current = null;
-      setCurrentOrder(null);
-      return;
-    }
-
-    // Only show slide popup for staff with role 'waiter' (or admin in manager view)
-    const isWaiter = userRole === 'waiter';
-    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-    if (!isWaiter && !isAdmin) {
+    // STRICT: Only waiters/servers need to physically run food to the table.
+    // Cashiers focus on billing — popup blocks checkout flow.
+    // Admins/kitchen staff don't carry food — showing it is distracting noise.
+    if (userRole !== 'waiter') {
       currentOrderIdRef.current = null;
       setCurrentOrder(null);
       return;
@@ -58,15 +51,12 @@ export default function WaiterReadySlidePopup() {
       if (o.status !== 'ready') return false;
       if (acknowledgedOrderIds.has(o.id)) return false;
 
-      // 1. If assigned specifically to this waiter
+      // 1. If specifically assigned to this waiter — always show
       if (o.assignedWaiterId && o.assignedWaiterId === staffId) return true;
-      if (o.staffId && o.staffId === staffId && isWaiter) return true;
+      if (o.staffId && o.staffId === staffId) return true;
 
-      // 2. If unassigned and user is a waiter on duty
-      if (!o.assignedWaiterId && isWaiter) return true;
-
-      // 3. If admin, only show if admin specifically placed the order or if testing
-      if (isAdmin && (o.staffId === staffId || !o.assignedWaiterId)) return true;
+      // 2. If unassigned — show to any on-duty waiter (first to grab it serves it)
+      if (!o.assignedWaiterId) return true;
 
       return false;
     });

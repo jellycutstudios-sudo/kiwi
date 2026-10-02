@@ -68,6 +68,10 @@ if (typeof window !== 'undefined') {
     });
   }
 
+  // Request persistent storage so the browser/OS never purges offline IndexedDB & cache under disk pressure
+  if ('storage' in navigator && 'persist' in navigator.storage) {
+    navigator.storage.persist().catch(() => {});
+  }
 
   // Catch unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {

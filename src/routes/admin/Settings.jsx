@@ -1,17 +1,19 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
-  Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, RotateCcw, Coins
+  Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, RotateCcw, Coins,
+  Download, Database, ShieldCheck, FileSpreadsheet, Lock, Sparkle
 } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
 import { convertLogoForThermal } from '../../utils/thermalLogo';
+import { downloadTallyXML } from '../../utils/tallyExport';
 import toast from 'react-hot-toast';
 import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker';
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
@@ -21,16 +23,118 @@ import AdminSecuritySettings from '../../components/settings/AdminSecuritySettin
 import { useUpdateStore } from '../../stores/updateStore';
 
 const MODES = [
-  { key: 'pos',          label: '🧾 Bill Only',            desc: 'Simple cashier-only billing' },
-  { key: 'table',        label: '🗺️ Table Management',      desc: 'Floor plan with table assignment' },
-  { key: 'token',        label: '🎫 Token / QSR',           desc: 'Token issuance & TV display' },
-  { key: 'online',       label: '📱 Online Orders',         desc: 'Customer-facing order page' },
-  { key: 'kds',          label: '🍳 Kitchen Display & KOT', desc: 'Display screen, 3" thermal print, or both' },
-  { key: 'inventory',    label: '📦 Inventory Management',  desc: 'Track ingredients, stock, and suppliers' },
-  { key: 'payroll',      label: '💸 Staff Payroll',         desc: 'Manage staff wages, shifts, and payouts' },
-  { key: 'delivery_hub', label: '🛵 Delivery Hub',          desc: 'Manage in-house and third-party delivery orders' },
-  { key: 'reservations',  label: '📅 Table Reservations',    desc: 'Book and manage table reservations' },
-  { key: 'customers',    label: '🤝 Loyalty & Customers',   desc: 'Manage customer profiles and reward points' },
+  // 1. Core POS & Service Formats
+  { key: 'pos',              label: '🧾 Bill Only / Express POS', desc: 'Simple cashier-only billing with fast 1-click checkout', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'table',            label: '🗺️ Table & Floor Management', desc: 'Floor plan with visual table assignment & timers', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'token',            label: '🎫 Token / QSR Numbering',   desc: 'Token issuance & live TV queue callouts', tab: 'displays', tabName: 'Displays' },
+  { key: 'barcode',          label: '🏷️ Barcode & Retail Scanner', desc: 'Active barcode input & scan-to-cart on POS terminal', tab: 'workflows', tabName: 'Workflows' },
+
+  // 2. Kitchen & Fulfillment
+  { key: 'kds',              label: '🍳 Kitchen Display & KOT',   desc: 'Paperless KDS screen, 3" thermal KOT printing, or both', tab: 'kitchen', tabName: 'Kitchen' },
+
+  // 3. Sales Channels & Ordering
+  { key: 'online',           label: '📱 Online Storefront',       desc: 'Commission-free customer-facing web ordering page', tab: 'online-del', tabName: 'Online Store' },
+  { key: 'delivery_hub',     label: '🛵 Delivery Hub',            desc: 'Manage in-house fleet & third-party aggregators (Swiggy, Zomato)', tab: 'online-del', tabName: 'Online Store' },
+  { key: 'reservations',     label: '📅 Table Reservations',      desc: 'Book and manage table reservations & guest waitlists', tab: 'workflows', tabName: 'Workflows' },
+
+  // 4. Digital Displays & Front of House
+  { key: 'posters',          label: '📺 Digital Signage & TV Posters', desc: 'Show menu promos & video slideshows on TVs', tab: 'displays', tabName: 'Displays' },
+
+  // 5. Trust, Privacy & Tax Shield (PetPooja Antidote)
+  { key: 'customer_privacy', label: '🔒 Staff Phone Masking',     desc: 'Shield customer phone numbers (+91 98*** **420) from cashiers & servers', tab: 'security', tabName: 'Security' },
+  { key: 'audit_shield',     label: '📑 Tax Audit & Void Reasons', desc: 'Require mandatory reason logging for line-item voids & cancellations', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'data_vault',       label: '🗄️ 1-Click Complete Data Vault', desc: 'Zero data lock-in; download complete JSON/CSV database dump', isAction: 'vault' },
+  { key: 'tax_reconcile',    label: '📊 Tax Reconciliation & Tally', desc: 'Separate settled bills vs void drafts with TallyPrime XML export', tab: 'tax-pay', tabName: 'Taxes & Cash', isAction: 'tally' },
+
+  // 6. Back Office, People & Retention
+  { key: 'inventory',        label: '📦 Inventory Management',    desc: 'Track raw ingredients, stock levels, and supplier POs', tab: 'hardware', tabName: 'Hardware' },
+  { key: 'payroll',          label: '💸 Staff Payroll & Tip Pools', desc: 'Manage staff wages, shifts, overtime, tip pools & payouts', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'till_shift',       label: '💵 Cash Drawer & Till Shifts', desc: 'Register open float, mid-shift drops, drawer variance & Z-Reports', tab: 'tax-pay', tabName: 'Taxes & Cash' },
+  { key: 'customers',        label: '🤝 Customer Directory & CRM', desc: 'Manage customer profiles, visit history & VIP tags', tab: 'notifications', tabName: 'Alerts & Reports' },
+  { key: 'retention_crm',    label: '💬 WhatsApp e-Bills & Retention', desc: 'Automated paperless WhatsApp receipts & Google Review boost', tab: 'notifications', tabName: 'Alerts & Reports' },
+];
+
+const MODULE_PILLARS = [
+  {
+    id: 'core',
+    title: '⚡ Core Operations & Service Formats',
+    desc: 'Essential modules for service stations, cashier registers, and ordering format.',
+    badge: 'Core POS',
+    keys: ['pos', 'table', 'token', 'barcode']
+  },
+  {
+    id: 'kitchen',
+    title: '🍳 Kitchen & Fulfillment Stations',
+    desc: 'Paperless kitchen screens, station-routed tickets, and preparation speed.',
+    badge: 'Kitchen',
+    keys: ['kds']
+  },
+  {
+    id: 'channels',
+    title: '🌐 Sales Channels & Digital Ordering',
+    desc: 'Direct customer ordering, table bookings, and food delivery aggregators.',
+    badge: 'Ordering',
+    keys: ['online', 'delivery_hub', 'reservations']
+  },
+  {
+    id: 'displays',
+    title: '📺 Digital Displays & Front of House',
+    desc: 'Lounge TV queue displays, digital promotional slideshows, and menu boards.',
+    badge: 'Displays',
+    keys: ['posters']
+  },
+  {
+    id: 'privacy',
+    title: '🛡️ Trust, Privacy & Tax Shield (Owner Sovereignty)',
+    desc: 'The PetPooja Antidote: complete data sovereignty, customer phone privacy, and audit-safe tax reconciliation.',
+    badge: 'Sovereignty',
+    keys: ['customer_privacy', 'audit_shield', 'data_vault', 'tax_reconcile']
+  },
+  {
+    id: 'backoffice',
+    title: '💼 Back Office, People & Growth',
+    desc: 'Inventory control, shift cash drawer audits, restaurant payroll, and guest retention.',
+    badge: 'Operations',
+    keys: ['inventory', 'payroll', 'till_shift', 'customers', 'retention_crm']
+  }
+];
+
+const MODULE_PRESETS = [
+  {
+    id: 'qsr',
+    name: 'Quick Service / Fast Food',
+    emoji: '⚡',
+    desc: 'Counter ordering, token numbers, TV displays, fast cash/UPI & online store',
+    modes: ['pos', 'token', 'kds', 'online', 'posters', 'till_shift', 'retention_crm']
+  },
+  {
+    id: 'dine_in',
+    name: 'Full-Service Restaurant & Bar',
+    emoji: '🍽️',
+    desc: 'Floor plan table maps, reservations, KDS, staff payroll, phone masking & tax audit',
+    modes: ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile']
+  },
+  {
+    id: 'cafe',
+    name: 'Cafe & Bakery',
+    emoji: '☕',
+    desc: 'Counter sales, barcode scanner, TV promos, customer loyalty & inventory',
+    modes: ['pos', 'barcode', 'posters', 'inventory', 'customers', 'till_shift', 'retention_crm']
+  },
+  {
+    id: 'retail',
+    name: 'Retail & Mini Mart',
+    emoji: '🛍️',
+    desc: 'High-speed barcode checkout, inventory management, customer database & cash drawer',
+    modes: ['pos', 'barcode', 'inventory', 'customers', 'till_shift', 'customer_privacy']
+  },
+  {
+    id: 'cloud',
+    name: 'Cloud / Dark Kitchen',
+    emoji: '🛵',
+    desc: 'Delivery hub aggregator sync, online store, KDS stations, inventory costing & data vault',
+    modes: ['online', 'delivery_hub', 'kds', 'inventory', 'data_vault', 'tax_reconcile']
+  }
 ];
 
 const TAX_TYPES = [
@@ -41,12 +145,12 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',       label: 'General & Identity',      icon: '🏪', keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update'] },
-  { id: 'security',      label: 'Security & Password',     icon: '🔐', keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account'] },
-  { id: 'workflows',     label: 'Workflows & Operations',  icon: '⚙️', keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode'] },
-  { id: 'features',      label: 'Modules & Features',      icon: '🧩', keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty'] },
+  { id: 'general',       label: 'General & Identity',      icon: '🏪', keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
+  { id: 'security',      label: 'Security & Password',     icon: '🔐', keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
+  { id: 'workflows',     label: 'Workflows & Operations',  icon: '⚙️', keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
+  { id: 'features',      label: 'Modules & Features',      icon: '🧩', keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
   { id: 'kitchen',       label: 'Kitchen & KDS',           icon: '🍳', keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
-  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  icon: '💳', keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi'] },
+  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  icon: '💳', keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi', 'tally'] },
   { id: 'receipts',      label: 'Receipt Designer',        icon: '🧾', keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
   { id: 'displays',      label: 'Digital Displays & TV',   icon: '📺', keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
   { id: 'online-del',    label: 'Online Store & Delivery', icon: '📱', keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
@@ -129,6 +233,81 @@ export default function Settings() {
     const unsub = subscribeMenu(restaurant.id);
     return () => unsub();
   }, [restaurant?.id, subscribeMenu]);
+
+  const handleExportDataVault = async () => {
+    if (!restaurant?.id) return;
+    const toastId = toast.loading('Compiling complete Restaurant Data Vault (JSON)...');
+    try {
+      // 1. Menu Items
+      const menuSnap = await getDocs(collection(db, 'restaurants', restaurant.id, 'menu'));
+      const menu = menuSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // 2. Categories
+      const catSnap = await getDocs(collection(db, 'restaurants', restaurant.id, 'categories'));
+      const cats = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // 3. Customers
+      const custSnap = await getDocs(collection(db, 'restaurants', restaurant.id, 'customers'));
+      const custs = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // 4. Orders (limit 500)
+      const ordersSnap = await getDocs(query(collection(db, 'restaurants', restaurant.id, 'orders'), limit(500)));
+      const orders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const vault = {
+        exportedAt: new Date().toISOString(),
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        gstin: restaurant.gstin || '',
+        currency: restaurant.currency || 'INR',
+        settings: settings,
+        menuCategories: cats,
+        menuItems: menu,
+        customers: custs,
+        recentOrders: orders,
+        system: 'DineOS Sovereign Data Vault v1.0',
+        privacyNote: 'Exported directly from your browser. Zero third-party telemetry, resale, or aggregator sharing.'
+      };
+
+      const blob = new Blob([JSON.stringify(vault, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dineos_vault_${(restaurant.name || 'restaurant').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Complete Data Vault downloaded! Zero lock-in.', { id: toastId });
+    } catch (err) {
+      console.error('Data vault export error:', err);
+      toast.error('Failed to export vault: ' + err.message, { id: toastId });
+    }
+  };
+
+  const handleExportTally = async () => {
+    if (!restaurant?.id) return;
+    const toastId = toast.loading('Generating Tally XML from billed sales...');
+    try {
+      const q = query(
+        collection(db, 'restaurants', restaurant.id, 'orders'),
+        where('status', 'in', ['billed', 'completed']),
+        limit(500)
+      );
+      const snap = await getDocs(q);
+      const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (!orders.length) {
+        toast('No billed orders found to export', { icon: 'ℹ️', id: toastId });
+        return;
+      }
+      const fname = `tally_sales_${(restaurant.name || 'restaurant').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xml`;
+      downloadTallyXML(orders, restaurant, fname);
+      toast.success(`Exported ${orders.length} settled orders to TallyPrime XML!`, { id: toastId });
+    } catch (err) {
+      console.error('Tally export error:', err);
+      toast.error('Failed to export Tally XML: ' + err.message, { id: toastId });
+    }
+  };
 
   const [showPrinterForm, setShowPrinterForm] = useState(false);
   const [activePrinterIndex, setActivePrinterIndex] = useState(-1);
@@ -1068,94 +1247,244 @@ export default function Settings() {
 
           {/* Modules & Features Tab */}
           {activeTab === 'features' && (
-            <div className="card card-padded">
-              <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Active Modules &amp; POS Capabilities</h3>
-              <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                Toggle system modules to fit your restaurant format. Changes reflect instantly on your POS sidebar.
-              </p>
-              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
-                {[
-                  {
-                    title: '⚡ Core Operations & Billing',
-                    desc: 'Essential modules for managing service stations, kitchen orders, and cashier registers.',
-                    keys: ['pos', 'table', 'token', 'kds']
-                  },
-                  {
-                    title: '🌐 Sales Channels & Ordering',
-                    desc: 'Expand ordering across digital storefronts, table bookings, and food aggregators.',
-                    keys: ['online', 'delivery_hub', 'reservations']
-                  },
-                  {
-                    title: '💼 Back Office & Growth',
-                    desc: 'Inventory control, staff shift wages, and guest loyalty retention.',
-                    keys: ['inventory', 'payroll', 'customers']
-                  }
-                ].map(group => (
-                  <div key={group.title} style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-                    <div style={{ borderBottom:'1px solid var(--color-separator)', paddingBottom:'var(--space-2)' }}>
-                      <h4 style={{ fontWeight:'var(--weight-bold)', fontSize:'var(--text-subhead)', color:'var(--color-label-primary)' }}>{group.title}</h4>
-                      <p className="text-secondary text-caption1" style={{ marginTop:2 }}>{group.desc}</p>
+            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '22px' }}>🧩</span>
+                    <h3 className="text-title3" style={{ margin: 0 }}>Active Modules &amp; POS Capabilities</h3>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 'var(--weight-bold)',
+                      background: 'var(--color-accent-light)',
+                      color: 'var(--color-accent)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}>
+                      {(settings.modes ?? []).length} / {MODES.length} Modules Active
+                    </span>
+                  </div>
+                  <p className="text-secondary text-footnote" style={{ marginTop: '4px' }}>
+                    Toggle system modules to tailor DineOS to your exact format. Changes reflect instantly on your POS sidebar and cashier terminal.
+                  </p>
+                </div>
+              </div>
+
+              {/* ⚡ Quick Format Presets Bar */}
+              <div style={{
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-separator)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-3) var(--space-4)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-2)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                  <span style={{ fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', color: 'var(--color-label-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Sparkles size={14} color="var(--color-accent)" /> 1-Tap Setup by Restaurant Format:
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                    Auto-selects optimal modules for your venue type
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                  {MODULE_PRESETS.map(preset => {
+                    const activeCount = preset.modes.filter(k => (settings.modes ?? []).includes(k)).length;
+                    const isFullyActive = activeCount === preset.modes.length;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={`btn btn-sm ${isFullyActive ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{
+                          fontSize: '12px',
+                          padding: '5px 10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        title={preset.desc}
+                        onClick={() => {
+                          const newModes = Array.from(new Set([...preset.modes]));
+                          updateField('modes', newModes);
+                          if (newModes.includes('kds')) {
+                            updateField('kitchenConfig.mode', settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both'));
+                          }
+                          toast.success(`Applied ${preset.name} modules preset!`, { icon: preset.emoji });
+                        }}
+                      >
+                        <span>{preset.emoji}</span>
+                        <span>{preset.name}</span>
+                        {isFullyActive && <Check size={13} style={{ marginLeft: 2 }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* The 6 Modular Pillars */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                {MODULE_PILLARS.map(pillar => (
+                  <div key={pillar.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {/* Pillar Title & Badge */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderBottom: '1px solid var(--color-separator)',
+                      paddingBottom: 'var(--space-2)',
+                      flexWrap: 'wrap',
+                      gap: 8
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h4 style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label-primary)', margin: 0 }}>
+                            {pillar.title}
+                          </h4>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: 'var(--color-bg-secondary)',
+                            border: '1px solid var(--color-separator)',
+                            color: 'var(--color-label-secondary)'
+                          }}>
+                            {pillar.badge}
+                          </span>
+                        </div>
+                        <p className="text-secondary text-caption1" style={{ marginTop: 2, margin: 0 }}>
+                          {pillar.desc}
+                        </p>
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--color-label-tertiary)' }}>
+                        {pillar.keys.filter(k => (settings.modes ?? []).includes(k)).length} / {pillar.keys.length} active
+                      </div>
                     </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'var(--space-3)' }}>
-                      {group.keys.map(key => {
+
+                    {/* Cards Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 'var(--space-3)' }}>
+                      {pillar.keys.map(key => {
                         const m = MODES.find(x => x.key === key);
                         if (!m) return null;
                         const active = (settings.modes ?? []).includes(m.key);
                         return (
-                          <label key={m.key} style={{
-                            display:'flex', alignItems:'flex-start', gap:'var(--space-3)',
-                            padding:'var(--space-3) var(--space-4)',
-                            border:`1.5px solid ${active ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                            borderRadius:'var(--radius-md)',
-                            background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                            cursor:'pointer',
-                            transition:'all var(--duration-fast)',
-                          }}>
-                            <input
-                              type="checkbox"
-                              id={`mode-${m.key}`}
-                              checked={active}
-                              style={{ marginTop: 3 }}
-                              onChange={e => {
-                                const modes = settings.modes ?? [];
-                                const checked = e.target.checked;
-                                updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
-                                if (m.key === 'kds') {
-                                  updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
-                                }
-                              }}
-                            />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight:'var(--weight-semibold)', fontSize:'var(--text-footnote)', color:'var(--color-label-primary)' }}>{m.label}</div>
-                              <div style={{ fontSize:'var(--text-caption2)', color:'var(--color-label-secondary)', marginTop:2, lineHeight:1.3 }}>{m.desc}</div>
-                              {m.key === 'kds' && (
+                          <div
+                            key={m.key}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              padding: 'var(--space-3) var(--space-4)',
+                              border: `1.5px solid ${active ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                              borderRadius: 'var(--radius-md)',
+                              background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
+                              transition: 'all var(--duration-fast)',
+                              minHeight: '105px'
+                            }}
+                          >
+                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', cursor: 'pointer', margin: 0 }}>
+                              <input
+                                type="checkbox"
+                                id={`mode-${m.key}`}
+                                checked={active}
+                                style={{ marginTop: 3 }}
+                                onChange={e => {
+                                  const modes = settings.modes ?? [];
+                                  const checked = e.target.checked;
+                                  updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
+                                  if (m.key === 'kds') {
+                                    updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                                  }
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-primary)' }}>
+                                  {m.label}
+                                </div>
+                                <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.35 }}>
+                                  {m.desc}
+                                </div>
+                              </div>
+                            </label>
+
+                            {/* Actions / Deep links */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                              {m.isAction === 'vault' && (
                                 <button
                                   type="button"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('kitchen'); }}
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={(e) => { e.preventDefault(); handleExportDataVault(); }}
+                                  style={{ fontSize: '11px', padding: '3px 8px', height: '26px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Download size={12} /> Download JSON Vault
+                                </button>
+                              )}
+
+                              {m.isAction === 'tally' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={(e) => { e.preventDefault(); handleExportTally(); }}
+                                  style={{ fontSize: '11px', padding: '3px 8px', height: '26px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <FileSpreadsheet size={12} /> Export Tally XML
+                                </button>
+                              )}
+
+                              {m.tab && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab(m.tab); }}
                                   style={{
                                     background: 'none',
                                     border: 'none',
-                                    padding: 0,
-                                    marginTop: 4,
+                                    padding: '2px 4px',
                                     fontSize: '11px',
                                     color: 'var(--color-accent)',
                                     fontWeight: 'var(--weight-bold)',
                                     cursor: 'pointer',
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: 4
+                                    gap: 3
                                   }}
                                 >
-                                  ⚙️ Configure Display / Stations →
+                                  ⚙️ Configure {m.tabName || 'Tab'} →
                                 </button>
                               )}
                             </div>
-                          </label>
+                          </div>
                         );
                       })}
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* 🛡️ Sovereign Data Trust Banner (PetPooja Antidote) */}
+              <div style={{
+                marginTop: 'var(--space-3)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 'var(--space-3)'
+              }}>
+                <ShieldCheck size={22} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 700, color: 'var(--color-label-primary)' }}>
+                    100% Data Sovereignty &amp; Owner Protection Guarantee
+                  </div>
+                  <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.4 }}>
+                    Your sales metrics, customer phone numbers, recipe margins, and inventory data belong strictly to your business. DineOS runs with isolated tenant boundaries and zero third-party telemetry, data resale, or uncoordinated tax surrender.
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -35,7 +35,7 @@ const ADMIN_NAV = [
   { key: 'customers',   path: '/admin/customers',    icon: HeartHandshake,   label: 'customers', requiredMode: 'customers' },
   { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
   { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions' },
-  { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters' },
+  { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters', requiredMode: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];

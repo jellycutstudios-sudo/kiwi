@@ -7,7 +7,7 @@ export const BUSINESS_PRESETS = [
     emoji: '☕',
     tagline: 'Coffee shops, bakeries, juice bars & dessert parlors',
     desc: 'Counter ordering, coffee customizations, fast takeaway & customer loyalty.',
-    recommendedModes: ['pos', 'token', 'customers', 'inventory'],
+    recommendedModes: ['pos', 'token', 'barcode', 'posters', 'inventory', 'customers', 'till_shift', 'retention_crm'],
     recommendedShiftMode: 'global',
     terminology: {
       catalog: 'Menu',
@@ -21,7 +21,7 @@ export const BUSINESS_PRESETS = [
     },
     features: {
       enableQuickPay: true,
-      enableBarcode: false,
+      enableBarcode: true,
       enableTableMap: false,
       enableKds: false,
       enableSpeedDial: true,
@@ -33,7 +33,7 @@ export const BUSINESS_PRESETS = [
     emoji: '🍔',
     tagline: 'Food trucks, pop-up stalls, street food & quick-service',
     desc: 'Ultra-fast counter queues, token display issuance, 1-tap cash & digital receipts.',
-    recommendedModes: ['pos', 'token'],
+    recommendedModes: ['pos', 'token', 'kds', 'online', 'posters', 'till_shift', 'retention_crm'],
     recommendedShiftMode: 'global',
     terminology: {
       catalog: 'Menu',
@@ -49,7 +49,7 @@ export const BUSINESS_PRESETS = [
       enableQuickPay: true,
       enableBarcode: false,
       enableTableMap: false,
-      enableKds: false,
+      enableKds: true,
       enableSpeedDial: true,
     }
   },
@@ -59,7 +59,7 @@ export const BUSINESS_PRESETS = [
     emoji: '🍽️',
     tagline: 'Dine-in bistros, fine dining, family restaurants & bars',
     desc: 'Floor plan table maps, kitchen display (KDS), service charges & reservations.',
-    recommendedModes: ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers'],
+    recommendedModes: ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile'],
     recommendedShiftMode: 'staff',
     terminology: {
       catalog: 'Menu',
@@ -85,7 +85,7 @@ export const BUSINESS_PRESETS = [
     emoji: '🛍️',
     tagline: 'Boutiques, convenience stores, mini-marts & gift shops',
     desc: 'Barcode scanning, stock level indicators, SKU catalog & unit-based pricing.',
-    recommendedModes: ['pos', 'inventory', 'customers'],
+    recommendedModes: ['pos', 'barcode', 'inventory', 'customers', 'till_shift', 'customer_privacy'],
     recommendedShiftMode: 'global',
     terminology: {
       catalog: 'Products',
@@ -111,7 +111,7 @@ export const BUSINESS_PRESETS = [
     emoji: '💇',
     tagline: 'Hair salons, barbershops, wellness spas & repair studios',
     desc: 'Staff attribution per service, customer treatment notes, tipping & payroll.',
-    recommendedModes: ['pos', 'customers', 'payroll'],
+    recommendedModes: ['pos', 'customers', 'payroll', 'till_shift'],
     recommendedShiftMode: 'staff',
     terminology: {
       catalog: 'Services',
@@ -161,7 +161,7 @@ export function useBusinessConfig() {
     isService,
     isRestaurant,
     enableQuickPay: restaurant?.quickPayEnabled ?? preset.features.enableQuickPay,
-    enableBarcode: isRetail || Boolean(restaurant?.barcodeEnabled),
+    enableBarcode: isRetail || Boolean(restaurant?.barcodeEnabled) || Boolean(restaurant?.modes?.includes('barcode')),
     enableSpeedDial: restaurant?.speedDialEnabled ?? preset.features.enableSpeedDial,
   };
 }

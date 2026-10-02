@@ -17,18 +17,65 @@ let subscribedOrdersRestId = null;
 let ordersSubCount = 0;
 const localCancelledOrderIds = new Set();
 
+const CART_STORAGE_KEY = 'dineos_active_cart';
+
+const loadPersistedCart = () => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const savePersistedCart = (state) => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    if (!state.items || state.items.length === 0) {
+      localStorage.removeItem(CART_STORAGE_KEY);
+      return;
+    }
+    const cartSnapshot = {
+      items: state.items,
+      orderType: state.orderType,
+      tableId: state.tableId,
+      tableName: state.tableName,
+      tokenNumber: state.tokenNumber,
+      customerName: state.customerName,
+      customerPhone: state.customerPhone,
+      note: state.note,
+      discount: state.discount,
+      discountType: state.discountType,
+      tipAmount: state.tipAmount,
+      editingOrderId: state.editingOrderId
+    };
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartSnapshot));
+  } catch {}
+};
+
+const clearPersistedCart = () => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY);
+  } catch {}
+};
+
+const initialCart = loadPersistedCart();
+
 export const useOrderStore = create((set, get) => ({
   // Cart
-  items: [],
-  orderType: 'dine-in',   // 'dine-in' | 'takeaway' | 'online'
-  tableId: null,
-  tableName: null,
-  tokenNumber: null,
-  customerName: '',
-  customerPhone: '',
-  note: '',
+  items: initialCart?.items || [],
+  orderType: initialCart?.orderType || 'dine-in',   // 'dine-in' | 'takeaway' | 'online'
+  tableId: initialCart?.tableId || null,
+  tableName: initialCart?.tableName || null,
+  tokenNumber: initialCart?.tokenNumber || null,
+  customerName: initialCart?.customerName || '',
+  customerPhone: initialCart?.customerPhone || '',
+  note: initialCart?.note || '',
   customer: null,
   redeemingPoints: false,
+  editingOrderId: initialCart?.editingOrderId || null,
 
   // Active orders list (realtime)
   activeOrders: [],
@@ -139,6 +186,7 @@ export const useOrderStore = create((set, get) => ({
   }),
 
   clearCart: () => {
+    clearPersistedCart();
     set({
       items: [], tokenNumber: null, tableId: null, tableName: null,
       customerName: '', customerPhone: '', note: '', editingOrderId: null,
@@ -1003,3 +1051,9 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 }));
+
+// Automatically persist active cart changes for crash & reload resilience
+useOrderStore.subscribe((state) => {
+  savePersistedCart(state);
+});
+
