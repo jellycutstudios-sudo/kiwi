@@ -10,6 +10,7 @@ import QRCode from 'qrcode';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import toast from 'react-hot-toast';
+import './PosterManager.css';
 
 const SAMPLE_POSTERS = [
   {
@@ -49,6 +50,7 @@ export default function PosterManager() {
   } = usePosterStore();
 
   const [selectedSlideshowId, setSelectedSlideshowId] = useState('');
+  const [mobileTab, setMobileTab] = useState('content'); // 'content' | 'settings'
   const [isCreatingScreen, setIsCreatingScreen] = useState(false);
   const [newScreenName, setNewScreenName] = useState('');
   const [newScreenOrientation, setNewScreenOrientation] = useState('landscape');
@@ -160,7 +162,7 @@ export default function PosterManager() {
   const handleUrlInput = (rawVal) => {
     let clean = rawVal.trim();
     // 1. Extract markdown image: ![...](URL)
-    const mdMatch = clean.match(/!\[.*?\]\((https?:\/\/[^\s\)]+)\)/);
+    const mdMatch = clean.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/);
     if (mdMatch) clean = mdMatch[1];
     
     // 2. Extract HTML img tag: <img src="URL"...>
@@ -168,7 +170,7 @@ export default function PosterManager() {
     if (htmlMatch) clean = htmlMatch[1];
 
     // 3. Extract BBCode [img]URL[/img]
-    const bbMatch = clean.match(/\[img\](https?:\/\/[^\[]+)\[\/img\]/i);
+    const bbMatch = clean.match(/\[img\](https?:\/\/[^[]+)\[\/img\]/i);
     if (bbMatch) clean = bbMatch[1];
 
     setPastedUrl(clean);
@@ -643,24 +645,23 @@ export default function PosterManager() {
   const screenName = activeScreenDoc?.name || 'Screen';
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: '1280px', margin: '0 auto' }}>
+    <div className="pm-container">
       
       {/* ── Top Header ───────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+      <div className="pm-header">
         <div>
-          <h2 className="text-title2" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', color: '#0f172a', fontWeight: 800 }}>
-            <Tv size={28} style={{ color: '#059669' }} /> TV Digital Poster Boards
-          </h2>
-          <p style={{ margin: 0, fontSize: '13px', color: '#475569', fontWeight: 500 }}>
+          <h2 className="pm-title"><Tv size={26} style={{ color: 'var(--color-accent)' }} /> TV Digital Poster Boards</h2>
+            
+          <p className="pm-subtitle">
             Display menus, special offers, and animated announcements across 1 or multiple TV screens in your restaurant.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <div className="pm-header-actions">
           <button 
             type="button" 
             className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
+            className="pm-btn pm-btn-secondary"
             onClick={handleOpenQrModal}
           >
             <QrCode size={16} /> Smart TV Pairing & QR
@@ -672,14 +673,14 @@ export default function PosterManager() {
                 type="text" 
                 placeholder="Screen name (e.g. Bar TV)" 
                 className="form-input"
-                style={{ width: '180px', height: '40px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+                style={{ width: '180px', height: '40px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
                 value={newScreenName}
                 onChange={e => setNewScreenName(e.target.value)}
                 autoFocus
               />
               <select 
                 className="form-select"
-                style={{ width: '140px', height: '40px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+                style={{ width: '140px', height: '40px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
                 value={newScreenOrientation}
                 onChange={e => setNewScreenOrientation(e.target.value)}
               >
@@ -690,7 +691,7 @@ export default function PosterManager() {
               <button 
                 type="button" 
                 className="btn btn-secondary" 
-                style={{ height: '40px', border: '1.5px solid #cbd5e1', color: '#475569', fontWeight: 700 }} 
+                style={{ height: '40px', border: '1.5px solid var(--color-separator)', color: 'var(--color-label-secondary)', fontWeight: 700 }} 
                 onClick={() => { setIsCreatingScreen(false); setNewScreenName(''); }}
               >
                 Cancel
@@ -699,7 +700,7 @@ export default function PosterManager() {
           ) : (
             <button 
               className="btn btn-primary" 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', background: '#0f172a', color: '#ffffff', fontWeight: 800 }}
+              className="pm-btn pm-btn-primary"
               onClick={() => setIsCreatingScreen(true)}
             >
               <Plus size={16} /> Add TV Screen
@@ -709,16 +710,16 @@ export default function PosterManager() {
       </div>
 
       {/* ── TV Screen Management Strip ───────────────────────────── */}
-      <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)', background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      <div className="pm-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Connected TV Channels ({slideshows.length})
           </span>
           {slideshows.length > 1 && (
             <button 
               type="button"
               className="btn btn-secondary"
-              style={{ height: '30px', fontSize: '12px', padding: '0 12px', display: 'flex', alignItems: 'center', gap: '6px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
+              className="pm-btn pm-btn-secondary" style={{ height: '32px', fontSize: '12px', padding: '0 12px' }}
               onClick={() => setIsCloneModalOpen(true)}
             >
               <Copy size={13} /> Clone Playlist to Another TV
@@ -727,9 +728,9 @@ export default function PosterManager() {
         </div>
 
         {/* Screen Cards Strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="pm-channels-scroll">
           {loadingSlideshows ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', color: '#475569', fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
               <Loader2 size={18} className="animate-spin text-secondary" /> Loading TV Screens...
             </div>
           ) : (
@@ -740,18 +741,7 @@ export default function PosterManager() {
                 <div 
                   key={s.id}
                   onClick={() => handleSelectScreen(s.id)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: 'var(--space-3)',
-                    borderRadius: '12px',
-                    border: isSelected ? '2px solid #059669' : '1.5px solid #cbd5e1',
-                    background: isSelected ? '#f0fdf4' : '#ffffff',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 4px 14px rgba(5, 150, 105, 0.15)' : '0 1px 3px rgba(0,0,0,0.03)'
-                  }}
+                  className={`pm-channel-card ${isSelected ? 'active' : ''}`}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -759,8 +749,8 @@ export default function PosterManager() {
                         width: '34px',
                         height: '34px',
                         borderRadius: '8px',
-                        background: isSelected ? '#059669' : '#f1f5f9',
-                        color: isSelected ? '#ffffff' : '#334155',
+                        background: isSelected ? 'var(--color-accent)' : 'var(--color-fill)',
+                        color: isSelected ? '#ffffff' : 'var(--color-label)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -769,10 +759,10 @@ export default function PosterManager() {
                         <Tv size={18} />
                       </div>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: '14px', color: isSelected ? '#065f46' : '#0f172a' }}>
+                        <div style={{ fontWeight: 800, fontSize: '14px', color: isSelected ? 'var(--color-accent)' : 'var(--color-label)' }}>
                           {s.name}
                         </div>
-                        <div style={{ fontSize: '11.5px', color: isSelected ? '#047857' : '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ fontSize: '11.5px', color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>{isPortrait ? '📱 9:16 Portrait' : '📺 16:9 Landscape'}</span>
                         </div>
                       </div>
@@ -785,7 +775,7 @@ export default function PosterManager() {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: isSelected ? '1px solid #bbf7d0' : '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-separator)', paddingTop: '8px', marginTop: '4px' }}>
                     <span style={{ fontSize: '11px', color: isSelected ? '#047857' : '#475569', fontWeight: 600 }}>
                       {s.transition || 'kenburns'}
                     </span>
@@ -793,7 +783,7 @@ export default function PosterManager() {
                       <button
                         type="button"
                         className="btn btn-secondary btn-icon"
-                        style={{ width: '28px', height: '28px', padding: 0, border: '1px solid #cbd5e1', color: '#334155', background: '#ffffff' }}
+                        className="pm-btn pm-btn-secondary pm-btn-icon" style={{ width: '28px', height: '28px' }}
                         title="Copy TV Link"
                         onClick={(e) => { e.stopPropagation(); copyDisplayUrl(s.id); }}
                       >
@@ -803,8 +793,7 @@ export default function PosterManager() {
                         href={`/display/slides/${restaurant?.id}/${s.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-secondary btn-icon"
-                        style={{ width: '26px', height: '26px', padding: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        className="pm-btn pm-btn-secondary pm-btn-icon" style={{ width: '28px', height: '28px', textDecoration: 'none' }}
                         title="Open Live TV Display"
                         onClick={e => e.stopPropagation()}
                       >
@@ -821,25 +810,44 @@ export default function PosterManager() {
 
       {/* ── Two Column Main Layout ─────────────────────────────────── */}
       {effectiveScreenId && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 'var(--space-6)', alignItems: 'start' }}>
+        <>
+          {/* Mobile View Switcher (<1024px) */}
+          <div className="pm-mobile-view-tabs">
+            <button 
+              type="button" 
+              className={`pm-mobile-view-tab ${mobileTab === 'content' ? 'active' : ''}`}
+              onClick={() => setMobileTab('content')}
+            >
+              🎬 Posters & Playlist ({posters.length})
+            </button>
+            <button 
+              type="button" 
+              className={`pm-mobile-view-tab ${mobileTab === 'settings' ? 'active' : ''}`}
+              onClick={() => setMobileTab('settings')}
+            >
+              ⚙️ TV Settings ({activeScreenDoc?.name || 'Screen'})
+            </button>
+          </div>
+
+          <div className="pm-main-grid">
           
           {/* Left Column: Multi-File Upload & Playlist */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          <div className={`pm-col-playlist ${mobileTab !== 'content' ? 'mobile-hidden' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             
             {/* ── Add Posters Card (Streamlined URL-First with Live Preview) ── */}
-            <div className="card card-padded" style={{ borderRadius: '16px', border: '1.5px solid #cbd5e1', background: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div className="pm-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                  <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--color-label)' }}>
                     <Plus size={18} style={{ color: '#059669' }} /> Add Poster Slide
                   </h3>
-                  <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#475569', fontWeight: 500 }}>
+                  <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--color-label-secondary)', fontWeight: 500 }}>
                     Use free Postimages links or direct device upload with instant TV preview.
                   </p>
                 </div>
 
                 {/* Method Switcher: Postimages / Web Link & Device File Upload */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', border: '1.5px solid #cbd5e1', padding: '3px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-bg-secondary)', border: '1.5px solid var(--color-separator)', padding: '3px', borderRadius: '10px' }}>
                   <button 
                     type="button" 
                     className="btn"
@@ -889,23 +897,12 @@ export default function PosterManager() {
               </div>
 
               {/* High-Contrast Target TV Switcher */}
-              <div style={{
-                background: '#f8fafc',
-                border: '1.5px solid #cbd5e1',
-                borderRadius: '12px',
-                padding: '10px 14px',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '10px'
-              }}>
+              <div className="pm-target-strip">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-label)' }}>
                     Display on:
                   </span>
-                  <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '3px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                  <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-tertiary)', padding: '3px', borderRadius: '8px', border: '1px solid var(--color-separator)' }}>
                     <button
                       type="button"
                       onClick={() => { setBroadcastToAll(false); setShowCustomTargetScreens(false); }}
@@ -972,7 +969,7 @@ export default function PosterManager() {
 
               {/* Custom TV screen checkboxes (collapsed by default) */}
               {showCustomTargetScreens && !broadcastToAll && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px 14px 14px', marginTop: '-8px', marginBottom: '14px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px 14px 14px', marginTop: '-8px', marginBottom: '14px', background: '#f8fafc', border: '1.5px solid var(--color-separator)', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
                   {slideshows.map(s => {
                     const isChecked = targetScreenIds.includes(s.id);
                     return (
@@ -1048,10 +1045,10 @@ export default function PosterManager() {
                         <Upload size={26} />
                       </div>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: '15px', color: '#0f172a' }}>
+                        <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-label)' }}>
                           Click to select poster images from your device
                         </div>
-                        <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '3px' }}>
+                        <div style={{ fontSize: '12.5px', color: 'var(--color-label-secondary)', marginTop: '3px' }}>
                           or drag & drop files here • JPG, PNG, WEBP (automatically optimized for 1080p TV)
                         </div>
                       </div>
@@ -1066,7 +1063,7 @@ export default function PosterManager() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--color-label)' }}>
                           Selected Images ({selectedFiles.length})
                         </span>
                         <button
@@ -1074,12 +1071,12 @@ export default function PosterManager() {
                           onClick={() => fileInputRef.current?.click()}
                           style={{
                             background: '#f1f5f9',
-                            border: '1.5px solid #cbd5e1',
+                            border: '1.5px solid var(--color-separator)',
                             borderRadius: '6px',
                             padding: '4px 10px',
                             fontSize: '11.5px',
                             fontWeight: 700,
-                            color: '#0f172a',
+                            color: 'var(--color-label)',
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1104,8 +1101,8 @@ export default function PosterManager() {
                                 gap: '10px',
                                 padding: '8px 10px',
                                 borderRadius: '10px',
-                                border: '1.5px solid #cbd5e1',
-                                background: '#ffffff',
+                                border: '1.5px solid var(--color-separator)',
+                                background: 'var(--color-bg-tertiary)',
                                 position: 'relative'
                               }}
                             >
@@ -1115,7 +1112,7 @@ export default function PosterManager() {
                                 style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', background: '#0f172a', flexShrink: 0 }} 
                               />
                               <div style={{ minWidth: 0, flex: 1 }}>
-                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {file.name}
                                 </div>
                                 <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
@@ -1146,7 +1143,7 @@ export default function PosterManager() {
 
                       {/* Duration Setting */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)' }}>
                           Display Duration per Slide:
                         </label>
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '90px' }}>
@@ -1155,11 +1152,11 @@ export default function PosterManager() {
                             min="1" 
                             max="300" 
                             className="form-input"
-                            style={{ height: '36px', fontSize: '13px', fontWeight: 700, borderRadius: '8px', paddingRight: '22px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+                            style={{ height: '36px', fontSize: '13px', fontWeight: 700, borderRadius: '8px', paddingRight: '22px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)' }}
                             value={uploadDuration}
                             onChange={e => setUploadDuration(e.target.value)}
                           />
-                          <span style={{ position: 'absolute', right: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', pointerEvents: 'none' }}>
+                          <span style={{ position: 'absolute', right: '8px', fontSize: '12px', fontWeight: 800, color: 'var(--color-label-secondary)', pointerEvents: 'none' }}>
                             s
                           </span>
                         </div>
@@ -1169,8 +1166,8 @@ export default function PosterManager() {
 
                   {/* Upload Progress Bar if active */}
                   {uploadProgress && (
-                    <div style={{ marginTop: '8px', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                    <div style={{ marginTop: '8px', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1.5px solid var(--color-separator)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: 'var(--color-label)', marginBottom: '6px' }}>
                         <span>Uploading {uploadProgress.fileName}... ({uploadProgress.current}/{uploadProgress.total})</span>
                         <span>{uploadProgress.percent}%</span>
                       </div>
@@ -1218,18 +1215,8 @@ export default function PosterManager() {
               {uploadMethod === 'url' && (
                 <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {/* Postimages Free Service Helper Card */}
-                  <div style={{
-                    background: '#f0fdf4',
-                    border: '1.5px solid #86efac',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '12px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '240px', flex: 1 }}>
+                  <div className="pm-postimages-box">
+                    <div className="pm-postimages-content">
                       <div style={{
                         width: '38px',
                         height: '38px',
@@ -1245,14 +1232,14 @@ export default function PosterManager() {
                       }}>
                         P
                       </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Upload Free on Postimages (postimages.org)
-                          <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px', border: '1px solid #86efac', fontWeight: 700 }}>
+                      <div className="pm-postimages-text">
+                        <div className="pm-postimages-title-row">
+                          <span>Upload Free on Postimages</span>
+                          <span className="pm-postimages-badge">
                             100% Free • No Account
                           </span>
                         </div>
-                        <div style={{ fontSize: '12px', color: '#047857', marginTop: '2px', lineHeight: 1.4 }}>
+                        <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px', lineHeight: 1.4 }}>
                           Upload your image → Copy the <strong>"Direct link"</strong> (starts with <code>https://i.postimg.cc/...</code>) → Paste below!
                         </div>
                       </div>
@@ -1261,22 +1248,13 @@ export default function PosterManager() {
                       href="https://postimages.org"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn"
+                      className="pm-btn pm-btn-primary"
                       style={{
-                        height: '34px',
+                        height: '36px',
                         padding: '0 14px',
                         fontSize: '12px',
-                        fontWeight: 800,
-                        background: '#059669',
-                        color: '#ffffff',
-                        borderRadius: '8px',
                         textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 4px rgba(5,150,105,0.2)'
+                        flexShrink: 0
                       }}
                     >
                       <span>Open Postimages.org</span>
@@ -1285,9 +1263,9 @@ export default function PosterManager() {
                   </div>
 
                   {/* Inputs Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 140px 100px', gap: '10px' }}>
+                  <div className="pm-form-inputs-grid">
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
                         Image Link (URL) *
                       </label>
                       <div style={{ position: 'relative' }}>
@@ -1301,9 +1279,9 @@ export default function PosterManager() {
                             fontSize: '13px',
                             fontWeight: 600,
                             borderRadius: '10px',
-                            border: previewStatus === 'valid' ? '2px solid #059669' : previewStatus === 'error' ? '2px solid #dc2626' : '1.5px solid #cbd5e1',
-                            background: '#ffffff',
-                            color: '#0f172a'
+                            border: previewStatus === 'valid' ? '2px solid #059669' : previewStatus === 'error' ? '2px solid #dc2626' : '1.5px solid var(--color-separator)',
+                            background: 'var(--color-bg-tertiary)',
+                            color: 'var(--color-label)'
                           }}
                           value={pastedUrl}
                           onChange={e => handleUrlInput(e.target.value)}
@@ -1333,21 +1311,21 @@ export default function PosterManager() {
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
                         Title (Optional)
                       </label>
                       <input 
                         type="text" 
                         placeholder="e.g. Combo Deal" 
                         className="form-input"
-                        style={{ height: '42px', fontSize: '13px', fontWeight: 600, borderRadius: '10px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+                        style={{ height: '42px', fontSize: '13px', fontWeight: 600, borderRadius: '10px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)' }}
                         value={pastedTitle}
                         onChange={e => setPastedTitle(e.target.value)}
                       />
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'block' }}>
                         Duration
                       </label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -1356,11 +1334,11 @@ export default function PosterManager() {
                           min="1" 
                           max="300" 
                           className="form-input"
-                          style={{ height: '42px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', paddingRight: '24px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+                          style={{ height: '42px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', paddingRight: '24px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)' }}
                           value={uploadDuration}
                           onChange={e => setUploadDuration(e.target.value)}
                         />
-                        <span style={{ position: 'absolute', right: '10px', fontSize: '12px', fontWeight: 800, color: '#475569', pointerEvents: 'none' }}>
+                        <span style={{ position: 'absolute', right: '10px', fontSize: '12px', fontWeight: 800, color: 'var(--color-label-secondary)', pointerEvents: 'none' }}>
                           s
                         </span>
                       </div>
@@ -1395,7 +1373,7 @@ export default function PosterManager() {
 
                   {/* Quick Sample Presets */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Quick Presets:
                     </span>
                     {SAMPLE_POSTERS.map((sample, idx) => (
@@ -1502,24 +1480,12 @@ export default function PosterManager() {
                   )}
 
                   {/* Submit Action for URL */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                  <div className="pm-submit-btn-row">
                     <button 
                       type="submit" 
-                      className="btn btn-primary"
+                      className="pm-btn pm-btn-primary"
                       disabled={isUploading || !pastedUrl.trim() || previewStatus === 'error' || previewStatus === 'loading'}
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        height: '42px',
-                        padding: '0 24px',
-                        fontSize: '13px',
-                        fontWeight: 800,
-                        borderRadius: '10px',
-                        background: '#059669',
-                        boxShadow: '0 2px 8px rgba(5,150,105,0.35)',
-                        border: 'none',
-                        color: '#ffffff',
                         cursor: isUploading || !pastedUrl.trim() || previewStatus === 'error' ? 'not-allowed' : 'pointer',
                         opacity: isUploading || !pastedUrl.trim() || previewStatus === 'error' ? 0.6 : 1
                       }}
@@ -1533,20 +1499,20 @@ export default function PosterManager() {
             </div>
 
             {/* ── Slideshow Playlist Card ─────────────────────────────── */}
-            <div className="card card-padded" style={{ borderRadius: '16px', border: '1.5px solid #cbd5e1', background: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div className="pm-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h3 className="text-title3" style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                  <h3 className="text-title3" style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--color-label)' }}>
                     Playlist for "{screenName}"
                   </h3>
-                  <p style={{ marginTop: '2px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>
+                  <p style={{ marginTop: '2px', fontSize: '12px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
                     {posters.length} slide{posters.length !== 1 ? 's' : ''} total • {totalDuration}s loop cycle
                   </p>
                 </div>
 
                 {/* Bulk Actions Bar if items selected */}
                 {selectedPosterIds.length > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '4px 10px', borderRadius: '8px', border: '1.5px solid #cbd5e1', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg-secondary)', padding: '4px 10px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#065f46' }}>
                       {selectedPosterIds.length} selected
                     </span>
@@ -1554,7 +1520,7 @@ export default function PosterManager() {
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 700 }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', border: '1px solid #cbd5e1', color: 'var(--color-label)', fontWeight: 700 }}
                       title="Broadcast selected to all TV screens"
                       onClick={handleBulkBroadcastToAll}
                     >
@@ -1567,14 +1533,14 @@ export default function PosterManager() {
                         min="1" 
                         max="300" 
                         placeholder="Sec"
-                        style={{ width: '48px', height: '28px', fontSize: '11px', padding: '0 4px', border: '1.5px solid #cbd5e1', borderRadius: '4px', background: '#ffffff', color: '#0f172a', fontWeight: 700 }}
+                        style={{ width: '48px', height: '28px', fontSize: '11px', padding: '0 4px', border: '1.5px solid var(--color-separator)', borderRadius: '4px', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 700 }}
                         value={bulkDurationInput}
                         onChange={e => setBulkDurationInput(e.target.value)}
                       />
                       <button 
                         type="button" 
                         className="btn btn-secondary"
-                        style={{ height: '28px', fontSize: '11px', padding: '0 6px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 700 }}
+                        style={{ height: '28px', fontSize: '11px', padding: '0 6px', border: '1px solid #cbd5e1', color: 'var(--color-label)', fontWeight: 700 }}
                         onClick={handleBulkSetDuration}
                       >
                         Set Duration
@@ -1584,7 +1550,7 @@ export default function PosterManager() {
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 700 }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 8px', border: '1px solid #cbd5e1', color: 'var(--color-label)', fontWeight: 700 }}
                       onClick={() => handleBulkToggleActive(true)}
                     >
                       Activate
@@ -1604,7 +1570,7 @@ export default function PosterManager() {
                     <button 
                       type="button" 
                       className="btn btn-secondary"
-                      style={{ height: '32px', fontSize: '12px', padding: '0 12px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
+                      className="pm-btn pm-btn-secondary" style={{ height: '32px', fontSize: '12px', padding: '0 12px' }}
                       onClick={handleSelectAllPosters}
                     >
                       Select All
@@ -1618,10 +1584,10 @@ export default function PosterManager() {
                   <Loader2 size={32} className="animate-spin text-secondary" />
                 </div>
               ) : posters.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: '#475569' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--color-label-secondary)' }}>
                   <Tv size={48} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
-                  <p style={{ fontWeight: 700, color: '#0f172a' }}>No posters uploaded yet for "{screenName}".</p>
-                  <p style={{ fontSize: '13px', marginTop: '4px', color: '#475569' }}>Upload 1 or multiple posters above to start your TV slideshow.</p>
+                  <p style={{ fontWeight: 700, color: 'var(--color-label)' }}>No posters uploaded yet for "{screenName}".</p>
+                  <p style={{ fontSize: '13px', marginTop: '4px', color: 'var(--color-label-secondary)' }}>Upload 1 or multiple posters above to start your TV slideshow.</p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -1630,150 +1596,140 @@ export default function PosterManager() {
                     return (
                       <div 
                         key={poster.id} 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 'var(--space-3)', 
-                          padding: 'var(--space-3)', 
-                          border: isSelected ? '2px solid #059669' : '1.5px solid #cbd5e1', 
-                          borderRadius: '12px',
-                          background: isSelected ? '#f0fdf4' : (poster.isActive ? '#ffffff' : '#f8fafc'),
-                          opacity: poster.isActive ? 1 : 0.75,
-                          transition: 'border-color 0.15s ease',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                        className={`pm-playlist-row ${isSelected ? 'selected' : ''}`}
+                        style={{
+                          opacity: poster.isActive ? 1 : 0.75
                         }}
                       >
-                        {/* Checkbox for bulk actions */}
-                        <input 
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelectPoster(poster.id)}
-                          style={{ accentColor: '#059669', width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-
-                        {/* Order index badge */}
-                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', width: '22px', textAlign: 'center' }}>
-                          #{index + 1}
-                        </span>
-
-                        {/* Thumbnail with click to preview */}
-                        <div 
-                          onClick={() => setPreviewPoster(poster)}
-                          title="Click to view full size"
-                          style={{ 
-                            width: '84px', 
-                            height: '48px', 
-                            borderRadius: '6px', 
-                            overflow: 'hidden', 
-                            background: '#0f172a', 
-                            flexShrink: 0,
-                            cursor: 'zoom-in',
-                            position: 'relative'
-                          }}
-                        >
-                          <img 
-                            src={poster.imageUrl} 
-                            alt={poster.title} 
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              if (e.currentTarget.nextElementSibling) {
-                                e.currentTarget.nextElementSibling.style.display = 'flex';
-                              }
-                            }}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        {/* Top Tier: Selection + Thumbnail + Title + Visibility Toggle */}
+                        <div className="pm-playlist-row-top">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectPoster(poster.id)}
+                            style={{ accentColor: 'var(--color-accent)', width: '18px', height: '18px', cursor: 'pointer', flexShrink: 0 }}
                           />
-                          <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', background: '#1e293b', color: '#94a3b8', fontSize: '9px', gap: '2px', flexDirection: 'column' }}>
-                            <Tv size={14} />
-                            <span>Preview</span>
+
+                          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-label-secondary)', width: '20px', textAlign: 'center', flexShrink: 0 }}>
+                            #{index + 1}
+                          </span>
+
+                          <div 
+                            onClick={() => setPreviewPoster(poster)}
+                            title="Click to view full size"
+                            style={{ position: 'relative', flexShrink: 0 }}
+                          >
+                            <img 
+                              src={poster.imageUrl} 
+                              alt={poster.title} 
+                              className="pm-playlist-thumb"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                                }
+                              }}
+                            />
+                            <div style={{ display: 'none', width: '64px', height: '42px', borderRadius: '6px', alignItems: 'center', justifyContent: 'center', background: '#1e293b', color: '#94a3b8', fontSize: '9px', gap: '2px', flexDirection: 'column' }}>
+                              <Tv size={14} />
+                              <span>Preview</span>
+                            </div>
                           </div>
+
+                          <div className="pm-playlist-info">
+                            <div className="pm-playlist-title" title={poster.title}>
+                              {poster.title}
+                            </div>
+                          </div>
+
+                          {/* Toggle Active Button in top row */}
+                          <button 
+                            type="button"
+                            className="pm-btn pm-btn-secondary pm-btn-icon"
+                            style={{ 
+                              width: '32px', 
+                              height: '32px', 
+                              borderRadius: '8px', 
+                              background: poster.isActive ? 'rgba(16, 185, 129, 0.15)' : 'var(--color-fill)',
+                              borderColor: poster.isActive ? 'var(--color-accent)' : 'var(--color-separator)'
+                            }}
+                            title={poster.isActive ? 'Deactivate' : 'Activate'}
+                            onClick={() => handleTogglePosterActive(poster)}
+                          >
+                            {poster.isActive ? <Eye size={14} color="var(--color-accent)" /> : <EyeOff size={14} />}
+                          </button>
                         </div>
 
-                        {/* Poster Details */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {poster.title}
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', flexWrap: 'wrap' }}>
-                            {/* Duration input */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600 }}>Duration:</span>
+                        {/* Bottom Tier: Duration + Assign to TVs + Up/Down/Delete */}
+                        <div className="pm-playlist-row-bottom">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>Duration:</span>
                               <input 
                                 type="number" 
                                 min="1" 
                                 max="300"
-                                style={{ width: '48px', height: '24px', padding: '0 6px', fontSize: '12px', border: '1.5px solid #cbd5e1', borderRadius: '5px', background: '#ffffff', color: '#0f172a', fontWeight: 700 }}
+                                style={{ width: '46px', height: '28px', padding: '0 6px', fontSize: '12px', border: '1.5px solid var(--color-separator)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-label)', fontWeight: 700 }}
                                 value={poster.duration || defaultDuration}
                                 onChange={e => handleUpdatePosterDuration(poster.id, e.target.value)}
                               />
-                              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600 }}>s</span>
+                              <span style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>s</span>
                             </div>
 
-                            {/* Assign to TVs button / pill */}
                             <button
                               type="button"
                               onClick={() => handleOpenAssignModal(poster)}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '4px',
-                                background: '#eff6ff',
-                                border: '1px solid #bfdbfe',
+                                gap: '5px',
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
                                 borderRadius: '12px',
-                                padding: '3px 10px',
+                                padding: '4px 10px',
                                 fontSize: '11px',
                                 fontWeight: 700,
-                                color: '#1d4ed8',
+                                color: '#60a5fa',
                                 cursor: 'pointer'
                               }}
-                              title="Click to assign or share this poster across other TV screens"
+                              title="Assign or share this poster across other TV screens"
                             >
-                              <Tv size={11} />
+                              <Tv size={12} />
                               <span>Assign to TVs...</span>
                             </button>
                           </div>
-                        </div>
 
-                        {/* Controls */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                          {/* Toggle Active */}
-                          <button 
-                            className={`btn btn-icon ${poster.isActive ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ width: '30px', height: '30px', borderRadius: '50%', padding: 0, background: poster.isActive ? '#0f172a' : '#ffffff', color: poster.isActive ? '#ffffff' : '#475569', border: '1px solid #cbd5e1' }}
-                            title={poster.isActive ? 'Deactivate' : 'Activate'}
-                            onClick={() => handleTogglePosterActive(poster)}
-                          >
-                            {poster.isActive ? <Eye size={13} /> : <EyeOff size={13} />}
-                          </button>
-
-                          {/* Reorder Buttons */}
-                          <button 
-                            className="btn btn-secondary btn-icon"
-                            style={{ width: '30px', height: '30px', padding: 0, border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155' }}
-                            disabled={index === 0}
-                            onClick={() => handleMovePoster(index, -1)}
-                          >
-                            <ArrowUp size={13} />
-                          </button>
-                          <button 
-                            className="btn btn-secondary btn-icon"
-                            style={{ width: '30px', height: '30px', padding: 0, border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155' }}
-                            disabled={index === posters.length - 1}
-                            onClick={() => handleMovePoster(index, 1)}
-                          >
-                            <ArrowDown size={13} />
-                          </button>
-
-                          {/* Delete */}
-                          <button 
-                            className="btn btn-secondary btn-icon"
-                            style={{ width: '30px', height: '30px', padding: 0, color: '#dc2626', border: '1px solid #fca5a5', background: '#ffffff' }}
-                            onClick={() => handleDeletePoster(poster)}
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          <div className="pm-playlist-actions">
+                            <button 
+                              type="button"
+                              className="pm-btn pm-btn-secondary pm-btn-icon"
+                              style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                              disabled={index === 0}
+                              onClick={() => handleMovePoster(index, -1)}
+                              title="Move Up"
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button 
+                              type="button"
+                              className="pm-btn pm-btn-secondary pm-btn-icon"
+                              style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                              disabled={index === posters.length - 1}
+                              onClick={() => handleMovePoster(index, 1)}
+                              title="Move Down"
+                            >
+                              <ArrowDown size={13} />
+                            </button>
+                            <button 
+                              type="button"
+                              className="pm-btn pm-btn-danger pm-btn-icon"
+                              style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                              onClick={() => handleDeletePoster(poster)}
+                              title="Delete poster"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1784,7 +1740,7 @@ export default function PosterManager() {
           </div>
 
           {/* ── Right Column: Granular Screen Settings & Live Controls ─── */}
-          <div>
+          <div className={`pm-col-settings ${mobileTab !== 'settings' ? 'mobile-hidden' : ''}`}>
             <ScreenSettingsPanel 
               key={effectiveScreenId}
               screen={activeScreenDoc}
@@ -1796,6 +1752,7 @@ export default function PosterManager() {
           </div>
 
         </div>
+        </>
       )}
 
       {/* ── Modal: Assign Poster to TV Screens ─────────────────────── */}
@@ -1849,7 +1806,7 @@ export default function PosterManager() {
               </div>
             </div>
 
-            <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--color-label-secondary)', marginBottom: '12px' }}>
               Select which TV screen channels should display this poster. Changes will sync immediately without re-uploading the image.
             </p>
 
@@ -1887,7 +1844,7 @@ export default function PosterManager() {
                           style={{ accentColor: '#059669', width: '16px', height: '16px' }}
                         />
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{s.name}</div>
+                          <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-label)' }}>{s.name}</div>
                           <div style={{ fontSize: '11.5px', color: isChecked ? '#047857' : '#475569', fontWeight: 600 }}>
                             {s.orientation === 'portrait' ? '📱 9:16 Portrait' : '📺 16:9 Landscape'}
                           </div>
@@ -2140,10 +2097,10 @@ function ScreenSettingsPanel({
   }));
 
   return (
-    <div className="card card-padded" style={{ position: 'sticky', top: 'var(--space-6)', borderRadius: '16px', border: '1.5px solid #cbd5e1', background: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+    <div className="pm-card" style={{ position: 'sticky', top: 'var(--space-6)' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-        <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+        <h3 className="text-title3" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--color-label)' }}>
           <Settings size={18} /> TV Settings
         </h3>
         <span style={{ fontSize: '11px', fontWeight: 800, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '10px' }}>
@@ -2152,7 +2109,7 @@ function ScreenSettingsPanel({
       </div>
 
       {/* Settings Sub-Tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#e2e8f0', padding: '4px', borderRadius: '10px', border: '1px solid #cbd5e1', marginBottom: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: 'var(--color-bg-secondary)', padding: '4px', borderRadius: '10px', border: '1px solid var(--color-separator)', marginBottom: 'var(--space-4)' }}>
         {[
           { id: 'display', label: 'Layout' },
           { id: 'motion',  label: 'Motion' },
@@ -2185,21 +2142,21 @@ function ScreenSettingsPanel({
       {settingsTab === 'display' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Screen Channel Name</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Screen Channel Name</label>
             <input 
               type="text" 
               className="form-input"
-              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
               value={slideshowSettings.name}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, name: e.target.value })}
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Orientation & Aspect Ratio</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Orientation & Aspect Ratio</label>
             <select 
               className="form-select"
-              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
               value={slideshowSettings.orientation}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, orientation: e.target.value })}
             >
@@ -2209,10 +2166,10 @@ function ScreenSettingsPanel({
           </div>
 
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Poster Image Fit Mode</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Poster Image Fit Mode</label>
             <select 
               className="form-select"
-              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
               value={slideshowSettings.fitMode}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, fitMode: e.target.value })}
             >
@@ -2222,15 +2179,15 @@ function ScreenSettingsPanel({
           </div>
 
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Screen Background Color</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Screen Background Color</label>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <input 
                 type="color" 
                 value={slideshowSettings.backgroundColor || '#000000'}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, backgroundColor: e.target.value })}
-                style={{ width: '40px', height: '40px', border: '1.5px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', padding: 0 }}
+                style={{ width: '40px', height: '40px', border: '1.5px solid var(--color-separator)', borderRadius: '8px', cursor: 'pointer', padding: 0 }}
               />
-              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#0f172a', fontWeight: 700 }}>
+              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: 'var(--color-label)', fontWeight: 700 }}>
                 {slideshowSettings.backgroundColor || '#000000'}
               </span>
             </div>
@@ -2242,10 +2199,10 @@ function ScreenSettingsPanel({
       {settingsTab === 'motion' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Transition Animation</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Transition Animation</label>
             <select 
               className="form-select"
-              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
               value={slideshowSettings.transition}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, transition: e.target.value })}
             >
@@ -2259,7 +2216,7 @@ function ScreenSettingsPanel({
 
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Transition Speed</label>
+              <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Transition Speed</label>
               <span style={{ fontSize: '12px', fontWeight: 800, color: '#065f46' }}>
                 {slideshowSettings.transitionSpeed}s
               </span>
@@ -2273,27 +2230,27 @@ function ScreenSettingsPanel({
               onChange={e => setSlideshowSettings({ ...slideshowSettings, transitionSpeed: parseFloat(e.target.value) })}
               style={{ width: '100%', accentColor: '#059669' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
               <span>Fast (0.4s)</span>
               <span>Cinematic (3.0s)</span>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Default Slide Duration (seconds)</label>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-label)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Default Slide Duration (seconds)</label>
             <input 
               type="number" 
               min="1" 
               max="300" 
               className="form-input"
-              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 700 }}
+              style={{ height: '40px', fontSize: '13px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 700 }}
               value={slideshowSettings.defaultDuration}
               onChange={e => setSlideshowSettings({ ...slideshowSettings, defaultDuration: e.target.value })}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#0f172a', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', cursor: 'pointer' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.shuffle}
@@ -2303,7 +2260,7 @@ function ScreenSettingsPanel({
               <span>Shuffle / Randomize slide order</span>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#0f172a', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', cursor: 'pointer' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.showProgressBar}
@@ -2320,7 +2277,7 @@ function ScreenSettingsPanel({
       {settingsTab === 'overlays' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {/* Live Clock */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--color-label)', cursor: 'pointer' }}>
             <input 
               type="checkbox" 
               checked={slideshowSettings.showClock}
@@ -2331,7 +2288,7 @@ function ScreenSettingsPanel({
           </label>
 
           {/* DineOS Branding */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--color-label)', cursor: 'pointer' }}>
             <input 
               type="checkbox" 
               checked={slideshowSettings.showBranding}
@@ -2343,7 +2300,7 @@ function ScreenSettingsPanel({
 
           {/* Announcement Ticker */}
           <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer', marginBottom: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--color-label)', cursor: 'pointer', marginBottom: '8px' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.showTicker}
@@ -2358,7 +2315,7 @@ function ScreenSettingsPanel({
                 className="form-input"
                 rows="2"
                 placeholder="e.g. 🎉 Happy Hour 4-7 PM: 20% off all beverages • Ask your server for chef dessert specials!"
-                style={{ fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 500 }}
+                style={{ fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 500 }}
                 value={slideshowSettings.tickerText}
                 onChange={e => setSlideshowSettings({ ...slideshowSettings, tickerText: e.target.value })}
               />
@@ -2367,7 +2324,7 @@ function ScreenSettingsPanel({
 
           {/* Guest Wi-Fi */}
           <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a', cursor: 'pointer', marginBottom: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--color-label)', cursor: 'pointer', marginBottom: '8px' }}>
               <input 
                 type="checkbox" 
                 checked={slideshowSettings.wifiInfo?.show}
@@ -2386,7 +2343,7 @@ function ScreenSettingsPanel({
                   type="text" 
                   placeholder="Wi-Fi SSID (Name)" 
                   className="form-input"
-                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
                   value={slideshowSettings.wifiInfo?.ssid || ''}
                   onChange={e => setSlideshowSettings({
                     ...slideshowSettings,
@@ -2397,7 +2354,7 @@ function ScreenSettingsPanel({
                   type="text" 
                   placeholder="Password" 
                   className="form-input"
-                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontWeight: 600 }}
+                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', border: '1.5px solid var(--color-separator)', background: 'var(--color-bg-tertiary)', color: 'var(--color-label)', fontWeight: 600 }}
                   value={slideshowSettings.wifiInfo?.password || ''}
                   onChange={e => setSlideshowSettings({
                     ...slideshowSettings,
@@ -2413,7 +2370,7 @@ function ScreenSettingsPanel({
       {/* ── Tab 4: Live Remote Actions ───────────────────────── */}
       {settingsTab === 'remote' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <p style={{ fontSize: '12.5px', color: '#475569', margin: 0, fontWeight: 500 }}>
+          <p style={{ fontSize: '12.5px', color: 'var(--color-label-secondary)', margin: 0, fontWeight: 500 }}>
             Control physical TVs located in your dining area remotely without touching the TV remote.
           </p>
 
@@ -2431,7 +2388,7 @@ function ScreenSettingsPanel({
             type="button" 
             className="btn btn-secondary"
             disabled={sendingRemoteCmd}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', border: '1.5px solid var(--color-separator)', color: 'var(--color-label)', fontWeight: 700, background: 'var(--color-bg-tertiary)' }}
             onClick={() => onSendRemoteCommand('reload', slideshowSettings.name)}
           >
             <RefreshCw size={16} /> Force TV Remote Reload
@@ -2442,7 +2399,7 @@ function ScreenSettingsPanel({
             target="_blank" 
             rel="noopener noreferrer" 
             className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', textDecoration: 'none', border: '1.5px solid #cbd5e1', color: '#0f172a', fontWeight: 700, background: '#ffffff' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '40px', textDecoration: 'none', border: '1.5px solid var(--color-separator)', color: 'var(--color-label)', fontWeight: 700, background: 'var(--color-bg-tertiary)' }}
           >
             <ExternalLink size={16} /> Open TV Screen in New Tab
           </a>

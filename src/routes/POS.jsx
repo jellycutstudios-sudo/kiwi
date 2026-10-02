@@ -203,38 +203,24 @@ export default function POS() {
   );
   const { issueToken } = useTokenStore();
   useWakeLock(true);
-  const { categories, loading: loadingMenu, search, setSearch } = useMenuStore(
+  const { categories, loading: loadingMenu, search, setSearch, menuDensity, setMenuDensity, isFocusMode, setIsFocusMode } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
       loading: state.loading,
       search: state.search,
-      setSearch: state.setSearch
+      setSearch: state.setSearch,
+      menuDensity: state.menuDensity,
+      setMenuDensity: state.setMenuDensity,
+      isFocusMode: state.isFocusMode,
+      setIsFocusMode: state.setIsFocusMode
     }))
   );
 
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
   const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'non-veg' | 'bestseller'
-  const [menuDensity, setMenuDensity] = useState(() => localStorage.getItem('kiwi_pos_density') || 'visual');
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
   const [dismissedUpsell, setDismissedUpsell] = useState(false);
-  const [isFocusMode, setIsFocusMode] = useState(() => localStorage.getItem('kiwi_pos_focus') === 'true');
-
-  useEffect(() => {
-    localStorage.setItem('kiwi_pos_density', menuDensity);
-  }, [menuDensity]);
-
-  useEffect(() => {
-    localStorage.setItem('kiwi_pos_focus', isFocusMode);
-    if (isFocusMode) {
-      document.body.classList.add('pos-focus-mode');
-    } else {
-      document.body.classList.remove('pos-focus-mode');
-    }
-    return () => {
-      document.body.classList.remove('pos-focus-mode');
-    };
-  }, [isFocusMode]);
 
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
@@ -1198,8 +1184,48 @@ export default function POS() {
       <div className="pos-menu-panel">
 
 
-        {/* Category Touch Tabs */}
-        <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
+        {/* ── Unified Category & Dietary Filter Bar (Row 2) ─────────── */}
+        <div className="pos-category-bar" role="tablist" aria-label="Menu Categories and Filters">
+          {/* Dietary Quick Filters */}
+          <div className="pos-dietary-strip" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'veg'}
+              className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+              title="Filter Pure Veg items"
+            >
+              <span className="food-badge-veg" />
+              <span>Pure Veg</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'non-veg'}
+              className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+              title="Filter Non-Veg items"
+            >
+              <span className="food-badge-nonveg" />
+              <span>Non-Veg</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dietaryFilter === 'bestseller'}
+              className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+              onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+              title="Filter Bestsellers"
+            >
+              <Sparkles size={13} color="#f59e0b" />
+              <span>Bestsellers</span>
+            </button>
+          </div>
+
+          <div className="pos-bar-divider" />
+
+          {/* Category Chips */}
           <button
             id="cat-all"
             role="tab"
@@ -1235,83 +1261,6 @@ export default function POS() {
           >
             <span>✨</span> + Custom Item
           </button>
-        </div>
-
-        {/* Dietary Quick Filter Bar + View Density & Focus Controls */}
-        <div className="menu-dietary-bar" role="toolbar" aria-label="Dietary and view filters">
-          {/* Scrollable touch filter chips */}
-          <div className="menu-dietary-chips" role="tablist" aria-label="Dietary filters">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'all'}
-              className={`dietary-chip dietary-chip--all ${dietaryFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter('all')}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'veg'}
-              className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
-            >
-              <span className="food-badge-veg" /> Pure Veg
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'non-veg'}
-              className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
-            >
-              <span className="food-badge-nonveg" /> Non-Veg
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'bestseller'}
-              className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-            >
-              <Sparkles size={13} color="#f59e0b" /> Bestsellers
-            </button>
-          </div>
-
-          {/* Sticky right: density toggle + focus */}
-          <div className="menu-dietary-controls">
-            <div className="density-toggle" role="group" aria-label="Menu density">
-              <button
-                type="button"
-                onClick={() => setMenuDensity('visual')}
-                title="Visual Cards with photos"
-                className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
-              >
-                <LayoutGrid size={13} />
-                <span className="density-label">Cards</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMenuDensity('dense')}
-                title="Fast QSR Touch Keys"
-                className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
-              >
-                ⚡
-                <span className="density-label">Fast Keys</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs density-expand-btn"
-              onClick={() => setIsFocusMode(!isFocusMode)}
-              title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
-              aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
-            >
-              {isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-            </button>
-          </div>
         </div>
 
         {/* Menu grid */}
@@ -1511,6 +1460,16 @@ export default function POS() {
 
       {/* ── Cart Panel ─────────────────────────────── */}
       <div className={`pos-cart-panel ${mobileCartOpen ? 'open' : ''}`}>
+        {/* Mobile Pull-to-Dismiss Grab Handle */}
+        <div 
+          className="cart-mobile-grab-handle mobile-only" 
+          onClick={() => setMobileCartOpen(false)}
+          title="Tap to close cart"
+          aria-label="Close cart"
+        >
+          <div className="cart-mobile-grab-bar" />
+        </div>
+
         {/* Cart Header */}
         <div className="cart-header">
           <div className="cart-title-wrap">
@@ -1522,7 +1481,7 @@ export default function POS() {
           </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <button 
-              className="btn btn-secondary btn-sm" 
+              className="btn btn-secondary btn-sm desktop-only" 
               onClick={() => setShowTillModal(true)} 
               id="till-drawer-btn"
               disabled={!activeShift}
@@ -1751,7 +1710,7 @@ export default function POS() {
                 const courseItems = items.filter(i => (i.course ?? 'Mains') === courseName);
                 if (courseItems.length === 0) return null;
                 return (
-                  <div key={courseName}>
+                  <div key={courseName} className="cart-course-section">
                     {/* Course Header */}
                     <div className="cart-course-header">
                       <span className="cart-course-pill">
@@ -1777,6 +1736,7 @@ export default function POS() {
                     </div>
 
                     {/* Course Items */}
+                    <div className="cart-course-cards">
                     {courseItems.map(i => (
                       <div key={i.id} className="cart-item-card">
                         {/* Row 1: Name + Price */}
@@ -1800,33 +1760,9 @@ export default function POS() {
                           </div>
                         )}
 
-                        {/* Row 2: Tactile Stepper + Status + Course + Remove */}
+                        {/* Row 2: Status + Course | → Stepper + Far-Right Delete */}
                         <div className="cart-item-card-bottom">
-                          {/* Tactile Stepper */}
-                          <div className="cart-stepper">
-                            <button 
-                              type="button"
-                              className="cart-stepper-btn" 
-                              onClick={() => handleCartDecrement(i)}
-                              title="Decrease quantity"
-                            >
-                              <Minus size={11} strokeWidth={2.5} />
-                            </button>
-                            <span className="cart-stepper-count">{i.qty}</span>
-                            <button 
-                              type="button"
-                              className="cart-stepper-btn" 
-                              onClick={() => {
-                                hapticTap('light');
-                                updateQty(i.id, i.qty + 1);
-                              }}
-                              title="Increase quantity"
-                            >
-                              <Plus size={11} strokeWidth={2.5} />
-                            </button>
-                          </div>
-
-                          {/* Status Badge (Fired vs Hold) */}
+                          {/* Status Badge */}
                           <button
                             type="button"
                             className={`cart-status-badge ${i.prepState === 'hold' ? 'hold' : 'fired'}`}
@@ -1840,17 +1776,62 @@ export default function POS() {
                             )}
                           </button>
 
-                          {/* Custom Course Picker Popover (Eliminates ugly OS select bubble) */}
+                          {/* Course Picker */}
                           <CartCoursePicker
                             currentCourse={i.course}
                             onSelectCourse={(course) => useOrderStore.getState().setItemCourse(i.id, course)}
                           />
 
-                          {/* Remove Button */}
-                          <button 
+                          {/* Spacer pushes stepper and delete to far right */}
+                          <span style={{ flex: 1 }} />
+
+                          {/* Tactile Stepper */}
+                          <div className="cart-stepper">
+                            <button
+                              type="button"
+                              className="cart-stepper-btn"
+                              onClick={() => handleCartDecrement(i)}
+                              title="Decrease quantity"
+                            >
+                              <Minus size={11} strokeWidth={2.5} />
+                            </button>
+                            <span 
+                              className="cart-stepper-count"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const val = window.prompt(`Set quantity for "${i.name}":`, i.qty);
+                                if (val !== null) {
+                                  const parsed = parseInt(val.trim(), 10);
+                                  if (!isNaN(parsed) && parsed > 0) {
+                                    hapticTap('medium');
+                                    updateQty(i.id, parsed);
+                                  } else if (parsed === 0) {
+                                    handleCartRemove(i);
+                                  }
+                                }
+                              }}
+                              title="Tap to set quantity directly"
+                            >
+                              {i.qty}
+                            </span>
+                            <button
+                              type="button"
+                              className="cart-stepper-btn"
+                              onClick={() => {
+                                hapticTap('light');
+                                updateQty(i.id, i.qty + 1);
+                              }}
+                              title="Increase quantity"
+                            >
+                              <Plus size={11} strokeWidth={2.5} />
+                            </button>
+                          </div>
+
+                          {/* Touch-Friendly Far Right Delete Button */}
+                          <button
                             type="button"
                             className="cart-item-card-remove"
-                            onClick={() => handleCartRemove(i)} 
+                            onClick={() => handleCartRemove(i)}
                             title="Remove item"
                           >
                             <X size={14} />
@@ -1858,6 +1839,7 @@ export default function POS() {
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
                 );
               });

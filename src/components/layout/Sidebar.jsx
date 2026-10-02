@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
@@ -67,6 +67,35 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       setAdminExpanded(true);
     }
   }, [isCurrentRouteAdmin]);
+
+  const sidebarRef = useRef(null);
+
+  // Close on Escape key or clicking outside when mobile sidebar is open
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setMobileOpen(false);
+      }
+    };
+    const handleClickOutside = (e) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
+        const burgerBtn = document.getElementById('burger-menu-btn');
+        if (burgerBtn && burgerBtn.contains(e.target)) return;
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [mobileOpen, setMobileOpen]);
 
   // Prevent background scrolling when mobile drawer is open
   useEffect(() => {
@@ -144,7 +173,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   });
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+    <aside ref={sidebarRef} className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Header */}
       <div 
         className="sidebar-header" 

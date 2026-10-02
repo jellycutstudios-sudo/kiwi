@@ -1,0 +1,627 @@
+/* ============================================================
+   PosterManager.css — Mobile-First & Dark-Theme Native
+   ============================================================ */
+
+.pm-container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 10px 48px;
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+@media (min-width: 768px) {
+  .pm-container {
+    padding: 24px 20px 60px;
+  }
+}
+
+/* ── Top Header ────────────────────────────────────────────── */
+.pm-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .pm-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+}
+
+.pm-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-label);
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 768px) {
+  .pm-title {
+    font-size: 24px;
+  }
+}
+
+.pm-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-label-secondary);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.pm-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .pm-header-actions {
+    width: auto;
+  }
+}
+
+/* ── Standard Card Surface ─────────────────────────────────── */
+.pm-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  margin-bottom: 16px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .pm-card {
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+}
+
+/* ── Channels Strip (Horizontal Snap on Mobile, Grid on Desktop) */
+.pm-channels-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+@media (min-width: 768px) {
+  .pm-channels-scroll {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+}
+
+.pm-channel-card {
+  flex: 0 0 240px;
+  scroll-snap-align: start;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-separator);
+  background: var(--color-bg-tertiary);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+@media (min-width: 768px) {
+  .pm-channel-card {
+    flex: unset;
+  }
+}
+
+.pm-channel-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.pm-channel-card.active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+/* ── Mobile View Tabs (<1024px) ────────────────────────────── */
+.pm-mobile-view-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 1024px) {
+  .pm-mobile-view-tabs {
+    display: none;
+  }
+}
+
+.pm-mobile-view-tab {
+  flex: 1;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 750;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--color-label-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.pm-mobile-view-tab.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Main Two Column Layout ────────────────────────────────── */
+.pm-main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .pm-main-grid {
+    grid-template-columns: minmax(0, 1fr) 370px;
+    gap: 24px;
+  }
+}
+
+/* Responsive columns handling on mobile tabs */
+@media (max-width: 1023px) {
+  .pm-col-playlist.mobile-hidden,
+  .pm-col-settings.mobile-hidden {
+    display: none !important;
+  }
+}
+
+/* ── Form Controls & Labels ────────────────────────────────── */
+.pm-form-group {
+  margin-bottom: 12px;
+}
+
+.pm-form-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-label-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.pm-input,
+.pm-select,
+.pm-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-separator);
+  background: var(--color-bg-tertiary);
+  color: var(--color-label);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pm-input:focus,
+.pm-select:focus,
+.pm-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.pm-textarea {
+  height: auto;
+  padding: 10px 12px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+/* ── Target TV Strip ───────────────────────────────────────── */
+.pm-target-strip {
+  background: var(--color-bg-secondary);
+  border: 1.5px solid var(--color-separator);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .pm-target-strip {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+  }
+}
+
+/* ── Postimages Helper Box ─────────────────────────────────── */
+.pm-postimages-box {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1.5px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .pm-postimages-box {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px;
+  }
+}
+
+.pm-postimages-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pm-postimages-text {
+  min-width: 0;
+  flex: 1;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.pm-postimages-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-label);
+}
+
+.pm-postimages-badge {
+  font-size: 10px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Form Responsive Input Grid ────────────────────────────── */
+.pm-form-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .pm-form-inputs-grid {
+    grid-template-columns: minmax(0, 1fr) 150px 100px;
+  }
+}
+
+.pm-submit-btn-row {
+  display: flex;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.pm-submit-btn-row button {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .pm-submit-btn-row {
+    justify-content: flex-end;
+  }
+  .pm-submit-btn-row button {
+    width: auto;
+  }
+}
+
+/* ── Drag & Drop Box ───────────────────────────────────────── */
+.pm-dropzone {
+  border: 2px dashed rgba(16, 185, 129, 0.5);
+  border-radius: 12px;
+  padding: 28px 16px;
+  background: rgba(16, 185, 129, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.pm-dropzone:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--color-accent);
+}
+
+/* ── Playlist Card Item (Mobile First Responsive) ─────────── */
+.pm-playlist-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-separator);
+  background: var(--color-bg-tertiary);
+  margin-bottom: 8px;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .pm-playlist-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+}
+
+.pm-playlist-row:hover {
+  border-color: var(--color-label-tertiary);
+}
+
+.pm-playlist-row.selected {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--color-accent);
+}
+
+.pm-playlist-row-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pm-playlist-thumb {
+  width: 64px;
+  height: 42px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #000000;
+  flex-shrink: 0;
+  cursor: zoom-in;
+  border: 1px solid var(--color-separator);
+}
+
+@media (min-width: 768px) {
+  .pm-playlist-thumb {
+    width: 80px;
+    height: 48px;
+  }
+}
+
+.pm-playlist-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.pm-playlist-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pm-playlist-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-separator);
+}
+
+@media (min-width: 768px) {
+  .pm-playlist-row-bottom {
+    border-top: none;
+    padding-top: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+}
+
+.pm-playlist-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.pm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.pm-btn:active {
+  transform: scale(0.97);
+}
+
+.pm-btn-primary {
+  background: var(--color-accent);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.pm-btn-primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.pm-btn-secondary {
+  background: var(--color-fill);
+  color: var(--color-label);
+  border: 1.5px solid var(--color-separator);
+}
+
+.pm-btn-secondary:hover {
+  background: var(--color-fill-secondary);
+  border-color: var(--color-label-tertiary);
+}
+
+.pm-btn-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1.5px solid rgba(239, 68, 68, 0.25);
+}
+
+.pm-btn-danger:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.pm-btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Settings Sub-Tabs ─────────────────────────────────────── */
+.pm-settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  background: var(--color-bg-secondary);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--color-separator);
+  margin-bottom: 16px;
+}
+
+.pm-settings-tab-btn {
+  background: transparent;
+  color: var(--color-label-secondary);
+  border: none;
+  border-radius: 7px;
+  padding: 8px 4px;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.pm-settings-tab-btn.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Modal Overlays ────────────────────────────────────────── */
+.pm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.pm-modal-content {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  border: 1.5px solid var(--color-separator);
+  border-radius: 18px;
+  max-width: 480px;
+  width: 100%;
+  padding: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .pm-modal-content {
+    padding: 24px;
+  }
+}

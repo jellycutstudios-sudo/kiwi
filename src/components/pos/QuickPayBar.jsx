@@ -12,7 +12,12 @@ export default function QuickPayBar({
   const [activeBtn, setActiveBtn] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('dineos_hide_quickpay') === 'true';
+      const saved = localStorage.getItem('dineos_hide_quickpay');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+      // On mobile screens by default, collapse 1-Tap Fast Pay to maximize cart item view space
+      return typeof window !== 'undefined' && window.innerWidth <= 767;
     } catch {
       return false;
     }

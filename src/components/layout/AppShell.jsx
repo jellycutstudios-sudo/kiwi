@@ -7,7 +7,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Globe, Menu, Search, X, Download, Smartphone, RefreshCw } from 'lucide-react';
+import { Bell, Globe, Menu, Search, X, Download, Smartphone, RefreshCw, LayoutGrid, Minimize2, Maximize2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
@@ -50,6 +50,10 @@ export default function AppShell() {
   const subscribeMenu = useMenuStore(s => s.subscribeMenu);
   const search = useMenuStore(s => s.search);
   const setSearch = useMenuStore(s => s.setSearch);
+  const menuDensity = useMenuStore(s => s.menuDensity);
+  const setMenuDensity = useMenuStore(s => s.setMenuDensity);
+  const isFocusMode = useMenuStore(s => s.isFocusMode);
+  const setIsFocusMode = useMenuStore(s => s.setIsFocusMode);
   const subscribeStaff = useStaffStore(s => s.subscribeStaff);
   const subscribeTables = useTableStore(s => s.subscribe);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -112,6 +116,11 @@ export default function AppShell() {
         id: 'sw-update-toast',
         duration: Infinity,
         icon: '🚀',
+        style: {
+          background: 'var(--color-bg-elevated)',
+          color: 'var(--color-label)',
+          border: '1px solid var(--color-separator)',
+        },
       });
     };
     return () => {
@@ -208,7 +217,19 @@ export default function AppShell() {
       {mobileSidebarOpen && (
         <div 
           className="mobile-sidebar-overlay" 
-          onClick={() => setMobileSidebarOpen(false)} 
+          onClick={() => setMobileSidebarOpen(false)}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            setMobileSidebarOpen(false);
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close navigation menu"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              setMobileSidebarOpen(false);
+            }
+          }}
         />
       )}
 
@@ -270,34 +291,90 @@ export default function AppShell() {
             <Menu size={20} />
           </button>
           
-          <h1 className="top-bar-title text-title3" style={isPOS ? { flex: 'none', marginRight: 'var(--space-4)' } : {}}>{pageTitle}</h1>
+          {!isPOS && <h1 className="top-bar-title text-title3">{pageTitle}</h1>}
           
           {isPOS && (
-            <>
-              <div className="desktop-only" style={{ flex: 1, maxWidth: '400px', display: 'flex', alignItems: 'center' }}>
+            <div className="pos-topbar-center" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, justifyContent: 'space-between' }}>
+              {/* Search Bar */}
+              <div className="pos-search-wrapper" style={{ flex: 1, maxWidth: '440px', minWidth: 0, display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
                 <input
                   className="form-input"
-                  placeholder={`🔍 ${t('search')} menu...`}
+                  placeholder="Search menu items, SKU, or barcode..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   id="menu-search-input"
-                  style={{ height: '36px', fontSize: 'var(--text-subhead)', padding: '6px 12px' }}
+                  style={{
+                    height: '36px',
+                    width: '100%',
+                    paddingLeft: '32px',
+                    paddingRight: search ? '28px' : '10px',
+                    fontSize: '13px',
+                    borderRadius: '8px'
+                  }}
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: 6,
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-label-tertiary)',
+                      cursor: 'pointer',
+                      padding: 4,
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title="Clear search"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                className={`btn btn-icon mobile-only ${search ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setIsSearchOpen(true)}
-                title="Search menu"
-                aria-label="Search menu"
-                style={{ height: '36px', width: '36px', marginRight: 'var(--space-2)' }}
-              >
-                <Search size={18} />
-              </button>
-            </>
+
+              {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}
+              <div className="pos-topbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <div className="density-toggle" role="group" aria-label="Menu density">
+                  <button
+                    type="button"
+                    onClick={() => setMenuDensity('visual')}
+                    title="Visual Cards with photos"
+                    className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
+                    style={{ height: '34px' }}
+                  >
+                    <LayoutGrid size={13} />
+                    <span className="density-label">Cards</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMenuDensity('dense')}
+                    title="Fast QSR Touch Keys"
+                    className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
+                    style={{ height: '34px' }}
+                  >
+                    <span>⚡</span>
+                    <span className="density-label">Fast Keys</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-icon density-expand-btn"
+                  onClick={() => setIsFocusMode(!isFocusMode)}
+                  title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
+                  aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
+                  style={{ height: '34px', width: '34px', borderRadius: '8px' }}
+                >
+                  {isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                </button>
+              </div>
+            </div>
           )}
 
-          <div className="top-bar-actions" style={isPOS ? { marginLeft: 'auto' } : {}}>
+          <div className="top-bar-actions" style={isPOS ? { marginLeft: '8px' } : {}}>
             {/* Direct 1-Click Update Button for Devices */}
             {hasUpdate && (
               <button
@@ -385,32 +462,34 @@ export default function AppShell() {
               }}
             />
 
-            {/* Language selector — desktop-only so compact headers don't overflow */}
-            <div className="desktop-only" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <select
-                id="lang-select"
-                value={SUPPORTED_LANGS.some(l => l.code === i18n.language) ? i18n.language : 'en'}
-                onChange={e => i18n.changeLanguage(e.target.value)}
-                aria-label="Select interface language"
-                style={{
-                  height: '32px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text)',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  padding: '0 8px',
-                  cursor: 'pointer'
-                }}
-              >
-                {SUPPORTED_LANGS.map(lang => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.flag} {lang.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Language selector — hidden on POS to keep cashier terminal clean and focused */}
+            {!isPOS && (
+              <div className="desktop-only" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <select
+                  id="lang-select"
+                  value={SUPPORTED_LANGS.some(l => l.code === i18n.language) ? i18n.language : 'en'}
+                  onChange={e => i18n.changeLanguage(e.target.value)}
+                  aria-label="Select interface language"
+                  style={{
+                    height: '32px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface)',
+                    color: 'var(--color-text)',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    padding: '0 8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {SUPPORTED_LANGS.map(lang => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Theme Toggle (Obsidian Dark / Light) */}
             <ThemeToggle />

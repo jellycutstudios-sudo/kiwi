@@ -25,6 +25,32 @@ export const useMenuStore = create((set) => {
     search: '',
     setSearch: (search) => set({ search }),
 
+    menuDensity: typeof localStorage !== 'undefined' ? localStorage.getItem('kiwi_pos_density') || 'visual' : 'visual',
+    setMenuDensity: (menuDensity) => {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem('kiwi_pos_density', menuDensity);
+      } catch {}
+      set({ menuDensity });
+    },
+
+    isFocusMode: typeof localStorage !== 'undefined' ? localStorage.getItem('kiwi_pos_focus') === 'true' : false,
+    setIsFocusMode: (action) => {
+      set((state) => {
+        const nextVal = typeof action === 'function' ? action(state.isFocusMode) : action;
+        try {
+          if (typeof localStorage !== 'undefined') localStorage.setItem('kiwi_pos_focus', String(nextVal));
+        } catch {}
+        if (typeof document !== 'undefined') {
+          if (nextVal) {
+            document.body.classList.add('pos-focus-mode');
+          } else {
+            document.body.classList.remove('pos-focus-mode');
+          }
+        }
+        return { isFocusMode: nextVal };
+      });
+    },
+
     subscribeMenu: (restaurantId) => {
       if (!restaurantId) return () => {};
 
