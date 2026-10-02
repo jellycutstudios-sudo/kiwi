@@ -140,7 +140,7 @@ export default function Login() {
       <div className="login-brand-panel">
         <div className="login-brand-content">
           <div className="login-brand-logo-wrap">
-            <img src="/logorupos.svg" alt="RUPOS" />
+            <img src="/logorupos-light.svg" alt="RUPOS" />
           </div>
           <div className="login-brand-hero">
             <h1 className="login-brand-title">Welcome<br />back.</h1>
