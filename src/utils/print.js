@@ -220,7 +220,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
       writeTextLine(`  ${varRec.map(m => `${m.modifierGroupName}: ${m.name}`).join(' | ')}`);
     }
     if (regRec.length > 0) {
-      writeTextLine(`  + ${regRec.map(m => m.name).join(', ')}`);
+      writeTextLine(`  ${regRec.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}`);
     }
   });
 
@@ -375,7 +375,7 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
       writeBytes(BOLD_OFF);
     }
     if (regularMods.length > 0) {
-      writeTextLine(`  + ${regularMods.map(m => m.name).join(', ')}`); 
+      writeTextLine(`  ${regularMods.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}`); 
     }
   });
   
@@ -792,7 +792,7 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
       ? `<div style="font-size:9px;font-weight:bold;color:#333;padding-left:1mm;margin-top:1px;">${varMods.map(m => `${m.modifierGroupName}: ${m.name}`).join(' · ')}</div>`
       : '';
     const regHtml = regMods.length > 0
-      ? `<div style="font-size:9px;color:#666;padding-left:1mm;">+ ${regMods.map(m => m.name).join(', ')}</div>`
+      ? `<div style="font-size:9px;color:#666;padding-left:1mm;">${regMods.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}</div>`
       : '';
     return `<tr>
       <td>
@@ -924,7 +924,7 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
       <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb;">
         <div style="font-weight: 600; color: #111827;">${i.name}</div>
         ${i.selectedModifiers && i.selectedModifiers.length > 0
-          ? `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</div>`
+          ? `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">${i.selectedModifiers.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}</div>`
           : ''}
       </td>
       <td style="text-align:center; padding: 8px 6px; color: #4b5563; border-bottom: 1px solid #e5e7eb;">${sacCode}</td>
@@ -1158,7 +1158,7 @@ function printKitchenBrowser({ order, items, printerName, paperSize = '80mm', ti
       <td style="font-size: ${is58mm ? '15px' : '18px'}; font-weight: 900; text-align: right; vertical-align: top;">×${i.qty}</td>
     </tr>
     ${i.selectedModifiers && i.selectedModifiers.length > 0
-      ? `<tr><td colspan="2" style="font-size:11px; color:#222; font-weight:bold; padding-left:2mm; padding-bottom: 4px;">+ ${i.selectedModifiers.map(m => m.name).join(', ')}</td></tr>`
+      ? `<tr><td colspan="2" style="font-size:11px; color:#222; font-weight:bold; padding-left:2mm; padding-bottom: 4px;">${i.selectedModifiers.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}</td></tr>`
       : ''}`
   ).join('');
 

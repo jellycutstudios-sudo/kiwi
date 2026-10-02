@@ -567,7 +567,9 @@ export default function KDS() {
                             {rm.length > 0 && (
                               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                 {rm.map((m, i) => (
-                                  <span key={i} style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-label-secondary)', border: '1px solid var(--color-separator-opaque)', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>+ {m.name}</span>
+                                  <span key={i} style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-label-secondary)', border: '1px solid var(--color-separator-opaque)', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                                    {m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`}
+                                  </span>
                                 ))}
                               </div>
                             )}
@@ -843,7 +845,7 @@ export default function KDS() {
                                               ))}
                                             </div>
                                           )}
-                                          {/* Regular modifiers — small chips as before */}
+                                          {/* Regular modifiers — show group name + option so kitchen knows Gravy vs Paste */}
                                           {regularMods.length > 0 && (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                               {regularMods.map((m, mIdx) => (
@@ -851,12 +853,12 @@ export default function KDS() {
                                                   background: 'var(--color-bg-secondary)',
                                                   color: 'var(--color-label-secondary)',
                                                   border: '1px solid var(--color-separator-opaque)',
-                                                  padding: '1px 6px',
+                                                  padding: '2px 7px',
                                                   borderRadius: 4,
                                                   fontSize: 11,
                                                   fontWeight: 700
                                                 }}>
-                                                  + {m.name}
+                                                  {m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`}
                                                 </span>
                                               ))}
                                             </div>
