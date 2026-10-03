@@ -3811,6 +3811,9 @@ html.dark .advisor-btn-icon {
   user-select: none;
   width: 100%;
   animation: fadeIn var(--duration-fast, 0.2s) ease;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .pos-empty-hero {
@@ -4197,6 +4200,34 @@ html.dark .advisor-btn-icon {
   .pos-empty-dispatch {
     padding: 6px 10px;
     gap: 2px;
+  }
+}
+
+/* 3. Ultra-Compact Industrial POS & Landscape Handhelds (height <= 620px) */
+@media (max-height: 620px) {
+  .pos-empty-cart {
+    padding: 6px 8px;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+  .pos-empty-badge,
+  .pos-empty-icon-capsule,
+  .pos-empty-subtitle {
+    display: none;
+  }
+  .pos-empty-title {
+    font-size: 13px;
+  }
+  .pos-action-tile {
+    min-height: 40px;
+    padding: 6px 8px;
+  }
+  .tile-icon-wrap {
+    width: 24px;
+    height: 24px;
+  }
+  .pos-empty-dispatch {
+    padding: 5px 8px;
   }
 }
 
@@ -6656,7 +6687,7 @@ html.dark .advisor-btn-icon {
 
   /* 10. Action buttons: 44px meets accessibility minimum */
   .cart-action-buttons {
-    padding: 4px 10px 10px;
+    padding: 4px 10px max(12px, env(safe-area-inset-bottom, 12px));
     gap: 8px;
   }
   .cart-action-btn-kitchen,
