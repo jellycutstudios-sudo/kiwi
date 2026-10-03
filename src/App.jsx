@@ -97,6 +97,7 @@ export default function App() {
           <Route path="/display/slides/:restaurantId" element={<PosterDisplay />} />
           <Route path="/display/slides/:restaurantId/:slideshowId" element={<PosterDisplay />} />
           <Route path="/order/:restaurantId"          element={<OnlineOrderPage />} />
+          <Route path="/menu/:restaurantId"           element={<OnlineOrderPage />} />
           <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to="/" replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />
           <Route path="/pending-approval"             element={isAuth ? (!isApproved ? <PendingApproval /> : <Navigate to="/" replace />) : <Navigate to="/login" replace />} />
 

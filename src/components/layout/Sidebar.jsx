@@ -10,7 +10,7 @@ import {
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Layers, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
   Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, ClipboardList, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Copy, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
@@ -57,6 +57,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   // Check if current route is in Admin section so it auto-expands
   const isCurrentRouteAdmin = location.pathname.startsWith('/admin');
@@ -244,13 +245,44 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             }}>
               {restaurant.name}
             </div>
-            <div style={{
-              fontSize: '10.5px',
-              color: 'var(--color-label-secondary)',
-              marginTop: '1px'
-            }}>
-              {restaurant.modes?.includes('table') ? 'Dine-In & Tables' : 'Counter POS'}
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const restIdToShow = restaurant.slug || restaurant.id;
+                if (!restIdToShow) return;
+                navigator.clipboard.writeText(restIdToShow);
+                setCopiedId(true);
+                toast.success(`Copied Restaurant ID: ${restIdToShow}`, { id: 'copy-rest-id', icon: '📋' });
+                setTimeout(() => setCopiedId(false), 2000);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '10px',
+                fontWeight: 600,
+                color: 'var(--color-label-secondary)',
+                background: 'var(--color-fill)',
+                border: '1px solid var(--color-separator)',
+                borderRadius: '4px',
+                padding: '1px 5px',
+                marginTop: '2px',
+                cursor: 'pointer',
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.12s ease'
+              }}
+              title="Click to copy Restaurant ID for staff login"
+            >
+              <span style={{ opacity: 0.6, fontSize: '9px' }}>ID:</span>
+              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-label)' }}>
+                {restaurant.slug || restaurant.id}
+              </span>
+              {copiedId ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
+            </button>
           </div>
         </div>
       )}
