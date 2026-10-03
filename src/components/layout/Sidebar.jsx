@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { useUpdateStore } from '../../stores/updateStore';
+import ThemeToggle from '../shared/ThemeToggle';
 
 const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
@@ -526,7 +527,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           </div>
         )}
 
-        {/* Bottom Actions: Guide, Logout, Collapse */}
+        {/* Bottom Actions: Guide, Theme, Logout, Collapse */}
         <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
           {!isCollapsed ? (
             <>
@@ -550,6 +551,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 <BookOpen size={16} />
                 Guide
               </button>
+              <ThemeToggle className="sidebar-theme-toggle" />
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -582,6 +584,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               >
                 <BookOpen size={16} />
               </button>
+              <ThemeToggle />
               <button
                 className="btn btn-secondary btn-icon"
                 onClick={handleSignOut}
