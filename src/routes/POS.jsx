@@ -2018,30 +2018,49 @@ export default function POS() {
               })}
             </div>
 
-            {/* Service Details: Table and Customer/Loyalty */}
-            <div className="cart-service-details" style={{
-              gridTemplateColumns: (orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table'))) ? '1fr 1.2fr' : '1fr'
-            }}>
+            {/* Service Details: Table and Customer/Loyalty (Unified Segmented Card) */}
+            <div className={`cart-service-details ${orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
               {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
-                <button
-                  type="button"
-                  onClick={() => setShowTableSel(true)}
-                  className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
-                  id="select-table-dropdown"
-                  title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
-                >
-                  <span className="cart-table-select-content">
-                    <span className="cart-table-icon">🪑</span>
-                    <span className="cart-table-label">
-                      {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                <div className="cart-service-row cart-service-table-row">
+                  <button
+                    type="button"
+                    onClick={() => setShowTableSel(true)}
+                    className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
+                    id="select-table-dropdown"
+                    title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                  >
+                    <span className="cart-table-select-content">
+                      <span className="cart-table-icon">🪑</span>
+                      <span className="cart-table-label">
+                        {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                      </span>
                     </span>
-                  </span>
-                  <ChevronDown size={11} className="cart-table-chevron" />
-                </button>
+                    <span className="cart-table-chevron-wrap">
+                      {tableId ? (
+                        <span className="cart-table-badge-active">Assigned</span>
+                      ) : (
+                        <span className="cart-table-badge-choose">Floor Map ▾</span>
+                      )}
+                    </span>
+                  </button>
+                  {tableId && (
+                    <button
+                      type="button"
+                      className="cart-table-unassign-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTable(null, null);
+                      }}
+                      title="Clear table assignment"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               )}
 
-              {/* Customer / Loyalty Info column */}
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {/* Customer / Loyalty Info row */}
+              <div className="cart-service-row cart-service-customer-row">
                 {customer ? (
                   <div className="cart-customer-vip-card">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
@@ -2066,19 +2085,19 @@ export default function POS() {
                     </button>
                   </div>
                 ) : showQuickRegister ? (
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: '34px' }}>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px' }}>
                     <input
                       className="form-input"
                       placeholder="Customer name"
                       value={newCustName}
                       onChange={e => setNewCustName(e.target.value)}
-                      style={{ height: 32, fontSize: '11px', padding: '2px 8px', flex: 1 }}
+                      style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1 }}
                     />
                     <button
                       type="button"
                       className="btn btn-success btn-xs"
                       onClick={handleQuickRegister}
-                      style={{ height: 32, padding: '0 8px', fontSize: 11 }}
+                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
                     >
                       ✓
                     </button>
@@ -2086,17 +2105,17 @@ export default function POS() {
                       type="button"
                       className="btn btn-secondary btn-xs"
                       onClick={() => setShowQuickRegister(false)}
-                      style={{ height: 32, padding: '0 8px', fontSize: 11 }}
+                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
                     >
                       ✕
                     </button>
                   </div>
                 ) : (
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Search size={13} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+                  <div className="cart-customer-search-wrap">
+                    <Search size={13} className="cart-customer-search-icon" />
                     <input
                       className="cart-customer-search-input"
-                      placeholder={orderType === 'dine-in' ? "Loyalty Phone..." : "Customer phone / Loyalty..."}
+                      placeholder="Customer phone or loyalty #..."
                       value={custSearch}
                       onChange={e => {
                         setCustSearch(e.target.value);
@@ -2109,8 +2128,17 @@ export default function POS() {
                           handleCustomerLookup(custSearch);
                         }
                       }}
-                      style={{ paddingLeft: '28px' }}
                     />
+                    {custSearch && (
+                      <button
+                        type="button"
+                        className="cart-customer-search-clear"
+                        onClick={() => setCustSearch('')}
+                        title="Clear search"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
