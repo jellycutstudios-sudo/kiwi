@@ -2902,14 +2902,13 @@ html.dark .advisor-btn-icon {
   gap: 4px;
   padding: 8px 10px;
   background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: none;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   transition: transform 0.18s var(--ease-spring-pop), box-shadow 0.18s var(--ease-spring-pop), background 0.12s ease;
 }
 
 .cart-item-card:hover {
-  border-color: rgba(0, 0, 0, 0.08);
   background: #ffffff;
   box-shadow: var(--clay-shadow-md);
   transform: translateY(-1px);
@@ -8665,13 +8664,13 @@ button:active:not(:disabled),
 /* Cart Item Cards — High Contrast Raised Surface */
 [data-theme="dark"] .cart-item-card {
   background: #1c2032;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .cart-item-card:hover {
   background: #23283e;
-  border-color: rgba(255, 255, 255, 0.28);
+  border: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
