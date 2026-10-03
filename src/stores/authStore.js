@@ -8,7 +8,7 @@ import {
   signInWithCustomToken,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, functions } from '../firebase';
 
 let isLoggingIn = false;
@@ -43,17 +43,33 @@ export const useAuthStore = create(
               return { ok: false, error: 'Please enter a valid mobile number or email' };
             }
 
-            // 1. Look up user in Firestore by phone to find user's registered email
+            // 1. Look up phone in 'restaurants' (which allows public read in firestore.rules)
             if (db) {
               try {
                 const candidates = [digits];
                 if (digits.length > 10) candidates.push(digits.slice(-10));
                 if (digits.length === 10) candidates.push(`+91${digits}`, `91${digits}`);
-                const qPhone = query(collection(db, 'users'), where('phone', 'in', candidates));
-                const snap = await getDocs(qPhone);
-                if (!snap.empty) {
-                  const uData = snap.docs[0].data();
-                  targetEmail = (uData.email || uData.authEmail || '').trim().toLowerCase();
+
+                const qRest = query(collection(db, 'restaurants'), where('phone', 'in', candidates));
+                const snapRest = await getDocs(qRest);
+                if (!snapRest.empty) {
+                  for (const docSnap of snapRest.docs) {
+                    const rData = docSnap.data();
+                    if (rData.email) {
+                      targetEmail = rData.email.trim().toLowerCase();
+                      break;
+                    }
+                  }
+                }
+
+                // 2. Fallback: check 'users' collection
+                if (!targetEmail) {
+                  const qPhone = query(collection(db, 'users'), where('phone', 'in', candidates));
+                  const snap = await getDocs(qPhone);
+                  if (!snap.empty) {
+                    const uData = snap.docs[0].data();
+                    targetEmail = (uData.email || uData.authEmail || '').trim().toLowerCase();
+                  }
                 }
               } catch (lookupErr) {
                 console.warn('Firestore phone lookup error:', lookupErr);
@@ -206,8 +222,8 @@ export const useAuthStore = create(
             const userData = { id: userSnap.id, ...userSnap.data() };
             let restData = null;
             if (userData.restaurantId) {
-              // fetching restDoc
-              const restDoc = await getDoc(doc(db, 'restaurants', userData.restaurantId));
+              const restDocRef = doc(db, 'restaurants', userData.restaurantId);
+              const restDoc = await getDoc(restDocRef);
               // check if restDoc exists
               if (restDoc.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
@@ -215,6 +231,18 @@ export const useAuthStore = create(
                   set({ loading: false, error: 'Restaurant account is not active or suspended' });
                   await get().signOut();
                   return;
+                }
+
+                // Auto-sync email & phone to restaurant doc if missing, enabling mobile number login
+                const effectiveEmail = userData.email || firebaseUser.email;
+                if (userData.role === 'admin' && effectiveEmail && !restData.email) {
+                  try {
+                    const cleanEmail = effectiveEmail.trim().toLowerCase();
+                    await updateDoc(restDocRef, { email: cleanEmail });
+                    restData.email = cleanEmail;
+                  } catch (syncErr) {
+                    console.warn('Could not auto-sync email to restaurant doc:', syncErr);
+                  }
                 }
               }
             }
