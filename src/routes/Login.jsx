@@ -27,21 +27,21 @@ export default function Login() {
   // Demo credentials are only pre-filled in dev/demo builds.
   // Set VITE_ENABLE_DEMO=true in your .env to enable them.
   const isDemoMode = import.meta.env.VITE_ENABLE_DEMO === 'true';
-  const [email, setEmail] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'demo@kiwi.com' : '');
+  const [identifier, setIdentifier] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'demo@kiwi.com' : '');
   const [password, setPassword] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'password123' : '');
   const [showPw, setShowPw] = useState(false);
   const [pin, setPin] = useState('');
   const [restaurantId, setRestaurantId] = useState(() => isDemoMode && searchParams.get('demo') === 'staff' ? 'kiwi' : '');
 
-  // Registration states (Minimal 3 fields)
-  const [regEmail, setRegEmail] = useState('');
+  // Registration states (Minimal 3 fields: Name, Mobile/Email, Password)
+  const [regContact, setRegContact] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regRestName, setRegRestName] = useState('');
   const [registering, setRegistering] = useState(false);
 
-  const handleEmailLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await loginWithEmail(email, password);
+    const res = await loginWithEmail(identifier, password);
     if (!res.ok) toast.error(res.error);
     else toast.success('Welcome back!');
   };
@@ -70,14 +70,31 @@ export default function Login() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!regRestName.trim() || !regEmail.trim() || !regPassword.trim()) {
+    if (!regRestName.trim() || !regContact.trim() || !regPassword.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
+
+    const isEmail = regContact.includes('@');
+    let authEmail;
+    let phone = '';
+
+    if (isEmail) {
+      authEmail = regContact.trim().toLowerCase();
+    } else {
+      const cleanDigits = regContact.replace(/\D/g, '');
+      if (cleanDigits.length < 10) {
+        toast.error('Please enter a valid 10-digit mobile number or email');
+        return;
+      }
+      phone = cleanDigits.slice(-10);
+      authEmail = `${phone}@phone.dineos.com`;
+    }
+
     setRegistering(true);
     try {
       // 1. Create Firebase Auth user
-      const cred = await createUserWithEmailAndPassword(auth, regEmail.trim(), regPassword);
+      const cred = await createUserWithEmailAndPassword(auth, authEmail, regPassword);
       const uid = cred.user.uid;
 
       // 2. Prepare restaurant document reference & generate unique URL slug
@@ -101,6 +118,8 @@ export default function Login() {
         name: regRestName.trim(),
         slug: slug,
         currency: 'INR',
+        phone: phone || '',
+        email: isEmail ? authEmail : '',
         modes: ['pos'],
         taxConfig: { type: 'none' },
         createdAt: serverTimestamp(),
@@ -113,7 +132,8 @@ export default function Login() {
       await setDoc(doc(db, 'users', uid), {
         uid: uid,
         name: ownerName,
-        email: regEmail.trim(),
+        email: authEmail,
+        phone: phone || '',
         role: 'admin',
         restaurantId: newRestId,
         createdAt: serverTimestamp(),
@@ -123,8 +143,8 @@ export default function Login() {
       notifyAdminOfNewTrial({
         restaurantName: regRestName.trim(),
         ownerName: ownerName,
-        email: regEmail.trim(),
-        phone: '',
+        email: isEmail ? authEmail : '',
+        phone: phone || '',
         address: '',
         currency: 'INR',
         restaurantId: newRestId,
@@ -133,7 +153,10 @@ export default function Login() {
       toast.success('Registration successful! Awaiting Super Admin approval.');
     } catch (err) {
       console.error(err);
-      toast.error('Registration failed: ' + err.message);
+      const errorMsg = err.code === 'auth/email-already-in-use'
+        ? (isEmail ? 'This email is already registered.' : 'This mobile number is already registered.')
+        : err.message;
+      toast.error('Registration failed: ' + errorMsg);
     } finally {
       setRegistering(false);
     }
@@ -192,14 +215,21 @@ export default function Login() {
 
           {error && <div className="login-error-msg">{error}</div>}
 
-          {/* ── Admin email login ── */}
+          {/* ── Admin email / mobile login ── */}
           {mode === 'email' ? (
-            <form onSubmit={handleEmailLogin} className="login-form">
+            <form onSubmit={handleLogin} className="login-form">
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input id="login-email" className="form-input" type="email"
-                  placeholder={t('emailPlaceholder')} value={email}
-                  onChange={e => setEmail(e.target.value)} required />
+                <label className="form-label">Mobile Number or Email</label>
+                <input
+                  id="login-email"
+                  className="form-input"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="Mobile number or email"
+                  value={identifier}
+                  onChange={e => setIdentifier(e.target.value)}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Password</label>
@@ -220,12 +250,16 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!email.trim()) {
+                    if (!identifier.trim()) {
                       toast.error('Please enter your email above to reset password.');
                       return;
                     }
+                    if (!identifier.includes('@')) {
+                      toast.error('Password reset emails require your registered email. Please enter it above.');
+                      return;
+                    }
                     try {
-                      await sendPasswordResetEmail(auth, email.trim());
+                      await sendPasswordResetEmail(auth, identifier.trim());
                       toast.success('Password reset email sent! Check your inbox.');
                     } catch (err) {
                       toast.error('Failed to send reset email: ' + err.message);
@@ -292,14 +326,14 @@ export default function Login() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Email *</label>
+                  <label className="form-label">Mobile Number (or Email) *</label>
                   <input
                     id="reg-email"
                     className="form-input"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={regEmail}
-                    onChange={e => setRegEmail(e.target.value)}
+                    type="text"
+                    placeholder="e.g. 9876543210 or name@example.com"
+                    value={regContact}
+                    onChange={e => setRegContact(e.target.value)}
                     required
                   />
                 </div>

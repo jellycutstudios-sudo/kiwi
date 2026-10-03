@@ -22,17 +22,58 @@ export const useAuthStore = create(
       loading: true,
       error: null,
 
-      // Email/Password login (admin)
-      loginWithEmail: async (email, password) => {
+      // Identifier (Mobile Number or Email) / Password login (admin)
+      loginWithEmail: async (identifier, password) => {
         set({ loading: true, error: null });
 
         try {
-          const cred = await signInWithEmailAndPassword(auth, email, password);
+          const raw = String(identifier || '').trim();
+          if (!raw) {
+            set({ loading: false, error: 'Please enter your mobile number or email' });
+            return { ok: false, error: 'Please enter your mobile number or email' };
+          }
+
+          let targetEmail = raw;
+
+          if (!raw.includes('@')) {
+            // It's a mobile number
+            const digits = raw.replace(/\D/g, '');
+            if (digits.length < 6) {
+              set({ loading: false, error: 'Please enter a valid mobile number or email' });
+              return { ok: false, error: 'Please enter a valid mobile number or email' };
+            }
+
+            // 1. Look up user in Firestore by phone to find user's registered email
+            if (db) {
+              try {
+                const candidates = [digits];
+                if (digits.length > 10) candidates.push(digits.slice(-10));
+                if (digits.length === 10) candidates.push(`+91${digits}`, `91${digits}`);
+                const qPhone = query(collection(db, 'users'), where('phone', 'in', candidates));
+                const snap = await getDocs(qPhone);
+                if (!snap.empty) {
+                  const uData = snap.docs[0].data();
+                  targetEmail = uData.email || uData.authEmail || null;
+                }
+              } catch (lookupErr) {
+                console.warn('Firestore phone lookup error:', lookupErr);
+              }
+            }
+
+            // 2. Fallback to standard synthetic phone email if no custom email found
+            if (!targetEmail) {
+              const phoneKey = digits.length >= 10 ? digits.slice(-10) : digits;
+              targetEmail = `${phoneKey}@phone.dineos.com`;
+            }
+          }
+
+          const cred = await signInWithEmailAndPassword(auth, targetEmail, password);
           await get().loadUserData(cred.user);
           return { ok: true };
         } catch (e) {
-          const msg = e.code === 'auth/invalid-credential'
-            ? 'Invalid email or password'
+          const isInvalidCred = e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password';
+          const msg = isInvalidCred
+            ? 'Invalid mobile number, email, or password'
             : e.message;
           set({ loading: false, error: msg });
           return { ok: false, error: msg };
