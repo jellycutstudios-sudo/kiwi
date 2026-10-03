@@ -18,7 +18,7 @@ import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Star, User, Search, 
   FileText, Check, Flame, Leaf, Clock, LayoutGrid, Maximize2, Minimize2,
-  Printer, Lock, Wallet, CreditCard, ArrowDownRight, ArrowUpRight, QrCode, Coins
+  Printer, Lock, Wallet, CreditCard, ArrowDownRight, ArrowUpRight, QrCode, Coins, Sparkles
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
@@ -38,6 +38,244 @@ const COURSE_ICONS = {
 };
 
 const POS_COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
+
+const GENIE_QUOTES = [
+  { text: "Your wish is Chef's command... tap a dish!", icon: "🧞‍♂️" },
+  { text: "3 wishes? Best I can do is extra cheese & no onions.", icon: "🧀" },
+  { text: "Behind! Hot! Corner! ...Just kidding, cart is clear.", icon: "👨‍🍳" },
+  { text: "May your shift fly by and split-bill tables be zero!", icon: "🧾" },
+  { text: "Kitchen is quiet... suspiciously quiet.", icon: "🤫" },
+  { text: "Chef is warming up the burners. Feed the tickets!", icon: "🔥" },
+  { text: "Rub the menu to summon delicious food.", icon: "✨" },
+  { text: "100% chance of hungry customers walking in!", icon: "🍔" },
+  { text: "A 10-top just sat down... prepare for glory!", icon: "⚔️" },
+  { text: "No tickets, no cry... but busy shifts make time fly.", icon: "🎶" },
+  { text: "Coffee level: Critical. Ticket counter: Standing by.", icon: "☕" },
+  { text: "May all your guests know their order immediately!", icon: "🙏" },
+  { text: "The Food Genie is awake. Ring up some magic!", icon: "🪄" },
+  { text: "May your fryer never fail and the sodas stay fizzy.", icon: "🥤" },
+  { text: "Turning cravings into happy bellies since forever!", icon: "🌟" }
+];
+
+function CartGenie({ hintText }) {
+  const [quoteIdx, setQuoteIdx] = useState(() => Math.floor(Math.random() * GENIE_QUOTES.length));
+  const [isPopping, setIsPopping] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const cycleQuote = (e) => {
+    if (e) e.stopPropagation();
+    hapticTap('light');
+    setIsPopping(true);
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setQuoteIdx(prev => (prev + 1) % GENIE_QUOTES.length);
+      setIsTransitioning(false);
+    }, 150);
+    setTimeout(() => {
+      setIsPopping(false);
+    }, 450);
+  };
+
+  // Auto-cycle quote every 25 seconds if cart remains idle
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setQuoteIdx(prev => (prev + 1) % GENIE_QUOTES.length);
+        setIsTransitioning(false);
+      }, 150);
+    }, 25000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const activeQuote = GENIE_QUOTES[quoteIdx];
+
+  return (
+    <div 
+      className="cart-genie-container" 
+      onClick={cycleQuote}
+      role="button"
+      tabIndex={0}
+      title="Tap genie for a fresh restaurant joke!"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          cycleQuote(e);
+        }
+      }}
+    >
+      <div className={`cart-genie-stage ${isPopping ? 'genie-popping' : ''}`}>
+        <svg
+          viewBox="0 0 160 160"
+          className="cart-genie-svg"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="genieLampGold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fef08a" />
+              <stop offset="35%" stopColor="#fbbf24" />
+              <stop offset="75%" stopColor="#d97706" />
+              <stop offset="100%" stopColor="#92400e" />
+            </linearGradient>
+            <linearGradient id="genieSkinGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#a5b4fc" />
+              <stop offset="50%" stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#4338ca" />
+            </linearGradient>
+            <linearGradient id="genieSmokeGrad" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
+              <stop offset="30%" stopColor="#c084fc" stopOpacity="0.75" />
+              <stop offset="70%" stopColor="#6366f1" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#818cf8" stopOpacity="0.95" />
+            </linearGradient>
+            <radialGradient id="genieAuraGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#818cf8" stopOpacity="0.32" />
+              <stop offset="60%" stopColor="#c084fc" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+
+          {/* Background Aura Glow */}
+          <circle cx="80" cy="65" r="50" fill="url(#genieAuraGlow)" className="genie-aura-pulse" />
+
+          {/* Magic Lamp at Base */}
+          <g className="genie-lamp">
+            <ellipse cx="80" cy="148" rx="24" ry="4.5" fill="rgba(0,0,0,0.25)" />
+            <ellipse cx="80" cy="146" rx="22" ry="4" fill="#78350f" />
+            <path d="M68 146 L73 137 L87 137 L92 146 Z" fill="url(#genieLampGold)" />
+            {/* Lamp Body */}
+            <path d="M52 131 C46 131 42 125 48 117 C56 107 72 105 82 105 C96 105 112 109 120 117 C124 121 120 127 114 129 C102 132 64 133 52 131 Z" fill="url(#genieLampGold)" />
+            {/* Lamp Handle (Left) */}
+            <path d="M53 123 C38 119 34 103 45 103 C49 103 52 107 52 110 C48 108 42 106 41 115 C40 120 46 122 53 123 Z" fill="#b45309" />
+            {/* Lamp Spout (Right) */}
+            <path d="M112 115 C124 111 138 100 144 92 C139 95 130 103 118 109 Z" fill="url(#genieLampGold)" />
+            <circle cx="144" cy="92" r="2.8" fill="#fef08a" />
+            {/* Lamp Lid */}
+            <ellipse cx="80" cy="105" rx="13" ry="3.2" fill="#b45309" />
+            <circle cx="80" cy="101" r="3.2" fill="#fef08a" />
+          </g>
+
+          {/* Swirling Genie Smoke (Spout to Torso) */}
+          <g className="genie-smoke-trail">
+            <path
+              d="M144 92 C134 78 118 82 106 86 C94 90 86 84 82 76 C79 70 80 64 80 60"
+              fill="none"
+              stroke="url(#genieSmokeGrad)"
+              strokeWidth="10"
+              strokeLinecap="round"
+              className="genie-smoke-drift"
+            />
+          </g>
+
+          {/* Genie Character Body */}
+          <g className="genie-body-group">
+            {/* Swirling Lower Body Tail */}
+            <path
+              d="M80 60 C84 66 88 78 78 86 C68 94 62 102 70 106 C78 110 92 100 92 90 C92 78 86 68 80 60 Z"
+              fill="url(#genieSkinGrad)"
+            />
+
+            {/* Torso */}
+            <ellipse cx="80" cy="56" rx="16" ry="14" fill="url(#genieSkinGrad)" />
+
+            {/* Golden Vest Panels */}
+            <path d="M68 50 C68 56 70 64 74 66 C73 60 74 52 76 48 Z" fill="#d97706" />
+            <path d="M92 50 C92 56 90 64 86 66 C87 60 86 52 84 48 Z" fill="#d97706" />
+
+            {/* Head */}
+            <ellipse cx="80" cy="38" rx="12.5" ry="11.5" fill="url(#genieSkinGrad)" />
+
+            {/* Rosy Cheeks */}
+            <circle cx="73" cy="42" r="2.5" fill="#f43f5e" opacity="0.5" />
+            <circle cx="87" cy="42" r="2.5" fill="#f43f5e" opacity="0.5" />
+
+            {/* Expressive Eyes */}
+            <ellipse cx="75" cy="36" rx="2.2" ry="2.6" fill="#ffffff" />
+            <circle cx="75.5" cy="36" r="1.3" fill="#1e1b4b" />
+            <circle cx="76.2" cy="35.3" r="0.5" fill="#ffffff" />
+
+            <ellipse cx="85" cy="36" rx="2.2" ry="2.6" fill="#ffffff" />
+            <circle cx="84.5" cy="36" r="1.3" fill="#1e1b4b" />
+            <circle cx="85.2" cy="35.3" r="0.5" fill="#ffffff" />
+
+            {/* Cheerful Smile */}
+            <path d="M76 41 Q80 45.5 84 41" fill="none" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" />
+
+            {/* Golden Earring */}
+            <circle cx="67" cy="40" r="2.5" fill="none" stroke="#fbbf24" strokeWidth="1.3" />
+
+            {/* Chef Hat (Toque Blanche with Ruby Gem) */}
+            <g transform="translate(80, 28) rotate(-6) translate(-80, -28)">
+              <rect x="70" y="24" width="20" height="4.5" rx="1.5" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="0.6" />
+              <circle cx="80" cy="26" r="1.6" fill="#e11d48" />
+              <path
+                d="M70 24 C64 21 66 11 73 12 C75 7 85 7 87 12 C94 11 96 21 90 24 Z"
+                fill="#ffffff"
+                stroke="#e2e8f0"
+                strokeWidth="0.8"
+              />
+            </g>
+
+            {/* Left Arm: Hand on Hip */}
+            <path d="M65 52 C58 56 56 64 64 66" fill="none" stroke="url(#genieSkinGrad)" strokeWidth="4.5" strokeLinecap="round" />
+            <circle cx="64" cy="65" r="2" fill="#fbbf24" />
+
+            {/* Right Arm: Raising Magic Spatula */}
+            <path d="M95 52 C102 48 106 42 108 34" fill="none" stroke="url(#genieSkinGrad)" strokeWidth="4.5" strokeLinecap="round" />
+            <circle cx="106" cy="38" r="2" fill="#fbbf24" />
+            {/* Spatula */}
+            <path d="M108 34 L114 26" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" />
+            <rect x="112" y="20" width="7" height="9" rx="1" transform="rotate(30 114 24)" fill="#fbbf24" />
+            {/* Golden Star at Spatula Tip */}
+            <path
+              d="M125 15 L126.5 19 L130.5 20.5 L126.5 22 L125 26 L123.5 22 L119.5 20.5 L123.5 19 Z"
+              fill="#fef08a"
+              className="genie-star-sparkle"
+            />
+          </g>
+
+          {/* Twinkling Magical Sparkles */}
+          <g className="genie-ambient-sparkles">
+            <path
+              d="M34 42 L35.5 46 L39.5 47.5 L35.5 49 L34 53 L32.5 49 L28.5 47.5 L32.5 46 Z"
+              fill="#38bdf8"
+              className="genie-twinkle-1"
+            />
+            <path
+              d="M132 58 L133 61 L136 62 L133 63 L132 66 L131 63 L128 62 L131 61 Z"
+              fill="#f59e0b"
+              className="genie-twinkle-2"
+            />
+            <path
+              d="M46 88 L47 90.5 L49.5 91.5 L47 92.5 L46 95 L45 92.5 L42.5 91.5 L45 90.5 Z"
+              fill="#c084fc"
+              className="genie-twinkle-3"
+            />
+          </g>
+        </svg>
+      </div>
+
+      {/* Speech Bubble / Quote Card */}
+      <div className={`genie-speech-card ${isTransitioning ? 'genie-fading' : ''}`}>
+        <div className="genie-bubble-header">
+          <span className="genie-bubble-badge">
+            <Sparkles size={11} className="genie-badge-icon" />
+            Order Genie · Tap for Joke
+          </span>
+          <span className="genie-quote-emoji">{activeQuote.icon}</span>
+        </div>
+        <p className="genie-quote-text">
+          "{activeQuote.text}"
+        </p>
+      </div>
+
+      {/* Subtitle / Hint */}
+      <div className="genie-footer-hint">
+        <span>{hintText || 'Tap a menu item to start order'}</span>
+      </div>
+    </div>
+  );
+}
 
 function CartCoursePicker({ currentCourse, onSelectCourse }) {
   const [open, setOpen] = useState(false);
@@ -1909,11 +2147,7 @@ export default function POS() {
         {/* Cart Items */}
         <div className="cart-items">
           {items.length === 0 ? (
-            <div className="cart-empty">
-              <div style={{ fontSize: 44 }}>🛒</div>
-              <div className="text-headline" style={{ fontWeight: 700 }}>{t('emptyCart')}</div>
-              <div className="text-footnote text-tertiary">{t('emptyCartHint')}</div>
-            </div>
+            <CartGenie hintText={t('emptyCartHint')} />
           ) : (
             (() => {
               const COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
