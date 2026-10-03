@@ -16,7 +16,7 @@ import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets
 import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
-  ChevronRight, ChevronDown, Tag, Banknote, Star, User, Search, 
+  ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Star, User, Search, 
   FileText, Check, Flame, Leaf, Clock, LayoutGrid, Maximize2, Minimize2 
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
@@ -237,6 +237,18 @@ export default function POS() {
     });
   };
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const prevItemCountRef = useRef(0);
+
+  useEffect(() => {
+    // Auto-collapse order header when first item is added, auto-expand when cart is cleared
+    if (prevItemCountRef.current === 0 && items.length > 0) {
+      setIsHeaderCollapsed(true);
+    } else if (items.length === 0) {
+      setIsHeaderCollapsed(false);
+    }
+    prevItemCountRef.current = items.length;
+  }, [items.length]);
 
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
@@ -1706,130 +1718,190 @@ export default function POS() {
           </div>
         )}
 
-        {/* Modern Segmented Order Type Control */}
-        <div className="cart-type-tabs">
-          {orderTypes.map(ot => {
-            const Icon = ot.Icon;
-            return (
-              <button
-                key={ot.key}
-                id={`order-type-${ot.key}`}
-                className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
-                onClick={() => handleOrderTypeChange(ot.key)}
-              >
-                {Icon && <Icon size={14} />}
-                <span>{ot.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Service Details: Table and Customer/Loyalty */}
-        <div className="cart-service-details" style={{
-          gridTemplateColumns: (orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table'))) ? '1fr 1.2fr' : '1fr'
-        }}>
-          {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
+        {/* Collapsible Order & Table Header: Auto-collapses on first item to save ~80px */}
+        {items.length > 0 && isHeaderCollapsed ? (
+          <div
+            className="cart-header-summary-strip"
+            onClick={() => setIsHeaderCollapsed(false)}
+            title="Click to change order type, table, or customer details"
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setIsHeaderCollapsed(false)}
+          >
+            <div className="cart-header-summary-left">
+              <span className="cart-header-summary-badge type-badge">
+                {orderType === 'dine-in' ? '🍽️ Dine In' : '🛍️ Takeaway'}
+              </span>
+              {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
+                <span className={`cart-header-summary-badge table-badge ${tableId ? 'has-table' : ''}`}>
+                  🪑 {tableId ? `Table ${tableName}` : 'Select Table'}
+                </span>
+              )}
+              {customer ? (
+                <span className="cart-header-summary-badge cust-badge">
+                  👤 {customer.name}
+                </span>
+              ) : customerName ? (
+                <span className="cart-header-summary-badge cust-badge">
+                  👤 {customerName}
+                </span>
+              ) : null}
+            </div>
             <button
               type="button"
-              onClick={() => setShowTableSel(true)}
-              className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
-              id="select-table-dropdown"
-              title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+              className="cart-header-edit-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsHeaderCollapsed(false);
+              }}
+              title="Edit order details"
             >
-              <span className="cart-table-select-content">
-                <span className="cart-table-icon">🪑</span>
-                <span className="cart-table-label">
-                  {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
-                </span>
-              </span>
-              <ChevronDown size={11} className="cart-table-chevron" />
+              <span>Edit</span>
+              <ChevronDown size={11} />
             </button>
-          )}
-
-          {/* Customer / Loyalty Info column */}
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            {customer ? (
-              <div className="cart-customer-vip-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    👤 {customer.name}
-                  </span>
-                  <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                    ⭐ {customer.points} pts
-                  </span>
-                </div>
+          </div>
+        ) : (
+          <div className="cart-header-expanded-wrap">
+            {items.length > 0 && (
+              <div className="cart-header-collapse-bar">
                 <button
                   type="button"
-                  onClick={() => {
-                    setCustomerProfile(null);
-                    setCustomer('', '');
-                    setRedeemingPoints(false);
-                  }}
-                  style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                  title="Remove customer"
+                  onClick={() => setIsHeaderCollapsed(true)}
+                  className="cart-header-collapse-trigger"
+                  title="Collapse order details to view more cart items"
                 >
-                  <X size={12} />
+                  <span>Hide Details</span>
+                  <ChevronUp size={11} />
                 </button>
-              </div>
-            ) : showQuickRegister ? (
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: '34px' }}>
-                <input
-                  className="form-input"
-                  placeholder="Customer name"
-                  value={newCustName}
-                  onChange={e => setNewCustName(e.target.value)}
-                  style={{ height: 32, fontSize: '11px', padding: '2px 8px', flex: 1 }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-success btn-xs"
-                  onClick={handleQuickRegister}
-                  style={{ height: 32, padding: '0 8px', fontSize: 11 }}
-                >
-                  ✓
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-xs"
-                  onClick={() => setShowQuickRegister(false)}
-                  style={{ height: 32, padding: '0 8px', fontSize: 11 }}
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Search size={13} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
-                <input
-                  className="cart-customer-search-input"
-                  placeholder={orderType === 'dine-in' ? "Loyalty Phone..." : "Customer phone / Loyalty..."}
-                  value={custSearch}
-                  onChange={e => {
-                    setCustSearch(e.target.value);
-                    if (e.target.value.replace(/\D/g, '').length >= 8) {
-                      handleCustomerLookup(e.target.value);
-                    }
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      handleCustomerLookup(custSearch);
-                    }
-                  }}
-                  style={{ paddingLeft: '28px' }}
-                />
               </div>
             )}
-          </div>
-        </div>
 
-        {orderType === 'takeaway' && !customer && !showQuickRegister && (
-          <div style={{ padding: '6px var(--space-4)', borderBottom: '1px solid var(--color-separator)', display:'flex', gap:'var(--space-2)', background: 'var(--color-bg-secondary)' }}>
-            <input className="form-input" placeholder="Customer name" value={customerName}
-              onChange={e => setCustomer(e.target.value, customerPhone)}
-              id="customer-name-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', flex: 1 }} />
-            <input className="form-input" placeholder="Phone" value={customerPhone}
-              onChange={e => setCustomer(customerName, e.target.value)}
-              id="customer-phone-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', width: 115 }} />
+            {/* Modern Segmented Order Type Control */}
+            <div className="cart-type-tabs">
+              {orderTypes.map(ot => {
+                const Icon = ot.Icon;
+                return (
+                  <button
+                    key={ot.key}
+                    id={`order-type-${ot.key}`}
+                    className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
+                    onClick={() => handleOrderTypeChange(ot.key)}
+                  >
+                    {Icon && <Icon size={14} />}
+                    <span>{ot.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Service Details: Table and Customer/Loyalty */}
+            <div className="cart-service-details" style={{
+              gridTemplateColumns: (orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table'))) ? '1fr 1.2fr' : '1fr'
+            }}>
+              {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
+                <button
+                  type="button"
+                  onClick={() => setShowTableSel(true)}
+                  className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
+                  id="select-table-dropdown"
+                  title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                >
+                  <span className="cart-table-select-content">
+                    <span className="cart-table-icon">🪑</span>
+                    <span className="cart-table-label">
+                      {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                    </span>
+                  </span>
+                  <ChevronDown size={11} className="cart-table-chevron" />
+                </button>
+              )}
+
+              {/* Customer / Loyalty Info column */}
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                {customer ? (
+                  <div className="cart-customer-vip-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        👤 {customer.name}
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                        ⭐ {customer.points} pts
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomerProfile(null);
+                        setCustomer('', '');
+                        setRedeemingPoints(false);
+                      }}
+                      style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                      title="Remove customer"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : showQuickRegister ? (
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: '34px' }}>
+                    <input
+                      className="form-input"
+                      placeholder="Customer name"
+                      value={newCustName}
+                      onChange={e => setNewCustName(e.target.value)}
+                      style={{ height: 32, fontSize: '11px', padding: '2px 8px', flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-success btn-xs"
+                      onClick={handleQuickRegister}
+                      style={{ height: 32, padding: '0 8px', fontSize: 11 }}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => setShowQuickRegister(false)}
+                      style={{ height: 32, padding: '0 8px', fontSize: 11 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Search size={13} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+                    <input
+                      className="cart-customer-search-input"
+                      placeholder={orderType === 'dine-in' ? "Loyalty Phone..." : "Customer phone / Loyalty..."}
+                      value={custSearch}
+                      onChange={e => {
+                        setCustSearch(e.target.value);
+                        if (e.target.value.replace(/\D/g, '').length >= 8) {
+                          handleCustomerLookup(e.target.value);
+                        }
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          handleCustomerLookup(custSearch);
+                        }
+                      }}
+                      style={{ paddingLeft: '28px' }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {orderType === 'takeaway' && !customer && !showQuickRegister && (
+              <div style={{ padding: '6px var(--space-4)', borderBottom: '1px solid var(--color-separator)', display:'flex', gap:'var(--space-2)', background: 'var(--color-bg-secondary)' }}>
+                <input className="form-input" placeholder="Customer name" value={customerName}
+                  onChange={e => setCustomer(e.target.value, customerPhone)}
+                  id="customer-name-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', flex: 1 }} />
+                <input className="form-input" placeholder="Phone" value={customerPhone}
+                  onChange={e => setCustomer(customerName, e.target.value)}
+                  id="customer-phone-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', width: 115 }} />
+              </div>
+            )}
           </div>
         )}
 
