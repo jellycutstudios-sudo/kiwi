@@ -7,6 +7,10 @@ import ErrorBoundary from './components/shared/ErrorBoundary.jsx';
 import { logError } from './utils/logger.js';
 
 import { useUpdateStore } from './stores/updateStore.js';
+import { initSecurityGuards } from './utils/securityGuards.js';
+
+// Initialize client-side security guards (blocks F12, inspect, right-click in production)
+initSecurityGuards();
 
 // Register service worker immediately so Android PWA installability criteria
 // are met immediately. registerType='prompt' in vite.config.js ensures

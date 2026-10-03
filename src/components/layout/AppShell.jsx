@@ -340,7 +340,7 @@ export default function AppShell() {
                 <div className="density-toggle" role="group" aria-label="Menu density">
                   <button
                     type="button"
-                    onClick={() => setMenuDensity('visual')}
+                    onClick={() => setMenuDensity('visual', true)}
                     title="Visual Cards with photos"
                     className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
                     style={{ height: '34px' }}
@@ -350,7 +350,7 @@ export default function AppShell() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMenuDensity('dense')}
+                    onClick={() => setMenuDensity('dense', true)}
                     title="Fast QSR Touch Keys"
                     className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
                     style={{ height: '34px' }}

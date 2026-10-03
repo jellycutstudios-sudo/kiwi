@@ -36,6 +36,46 @@
           }
         } catch (e) {}
       })();
+
+      // Immediate Anti-Inspect & DevTools Freeze Guard
+      (function() {
+        try {
+          if (localStorage.getItem('dineos_disable_guards') === 'true') return;
+
+          // 1. Block Context Menu (Right Click)
+          var block = function(e) {
+            if (e.preventDefault) e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+            return false;
+          };
+          window.addEventListener('contextmenu', block, true);
+          document.addEventListener('contextmenu', block, true);
+
+          // 2. Block Inspection Shortcuts (F12, Cmd+Opt+I/J/C, Ctrl+Shift+I/J/C, Ctrl+U)
+          var blockKeys = function(e) {
+            var k = e.key ? e.key.toUpperCase() : '';
+            var c = e.keyCode || e.which;
+            var isCtrl = e.ctrlKey;
+            var isMeta = e.metaKey;
+            var isShift = e.shiftKey;
+            var isAlt = e.altKey;
+
+            if (k === 'F12' || c === 123) return block(e);
+            if ((isCtrl || isMeta) && (isShift || isAlt) && (['I', 'J', 'C'].indexOf(k) !== -1 || c === 73 || c === 74 || c === 67)) return block(e);
+            if ((isCtrl || isMeta) && (k === 'U' || c === 85)) return block(e);
+            if ((isCtrl || isMeta) && (k === 'S' || c === 83)) return block(e);
+          };
+          window.addEventListener('keydown', blockKeys, true);
+          document.addEventListener('keydown', blockKeys, true);
+
+          // 3. DevTools Freeze Loop (Continuously triggers debugger to freeze inspector)
+          setInterval(function() {
+            try {
+              (function() { Function('debugger')(); })();
+            } catch (_) {}
+          }, 150);
+        } catch (err) {}
+      })();
     </script>
     <style>
       /* Minimal Obsidian Preloader (matches #0c0d11 theme-color) */

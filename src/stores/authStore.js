@@ -1,4 +1,3 @@
-// Zustand Auth Store — handles auth state + role resolution
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
@@ -6,9 +5,11 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   signInAnonymously,
+  signInWithCustomToken,
 } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, functions } from '../firebase';
 
 let isLoggingIn = false;
 
@@ -38,39 +39,70 @@ export const useAuthStore = create(
         }
       },
 
-      // PIN login for staff (looks up PIN in Firestore)
+      // PIN login for staff (authenticates securely via Cloud Functions with custom claims)
       loginWithPin: async (restaurantId, pin) => {
         isLoggingIn = true;
         set({ loading: true, error: null });
 
         try {
-          // Authenticate anonymously first so we pass Firestore security rules (allow read: if isSignedIn)
-          let firebaseUser = null;
-          if (auth) {
+          const cleanRestId = String(restaurantId || '').trim();
+          const cleanPin = String(pin || '').trim();
+
+          if (!cleanRestId || !cleanPin) {
+            set({ loading: false, error: 'Restaurant ID and PIN are required' });
+            return { ok: false, error: 'Restaurant ID and PIN are required' };
+          }
+
+          // 1. Primary: Server-side validation with brute-force rate-limiting
+          if (functions) {
             try {
-              const cred = await signInAnonymously(auth);
-              firebaseUser = cred.user;
-            } catch (anonErr) {
-              console.error('Anonymous auth failed:', anonErr.code);
-              if (anonErr.code === 'auth/unauthorized-domain') {
-                throw new Error("Domain not authorized. Please add this URL to Firebase Console > Authentication > Settings > Authorized Domains.");
-              } else {
-                throw new Error(`Anonymous auth failed: ${anonErr.message}`);
+              const validatePinFn = httpsCallable(functions, 'validatePin');
+              const res = await validatePinFn({ restaurantId: cleanRestId, pin: cleanPin });
+              const { token, staff, restaurantId: actualRestId } = res.data;
+
+              // Sign in with the cryptographically scoped Custom Token
+              let firebaseUser = null;
+              if (auth && token) {
+                const cred = await signInWithCustomToken(auth, token);
+                firebaseUser = cred.user;
               }
+
+              // Load restaurant document
+              let restData = null;
+              if (db && actualRestId) {
+                const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
+                if (restDoc.exists()) {
+                  restData = { id: actualRestId, ...restDoc.data() };
+                }
+              }
+
+              const staffData = { id: staff.id, ...staff };
+              set({
+                user: firebaseUser || { uid: staffData.id, isPinLogin: true },
+                staffDoc: staffData,
+                restaurant: restData,
+                loading: false,
+              });
+
+              return { ok: true, role: staffData.role };
+            } catch (fnErr) {
+              // Rate limit lockouts or explicit invalid PIN responses must be returned immediately
+              if (fnErr.code === 'resource-exhausted' || fnErr.code === 'unauthenticated' || fnErr.code === 'permission-denied') {
+                const msg = fnErr.message || 'Invalid PIN';
+                set({ loading: false, error: msg });
+                return { ok: false, error: msg };
+              }
+              console.warn('validatePin function unreachable, attempting fallback:', fnErr.message);
             }
           }
 
-          const cleanRestId = restaurantId.trim();
+          // 2. Fallback (for offline or local testing environments)
           let actualRestId = cleanRestId;
-
-          // 1. Try to find restaurant by customId
           const restQuery = query(collection(db, 'restaurants'), where('customId', '==', cleanRestId));
           const restSnap = await getDocs(restQuery);
-          
           if (!restSnap.empty) {
             actualRestId = restSnap.docs[0].id;
           } else {
-            // Fallback: Try to find restaurant by slug
             const slugQuery = query(collection(db, 'restaurants'), where('slug', '==', cleanRestId));
             const slugSnap = await getDocs(slugQuery);
             if (!slugSnap.empty) {
@@ -78,42 +110,35 @@ export const useAuthStore = create(
             }
           }
 
-          const staffRef = doc(db, 'restaurants', actualRestId, 'pins', pin);
-          const snap = await getDoc(staffRef);
-          if (!snap.exists()) {
+          const staffQuery = query(
+            collection(db, 'restaurants', actualRestId, 'staff'),
+            where('pin', '==', cleanPin),
+            where('active', '==', true)
+          );
+          const staffSnap = await getDocs(staffQuery);
+          if (staffSnap.empty) {
             set({ loading: false, error: 'Invalid PIN' });
             return { ok: false, error: 'Invalid PIN' };
           }
-          const { staffId } = snap.data();
 
-          // Fetch actual staff member profile details securely by ID
-          const staffProfileRef = doc(db, 'restaurants', actualRestId, 'staff', staffId);
-          const staffProfileSnap = await getDoc(staffProfileRef);
-          if (!staffProfileSnap.exists() || staffProfileSnap.data().active === false) {
-            set({ loading: false, error: 'Invalid PIN or account deactivated' });
-            return { ok: false, error: 'Invalid PIN or account deactivated' };
-          }
-          const staffData = { id: staffId, ...staffProfileSnap.data() };
+          const staffDocSnap = staffSnap.docs[0];
+          const staffData = { id: staffDocSnap.id, ...staffDocSnap.data() };
 
-          // Load restaurant
           const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
           if (!restDoc.exists()) {
             set({ loading: false, error: 'Restaurant not found' });
             return { ok: false, error: 'Restaurant not found' };
           }
           const restData = { id: actualRestId, ...restDoc.data() };
-          if (restData.status !== 'approved') {
-            set({ loading: false, error: 'Restaurant is pending approval or suspended' });
-            return { ok: false, error: 'Restaurant is pending approval or suspended' };
-          }
 
           set({
-            user: firebaseUser || { uid: staffData.id, isPinLogin: true },
+            user: { uid: staffData.id, isPinLogin: true },
             staffDoc: staffData,
             restaurant: restData,
             loading: false,
           });
           return { ok: true, role: staffData.role };
+
         } catch (e) {
           set({ loading: false, error: e.message });
           return { ok: false, error: e.message };

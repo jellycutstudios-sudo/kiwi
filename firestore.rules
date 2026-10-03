@@ -33,7 +33,7 @@ service cloud.firestore {
       );
     }
     
-    // Fallback or explicit check for staff access to specific restaurant
+    // Explicit check for staff access to specific restaurant
     function belongsToRestaurant(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
@@ -42,13 +42,11 @@ service cloud.firestore {
        );
     }
     
-    // Staff member check: support both custom token claims (Blaze plan)
-    // and legacy anonymous sessions (Spark free plan fallback)
+    // Staff member check: requires super_admin, valid restaurant custom token claim, or registered user profile
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-         ('firebase' in request.auth.token && 'sign_in_provider' in request.auth.token.firebase && request.auth.token.firebase.sign_in_provider == 'anonymous') ||
          (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId)
        );
     }
@@ -59,8 +57,11 @@ service cloud.firestore {
     // ─────────────────────────────────────────────
     match /users/{userId} {
       allow read:  if isSignedIn() && uid() == userId;
-      // Protect user role creation and changes
-      allow create: if isSignedIn() && uid() == userId && request.resource.data.role == 'admin';
+      // Protect user role creation and prevent claiming arbitrary restaurant IDs
+      allow create: if isSignedIn() && uid() == userId && request.resource.data.role == 'admin' && (
+        !('restaurantId' in request.resource.data) ||
+        get(/databases/$(database)/documents/restaurants/$(request.resource.data.restaurantId)).data.ownerUid == uid()
+      );
       allow update: if isSignedIn() && uid() == userId && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'restaurantId'])
       ) || isSuperAdmin();
@@ -72,31 +73,24 @@ service cloud.firestore {
     // ─────────────────────────────────────────────
     match /restaurants/{restaurantId} {
       // Public read — online order page needs restaurant name/logo
-      // but we shouldn't expose sensitive config like API keys.
-      // A better architecture is to separate public profile from config.
-      // For now, we restrict to authenticated users or public (needs careful field filtering in UI)
+      // Sensitive subcollections like payroll, suppliers, void logs are isolated below
       allow read: if true;
       // Create — any signed-in user can register a new restaurant
       allow create: if isSignedIn();
       // Update/Delete — only authenticated admin-level users who belong to this restaurant
       allow update, delete: if isUserAdmin(restaurantId);
 
-      // Staff — admin write only. Read restricted to admins or via backend.
-      // Client shouldn't fetch all PINs.
-      // Staff: list and write restricted to admins.
-      // Individual staff docs can be fetched by authenticated members.
+      // Staff — admin write only. Read restricted to verified staff members of this restaurant.
       match /staff/{staffId} {
         allow read:  if isStaffMember(restaurantId);
         allow write: if isUserAdmin(restaurantId);
       }
 
-      // Secure client-side lookup collection:
-      // Permits get (reading individual docs if you know the exact PIN),
-      // but strictly denies listing/querying the entire collection.
+      // PIN collection:
+      // Direct client access is strictly denied to prevent 4-digit brute-forcing.
+      // Verification is performed server-side via the rate-limited validatePin Cloud Function.
       match /pins/{pin} {
-        allow get:   if isSignedIn();
-        allow list:  if false;
-        allow write: if isUserAdmin(restaurantId);
+        allow read, write: if false;
       }
 
       // Menu — public read, admin write only
@@ -114,11 +108,15 @@ service cloud.firestore {
         );
       }
 
-      // Orders — public create (online orders), public get (customer tracking by ID), staff list/update/delete
+      // Orders — public create (with schema validation), public get (customer tracking by ID), staff list/update/delete
       match /orders/{orderId} {
-        allow get:    if true;                     // customers track their specific order by ID
+        allow get:    if true;                        // customers track their specific order by ID
         allow list:   if isStaffMember(restaurantId); // prevent public from querying/enumerating orders
-        allow create: if true;                     // customers place online orders without auth
+        allow create: if (
+          request.resource.data.status == 'pending' &&
+          request.resource.data.total is number && request.resource.data.total >= 0 &&
+          request.resource.data.items is list && request.resource.data.items.size() > 0
+        );
         allow update, delete: if isStaffMember(restaurantId);
       }
 
@@ -195,15 +193,17 @@ service cloud.firestore {
         allow write: if isStaffMember(restaurantId);   // cashier can redeem (balance update)
       }
 
-      // Shifts & Drawer Tills — authenticated staff read/write
+      // Shifts & Drawer Tills — authenticated staff read/write, deletion forbidden
       match /shifts/{shiftId} {
-        allow read, write: if isStaffMember(restaurantId);
+        allow read, create, update: if isStaffMember(restaurantId);
+        allow delete: if false;
       }
 
-      // Void Audits Ledger — SENSITIVE: read admin-only, write via staff only
+      // Void Audits Ledger — SENSITIVE: read admin-only, staff append-only, modification/deletion forbidden
       match /void_logs/{logId} {
-        allow read:  if isUserAdmin(restaurantId);
-        allow write: if isStaffMember(restaurantId);
+        allow read: if isUserAdmin(restaurantId);
+        allow create: if isStaffMember(restaurantId);
+        allow update, delete: if false;
       }
     }
   }

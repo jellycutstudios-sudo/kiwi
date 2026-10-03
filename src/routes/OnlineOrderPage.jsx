@@ -244,17 +244,34 @@ export default function OnlineOrderPage() {
     return cart.reduce((sum, i) => sum + i.qty, 0);
   }, [cart]);
 
+  const sanitizeInput = (text, maxLength = 300) => {
+    return String(text || '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, '') // Strip ESC/POS control characters
+      .trim()
+      .slice(0, maxLength);
+  };
+
   const submitOrder = async () => {
-    if (!name.trim()) {
+    const cleanName = sanitizeInput(name, 100);
+    const cleanPhone = phone.trim().replace(/[^\d+]/g, '').slice(0, 20);
+    const cleanAddress = sanitizeInput(address, 300);
+    const cleanNote = sanitizeInput(note, 500);
+
+    if (!cleanName) {
       toast.error('Please enter your name');
       return;
     }
-    if (!phone.trim()) {
-      toast.error('Please enter your mobile number');
+    if (!cleanPhone || cleanPhone.length < 5) {
+      toast.error('Please enter a valid mobile number');
       return;
     }
-    if (orderType === 'delivery' && !address.trim()) {
+    if (orderType === 'delivery' && !cleanAddress) {
       toast.error('Please enter your delivery address');
+      return;
+    }
+    if (!cart || cart.length === 0) {
+      toast.error('Your cart is empty');
       return;
     }
 
@@ -276,25 +293,25 @@ export default function OnlineOrderPage() {
         status: 'pending',
         items: cart.map(i => ({
           id: i.id,
-          name: i.name,
-          price: i.price,
-          qty: i.qty,
+          name: sanitizeInput(i.name, 100),
+          price: Math.max(0, Number(i.price) || 0),
+          qty: Math.max(1, Number(i.qty) || 1),
           selectedModifiers: i.selectedModifiers ?? [],
-          modifierTotal: i.modifierTotal ?? 0,
+          modifierTotal: Math.max(0, Number(i.modifierTotal) || 0),
           recipe: i.recipe ?? [],
           station: i.station ?? 'Kitchen',
           status: 'pending'
         })),
-        subtotal,
-        taxAmount: taxResult.taxTotal,
-        taxTotal: taxResult.taxTotal,
+        subtotal: Math.max(0, Number(subtotal) || 0),
+        taxAmount: Math.max(0, Number(taxResult.taxTotal) || 0),
+        taxTotal: Math.max(0, Number(taxResult.taxTotal) || 0),
         taxLines: taxResult.lines,
         taxMode: taxResult.mode || 'exclusive',
-        total,
+        total: Math.max(0, Number(total) || 0),
         inventoryDepleted: false,
-        customerName: name.trim(),
-        customerPhone: phone.trim().replace(/\D/g, '') || '',
-        note: note.trim() || '',
+        customerName: cleanName,
+        customerPhone: cleanPhone,
+        note: cleanNote,
         createdAt: serverTimestamp(),
         currency,
         paymentMethod: tableId ? 'unpaid' : 'cash',

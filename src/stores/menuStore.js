@@ -12,11 +12,41 @@ const getInitialCategories = () => {
   }
 };
 
-export const useMenuStore = create((set) => {
+export function checkHasMenuImages(categories) {
+  if (!Array.isArray(categories) || categories.length === 0) return false;
+  return categories.some((cat) =>
+    Array.isArray(cat?.items) &&
+    cat.items.some((item) => {
+      const img = item?.imageUrl || item?.image;
+      return typeof img === 'string' && img.trim().length > 0;
+    })
+  );
+}
+
+const getInitialDensity = (cats) => {
+  if (typeof localStorage === 'undefined') return 'visual';
+  const saved = localStorage.getItem('kiwi_pos_density');
+  const isManual = localStorage.getItem('kiwi_pos_density_manual') === 'true';
+
+  // If user explicitly chose a manual setting, honor it
+  if (isManual && (saved === 'dense' || saved === 'visual')) {
+    return saved;
+  }
+
+  // Automatic decide: 0 images -> Fast Keys ('dense'); >= 1 image -> Cards ('visual')
+  if (Array.isArray(cats) && cats.length > 0) {
+    return checkHasMenuImages(cats) ? 'visual' : 'dense';
+  }
+
+  return saved || 'visual';
+};
+
+export const useMenuStore = create((set, get) => {
   let activeUnsub = null;
   let subscribedRestId = null;
   let subCount = 0;
   const initialCats = getInitialCategories();
+  const initialDensity = getInitialDensity(initialCats);
 
   return {
     categories: initialCats,
@@ -25,12 +55,55 @@ export const useMenuStore = create((set) => {
     search: '',
     setSearch: (search) => set({ search }),
 
-    menuDensity: typeof localStorage !== 'undefined' ? localStorage.getItem('kiwi_pos_density') || 'visual' : 'visual',
-    setMenuDensity: (menuDensity) => {
+    menuDensity: initialDensity,
+    hasImages: checkHasMenuImages(initialCats),
+
+    setMenuDensity: (menuDensity, isManual = false) => {
       try {
-        if (typeof localStorage !== 'undefined') localStorage.setItem('kiwi_pos_density', menuDensity);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('kiwi_pos_density', menuDensity);
+          if (isManual) {
+            localStorage.setItem('kiwi_pos_density_manual', 'true');
+          }
+        }
       } catch {}
       set({ menuDensity });
+    },
+
+    setCategories: (cats) => {
+      const hasImages = checkHasMenuImages(cats);
+      const isManual = typeof localStorage !== 'undefined' && localStorage.getItem('kiwi_pos_density_manual') === 'true';
+      const prevHadImages = get().hasImages ?? checkHasMenuImages(get().categories);
+      const imagePresenceChanged = get().hasImages !== undefined && prevHadImages !== hasImages;
+
+      let nextDensity = get().menuDensity;
+
+      // Auto-switch rule:
+      // 1. If not manually locked, auto-select based on images
+      // 2. OR if image presence transitioned (e.g. uploaded first image or removed all images), auto-switch immediately!
+      if (!isManual || imagePresenceChanged) {
+        if (hasImages) {
+          nextDensity = 'visual'; // Switch to Cards view
+        } else if (cats.length > 0) {
+          nextDensity = 'dense';  // Switch to Fast Keys view
+        }
+
+        if (imagePresenceChanged) {
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('kiwi_pos_density', nextDensity);
+              localStorage.removeItem('kiwi_pos_density_manual');
+            }
+          } catch {}
+        }
+      }
+
+      set({
+        categories: cats,
+        loading: false,
+        hasImages,
+        menuDensity: nextDensity,
+      });
     },
 
     isFocusMode: typeof localStorage !== 'undefined' ? localStorage.getItem('kiwi_pos_focus') === 'true' : false,
@@ -93,7 +166,7 @@ export const useMenuStore = create((set) => {
           } catch (e) {
             console.debug('[useMenuStore] LocalStorage cache write skipped:', e);
           }
-          set({ categories: cats, loading: false });
+          get().setCategories(cats);
         },
         (err) => {
           console.error('[useMenuStore] Subscription error:', err);

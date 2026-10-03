@@ -291,25 +291,45 @@ exports.syncDeliveryMenu = onRequest(async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Auth: Validate Staff PIN
+// Auth: Validate Staff PIN with Brute-Force Rate Limiting
 // ─────────────────────────────────────────────────────────────────────────────
+const pinAttemptCache = new Map();
+const PIN_MAX_ATTEMPTS = 5;
+const PIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes lockout window
+
 exports.validatePin = onCall(async (request) => {
-  const { restaurantId, pin } = request.data;
+  const { restaurantId, pin } = request.data || {};
   
   if (!restaurantId || !pin) {
     throw new HttpsError('invalid-argument', 'Missing restaurantId or pin');
   }
 
+  const rawReq = request.rawRequest;
+  const clientIp = rawReq?.ip || rawReq?.headers?.['x-forwarded-for'] || 'client';
+  const cleanRestId = String(restaurantId).trim();
+  const rateLimitKey = `${clientIp}_${cleanRestId}`;
+  const now = Date.now();
+
+  // Check lockout status
+  const attempts = pinAttemptCache.get(rateLimitKey) || { count: 0, firstAttempt: now, lockedUntil: 0 };
+  if (attempts.lockedUntil > now) {
+    const minutesLeft = Math.ceil((attempts.lockedUntil - now) / 60000);
+    throw new HttpsError(
+      'resource-exhausted',
+      `Too many failed PIN attempts. Terminal temporarily locked. Please try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`
+    );
+  }
+
   try {
     const db = admin.firestore();
-    let actualRestId = restaurantId;
+    let actualRestId = cleanRestId;
 
     // Support for customId or slug login
-    const restQuery = await db.collection('restaurants').where('customId', '==', restaurantId).get();
+    const restQuery = await db.collection('restaurants').where('customId', '==', cleanRestId).get();
     if (!restQuery.empty) {
       actualRestId = restQuery.docs[0].id;
     } else {
-      const slugQuery = await db.collection('restaurants').where('slug', '==', restaurantId).get();
+      const slugQuery = await db.collection('restaurants').where('slug', '==', cleanRestId).get();
       if (!slugQuery.empty) {
         actualRestId = slugQuery.docs[0].id;
       }
@@ -317,13 +337,32 @@ exports.validatePin = onCall(async (request) => {
 
     // Lookup staff by PIN
     const staffQuery = await db.collection('restaurants').doc(actualRestId).collection('staff')
-      .where('pin', '==', pin)
+      .where('pin', '==', String(pin).trim())
       .where('active', '==', true)
       .get();
 
     if (staffQuery.empty) {
-      throw new HttpsError('unauthenticated', 'Invalid PIN');
+      // Record failed attempt
+      attempts.count += 1;
+      if (now - attempts.firstAttempt > PIN_LOCKOUT_MS) {
+        attempts.count = 1;
+        attempts.firstAttempt = now;
+      }
+      if (attempts.count >= PIN_MAX_ATTEMPTS) {
+        attempts.lockedUntil = now + PIN_LOCKOUT_MS;
+      }
+      pinAttemptCache.set(rateLimitKey, attempts);
+
+      const remaining = Math.max(0, PIN_MAX_ATTEMPTS - attempts.count);
+      const alertMsg = attempts.lockedUntil > now
+        ? 'Too many failed PIN attempts. Terminal locked for 15 minutes.'
+        : `Invalid PIN. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`;
+      
+      throw new HttpsError('unauthenticated', alertMsg);
     }
+
+    // PIN is valid: clear failed attempts
+    pinAttemptCache.delete(rateLimitKey);
 
     const staffDoc = staffQuery.docs[0];
     const staffData = staffDoc.data();
@@ -334,8 +373,8 @@ exports.validatePin = onCall(async (request) => {
        throw new HttpsError('permission-denied', 'Restaurant is pending approval or suspended');
     }
 
-    // Create a custom token with custom claims
-    const uid = staffDoc.id; // Or a specific format like `staff_${staffDoc.id}`
+    // Create a custom token with scoped restaurant and role claims
+    const uid = staffDoc.id;
     const additionalClaims = {
       role: staffData.role,
       restaurantId: actualRestId,
@@ -351,10 +390,10 @@ exports.validatePin = onCall(async (request) => {
     };
 
   } catch (error) {
-    console.error('Error in validatePin:', error);
     if (error instanceof HttpsError) {
       throw error;
     }
+    console.error('Error in validatePin:', error);
     throw new HttpsError('internal', 'Internal server error during PIN validation');
   }
 });

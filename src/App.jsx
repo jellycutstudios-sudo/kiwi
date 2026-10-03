@@ -11,6 +11,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 
 import { isFirebaseConfigured } from './firebase';
 import FirebaseSetupWizard from './components/shared/FirebaseSetupWizard';
+import DesktopContextMenu from './components/shared/DesktopContextMenu';
 
 // Lazy-loaded routes for maximum perf
 const Login          = lazy(() => import('./routes/Login'));
@@ -86,6 +87,7 @@ export default function App() {
           error:   { iconTheme: { primary: 'var(--color-red)',   secondary: '#fff' } },
         }}
       />
+      <DesktopContextMenu />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public routes — no auth needed */}
