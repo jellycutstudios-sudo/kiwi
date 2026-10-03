@@ -33,7 +33,7 @@ export const useAuthStore = create(
             return { ok: false, error: 'Please enter your mobile number or email' };
           }
 
-          let targetEmail = raw;
+          let targetEmail = '';
 
           if (!raw.includes('@')) {
             // It's a mobile number
@@ -53,7 +53,7 @@ export const useAuthStore = create(
                 const snap = await getDocs(qPhone);
                 if (!snap.empty) {
                   const uData = snap.docs[0].data();
-                  targetEmail = uData.email || uData.authEmail || null;
+                  targetEmail = (uData.email || uData.authEmail || '').trim().toLowerCase();
                 }
               } catch (lookupErr) {
                 console.warn('Firestore phone lookup error:', lookupErr);
@@ -65,13 +65,19 @@ export const useAuthStore = create(
               const phoneKey = digits.length >= 10 ? digits.slice(-10) : digits;
               targetEmail = `${phoneKey}@phone.dineos.com`;
             }
+          } else {
+            // It's an email — strip any accidental spaces, newlines, or tabs & lowercase
+            targetEmail = raw.replace(/\s+/g, '').toLowerCase();
           }
 
           const cred = await signInWithEmailAndPassword(auth, targetEmail, password);
           await get().loadUserData(cred.user);
           return { ok: true };
         } catch (e) {
-          const isInvalidCred = e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password';
+          const isInvalidCred = e.code === 'auth/invalid-credential' 
+            || e.code === 'auth/user-not-found' 
+            || e.code === 'auth/wrong-password' 
+            || e.code === 'auth/invalid-email';
           const msg = isInvalidCred
             ? 'Invalid mobile number, email, or password'
             : e.message;

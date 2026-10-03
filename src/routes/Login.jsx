@@ -41,7 +41,13 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await loginWithEmail(identifier, password);
+    const cleanId = String(identifier || '').trim();
+    const cleanPw = String(password || '').trim();
+    if (!cleanId) {
+      toast.error('Please enter your mobile number or email');
+      return;
+    }
+    const res = await loginWithEmail(cleanId, cleanPw);
     if (!res.ok) toast.error(res.error);
     else toast.success('Welcome back!');
   };
