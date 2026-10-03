@@ -50,9 +50,18 @@ const KITCHEN_DISPATCHES = [
   { tag: "RUSH", text: "Wok & grill fired up. Bring on the orders!", icon: "🔥" },
 ];
 
-function EmptyCartState({ onAddCustomItem, onSelectTable, onSearchMenu }) {
+function EmptyCartState({ 
+  onAddCustomItem, 
+  onSelectTable, 
+  isBestsellerActive, 
+  onToggleBestsellers, 
+  search, 
+  setSearch 
+}) {
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const [dispatchIdx, setDispatchIdx] = useState(0);
   const [isChanging, setIsChanging] = useState(false);
+  const searchInputRef = useRef(null);
 
   const nextDispatch = (e) => {
     if (e) e.stopPropagation();
@@ -71,29 +80,90 @@ function EmptyCartState({ onAddCustomItem, onSelectTable, onSearchMenu }) {
         setDispatchIdx((prev) => (prev + 1) % KITCHEN_DISPATCHES.length);
         setIsChanging(false);
       }, 150);
-    }, 18000);
+    }, 20000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleSearchClick = (e) => {
+    if (e) e.stopPropagation();
+    hapticTap('light');
+    setShowSearchInput(v => !v);
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+        searchInputRef.current.select();
+      }
+    }, 50);
+    const topSearch = document.getElementById('menu-search-input');
+    if (topSearch) {
+      topSearch.focus();
+      topSearch.select();
+    }
+  };
 
   const dispatch = KITCHEN_DISPATCHES[dispatchIdx];
 
   return (
     <div className="pos-empty-cart">
-      {/* Architectural Visual Anchor */}
+      {/* Premium Service Badge */}
       <div className="pos-empty-hero">
-        <div className="pos-empty-icon-orb">
-          <div className="pos-empty-orb-glow" />
-          <ShoppingBag size={28} strokeWidth={1.8} className="pos-empty-icon" />
+        <div className="pos-empty-badge">
+          <span className="pos-empty-status-beacon" />
+          <span className="pos-empty-badge-text">Terminal Ready</span>
         </div>
+
+        <div className="pos-empty-icon-capsule">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="8" width="32" height="28" rx="8" fill="url(#ticketGrad)" stroke="rgba(255,255,255,0.18)" strokeWidth="1.2" />
+            <path d="M14 17H30" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
+            <path d="M14 23H24" stroke="rgba(255,255,255,0.7)" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M14 29H20" stroke="rgba(255,255,255,0.4)" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="30" cy="27" r="3.5" fill="#10b981" />
+            <defs>
+              <linearGradient id="ticketGrad" x1="6" y1="8" x2="38" y2="36" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#1e293b" />
+                <stop offset="1" stopColor="#0f172a" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
         <div className="pos-empty-title">Ready for Order</div>
-        <div className="pos-empty-subtitle">Select items from menu or scan barcode</div>
+        <div className="pos-empty-subtitle">Select items from menu, scan barcode, or use fast actions</div>
       </div>
 
-      {/* High-Utility Quick Action Chips */}
-      <div className="pos-empty-actions">
+      {/* Inline Search Bar (Auto-expanded when active or user types) */}
+      {(showSearchInput || search) && (
+        <div className="pos-empty-search-box">
+          <Search size={15} className="pos-empty-search-icon" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            className="pos-empty-search-input"
+            placeholder="Search items by name or code..."
+            value={search || ''}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          {search && (
+            <button
+              type="button"
+              className="pos-empty-search-clear"
+              onClick={() => setSearch('')}
+              title="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* High-Utility 2x2 Action Tiles (Generous touch targets) */}
+      <div className="pos-empty-tiles-grid">
+        {/* Tile 1: Custom Item */}
         <button
           type="button"
-          className="pos-empty-action-btn"
+          className="pos-action-tile tile--custom"
           onClick={(e) => {
             e.stopPropagation();
             hapticTap('light');
@@ -101,36 +171,69 @@ function EmptyCartState({ onAddCustomItem, onSelectTable, onSearchMenu }) {
           }}
           title="Add a custom off-menu item"
         >
-          <Plus size={13} strokeWidth={2.5} />
-          <span>Custom Item</span>
+          <div className="tile-icon-wrap icon-wrap--emerald">
+            <Plus size={17} strokeWidth={2.5} />
+          </div>
+          <div className="tile-info">
+            <span className="tile-title">Custom Item</span>
+            <span className="tile-hint">Off-menu item</span>
+          </div>
         </button>
 
+        {/* Tile 2: Table Selection */}
         <button
           type="button"
-          className="pos-empty-action-btn"
+          className="pos-action-tile tile--table"
           onClick={(e) => {
             e.stopPropagation();
             hapticTap('light');
             onSelectTable();
           }}
-          title="Choose a dining table"
+          title="Choose dining table"
         >
-          <LayoutGrid size={13} strokeWidth={2} />
-          <span>Table</span>
+          <div className="tile-icon-wrap icon-wrap--sky">
+            <LayoutGrid size={17} strokeWidth={2.2} />
+          </div>
+          <div className="tile-info">
+            <span className="tile-title">Select Table</span>
+            <span className="tile-hint">Dine-in map</span>
+          </div>
         </button>
 
+        {/* Tile 3: Bestsellers */}
         <button
           type="button"
-          className="pos-empty-action-btn"
+          className={`pos-action-tile tile--bestseller ${isBestsellerActive ? 'active' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             hapticTap('light');
-            onSearchMenu();
+            onToggleBestsellers();
           }}
+          title="Filter to top selling items"
+        >
+          <div className="tile-icon-wrap icon-wrap--amber">
+            <Flame size={17} strokeWidth={2.2} />
+          </div>
+          <div className="tile-info">
+            <span className="tile-title">Bestsellers</span>
+            <span className="tile-hint">{isBestsellerActive ? 'Filtering active' : 'Top rush items'}</span>
+          </div>
+        </button>
+
+        {/* Tile 4: Search Menu */}
+        <button
+          type="button"
+          className={`pos-action-tile tile--search ${showSearchInput ? 'active' : ''}`}
+          onClick={handleSearchClick}
           title="Search menu items"
         >
-          <Search size={13} strokeWidth={2} />
-          <span>Search</span>
+          <div className="tile-icon-wrap icon-wrap--purple">
+            <Search size={17} strokeWidth={2.2} />
+          </div>
+          <div className="tile-info">
+            <span className="tile-title">Find Item</span>
+            <span className="tile-hint">Name / barcode</span>
+          </div>
         </button>
       </div>
 
@@ -2032,12 +2135,10 @@ export default function POS() {
             <EmptyCartState
               onAddCustomItem={() => setShowOpenItemModal(true)}
               onSelectTable={() => setShowTableSel(true)}
-              onSearchMenu={() => {
-                const searchEl = document.querySelector('input[type="text"][placeholder*="Search"], .app-header input');
-                if (searchEl) {
-                  searchEl.focus();
-                }
-              }}
+              isBestsellerActive={dietaryFilter === 'bestseller'}
+              onToggleBestsellers={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+              search={search}
+              setSearch={setSearch}
             />
           ) : (
             (() => {
