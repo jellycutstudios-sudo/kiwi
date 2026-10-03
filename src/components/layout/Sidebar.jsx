@@ -249,7 +249,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                const restIdToShow = restaurant.slug || restaurant.id;
+                const restIdToShow = restaurant.customId || restaurant.slug || restaurant.id;
                 if (!restIdToShow) return;
                 navigator.clipboard.writeText(restIdToShow);
                 setCopiedId(true);
@@ -279,7 +279,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             >
               <span style={{ opacity: 0.6, fontSize: '9px' }}>ID:</span>
               <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-label)' }}>
-                {restaurant.slug || restaurant.id}
+                {restaurant.customId || restaurant.slug || restaurant.id}
               </span>
               {copiedId ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
             </button>
