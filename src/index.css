@@ -2946,15 +2946,15 @@ html.dark .advisor-btn-icon {
   margin: 0 var(--space-4) 4px;
 }
 
-/* Cart Totals Summary Card (Claymorphism Surface) */
+/* Cart Totals Summary Card */
 .cart-totals {
-  padding: 8px var(--space-3) 6px;
+  padding: 6px var(--space-3) 4px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, #ffffff 100%);
-  box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .cart-total-row {
@@ -2963,6 +2963,83 @@ html.dark .advisor-btn-icon {
   align-items: center;
   font-size: 11.5px;
   color: var(--color-label-secondary);
+}
+
+.cart-breakdown-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-label);
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.cart-tax-indicator {
+  font-size: 8.5px;
+  color: var(--color-label-tertiary);
+  font-weight: 700;
+  border: 1px solid var(--color-separator);
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: var(--color-bg-secondary);
+  line-height: 1;
+}
+
+.cart-addon-micro-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary, #f8fafc);
+  color: var(--color-label-secondary);
+  border: 1px solid var(--color-separator);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.cart-addon-micro-btn:hover {
+  background: var(--color-bg-elevated, #ffffff);
+  color: var(--color-label);
+  border-color: var(--color-separator-opaque);
+  transform: translateY(-0.5px);
+}
+
+.cart-addon-micro-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.cart-addon-micro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  height: 22px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1);
+  white-space: nowrap;
+}
+
+.cart-addon-micro-chip.note-chip {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.3);
 }
 
 .cart-discount-card {
@@ -3004,70 +3081,53 @@ html.dark .advisor-btn-icon {
   font-size: 15px;
   font-weight: 800;
   color: #0f172a;
-  padding-top: 5px;
+  padding-top: 3px;
   border-top: 1.5px solid rgba(0, 0, 0, 0.07);
-  margin-top: 2px;
+  margin-top: 0;
   letter-spacing: -0.01em;
 }
 
 /* ============================================================
-   1-Tap Fast Checkout Card (Minimal, High-Contrast, Premium)
+   1-Tap Fast Checkout Card (Ultra-Compact Single Row)
    ============================================================ */
 .quickpay-card {
   background: #ffffff;
-  border-radius: var(--radius-lg);
-  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  padding: 3px 5px;
   border: 1px solid var(--color-separator);
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-top: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  margin-top: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 }
 
-.quickpay-card-header {
+.quickpay-grid-wrap {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.quickpay-title-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.quickpay-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--color-label);
-}
-
-.quickpay-badge-hint {
-  font-size: 10px;
-  color: var(--color-label-tertiary);
-  font-weight: 500;
-}
-
-.quickpay-toggle-btn {
-  display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-label-tertiary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
 }
 
-.quickpay-toggle-btn:hover {
+.quickpay-grid {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.quickpay-toggle-mini {
+  background: none;
+  border: none;
+  color: var(--color-label-tertiary);
+  cursor: pointer;
+  padding: 4px 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.12s ease;
+}
+
+.quickpay-toggle-mini:hover {
+  opacity: 1;
   color: var(--color-label);
   background: var(--color-fill);
 }
@@ -3076,13 +3136,14 @@ html.dark .advisor-btn-icon {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 2px 8px;
   background: var(--color-bg-secondary);
   border: 1px dashed var(--color-separator);
-  border-radius: var(--radius-md);
-  margin-top: 6px;
+  border-radius: var(--radius-sm);
+  margin-top: 2px;
   cursor: pointer;
   transition: all 0.15s ease;
+  height: 22px;
 }
 
 .quickpay-collapsed-bar:hover {
@@ -3090,29 +3151,25 @@ html.dark .advisor-btn-icon {
   border-color: var(--color-separator-opaque);
 }
 
-.quickpay-grid {
-  display: grid;
-  gap: 6px;
-}
-
 .quickpay-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  padding: 5px 4px;
-  border-radius: var(--radius-md);
+  padding: 2px 6px;
+  border-radius: 6px;
   border: 1px solid var(--color-separator);
   background: var(--color-bg);
   cursor: pointer;
-  min-height: 42px;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 28px;
+  height: 28px;
+  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
 }
 
 .quickpay-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .quickpay-btn:active:not(:disabled) {
@@ -3153,14 +3210,8 @@ html.dark .advisor-btn-icon {
   align-items: center;
   gap: 3px;
   font-weight: 700;
-  font-size: 11.5px;
-}
-
-.quickpay-btn-sub {
-  font-size: 9.5px;
-  color: var(--color-label-tertiary);
-  margin-top: 1px;
-  font-weight: 500;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -3169,13 +3220,13 @@ html.dark .advisor-btn-icon {
 .cart-action-buttons {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
-  gap: 8px;
-  padding: 6px var(--space-3) 10px;
+  gap: 6px;
+  padding: 4px var(--space-3) 6px;
   background: var(--color-bg);
 }
 
 .btn-3d-emoji {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -3185,20 +3236,20 @@ html.dark .advisor-btn-icon {
 
 /* Kitchen / KOT Action Button */
 .cart-action-btn-kitchen {
-  height: 48px;
-  border-radius: 14px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: 5px;
+  font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   background: var(--color-surface, #ffffff);
   color: #0f172a;
   border: 1.5px solid var(--color-separator, #e2e8f0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
   position: relative;
@@ -3209,8 +3260,8 @@ html.dark .advisor-btn-icon {
 .cart-action-btn-kitchen:hover:not(:disabled) {
   background: #f8fafc;
   border-color: #cbd5e1;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-0.5px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
 }
 
 .cart-action-btn-kitchen:active:not(:disabled) {
@@ -3220,20 +3271,20 @@ html.dark .advisor-btn-icon {
 
 /* Dual Checkout Button */
 .cart-action-btn-checkout {
-  height: 48px;
-  border-radius: 14px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 13.5px;
+  gap: 5px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
   position: relative;
@@ -3244,25 +3295,25 @@ html.dark .advisor-btn-icon {
 
 .cart-action-btn-checkout:hover:not(:disabled) {
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.3);
+  transform: translateY(-0.5px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
 }
 
 .cart-action-btn-checkout:active:not(:disabled) {
   transform: scale(0.98);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.18);
 }
 
 /* Single Full-Width Primary Checkout Button */
 .cart-checkout-btn {
-  margin: 6px var(--space-3) 12px;
-  height: 50px;
-  padding: 0 18px;
-  border-radius: 14px;
+  margin: 4px var(--space-3) 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
@@ -8278,6 +8329,32 @@ button:active:not(:disabled),
   border-color: rgba(255, 255, 255, 0.28) !important;
 }
 
+[data-theme="dark"] .cart-addon-micro-btn {
+  background: #181b2c;
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .cart-addon-micro-btn:hover {
+  background: #23273e;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .cart-addon-micro-btn.active {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cart-breakdown-toggle-btn {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .cart-tax-indicator {
+  background: #1e2132;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+}
+
 [data-theme="dark"] .cart-note-preset-chip {
   background: #1c1d28;
   color: #d1d5db;
@@ -9402,6 +9479,54 @@ button:active:not(:disabled),
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
   border-color: rgba(245, 158, 11, 0.5);
+}
+
+/* Bestseller Chip */
+.bestseller-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--color-separator);
+  background: var(--color-bg-elevated);
+  color: var(--color-label-secondary);
+  transition: all 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.bestseller-chip:hover {
+  background: var(--color-fill);
+  color: var(--color-label);
+}
+.bestseller-chip.is-active {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+  font-weight: 700;
+}
+[data-theme="dark"] .bestseller-chip {
+  background: #1e202e;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .bestseller-chip.is-active {
+  background: rgba(239, 68, 68, 0.22);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.menu-key-pill-bestseller {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+[data-theme="dark"] .menu-key-pill-bestseller {
+  background: rgba(239, 68, 68, 0.22);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.45);
 }
 
 /* Optional Details Collapsible */

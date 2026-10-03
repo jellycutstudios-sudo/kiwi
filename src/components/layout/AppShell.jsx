@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
@@ -14,6 +16,8 @@ import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { useUpdateStore } from '../../stores/updateStore';
 import ThemeToggle from '../shared/ThemeToggle';
 import { triggerMorningCheer } from '../../utils/morningCheer';
+import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
+import OfflineSyncModal from '../pos/OfflineSyncModal';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
@@ -56,6 +60,16 @@ export default function AppShell() {
   const setIsFocusMode = useMenuStore(s => s.setIsFocusMode);
   const subscribeStaff = useStaffStore(s => s.subscribeStaff);
   const subscribeTables = useTableStore(s => s.subscribe);
+  const isOnline = useOfflineQueueStore(s => s.isOnline);
+  const offlineQueue = useOfflineQueueStore(s => s.queue);
+  const isSyncingQueue = useOfflineQueueStore(s => s.isSyncing);
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
+
+  // Initialize network monitoring listeners
+  useEffect(() => {
+    const cleanup = useOfflineQueueStore.getState().initNetworkListeners();
+    return () => cleanup && cleanup();
+  }, []);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
@@ -135,32 +149,6 @@ export default function AppShell() {
     const id = setTimeout(() => setMobileSidebarOpen(false), 0);
     return () => clearTimeout(id);
   }, [location.pathname]);
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast.success('Connection restored — syncing all offline changes!', {
-        id: 'net-status',
-        duration: 3500,
-        icon: '🟢',
-      });
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast('Operating in Offline Unbreakable Mode. Orders & billing saved locally.', {
-        id: 'net-status',
-        duration: 4500,
-        icon: '🛡️',
-      });
-    };
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const pageTitle = t(PAGE_TITLES[location.pathname] ?? 'appName');
 
@@ -171,11 +159,22 @@ export default function AppShell() {
     const unsubMenu = subscribeMenu(restaurant.id);
     const unsubStaff = subscribeStaff(restaurant.id);
     const unsubTables = subscribeTables(restaurant.id);
+    const unsubRestaurant = onSnapshot(doc(db, 'restaurants', restaurant.id), snap => {
+      if (snap.exists()) {
+        const updated = { id: snap.id, ...snap.data() };
+        useAuthStore.setState({ restaurant: updated });
+        try {
+          localStorage.setItem(`dineos_cached_settings_${snap.id}`, JSON.stringify(updated));
+        } catch {}
+      }
+    });
+
     return () => {
       unsubOrders();
       unsubMenu();
       unsubStaff();
       unsubTables();
+      unsubRestaurant();
     };
   }, [restaurant?.id, subscribeActiveOrders, subscribeMenu, subscribeStaff, subscribeTables]);
 
@@ -491,6 +490,49 @@ export default function AppShell() {
               </div>
             )}
 
+            {/* Zero-Downtime Offline Outbox & Network Status Pill */}
+            <button
+              type="button"
+              id="network-outbox-status-btn"
+              onClick={() => setShowOfflineModal(true)}
+              title={isOnline ? (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered - click to inspect` : 'Connected to cloud server') : 'Network Offline - buffering orders locally'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                height: '32px',
+                padding: '0 10px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: isOnline && offlineQueue.length === 0
+                  ? '1px solid var(--color-border)'
+                  : '1px solid rgba(245, 158, 11, 0.45)',
+                background: isOnline && offlineQueue.length === 0
+                  ? 'var(--color-surface)'
+                  : 'rgba(245, 158, 11, 0.14)',
+                color: isOnline && offlineQueue.length === 0
+                  ? 'var(--color-text-secondary)'
+                  : '#d97706',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: !isOnline ? '#ef4444' : (offlineQueue.length > 0 ? '#f59e0b' : '#22c55e'),
+                boxShadow: !isOnline ? '0 0 6px #ef4444' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e'),
+                flexShrink: 0
+              }} />
+              <span>
+                {!isOnline 
+                  ? `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}` 
+                  : (offlineQueue.length > 0 ? (isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`) : 'Live Online')}
+              </span>
+            </button>
+
             {/* Theme Toggle (Obsidian Dark / Light) */}
             <ThemeToggle />
 
@@ -612,6 +654,9 @@ export default function AppShell() {
 
       {/* Interactive Waiter Ready Slide Popup */}
       <WaiterReadySlidePopup />
+
+      {/* Zero-Downtime Offline Buffer & Cloud Sync Modal */}
+      <OfflineSyncModal isOpen={showOfflineModal} onClose={() => setShowOfflineModal(false)} />
     </div>
   );
 }

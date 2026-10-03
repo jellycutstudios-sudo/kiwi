@@ -178,6 +178,11 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   
   writeBytes(ALIGN_LEFT);
   writeTextLine(`Date: ${new Date().toLocaleString()}`);
+  if (order.isOffline) {
+    writeBytes(BOLD_ON);
+    writeTextLine('*** OFFLINE BUFFERED RECEIPT ***');
+    writeBytes(BOLD_OFF);
+  }
   const orderTypeLabel =
     order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
     order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
@@ -865,6 +870,7 @@ ${phone ? `<div class="center">Tel: ${phone}</div>` : ''}
 ${restaurant?.gstin ? `<div class="center bold">GSTIN: ${restaurant.gstin}</div>` : ''}
 ${restaurant?.fssai ? `<div class="center">FSSAI Lic: ${restaurant.fssai}</div>` : ''}
 <div class="divider"></div>
+${order.isOffline ? `<div class="center bold" style="background:#f3f4f6;padding:3px;margin:4px 0;font-size:10.5px;letter-spacing:0.5px;">*** OFFLINE BUFFERED RECEIPT ***</div>` : ''}
 <div>Date: ${new Date().toLocaleString()}</div>
 <div class="bold">${orderTypeLabel}</div>
 ${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
@@ -1218,7 +1224,7 @@ ${order.note ? `<div style="font-size:${is58mm ? '12px' : '14px'}; font-weight:b
   setTimeout(() => { win.print(); win.close(); }, 400);
 }
 
-export function printTokenTicket({ token, orderType, customerName, restaurant }) {
+export function printTokenTicket({ token, orderType, customerName, restaurant, isOffline = false }) {
   // Detect paper size from first receipt printer config, default to 80mm
   const printers = restaurant?.peripheralConfig?.printers ?? [];
   const receiptPrinter = printers.find(p => p.type === 'receipt');
@@ -1252,6 +1258,7 @@ export function printTokenTicket({ token, orderType, customerName, restaurant })
 <div class="divider"></div>
 <div class="label">Your Token Number</div>
 <div class="token">${String(token).padStart(3, '0')}</div>
+${isOffline ? `<div style="font-size:11px;font-weight:bold;color:#b45309;margin-bottom:4px;">⚡ OFFLINE TICKET</div>` : ''}
 <div class="divider"></div>
 <div class="label">${orderType === 'dine-in' ? '🍽 Dine In' : '🛍 Takeaway / Pickup'}</div>
 ${customerName ? `<div style="margin-top:4px;font-size:12px;font-weight:bold;">${customerName}</div>` : ''}

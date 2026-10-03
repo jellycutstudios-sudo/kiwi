@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
@@ -162,17 +162,78 @@ const TABS = [
 
 export default function Settings() {
   const { restaurant } = useAuthStore();
-  const [settings, setSettings] = useState(null);
-  const initialSettingsRef = useRef(null);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+
+  // Initialize settings synchronously from draft, authStore restaurant, or cached settings
+  const [settings, setSettings] = useState(() => {
+    if (typeof localStorage !== 'undefined' && restaurant?.id) {
+      try {
+        const draft = localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
+        if (draft) return JSON.parse(draft);
+      } catch {}
+    }
+    if (restaurant && Object.keys(restaurant).length > 2) {
+      return { ...restaurant };
+    }
+    if (typeof localStorage !== 'undefined' && restaurant?.id) {
+      try {
+        const cached = localStorage.getItem(`dineos_cached_settings_${restaurant.id}`);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
+  const initialSettingsRef = useRef(
+    restaurant && Object.keys(restaurant).length > 2 ? JSON.stringify(restaurant) : null
+  );
+
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedSlideshowId, setCopiedSlideshowId] = useState(null);
   const [slideshowList, setSlideshowList] = useState([]);
-  const [activeTab, setActiveTab] = useState('general');
+
+  // Remember active settings tab across sessions
+  const [activeTab, setActiveTabState] = useState(() => {
+    if (typeof localStorage === 'undefined') return 'general';
+    try {
+      return localStorage.getItem('dineos_settings_tab') || 'general';
+    } catch {
+      return 'general';
+    }
+  });
+
+  const setActiveTab = (tabId) => {
+    setActiveTabState(tabId);
+    try {
+      localStorage.setItem('dineos_settings_tab', tabId);
+    } catch {}
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const { hasUpdate, isUpdating, applyUpdate, checkForUpdates } = useUpdateStore();
+
+  // Detect if an unsaved draft was restored on mount
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined' && restaurant?.id) {
+      const draft = localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
+      if (draft && initialSettingsRef.current && draft !== initialSettingsRef.current) {
+        setHasRestoredDraft(true);
+      }
+    }
+  }, [restaurant?.id]);
+
+  // Auto-persist draft changes so staff/admin edits are never lost
+  useEffect(() => {
+    if (!settings || !restaurant?.id) return;
+    if (initialSettingsRef.current && JSON.stringify(settings) !== initialSettingsRef.current) {
+      try {
+        localStorage.setItem(`dineos_settings_draft_${restaurant.id}`, JSON.stringify(settings));
+      } catch {}
+    }
+  }, [settings, restaurant?.id]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!settings || !initialSettingsRef.current) return false;
@@ -182,6 +243,10 @@ export default function Settings() {
   const handleDiscard = () => {
     if (initialSettingsRef.current) {
       setSettings(JSON.parse(initialSettingsRef.current));
+      setHasRestoredDraft(false);
+      try {
+        localStorage.removeItem(`dineos_settings_draft_${restaurant?.id}`);
+      } catch {}
       toast('Unsaved changes discarded', { icon: '↩️' });
     }
   };
@@ -431,13 +496,24 @@ export default function Settings() {
 
   useEffect(() => {
     if (!restaurant?.id) return;
-    getDoc(doc(db, 'restaurants', restaurant.id)).then(d => {
-      if (d.exists()) {
-        const data = d.data();
-        setSettings({ ...data });
+    const unsub = onSnapshot(doc(db, 'restaurants', restaurant.id), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
         initialSettingsRef.current = JSON.stringify(data);
+        try {
+          localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(data));
+        } catch {}
+
+        const hasDraft = typeof localStorage !== 'undefined' && localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
+        if (!hasDraft) {
+          setSettings(prev => {
+            if (!prev) return { ...data };
+            return { ...data };
+          });
+        }
       }
     });
+    return () => unsub();
   }, [restaurant?.id]);
 
   const save = async () => {
@@ -490,6 +566,11 @@ export default function Settings() {
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
       setSettings(settingsToSave);
       initialSettingsRef.current = JSON.stringify(settingsToSave);
+      setHasRestoredDraft(false);
+      try {
+        localStorage.removeItem(`dineos_settings_draft_${restaurant.id}`);
+        localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(settingsToSave));
+      } catch {}
       useAuthStore.setState({ restaurant: { id: restaurant.id, ...settingsToSave } });
       toast.success('Settings saved!');
     } catch (e) {
@@ -560,6 +641,52 @@ export default function Settings() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-6)', maxWidth: 1240, width: '100%', margin: '0 auto', paddingBottom: 80 }}>
+      {/* Draft Restored Banner */}
+      {hasRestoredDraft && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          borderRadius: '12px',
+          padding: '12px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>📝</span>
+            <div>
+              <div style={{ fontSize: 'var(--text-subhead)', color: '#d97706', fontWeight: 700 }}>
+                Unsaved Settings Restored
+              </div>
+              <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)' }}>
+                We remembered your unsaved adjustments from your previous session.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleDiscard}
+              style={{ height: 32, fontSize: 'var(--text-caption1)' }}
+            >
+              Discard Draft
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={save}
+              disabled={saving}
+              style={{ height: 32, fontSize: 'var(--text-caption1)' }}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>

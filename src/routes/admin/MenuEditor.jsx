@@ -52,7 +52,7 @@ export default function MenuEditor() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, barcode: '', unit: 'pcs' });
+  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs' });
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -123,6 +123,7 @@ export default function MenuEditor() {
       station: 'Kitchen',
       imageUrl: '',
       highMargin: false,
+      isBestseller: false,
       barcode: '',
       unit: 'pcs'
     });
@@ -146,6 +147,7 @@ export default function MenuEditor() {
       station: item.station ?? 'Kitchen',
       imageUrl: item.imageUrl ?? '',
       highMargin: item.highMargin || false,
+      isBestseller: item.isBestseller || item.bestseller || false,
       barcode: item.barcode ?? '',
       unit: item.unit ?? 'pcs'
     });
@@ -320,6 +322,7 @@ export default function MenuEditor() {
       station: itemForm.station ?? 'Kitchen',
       imageUrl: itemForm.imageUrl ?? '',
       highMargin: itemForm.highMargin || false,
+      isBestseller: itemForm.isBestseller || false,
       barcode: itemForm.barcode?.trim() ?? '',
       unit: itemForm.unit || 'pcs',
     };
@@ -329,7 +332,7 @@ export default function MenuEditor() {
     await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCatId), { items });
     setShowItemForm(false);
     setEditItem(null);
-    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, barcode: '', unit: 'pcs' });
+    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs' });
     toast.success(editItem ? 'Item updated!' : 'Item added!');
   };
 
@@ -592,6 +595,9 @@ export default function MenuEditor() {
                             {item.highMargin && (
                               <span className="menu-editor-pill-badge star" title="High Margin">⭐ Margin</span>
                             )}
+                            {(item.isBestseller || item.bestseller) && (
+                              <span className="menu-editor-pill-badge" style={{ background: 'rgba(239, 68, 68, 0.14)', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.35)' }} title="Bestseller">🔥 Bestseller</span>
+                            )}
                             {item.barcode && (
                               <span className="menu-editor-pill-badge">🏷️ {item.barcode}</span>
                             )}
@@ -697,6 +703,7 @@ export default function MenuEditor() {
                         <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span>{item.name}</span>
                           {item.highMargin && <span title="High Margin">⭐</span>}
+                          {(item.isBestseller || item.bestseller) && <span title="Bestseller">🔥</span>}
                           {item.barcode && <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px' }}>🏷️ {item.barcode}</span>}
                           {item.modifierGroups?.length > 0 && (
                             <span style={{ fontSize: '10.5px', color: 'var(--color-accent)', background: 'var(--color-accent-light, rgba(0,122,255,0.08))', border: '1px solid var(--color-accent)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
@@ -1036,6 +1043,18 @@ export default function MenuEditor() {
                   >
                     <span>⭐</span>
                     <span>High Margin</span>
+                  </button>
+
+                  {/* Bestseller toggle chip */}
+                  <button
+                    type="button"
+                    id="item-bestseller-toggle"
+                    onClick={() => setItemForm(f => ({ ...f, isBestseller: !f.isBestseller }))}
+                    className={`bestseller-chip ${itemForm.isBestseller ? 'is-active' : ''}`}
+                    title="Mark as signature Bestseller dish"
+                  >
+                    <span>🔥</span>
+                    <span>Bestseller</span>
                   </button>
                 </div>
 

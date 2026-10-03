@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronRight, ChevronDown, Tag, Banknote, Star, User, Search, 
-  FileText, Check, Flame, Leaf, Sparkles, Clock, LayoutGrid, Maximize2, Minimize2 
+  FileText, Check, Flame, Leaf, Clock, LayoutGrid, Maximize2, Minimize2 
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
@@ -218,9 +218,25 @@ export default function POS() {
 
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
-  const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'non-veg' | 'bestseller'
+  const [dietaryFilter, setDietaryFilterState] = useState(() => {
+    if (typeof localStorage === 'undefined') return 'all';
+    try {
+      return localStorage.getItem('kiwi_pos_dietary') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+
+  const setDietaryFilter = (valOrFn) => {
+    setDietaryFilterState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      try {
+        localStorage.setItem('kiwi_pos_dietary', next);
+      } catch {}
+      return next;
+    });
+  };
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
-  const [dismissedUpsell, setDismissedUpsell] = useState(false);
 
   const [showPayment, setShowPayment] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
@@ -298,6 +314,67 @@ export default function POS() {
     }).catch(console.error);
     return () => { isMounted = false; };
   }, [restaurant?.id]);
+
+  // Live active orders in store
+  const activeOrders = useOrderStore(s => s.activeOrders);
+
+  // Historical sales counts for calculating Bestsellers dynamically
+  const [historicalSalesMap, setHistoricalSalesMap] = useState(() => {
+    if (typeof localStorage === 'undefined') return {};
+    try {
+      const cached = localStorage.getItem(`kiwi_sales_counts_${restaurant?.id}`);
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    let isMounted = true;
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'orders'),
+      where('status', 'in', ['billed', 'ready', 'served', 'completed']),
+      limit(150)
+    );
+    getDocs(q).then(snap => {
+      if (!isMounted) return;
+      const counts = {};
+      snap.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        if (Array.isArray(data.items)) {
+          data.items.forEach(item => {
+            const nameKey = (item.name || '').trim().toLowerCase();
+            const idKey = item.id || item.menuItemId;
+            if (nameKey) counts[nameKey] = (counts[nameKey] || 0) + (item.qty || 1);
+            if (idKey) counts[idKey] = (counts[idKey] || 0) + (item.qty || 1);
+          });
+        }
+      });
+      setHistoricalSalesMap(counts);
+      try {
+        localStorage.setItem(`kiwi_sales_counts_${restaurant.id}`, JSON.stringify(counts));
+      } catch {}
+    }).catch(err => {
+      console.warn('Could not fetch historical sales for bestsellers:', err);
+    });
+    return () => { isMounted = false; };
+  }, [restaurant?.id]);
+
+  // Unified item sales map combining active open orders and past billed orders
+  const itemSalesMap = useMemo(() => {
+    const combined = { ...historicalSalesMap };
+    (activeOrders || []).forEach(order => {
+      if (!Array.isArray(order.items)) return;
+      order.items.forEach(item => {
+        const nameKey = (item.name || '').trim().toLowerCase();
+        const idKey = item.id || item.menuItemId;
+        if (nameKey) combined[nameKey] = (combined[nameKey] || 0) + (item.qty || 1);
+        if (idKey) combined[idKey] = (combined[idKey] || 0) + (item.qty || 1);
+      });
+    });
+    return combined;
+  }, [historicalSalesMap, activeOrders]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -395,6 +472,14 @@ export default function POS() {
 
   const handleQuickPay = async (method, tenderedAmount) => {
     if (!items.length || isQuickPaying) return;
+
+    // For UPI: Launch dynamic QR code modal immediately for customer to scan
+    if (method === 'upi') {
+      setPaymentMethod('upi');
+      setShowPayment(true);
+      return;
+    }
+
     setIsQuickPaying(true);
     setPaymentMethod(method);
     const toastId = toast.loading(`Processing 1-tap ${method.toUpperCase()} payment...`);
@@ -433,7 +518,8 @@ export default function POS() {
         id: res.orderId,
         type: snapOrderType,
         tableName: snapTableName,
-        token,
+        token: res.token || token,
+        isOffline: Boolean(res.isOffline),
         customerName: snapCustomerName,
         customerPhone: snapCustomerPhone,
         subtotal: snapSubtotal,
@@ -448,7 +534,13 @@ export default function POS() {
         note: snapNote,
       };
 
-      if (change > 0) {
+      if (res.isOffline) {
+        toast.success(change > 0 
+          ? `Offline payment buffered! Return Change: ${formatCurrency(change, currency)}` 
+          : `Order buffered offline (#${res.token || token})! Will sync when online.`, 
+          { id: toastId, icon: '⚡', duration: 5000 }
+        );
+      } else if (change > 0) {
         toast.success(`Payment settled! Return Change: ${formatCurrency(change, currency)}`, { id: toastId, icon: '💵', duration: 5000 });
       } else {
         toast.success(`Payment complete! Order #${res.orderId.slice(-4)} placed.`, { id: toastId, icon: '⚡' });
@@ -816,11 +908,45 @@ export default function POS() {
     } else if (dietaryFilter === 'non-veg') {
       filtered = filtered.filter(i => i.isVeg === false || i.veg === false || /chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon|carbonara/i.test(i.name));
     } else if (dietaryFilter === 'bestseller') {
-      filtered = filtered.filter(i => i.highMargin || i.isBestseller || i.popular);
+      const getItemSales = (i) => {
+        const nameKey = (i.name || '').trim().toLowerCase();
+        return (itemSalesMap[i.id] || 0) + (itemSalesMap[nameKey] || 0);
+      };
+
+      // Items that qualify as bestsellers: order sales recorded or tagged as bestseller/popular/highMargin
+      const qualifying = filtered.filter(i => {
+        const sales = getItemSales(i);
+        return i.isBestseller || i.bestseller || i.popular || i.highMargin || sales > 0;
+      });
+
+      if (qualifying.length > 0) {
+        filtered = [...qualifying].sort((a, b) => {
+          const scoreA = (getItemSales(a) * 10) + (a.isBestseller || a.bestseller ? 50 : 0) + (a.popular ? 30 : 0) + (a.highMargin ? 20 : 0);
+          const scoreB = (getItemSales(b) * 10) + (b.isBestseller || b.bestseller ? 50 : 0) + (b.popular ? 30 : 0) + (b.highMargin ? 20 : 0);
+          return scoreB - scoreA;
+        });
+      } else {
+        // Fallback for new/demo restaurants with no sales and no tagged items yet:
+        // Gracefully display the top signature dish from each category so the screen is NEVER blank
+        const fallbackSet = new Set();
+        const fallbackItems = [];
+        categories.forEach(cat => {
+          if (Array.isArray(cat.items)) {
+            const topFromCat = cat.items.slice(0, 2);
+            topFromCat.forEach(it => {
+              if (!fallbackSet.has(it.id)) {
+                fallbackSet.add(it.id);
+                fallbackItems.push(it);
+              }
+            });
+          }
+        });
+        filtered = (fallbackItems.length > 0 ? fallbackItems : filtered).slice(0, 12);
+      }
     }
 
     return filtered;
-  }, [categories, activeCat, search, dietaryFilter]);
+  }, [categories, activeCat, search, dietaryFilter, itemSalesMap]);
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
@@ -872,7 +998,11 @@ export default function POS() {
     const res = await submitOrder(restaurant, staffDoc?.id);
     if (!res.ok) { toast.error(res.error); return; }
 
-    toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
+    if (res.isOffline) {
+      toast.success(`Order buffered offline (#${res.token || token})! Ticket printing...`, { icon: '⚡', duration: 4500 });
+    } else {
+      toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
+    }
     
     // Print kitchen tickets (KOT)
     setTimeout(() => {
@@ -883,15 +1013,16 @@ export default function POS() {
           type: snapOrderType,
           tableName: snapTableName,
           tableId: snapTableId,
-          token,
+          token: res.token || token,
+          isOffline: Boolean(res.isOffline),
           customerName: snapCustomerName,
           note: snapNote,
         },
         items: snapItems,
         staffName: snapStaffName
       });
-      if (token) {
-        printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
+      if (token || res.token) {
+        printTokenTicket({ token: res.token || token, orderType: snapOrderType, customerName: snapCustomerName, restaurant, isOffline: Boolean(res.isOffline) });
       }
     }, 100);
   };
@@ -998,13 +1129,18 @@ export default function POS() {
         return;
       }
 
-      toast.success('Payment completed & order placed! ⚡', { id: toastId });
+      if (res.isOffline) {
+        toast.success(`Payment buffered offline (#${res.token || token})! Tickets printing...`, { id: toastId, icon: '⚡', duration: 4500 });
+      } else {
+        toast.success('Payment completed & order placed! ⚡', { id: toastId });
+      }
 
       const printOrder = {
         id: res.orderId,
         type: snapOrderType,
         tableName: snapTableName,
-        token,
+        token: res.token || token,
+        isOffline: Boolean(res.isOffline),
         customerName: snapCustomerName,
         customerPhone: snapCustomerPhone,
         subtotal: snapSubtotal,
@@ -1216,10 +1352,10 @@ export default function POS() {
               aria-selected={dietaryFilter === 'bestseller'}
               className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
               onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-              title="Bestsellers (Filter popular items)"
+              title="Bestsellers (Filter popular & high-selling items)"
               aria-label="Bestsellers"
             >
-              <Sparkles size={14} color="#f59e0b" />
+              <Flame size={14} color="#f59e0b" />
             </button>
           </div>
 
@@ -1321,6 +1457,11 @@ export default function POS() {
                             ★ Special
                           </span>
                         )}
+                        {(item.isBestseller || item.bestseller || ((itemSalesMap[item.id] || 0) + (itemSalesMap[(item.name || '').toLowerCase()] || 0) > 0)) && (
+                          <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
+                            🔥 Popular
+                          </span>
+                        )}
                         {hasModifiers && (
                           <span className="menu-key-pill menu-key-pill-mod">
                             Options
@@ -1402,6 +1543,9 @@ export default function POS() {
                     <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       {item.name}
                       {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px' }}>⭐</span>}
+                      {(item.isBestseller || item.bestseller || ((itemSalesMap[item.id] || 0) + (itemSalesMap[(item.name || '').toLowerCase()] || 0) > 0)) && (
+                        <span title="Bestseller" style={{ fontSize: '11px' }}>🔥</span>
+                      )}
                     </div>
                     <div className="menu-item-price" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>
@@ -1847,90 +1991,10 @@ export default function POS() {
           )}
         </div>
 
-        {/* Smart Collapsible Add-ons & Upsell Bar */}
+        {/* Compact Totals & Inlined Actions Card */}
         {items.length > 0 && (
-          <>
-            {/* Dismissible Compact Upsell Nudge */}
-            {!dismissedUpsell && sevenDayAvg > 0 && total > 0 && total < sevenDayAvg && (
-              <div className="cart-upsell-chip">
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span>💡</span> Order is below avg ({formatCurrency(sevenDayAvg, currency)}). Add drink?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setDismissedUpsell(true)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', display: 'flex', opacity: 0.6 }}
-                  title="Dismiss"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            )}
-
-            {/* Collapsed Pill Row */}
-            <div className="cart-addons-bar">
-              {/* Discount Pill / Active Chip */}
-              {discount > 0 ? (
-                <div className="cart-addon-chip">
-                  <Tag size={11} />
-                  <span 
-                    onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                    style={{ cursor: 'pointer' }}
-                    title="Click to edit discount"
-                  >
-                    {discountType === 'percent' ? `${discount}%` : formatCurrency(discount, currency)} (-{formatCurrency(discountAmount, currency)})
-                  </span>
-                  <button
-                    type="button"
-                    className="cart-addon-remove"
-                    onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
-                    title="Remove discount"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={`cart-addon-btn ${activeAddon === 'discount' ? 'active' : ''}`}
-                  onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                >
-                  <Tag size={11} /> + Discount
-                </button>
-              )}
-
-              {/* Note Pill / Active Chip */}
-              {note ? (
-                <div className="cart-addon-chip note-chip">
-                  <FileText size={11} />
-                  <span 
-                    onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
-                    style={{ cursor: 'pointer', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                    title={note}
-                  >
-                    "{note}"
-                  </span>
-                  <button
-                    type="button"
-                    className="cart-addon-remove"
-                    onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
-                    title="Clear note"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={`cart-addon-btn ${activeAddon === 'note' ? 'active' : ''}`}
-                  onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
-                >
-                  <FileText size={11} /> + Note
-                </button>
-              )}
-            </div>
-
-            {/* Inline Addon Expandable Drawer */}
+          <div className="cart-totals">
+            {/* Inline Addon Expandable Drawers */}
             {activeAddon === 'discount' && (
               <div className="cart-addon-drawer">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -2066,21 +2130,16 @@ export default function POS() {
                 </div>
               </div>
             )}
-          </>
-        )}
 
-        {/* Totals & Financial Summary Card */}
-        {items.length > 0 && (
-          <div className="cart-totals">
             {/* Collapsible Subtotal and Taxes Breakdown */}
             {showTotalsBreakdown && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--color-separator)' }}>
-                <div className="cart-total-row" style={{ fontSize: '12px' }}>
+                <div className="cart-total-row" style={{ fontSize: '11.5px' }}>
                   <span>{t('subtotal')}</span>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(subtotal, currency)}</span>
                 </div>
                 {taxInfo.lines.map(l => (
-                  <div key={l.label} className="cart-total-row" style={{ fontSize: '12px' }}>
+                  <div key={l.label} className="cart-total-row" style={{ fontSize: '11.5px' }}>
                     <span>{l.label}</span>
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.amount, currency)}</span>
                   </div>
@@ -2088,20 +2147,92 @@ export default function POS() {
               </div>
             )}
 
-            {/* Grand Total */}
-            <div 
-              className="cart-total-row grand-total" 
-              onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-              style={{ cursor: 'pointer', padding: '6px 0 2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              title="Click to toggle tax breakdown details"
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {t('total')}
-                <span style={{ fontSize: 9.5, color: 'var(--color-label-tertiary)', fontWeight: '600', border: '1px solid var(--color-separator)', borderRadius: '4px', padding: '2px 6px', background: 'var(--color-bg-secondary)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                  {showTotalsBreakdown ? 'Hide Details ▲' : 'Show Details ▼'}
-                </span>
+            {/* Grand Total Row with Inlined Addons */}
+            <div className="cart-total-row grand-total">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                  className="cart-breakdown-toggle-btn"
+                  title="Click to toggle tax breakdown details"
+                >
+                  <span>{t('total')}</span>
+                  <span className="cart-tax-indicator">
+                    {showTotalsBreakdown ? '▲' : '▼'}
+                  </span>
+                </button>
+
+                {/* Inline Discount Pill / Micro-Button */}
+                {discount > 0 ? (
+                  <div className="cart-addon-micro-chip">
+                    <Tag size={10} />
+                    <span 
+                      onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to edit discount"
+                    >
+                      {discountType === 'percent' ? `${discount}%` : formatCurrency(discount, currency)}
+                    </span>
+                    <button
+                      type="button"
+                      className="cart-addon-remove"
+                      onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
+                      title="Remove discount"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
+                    onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                    title="Add discount"
+                  >
+                    <Tag size={10} /> +Disc
+                  </button>
+                )}
+
+                {/* Inline Note Pill / Micro-Button */}
+                {note ? (
+                  <div className="cart-addon-micro-chip note-chip">
+                    <FileText size={10} />
+                    <span 
+                      onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
+                      style={{ cursor: 'pointer', maxWidth: '75px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={note}
+                    >
+                      "{note}"
+                    </span>
+                    <button
+                      type="button"
+                      className="cart-addon-remove"
+                      onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
+                      title="Clear note"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={`cart-addon-micro-btn ${activeAddon === 'note' ? 'active' : ''}`}
+                    onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
+                    title="Add note"
+                  >
+                    <FileText size={10} /> +Note
+                  </button>
+                )}
+              </div>
+
+              {/* Total Value */}
+              <span 
+                onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 16 }}
+                title="Click to toggle tax breakdown details"
+              >
+                {formatCurrency(total, currency)}
               </span>
-              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total, currency)}</span>
             </div>
           </div>
         )}

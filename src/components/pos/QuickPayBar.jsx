@@ -79,130 +79,103 @@ export default function QuickPayBar({
       <div
         className="quickpay-collapsed-bar"
         onClick={() => toggleCollapse(false)}
-        title="Show 1-Tap Fast Checkout options"
+        title="Show 1-Tap Fast Pay options"
         role="button"
         tabIndex={0}
         onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggleCollapse(false)}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700 }}>
-          <Zap size={13} fill="#f59e0b" color="#f59e0b" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', fontWeight: 600 }}>
+          <Zap size={11} fill="#f59e0b" color="#f59e0b" />
           <span>1-Tap Fast Pay</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', color: 'var(--color-label-tertiary)' }}>
-          <span>Show options</span>
-          <ChevronDown size={13} />
-        </div>
+        <ChevronDown size={11} />
       </div>
     );
   }
 
   return (
     <div className="quickpay-card">
-      <div className="quickpay-card-header">
-        <div className="quickpay-title-group">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Zap size={13} fill="#f59e0b" color="#f59e0b" />
-            <span className="quickpay-title">1-Tap Fast Pay</span>
-          </div>
-          <span className="quickpay-badge-hint">· Instant settle</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => toggleCollapse(true)}
-          className="quickpay-toggle-btn"
-          title="Hide 1-tap checkout options"
-          aria-label="Hide 1-tap checkout"
+      <div className="quickpay-grid-wrap">
+        <div
+          className="quickpay-grid"
+          style={{
+            gridTemplateColumns: `repeat(${cashOptions.length + (hasUpi ? 2 : 1)}, 1fr)`
+          }}
         >
-          <span>Hide</span>
-          <ChevronUp size={12} />
-        </button>
-      </div>
-
-      {/* Button Row */}
-      <div
-        className="quickpay-grid"
-        style={{
-          gridTemplateColumns: `repeat(${cashOptions.length + (hasUpi ? 2 : 1)}, 1fr)`
-        }}
-      >
-        {/* Cash Tender Buttons */}
-        {cashOptions.map((opt) => {
-          const btnKey = `cash-${opt.amount}`;
-          const isBusy = activeBtn === btnKey;
-          const change = opt.amount - total;
-          return (
-            <button
-              key={btnKey}
-              type="button"
-              disabled={isProcessing}
-              onClick={() => handlePay('cash', opt.amount, btnKey)}
-              className={`quickpay-btn ${opt.isExact ? 'quickpay-btn-exact' : 'quickpay-btn-cash'}`}
-              title={opt.isExact ? 'Exact Cash' : `Tender ${formatCurrency(opt.amount, currency)}, Change: ${formatCurrency(change, currency)}`}
-            >
-              {isBusy ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <>
+          {/* Cash Tender Buttons */}
+          {cashOptions.map((opt) => {
+            const btnKey = `cash-${opt.amount}`;
+            const isBusy = activeBtn === btnKey;
+            const change = opt.amount - total;
+            return (
+              <button
+                key={btnKey}
+                type="button"
+                disabled={isProcessing}
+                onClick={() => handlePay('cash', opt.amount, btnKey)}
+                className={`quickpay-btn ${opt.isExact ? 'quickpay-btn-exact' : 'quickpay-btn-cash'}`}
+                title={opt.isExact ? `Exact Cash (${formatCurrency(total, currency)})` : `Tender ${formatCurrency(opt.amount, currency)}, Change: ${formatCurrency(change, currency)}`}
+              >
+                {isBusy ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
                   <div className="quickpay-btn-main">
-                    <Banknote size={12.5} />
+                    <Banknote size={11.5} />
                     <span>{opt.isExact ? 'Cash' : formatCurrency(opt.amount, currency)}</span>
                   </div>
-                  <span className="quickpay-btn-sub">
-                    {opt.isExact ? formatCurrency(total, currency) : `Chg: ${formatCurrency(change, currency)}`}
-                  </span>
-                </>
-              )}
-            </button>
-          );
-        })}
+                )}
+              </button>
+            );
+          })}
 
-        {/* Quick Card Button */}
-        <button
-          type="button"
-          disabled={isProcessing}
-          onClick={() => handlePay('card', total, 'card')}
-          className="quickpay-btn quickpay-btn-card"
-          title="Card Tap / POS Terminal"
-        >
-          {activeBtn === 'card' ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <>
-              <div className="quickpay-btn-main">
-                <CreditCard size={12.5} />
-                <span>Card</span>
-              </div>
-              <span className="quickpay-btn-sub">
-                Tap / POS
-              </span>
-            </>
-          )}
-        </button>
-
-        {/* Quick UPI Button */}
-        {hasUpi && (
+          {/* Quick Card Button */}
           <button
             type="button"
             disabled={isProcessing}
-            onClick={() => handlePay('upi', total, 'upi')}
-            className="quickpay-btn quickpay-btn-upi"
-            title="Instant Dynamic UPI QR"
+            onClick={() => handlePay('card', total, 'card')}
+            className="quickpay-btn quickpay-btn-card"
+            title="Card Tap / POS Terminal"
           >
-            {activeBtn === 'upi' ? (
-              <Loader2 size={15} className="animate-spin" />
+            {activeBtn === 'card' ? (
+              <Loader2 size={13} className="animate-spin" />
             ) : (
-              <>
-                <div className="quickpay-btn-main">
-                  <Smartphone size={12.5} />
-                  <span>UPI</span>
-                </div>
-                <span className="quickpay-btn-sub">
-                  QR Code
-                </span>
-              </>
+              <div className="quickpay-btn-main">
+                <CreditCard size={11.5} />
+                <span>Card</span>
+              </div>
             )}
           </button>
-        )}
+
+          {/* Quick UPI Button */}
+          {hasUpi && (
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => handlePay('upi', total, 'upi')}
+              className="quickpay-btn quickpay-btn-upi"
+              title="Instant Dynamic UPI QR"
+            >
+              {activeBtn === 'upi' ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <div className="quickpay-btn-main">
+                  <Smartphone size={11.5} />
+                  <span>UPI</span>
+                </div>
+              )}
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => toggleCollapse(true)}
+          className="quickpay-toggle-mini"
+          title="Minimize Fast Pay"
+          aria-label="Hide 1-tap checkout"
+        >
+          <ChevronUp size={11} />
+        </button>
       </div>
     </div>
   );

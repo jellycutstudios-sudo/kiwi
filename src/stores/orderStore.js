@@ -10,6 +10,7 @@ import { useAuthStore } from './authStore';
 import { useShiftStore } from './shiftStore';
 import { useGiftCardStore } from './giftCardStore';
 import { playNotificationTone, vibrateDevice } from '../utils/soundNotifications';
+import { useOfflineQueueStore } from './offlineQueueStore';
 import toast from 'react-hot-toast';
 
 let activeOrdersUnsub = null;
@@ -383,12 +384,13 @@ export const useOrderStore = create((set, get) => ({
 
   getDiscountAmount: () => {
     const { discount, discountType } = get();
-    if (!discount) return 0;
+    if (!discount || discount <= 0) return 0;
     const subtotal = get().getSubtotal();
     if (discountType === 'percent') {
-      return (subtotal * discount) / 100;
+      const effectiveRate = Math.min(Math.max(0, discount), 100);
+      return Math.round(((subtotal * effectiveRate) / 100) * 100) / 100;
     }
-    return Math.min(discount, subtotal);
+    return Math.min(Math.max(0, discount), subtotal);
   },
 
   getPointsDiscountAmount: () => {
@@ -456,7 +458,7 @@ export const useOrderStore = create((set, get) => ({
 
     const orderData = {
       type: orderType,
-      status: isPaid ? 'billed' : 'pending',
+      status: 'pending',
       paid: isPaid,
       items: items.map(i => ({
         id: i.id,
@@ -513,6 +515,15 @@ export const useOrderStore = create((set, get) => ({
       }
     } else if (paymentMethod === 'split') {
       orderData.splitPayments = splitPayments ?? [];
+    }
+
+    // Zero-Downtime Fast Path: If offline in browser, buffer immediately without waiting on network
+    const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
+    const isNetworkOffline = isBrowser && (navigator.onLine === false || useOfflineQueueStore.getState().isOnline === false);
+    if (isNetworkOffline) {
+      const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
+      get().clearCart();
+      return { ok: true, orderId: offlineRes.orderId, isOffline: true, token: offlineRes.token };
     }
 
     try {
@@ -673,9 +684,9 @@ export const useOrderStore = create((set, get) => ({
         // Auto-generate doc ID for new order reference
         const orderDocRef = doc(collection(db, 'restaurants', restaurant.id, 'orders'));
         orderId = orderDocRef.id;
-        
-        // Add new order write to batch
-        batch.set(orderDocRef, orderData);
+
+        // Add new order write to batch with status pending for security rule compatibility
+        batch.set(orderDocRef, { ...orderData, status: 'pending' });
 
         if (shiftUpdate) {
           const shiftRef = doc(db, 'restaurants', restaurant.id, 'shifts', activeShift.id);
@@ -735,6 +746,16 @@ export const useOrderStore = create((set, get) => ({
       get().clearCart();
       return { ok: true, orderId };
     } catch (e) {
+      console.warn('submitOrder error encountered, evaluating offline recovery:', e);
+      // Auto-recover if error was due to network disconnect, timeout, or firestore unavailability
+      const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
+      const isOfflineError = (isBrowser && navigator.onLine === false) ||
+        /offline|network|unavailable|failed to fetch|timeout|deadline|failed-precondition/i.test(e.message || '');
+      if (isOfflineError) {
+        const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
+        get().clearCart();
+        return { ok: true, orderId: offlineRes.orderId, isOffline: true, token: offlineRes.token };
+      }
       return { ok: false, error: e.message };
     }
   },

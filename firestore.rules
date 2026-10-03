@@ -47,7 +47,9 @@ service cloud.firestore {
        return isSignedIn() && (
          isSuperAdmin() || 
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-         (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId)
+         (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId) ||
+         (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid()) ||
+         exists(/databases/$(database)/documents/restaurants/$(restaurantId)/staff/$(uid()))
        );
     }
 
@@ -112,8 +114,8 @@ service cloud.firestore {
       match /orders/{orderId} {
         allow get:    if true;                        // customers track their specific order by ID
         allow list:   if isStaffMember(restaurantId); // prevent public from querying/enumerating orders
-        allow create: if (
-          request.resource.data.status == 'pending' &&
+        allow create: if isStaffMember(restaurantId) || (
+          request.resource.data.status in ['pending', 'billed'] &&
           request.resource.data.total is number && request.resource.data.total >= 0 &&
           request.resource.data.items is list && request.resource.data.items.size() > 0
         );
