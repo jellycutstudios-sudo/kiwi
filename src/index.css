@@ -2362,6 +2362,272 @@ html.dark .advisor-btn-icon {
   background: rgba(0, 0, 0, 0.04);
 }
 
+/* ── Till Drawer Modal Redesign ── */
+.till-modal-card {
+  max-width: 620px;
+  width: min(620px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  overflow: hidden;
+  padding: 0;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+  background: var(--color-card);
+  border: 1px solid var(--color-separator);
+}
+
+.till-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.till-header-icon-pill {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.till-tabs {
+  display: flex;
+  background: var(--color-bg-secondary);
+  padding: 5px 12px;
+  gap: 6px;
+  border-bottom: 1px solid var(--color-separator);
+}
+
+.till-tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-label-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.till-tab-btn:hover:not(.active) {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-label);
+}
+
+.till-tab-btn.active {
+  background: var(--color-card);
+  color: var(--color-label);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.till-tab-btn.active.close-tab {
+  color: var(--color-red);
+}
+
+.till-tab-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--color-primary);
+}
+
+/* Hero Expected Cash Card */
+.till-hero-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.till-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.till-hero-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.till-hero-value {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-label);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-top: 3px;
+}
+
+.till-xreport-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--color-separator);
+  background: var(--color-card);
+  color: var(--color-label);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.till-xreport-chip:hover {
+  background: var(--color-bg-secondary);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.till-hero-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  padding: 8px 12px;
+  gap: 4px;
+}
+
+.till-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.till-stat-item:not(:last-child) {
+  border-right: 1px solid var(--color-separator);
+  padding-right: 8px;
+}
+
+.till-stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-label-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.till-stat-val {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-label);
+}
+
+.till-stat-val.positive {
+  color: #059669;
+}
+
+.till-stat-val.negative {
+  color: #dc2626;
+}
+
+/* Overview Two Cards */
+.till-card {
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--color-separator);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.till-card-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-label-secondary);
+  letter-spacing: 0.05em;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.till-data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  padding: 3px 0;
+}
+
+.till-data-divider {
+  border-top: 1px dashed var(--color-separator);
+  margin: 6px 0 4px;
+}
+
+.till-bottom-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"] .till-hero-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.06) 100%);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+[data-theme="dark"] .till-hero-title {
+  color: #34d399;
+}
+
+[data-theme="dark"] .till-hero-stats {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .till-xreport-chip {
+  background: #1e2232;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .till-xreport-chip:hover {
+  background: #272c40;
+}
+
+[data-theme="dark"] .till-stat-val.positive {
+  color: #34d399;
+}
+
+[data-theme="dark"] .till-stat-val.negative {
+  color: #f87171;
+}
+
+[data-theme="dark"] .till-tab-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+
 /* Order type segment control (Claymorphism Segmented Pill) */
 .cart-type-tabs {
   display: flex;

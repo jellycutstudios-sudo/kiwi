@@ -17,7 +17,8 @@ import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Star, User, Search, 
-  FileText, Check, Flame, Leaf, Clock, LayoutGrid, Maximize2, Minimize2 
+  FileText, Check, Flame, Leaf, Clock, LayoutGrid, Maximize2, Minimize2,
+  Printer, Lock, Wallet, CreditCard, ArrowDownRight, ArrowUpRight, QrCode, Coins
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
@@ -2627,88 +2628,55 @@ export default function POS() {
           >
             <div
               className="modal till-modal-card"
-              style={{
-                maxWidth: '660px', width: 'min(660px, 94vw)',
-                maxHeight: '92vh', display: 'flex', flexDirection: 'column',
-                borderRadius: 20, overflow: 'hidden', padding: 0
-              }}
             >
               {/* Header */}
-              <div style={{
-                padding: '16px 22px 14px',
-                borderBottom: '1px solid var(--color-separator)',
-                background: 'var(--color-bg)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 24 }}>💰</span>
+              <div className="till-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="till-header-icon-pill">
+                    <Wallet size={18} />
+                  </div>
                   <div>
-                    <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-label)', letterSpacing: '-0.02em' }}>
-                      Till Drawer Management
+                    <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--color-label)', letterSpacing: '-0.01em' }}>
+                      Cash Drawer
                     </h2>
-                    <p style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', margin: '2px 0 0' }}>
+                    <span style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', marginTop: 1, display: 'block' }}>
                       Shift opened by <strong style={{ color: 'var(--color-label-secondary)' }}>{activeShift?.openedBy || 'Staff'}</strong>
                       {activeShift?.openedAt && (
                         <span> · {new Date(activeShift.openedAt.seconds ? activeShift.openedAt.seconds * 1000 : activeShift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       )}
-                    </p>
+                    </span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowTillModal(false)}
                   className="btn btn-secondary btn-icon"
-                  style={{ width: 32, height: 32, borderRadius: 8, padding: 0 }}
-                  title="Close modal"
+                  style={{ width: 30, height: 30, borderRadius: 8, padding: 0 }}
+                  title="Close"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               </div>
 
               {/* Segmented Tab Navigation */}
-              <div style={{
-                display: 'flex',
-                background: 'var(--color-bg-secondary)',
-                padding: '6px 14px',
-                gap: 6,
-                borderBottom: '1px solid var(--color-separator)'
-              }}>
+              <div className="till-tabs">
                 <button
                   type="button"
                   onClick={() => setTillModalTab('summary')}
-                  style={{
-                    flex: 1, padding: '8px 12px', borderRadius: 10,
-                    border: 'none', cursor: 'pointer',
-                    fontSize: 13, fontWeight: tillModalTab === 'summary' ? 700 : 500,
-                    background: tillModalTab === 'summary' ? 'var(--color-card)' : 'transparent',
-                    color: tillModalTab === 'summary' ? 'var(--color-primary)' : 'var(--color-label-secondary)',
-                    boxShadow: tillModalTab === 'summary' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`till-tab-btn ${tillModalTab === 'summary' ? 'active' : ''}`}
                 >
-                  <span>📊</span> Drawer Overview
+                  <LayoutGrid size={13} />
+                  <span>Overview</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTillModalTab('movement')}
-                  style={{
-                    flex: 1, padding: '8px 12px', borderRadius: 10,
-                    border: 'none', cursor: 'pointer',
-                    fontSize: 13, fontWeight: tillModalTab === 'movement' ? 700 : 500,
-                    background: tillModalTab === 'movement' ? 'var(--color-card)' : 'transparent',
-                    color: tillModalTab === 'movement' ? 'var(--color-primary)' : 'var(--color-label-secondary)',
-                    boxShadow: tillModalTab === 'movement' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`till-tab-btn ${tillModalTab === 'movement' ? 'active' : ''}`}
                 >
-                  <span>💸</span> Cash In / Out
+                  <ArrowDownRight size={13} />
+                  <span>Cash In / Out</span>
                   {(drops.length > 0 || paidOuts.length > 0) && (
-                    <span style={{
-                      fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 8,
-                      background: 'rgba(0,122,255,0.12)', color: 'var(--color-primary)'
-                    }}>
+                    <span className="till-tab-badge">
                       {drops.length + paidOuts.length}
                     </span>
                   )}
@@ -2716,196 +2684,159 @@ export default function POS() {
                 <button
                   type="button"
                   onClick={() => setTillModalTab('close')}
-                  style={{
-                    flex: 1, padding: '8px 12px', borderRadius: 10,
-                    border: 'none', cursor: 'pointer',
-                    fontSize: 13, fontWeight: tillModalTab === 'close' ? 700 : 500,
-                    background: tillModalTab === 'close' ? 'var(--color-card)' : 'transparent',
-                    color: tillModalTab === 'close' ? 'var(--color-red)' : 'var(--color-label-secondary)',
-                    boxShadow: tillModalTab === 'close' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`till-tab-btn close-tab ${tillModalTab === 'close' ? 'active' : ''}`}
                 >
-                  <span>🔒</span> Close Shift
+                  <Lock size={13} />
+                  <span>Close Register</span>
                 </button>
               </div>
 
               {/* Modal Body Scrollable */}
-              <div style={{ padding: '18px 22px 22px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ padding: '16px 20px 20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {tillModalTab === 'summary' && (
                   <>
                     {/* Expected Cash Hero Banner */}
-                    <div style={{
-                      background: 'linear-gradient(135deg, rgba(52,199,89,0.09) 0%, rgba(0,122,255,0.06) 100%)',
-                      border: '1px solid rgba(52,199,89,0.25)',
-                      borderRadius: 16, padding: '18px 20px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      position: 'relative', overflow: 'hidden'
-                    }}>
-                      <div>
-                        <div style={{
-                          fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                          letterSpacing: '0.08em', color: 'var(--color-green)',
-                          marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6
-                        }}>
-                          <span>💵</span> Expected Cash In Drawer
+                    <div className="till-hero-banner">
+                      <div className="till-hero-top">
+                        <div>
+                          <div className="till-hero-title">
+                            <Coins size={13} />
+                            <span>Expected in Drawer</span>
+                          </div>
+                          <div className="till-hero-value">
+                            {formatCurrency(expectedCash, currency)}
+                          </div>
                         </div>
-                        <div style={{
-                          fontSize: 28, fontWeight: 800, color: 'var(--color-label)',
-                          letterSpacing: '-0.03em', lineHeight: 1.15
-                        }}>
-                          {formatCurrency(expectedCash, currency)}
-                        </div>
-                        <div style={{
-                          fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 6,
-                          background: 'rgba(255,255,255,0.6)', padding: '3px 8px', borderRadius: 6,
-                          display: 'inline-block'
-                        }}>
-                          Float ({formatCurrency(activeShift?.startCash || 0, currency)}) + Cash Sales ({formatCurrency(activeShift?.cashSalesAmount || 0, currency)}) - Outflows ({formatCurrency(dropsAmt + paidOutsAmt, currency)})
-                        </div>
+                        <button
+                          type="button"
+                          onClick={printXReport}
+                          className="till-xreport-chip"
+                          title="Print Mid-Shift Audit (X-Report)"
+                        >
+                          <Printer size={13} />
+                          <span>Print X-Report</span>
+                        </button>
                       </div>
-                      <div style={{
-                        width: 52, height: 52, borderRadius: 14,
-                        background: 'rgba(52,199,89,0.12)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 26, flexShrink: 0
-                      }}>
-                        🏦
+
+                      {/* 3-Column Clean Balance Breakdown */}
+                      <div className="till-hero-stats">
+                        <div className="till-stat-item">
+                          <span className="till-stat-label">Opening Float</span>
+                          <span className="till-stat-val">
+                            {formatCurrency(activeShift?.startCash || 0, currency)}
+                          </span>
+                        </div>
+                        <div className="till-stat-item">
+                          <span className="till-stat-label">Cash Sales</span>
+                          <span className="till-stat-val positive">
+                            +{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}
+                          </span>
+                        </div>
+                        <div className="till-stat-item">
+                          <span className="till-stat-label">Outflows</span>
+                          <span className={`till-stat-val ${dropsAmt + paidOutsAmt > 0 ? 'negative' : ''}`}>
+                            {dropsAmt + paidOutsAmt > 0 ? `-${formatCurrency(dropsAmt + paidOutsAmt, currency)}` : '₹0.00'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Sales & Movements Summary Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-                      {/* Left: Sales Breakdown */}
-                      <div style={{
-                        background: 'var(--color-bg-secondary)',
-                        borderRadius: 14, padding: '14px 16px',
-                        border: '1px solid var(--color-separator)'
-                      }}>
-                        <div style={{
-                          fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase',
-                          color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
-                          marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6
-                        }}>
-                          <span>📊</span> Sales Breakdown ({totalOrdersCount} Orders)
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
+                      {/* Left: Payment Breakdown */}
+                      <div className="till-card">
+                        <div>
+                          <div className="till-card-header">
+                            <span>Payment Breakdown</span>
+                            <span style={{ fontSize: 10, opacity: 0.75 }}>{totalOrdersCount} Orders</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div className="till-data-row">
+                              <span style={{ color: 'var(--color-label-secondary)' }}>Cash ({activeShift?.cashSalesCount || 0}):</span>
+                              <strong style={{ color: 'var(--color-green)' }}>+{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}</strong>
+                            </div>
+                            <div className="till-data-row">
+                              <span style={{ color: 'var(--color-label-secondary)' }}>Card ({activeShift?.cardSalesCount || 0}):</span>
+                              <span style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.cardSalesAmount || 0, currency)}</span>
+                            </div>
+                            <div className="till-data-row">
+                              <span style={{ color: 'var(--color-label-secondary)' }}>UPI / QR ({activeShift?.upiSalesCount || 0}):</span>
+                              <span style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.upiSalesAmount || 0, currency)}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--color-label-secondary)' }}>Starting Float:</span>
-                            <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.startCash || 0, currency)}</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--color-label-secondary)' }}>Cash Sales ({activeShift?.cashSalesCount || 0}):</span>
-                            <strong style={{ color: 'var(--color-green)' }}>+{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--color-label-secondary)' }}>Card Sales ({activeShift?.cardSalesCount || 0}):</span>
-                            <span style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.cardSalesAmount || 0, currency)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--color-label-secondary)' }}>UPI / QR Sales ({activeShift?.upiSalesCount || 0}):</span>
-                            <span style={{ color: 'var(--color-label)' }}>{formatCurrency(activeShift?.upiSalesAmount || 0, currency)}</span>
-                          </div>
-                          <div style={{
-                            borderTop: '1px dashed var(--color-separator)',
-                            paddingTop: 8, marginTop: 2,
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                          }}>
-                            <span style={{ fontWeight: 700, color: 'var(--color-label)' }}>Total Gross Sales:</span>
+
+                        <div>
+                          <div className="till-data-divider" />
+                          <div className="till-data-row">
+                            <span style={{ fontWeight: 700, color: 'var(--color-label)' }}>Gross Sales:</span>
                             <strong style={{ fontSize: 13, color: 'var(--color-primary)' }}>{formatCurrency(totalSalesAmt, currency)}</strong>
                           </div>
                         </div>
                       </div>
 
-                      {/* Right: Drawer Outflows & Audit */}
-                      <div style={{
-                        background: 'var(--color-bg-secondary)',
-                        borderRadius: 14, padding: '14px 16px',
-                        border: '1px solid var(--color-separator)',
-                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
-                      }}>
+                      {/* Right: Drawer Outflows & Drops */}
+                      <div className="till-card">
                         <div>
-                          <div style={{
-                            fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase',
-                            color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
-                            marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6
-                          }}>
-                            <span>🔄</span> Drawer Movements
+                          <div className="till-card-header">
+                            <span>Cash Adjustments</span>
+                            <span style={{ fontSize: 10, opacity: 0.75 }}>{drops.length + paidOuts.length} Entries</span>
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div className="till-data-row">
                               <span style={{ color: 'var(--color-label-secondary)' }}>Safe Drops ({drops.length}):</span>
                               <strong style={{ color: dropsAmt > 0 ? 'var(--color-red)' : 'var(--color-label-tertiary)' }}>
                                 {dropsAmt > 0 ? `-${formatCurrency(dropsAmt, currency)}` : '₹0.00'}
                               </strong>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ color: 'var(--color-label-secondary)' }}>Expense Paid-Outs ({paidOuts.length}):</span>
+                            <div className="till-data-row">
+                              <span style={{ color: 'var(--color-label-secondary)' }}>Paid-Outs ({paidOuts.length}):</span>
                               <strong style={{ color: paidOutsAmt > 0 ? 'var(--color-red)' : 'var(--color-label-tertiary)' }}>
                                 {paidOutsAmt > 0 ? `-${formatCurrency(paidOutsAmt, currency)}` : '₹0.00'}
                               </strong>
                             </div>
-                            <div style={{
-                              borderTop: '1px dashed var(--color-separator)',
-                              paddingTop: 8, marginTop: 2,
-                              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                            }}>
-                              <span style={{ fontWeight: 600, color: 'var(--color-label-secondary)' }}>Total Cash Deductions:</span>
-                              <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(dropsAmt + paidOutsAmt, currency)}</strong>
-                            </div>
                           </div>
                         </div>
 
-                        {/* Mid-Shift X-Report Action */}
-                        <div style={{
-                          marginTop: 12, paddingTop: 10,
-                          borderTop: '1px solid var(--color-separator)'
-                        }}>
-                          <button
-                            type="button"
-                            onClick={printXReport}
-                            className="btn btn-secondary"
-                            style={{
-                              width: '100%', height: 38, borderRadius: 10,
-                              fontSize: 12, fontWeight: 700,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                            }}
-                          >
-                            <span>🖨️</span> Print Mid-Shift X-Report
-                          </button>
-                          <p style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '4px 0 0' }}>
-                            Snapshot audit for change verification. Does not close shift.
-                          </p>
+                        <div>
+                          <div className="till-data-divider" />
+                          <div className="till-data-row">
+                            <span style={{ fontWeight: 600, color: 'var(--color-label-secondary)' }}>Total Outflows:</span>
+                            <strong style={{ color: dropsAmt + paidOutsAmt > 0 ? 'var(--color-red)' : 'var(--color-label)' }}>
+                              {dropsAmt + paidOutsAmt > 0 ? `-${formatCurrency(dropsAmt + paidOutsAmt, currency)}` : '₹0.00'}
+                            </strong>
+                          </div>
                         </div>
                       </div>
                     </div>
 
                     {/* Action Navigation Buttons */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+                    <div className="till-bottom-bar">
                       <button
                         type="button"
                         onClick={() => setTillModalTab('movement')}
                         className="btn btn-secondary"
                         style={{
-                          height: 44, borderRadius: 12, fontSize: 13, fontWeight: 700,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                          height: 42, borderRadius: 11, fontSize: 13, fontWeight: 600,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
                         }}
                       >
-                        <span>💸</span> Log Cash In / Out
+                        <ArrowDownRight size={14} />
+                        <span>Log Cash In / Out</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setTillModalTab('close')}
                         className="btn"
                         style={{
-                          height: 44, borderRadius: 12, fontSize: 13, fontWeight: 700,
-                          background: 'rgba(255,59,48,0.1)', color: 'var(--color-red)',
-                          border: '1px solid rgba(255,59,48,0.25)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                          height: 42, borderRadius: 11, fontSize: 13, fontWeight: 600,
+                          background: 'rgba(239, 68, 68, 0.08)', color: 'var(--color-red)',
+                          border: '1px solid rgba(239, 68, 68, 0.22)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
                         }}
                       >
-                        <span>🔒</span> Close Shift Till
+                        <Lock size={14} />
+                        <span>Close Register</span>
                       </button>
                     </div>
                   </>
@@ -3145,20 +3076,20 @@ export default function POS() {
 
                 {tillModalTab === 'close' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {/* Guided Steps Header */}
+                    {/* Header Banner */}
                     <div style={{
-                      background: 'rgba(255,59,48,0.06)',
-                      border: '1px solid rgba(255,59,48,0.2)',
-                      borderRadius: 14, padding: '12px 16px',
+                      background: 'rgba(239, 68, 68, 0.06)',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      borderRadius: 12, padding: '10px 14px',
                       display: 'flex', alignItems: 'center', gap: 10
                     }}>
-                      <span style={{ fontSize: 20 }}>🔒</span>
+                      <Lock size={18} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
-                          Shift Closing & Drawer Reconciliation
+                          Close Register & Count Cash
                         </div>
-                        <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)' }}>
-                          Count the cash inside the physical register drawer to reconcile against system sales.
+                        <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                          Count the physical cash in drawer to reconcile against system sales.
                         </div>
                       </div>
                     </div>
@@ -3166,18 +3097,18 @@ export default function POS() {
                     {/* Step 1: Expected Reference */}
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: 'var(--color-bg-secondary)', padding: '12px 16px',
-                      borderRadius: 12, border: '1px solid var(--color-separator)'
+                      background: 'var(--color-bg-secondary)', padding: '11px 15px',
+                      borderRadius: 11, border: '1px solid var(--color-separator)'
                     }}>
                       <div>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-                          Step 1 · System Expected Total
+                        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)', letterSpacing: '0.04em' }}>
+                          System Expected Cash
                         </div>
-                        <div style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
-                          Opening Float + Cash Sales - Deductions
+                        <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 1 }}>
+                          Opening Float + Cash Sales - Outflows
                         </div>
                       </div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-label)' }}>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--color-label)' }}>
                         {formatCurrency(expectedCash, currency)}
                       </div>
                     </div>
