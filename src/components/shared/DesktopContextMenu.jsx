@@ -251,39 +251,6 @@ export default function DesktopContextMenu() {
     pageBadge = 'POS Register';
     contextActions = [
       {
-        icon: <ShoppingCart size={15} className="text-emerald-500" />,
-        label: 'New / Reset Order',
-        shortcut: 'Esc',
-        action: () => {
-          clearCart();
-          toast.success('Order cart cleared');
-        }
-      },
-      {
-        icon: <Search size={15} className="text-blue-500" />,
-        label: 'Focus Menu Search',
-        shortcut: '/',
-        action: () => {
-          const input = document.getElementById('pos-search-input') || document.querySelector('input[type="search"]');
-          if (input) {
-            input.focus();
-            input.select();
-          } else {
-            toast('Use menu search at the top', { icon: '🔍' });
-          }
-        }
-      },
-      {
-        icon: <LayoutGrid size={15} className="text-purple-500" />,
-        label: `Density: ${menuDensity === 'compact' ? 'Compact' : menuDensity === 'list' ? 'List' : 'Visual'}`,
-        shortcut: 'Alt+D',
-        action: () => {
-          const next = menuDensity === 'visual' ? 'compact' : menuDensity === 'compact' ? 'list' : 'visual';
-          setMenuDensity(next);
-          toast(`Menu layout: ${next}`);
-        }
-      },
-      {
         icon: <UtensilsCrossed size={15} className="text-orange-500" />,
         label: 'Switch to Table Map',
         shortcut: 'Alt+T',
@@ -552,247 +519,16 @@ export default function DesktopContextMenu() {
             </div>
           )}
 
-          {/* Separator */}
-          <div
-            style={{
-              height: '1px',
-              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              margin: '4px 0',
-            }}
-          />
-
-          {/* Terminal & Hardware Section */}
-          <div style={{ padding: '2px 0' }}>
-            <div
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: 'var(--color-label-tertiary, #94a3b8)',
-                padding: '4px 10px 2px',
-                letterSpacing: '0.5px',
-              }}
-            >
-              Terminal & Hardware
-            </div>
-
-            {/* Fullscreen Toggle */}
-            <button
-              type="button"
-              onClick={handleToggleFullscreen}
-              className="dineos-ctx-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                <span>{isFullscreen ? 'Exit Fullscreen' : 'Kiosk Fullscreen'}</span>
-              </div>
-              <span
+          {/* Separator & Lock Terminal */}
+          {(user || staffDoc) && (
+            <>
+              <div
                 style={{
-                  fontSize: '10px',
-                  padding: '1px 5px',
-                  borderRadius: '4px',
+                  height: '1px',
                   background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                  color: 'var(--color-label-secondary, #64748b)',
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
+                  margin: '4px 0',
                 }}
-              >
-                F11
-              </span>
-            </button>
-
-            {/* Dark / Light Toggle */}
-            <button
-              type="button"
-              onClick={handleToggleTheme}
-              className="dineos-ctx-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-500" />}
-                <span>{isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
-              </div>
-            </button>
-
-            {/* Sound Chime Test */}
-            <button
-              type="button"
-              onClick={handleSoundTest}
-              className="dineos-ctx-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                <Volume2 size={15} className="text-cyan-400" />
-                <span>Test Audio Chime</span>
-              </div>
-            </button>
-
-            {/* Print Slip Test */}
-            <button
-              type="button"
-              onClick={handlePrintTestSlip}
-              className="dineos-ctx-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                <Printer size={15} className="text-emerald-400" />
-                <span>Print Diagnostic Slip</span>
-              </div>
-            </button>
-          </div>
-
-          {/* Separator */}
-          <div
-            style={{
-              height: '1px',
-              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              margin: '4px 0',
-            }}
-          />
-
-          {/* Admin & Security Section */}
-          <div style={{ padding: '2px 0' }}>
-            <div
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: 'var(--color-label-tertiary, #94a3b8)',
-                padding: '4px 10px 2px',
-                letterSpacing: '0.5px',
-              }}
-            >
-              Security & Diagnostics
-            </div>
-
-            {/* Diagnostics Modal Button */}
-            <button
-              type="button"
-              onClick={() => {
-                closeMenu();
-                setShowDiagnostics(true);
-              }}
-              className="dineos-ctx-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                <ShieldCheck size={15} className="text-emerald-500" />
-                <span>Terminal Diagnostics</span>
-              </div>
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  color: '#10b981',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  padding: '2px 5px',
-                  borderRadius: '4px',
-                }}
-              >
-                LEVEL 5
-              </span>
-            </button>
-
-            {/* Clear Cache & Sync */}
-            <button
-              type="button"
-              onClick={handleClearCacheAndSync}
-              className="dineos-ctx-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 500,
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                <RefreshCw size={15} className="text-sky-400" />
-                <span>Flush Cache & Resync</span>
-              </div>
-            </button>
-
-            {/* Lock Terminal / Switch Staff */}
-            {user || staffDoc ? (
+              />
               <button
                 type="button"
                 onClick={handleLockTerminal}
@@ -818,8 +554,8 @@ export default function DesktopContextMenu() {
                   <span>Lock Terminal / Logout</span>
                 </div>
               </button>
-            ) : null}
-          </div>
+            </>
+          )}
         </div>
       )}
 
