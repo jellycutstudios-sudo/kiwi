@@ -557,12 +557,12 @@ export default function TableMap() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // UPI modal state
+  // UPI modal state — stores { order, tableId, tableName } so modal is independent of `selected`
   const [upiOrderToSettle, setUpiOrderToSettle] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [upiRef, setUpiRef] = useState('');
   const [settlingUpi, setSettlingUpi] = useState(false);
-  const clearUpiSettle = () => { setUpiOrderToSettle(null); setQrDataUrl(''); setUpiRef(''); };
+  const clearUpiSettle = () => { setUpiOrderToSettle(null); setQrDataUrl(''); setUpiRef(''); settlingUpi && setSettlingUpi(false); };
 
   // Subscriptions
   useEffect(() => { if (!restaurant?.id) return; return subscribe(restaurant.id); }, [restaurant?.id, subscribe]);
@@ -598,12 +598,12 @@ export default function TableMap() {
     if (!upiOrderToSettle) return;
     const vpa = restaurant?.upiConfig?.vpa || 'demo@upi';
     const name = restaurant?.upiConfig?.name || 'DineOS';
-    const note = (selectedTable ? `Table_${selectedTable.name}` : 'TableOrder');
-    const url = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${(upiOrderToSettle.total ?? 0).toFixed(2)}&cu=${currency}&tn=${note}`;
+    const note = upiOrderToSettle.tableName ? `Table_${upiOrderToSettle.tableName}` : 'TableOrder';
+    const url = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${(upiOrderToSettle.order?.total ?? 0).toFixed(2)}&cu=${currency}&tn=${note}`;
     QRCode.toDataURL(url, { width: 220, margin: 1, color: { dark: '#0a0a0a', light: '#ffffff' } })
       .then(u => setQrDataUrl(u))
       .catch(() => setQrDataUrl(`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}`));
-  }, [upiOrderToSettle, restaurant, currency, selectedTable]);
+  }, [upiOrderToSettle, restaurant, currency]);
 
   // Escape key to close popover
   useEffect(() => {
@@ -1883,90 +1883,48 @@ export default function TableMap() {
                     </div>
                   )}
 
-                  {/* Settle Bill 1-Touch Payment Tiles */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-label-tertiary)' }}>
-                      Settle Bill
-                    </div>
-                    {selOrder.paymentMethod === 'unpaid' ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{
-                            height: 64,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 3,
-                            background: 'rgba(16, 185, 129, 0.12)',
-                            border: '1.5px solid rgba(16, 185, 129, 0.35)',
-                            borderRadius: 'var(--radius-md)',
-                            color: '#10b981',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          disabled={isSettling}
-                          onClick={() => handleSettle('cash')}
-                          title="Settle full bill with Cash"
-                        >
-                          <Banknote size={20} color="#10b981" />
-                          <span style={{ fontSize: 12, fontWeight: 800 }}>Cash</span>
-                          <span style={{ fontSize: 9, opacity: 0.85, fontWeight: 600 }}>1-Tap Free</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{
-                            height: 64,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 3,
-                            background: 'rgba(59, 130, 246, 0.12)',
-                            border: '1.5px solid rgba(59, 130, 246, 0.35)',
-                            borderRadius: 'var(--radius-md)',
-                            color: '#3b82f6',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          disabled={isSettling}
-                          onClick={() => handleSettle('card')}
-                          title="Settle full bill with Credit/Debit Card"
-                        >
-                          <CreditCard size={20} color="#3b82f6" />
-                          <span style={{ fontSize: 12, fontWeight: 800 }}>Card</span>
-                          <span style={{ fontSize: 9, opacity: 0.85, fontWeight: 600 }}>Swipe / POS</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{
-                            height: 64,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 3,
-                            background: 'rgba(139, 92, 246, 0.12)',
-                            border: '1.5px solid rgba(139, 92, 246, 0.35)',
-                            borderRadius: 'var(--radius-md)',
-                            color: '#a855f7',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          disabled={isSettling}
-                          onClick={() => setUpiOrderToSettle(selOrder)}
-                          title="Show UPI QR Code for instant mobile payment"
-                        >
-                          <QrCode size={20} color="#a855f7" />
-                          <span style={{ fontSize: 12, fontWeight: 800 }}>UPI QR</span>
-                          <span style={{ fontSize: 9, opacity: 0.85, fontWeight: 600 }}>Scan & Pay</span>
-                        </button>
+                    {/* Settle Bill 1-Touch Payment Tiles */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>💳</span> Settle Bill
                       </div>
-                    ) : (
+                      {selOrder.paymentMethod === 'unpaid' ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                          <button
+                            type="button"
+                            className="btn tm-settle-tile tm-settle-cash"
+                            disabled={isSettling}
+                            onClick={() => handleSettle('cash')}
+                            title="Settle full bill with Cash"
+                          >
+                            <Banknote size={22} strokeWidth={2.4} className="tm-settle-icon" />
+                            <span className="tm-settle-name">Cash</span>
+                            <span className="tm-settle-desc">1-Tap Free</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn tm-settle-tile tm-settle-card"
+                            disabled={isSettling}
+                            onClick={() => handleSettle('card')}
+                            title="Settle full bill with Credit/Debit Card"
+                          >
+                            <CreditCard size={22} strokeWidth={2.4} className="tm-settle-icon" />
+                            <span className="tm-settle-name">Card</span>
+                            <span className="tm-settle-desc">Swipe / POS</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn tm-settle-tile tm-settle-upi"
+                            disabled={isSettling}
+                            onClick={() => setUpiOrderToSettle({ order: selOrder, tableId: selectedTable?.id, tableName: selectedTable?.name })}
+                            title="Show UPI QR Code for instant mobile payment"
+                          >
+                            <QrCode size={22} strokeWidth={2.4} className="tm-settle-icon" />
+                            <span className="tm-settle-name">UPI QR</span>
+                            <span className="tm-settle-desc">Scan & Pay</span>
+                          </button>
+                        </div>
+                      ) : (
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -2338,7 +2296,12 @@ export default function TableMap() {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginBottom: 4 }}>Move order from <strong>{selectedTable.name}</strong> to:</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
-                {tables.filter(t => t.id !== selectedTable.id && t.status === 'free').map(t => (
+                {tables.filter(t => {
+                  if (t.id === selectedTable.id) return false;
+                  const order = tableOrders[t.id];
+                  const hasActiveOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+                  return !hasActiveOrder && t.status !== 'occupied';
+                }).map(t => (
                   <button key={t.id} type="button" className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}
                     onClick={async () => {
                       const res = await useOrderStore.getState().transferTable(restaurant.id, selectedTable.id, t.id, selOrder.id, t.name);
@@ -2349,7 +2312,12 @@ export default function TableMap() {
                     <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>{t.capacity} seats</span>
                   </button>
                 ))}
-                {tables.filter(t => t.id !== selectedTable.id && t.status === 'free').length === 0 && (
+                {tables.filter(t => {
+                  if (t.id === selectedTable.id) return false;
+                  const order = tableOrders[t.id];
+                  const hasActiveOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+                  return !hasActiveOrder && t.status !== 'occupied';
+                }).length === 0 && (
                   <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--color-label-tertiary)' }}>No vacant tables available</div>
                 )}
               </div>
@@ -2369,7 +2337,12 @@ export default function TableMap() {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginBottom: 4 }}>Merge <strong>{selectedTable.name}</strong> into:</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
-                {tables.filter(t => t.id !== selectedTable.id && t.status === 'occupied' && tableOrders[t.id]).map(t => (
+                {tables.filter(t => {
+                  if (t.id === selectedTable.id) return false;
+                  const order = tableOrders[t.id];
+                  const hasActiveOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+                  return hasActiveOrder;
+                }).map(t => (
                   <button key={t.id} type="button" className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}
                     onClick={async () => {
                       const primaryOrder = tableOrders[t.id];
@@ -2382,7 +2355,12 @@ export default function TableMap() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(tableOrders[t.id]?.total ?? 0, currency)}</span>
                   </button>
                 ))}
-                {tables.filter(t => t.id !== selectedTable.id && t.status === 'occupied' && tableOrders[t.id]).length === 0 && (
+                {tables.filter(t => {
+                  if (t.id === selectedTable.id) return false;
+                  const order = tableOrders[t.id];
+                  const hasActiveOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+                  return hasActiveOrder;
+                }).length === 0 && (
                   <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--color-label-tertiary)' }}>No other occupied tables</div>
                 )}
               </div>
@@ -2392,44 +2370,92 @@ export default function TableMap() {
       )}
 
       {/* ═══ UPI SETTLE MODAL ═══ */}
-      {upiOrderToSettle && selectedTable && (
-        <div className="modal-overlay" onClick={clearUpiSettle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1001 }}>
-          <div className="modal animate-slide-up" style={{ maxWidth: 400, width: '100%' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="modal-title">📱 Collect UPI Payment</h3>
-              <button className="btn btn-secondary btn-icon btn-sm" onClick={clearUpiSettle}><X size={14} /></button>
+      {upiOrderToSettle && (
+        <div
+          className="modal-overlay"
+          onClick={clearUpiSettle}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }}
+        >
+          <div
+            className="modal"
+            style={{ maxWidth: 380, width: '100%', borderRadius: 20, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.35)', border: '1.5px solid var(--color-separator-opaque)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--color-separator)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20 }}>📱</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>Collect UPI Payment</h3>
+                  <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>{upiOrderToSettle.tableName} · Scan &amp; confirm when paid</span>
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-xs" onClick={clearUpiSettle} style={{ width: 28, height: 28, padding: 0, borderRadius: '50%' }}><X size={14} /></button>
             </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center', padding: 20 }}>
-              <div style={{ background: 'linear-gradient(135deg,var(--color-brand-lavender) 0%,var(--color-brand-mint) 100%)', borderRadius: 'var(--radius-lg)', padding: 16, width: '100%' }}>
-                <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: 4 }}>{selectedTable.name.toUpperCase()} · TOTAL DUE</div>
-                <div style={{ fontSize: 28, fontWeight: 800 }}>{formatCurrency(upiOrderToSettle.total ?? 0, currency)}</div>
+
+            {/* Body */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center', padding: '20px 20px 12px' }}>
+              {/* Amount hero */}
+              <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%)', borderRadius: 'var(--radius-lg)', padding: '14px 20px', width: '100%' }}>
+                <div style={{ fontSize: 10, opacity: 0.8, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 4, color: '#fff' }}>{upiOrderToSettle.tableName?.toUpperCase()} · TOTAL DUE</div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>{formatCurrency(upiOrderToSettle.order?.total ?? 0, currency)}</div>
               </div>
-              <div style={{ background: 'var(--color-bg)', padding: 12, borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-separator)', width: 220, height: 220, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                {qrDataUrl ? <img src={qrDataUrl} alt="UPI QR" style={{ width: 196, height: 196, display: 'block' }} /> : <div style={{ color: 'var(--color-label-tertiary)', fontSize: 11 }}>Generating QR…</div>}
+
+              {/* QR Code */}
+              <div style={{ background: '#fff', padding: 12, borderRadius: 'var(--radius-lg)', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.06)', width: 220, height: 220, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {qrDataUrl
+                  ? <img src={qrDataUrl} alt="UPI QR" style={{ width: 196, height: 196, display: 'block', borderRadius: 4 }} />
+                  : <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                      <div style={{ width: 28, height: 28, border: '3px solid var(--color-accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      <span style={{ color: 'var(--color-label-tertiary)', fontSize: 11 }}>Generating QR…</span>
+                    </div>
+                }
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 12, fontWeight: 'bold' }}>Scan to Pay with GPay / PhonePe / UPI</div>
+
+              {/* App logos & VPA */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label)' }}>📲 Scan with any UPI app</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['GPay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
+                    <span key={app} style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-label-secondary)', padding: '2px 6px', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-separator-opaque)' }}>{app}</span>
+                  ))}
+                </div>
                 <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>VPA: <strong style={{ color: 'var(--color-accent)' }}>{restaurant?.upiConfig?.vpa || 'demo@upi'}</strong></div>
+                {!restaurant?.upiConfig?.vpa && (
+                  <div style={{ fontSize: 9, color: 'var(--color-orange)', background: 'rgba(255,149,0,0.1)', padding: '2px 8px', borderRadius: 'var(--radius-sm)' }}>⚠️ Demo VPA — configure in Settings</div>
+                )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', textAlign: 'left', borderTop: '1px solid var(--color-separator)', paddingTop: 12 }}>
-                <label className="form-label" style={{ fontSize: 11, marginBottom: 0 }}>UPI Transaction ID / Ref (Optional)</label>
-                <input className="form-input" placeholder="Last 4–6 digits of UPI Ref No." value={upiRef} onChange={e => setUpiRef(e.target.value)} style={{ height: 32, fontSize: 11 }} />
+
+              {/* Ref input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', textAlign: 'left', borderTop: '1px solid var(--color-separator)', paddingTop: 12 }}>
+                <label className="form-label" style={{ fontSize: 11, marginBottom: 0 }}>UPI Transaction Ref (Optional)</label>
+                <input className="form-input" placeholder="Last 4–6 digits of UPI Ref No." value={upiRef} onChange={e => setUpiRef(e.target.value)} style={{ height: 34, fontSize: 12 }} />
               </div>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--color-separator)', padding: 12 }}>
-              <button className="btn btn-secondary" onClick={clearUpiSettle}>Cancel</button>
-              <button className="btn btn-success" disabled={settlingUpi} style={{ minWidth: 120 }}
+
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: 8, padding: '12px 20px', borderTop: '1px solid var(--color-separator)', background: 'var(--color-bg-elevated)' }}>
+              <button className="btn btn-secondary" onClick={clearUpiSettle} style={{ flex: '0 0 auto', padding: '0 16px', height: 42, borderRadius: 12 }}>Cancel</button>
+              <button
+                className="btn btn-success"
+                disabled={settlingUpi}
+                style={{ flex: 1, height: 42, borderRadius: 12, fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                 onClick={async () => {
                   setSettlingUpi(true);
                   try {
-                    await settleOrder(restaurant.id, upiOrderToSettle.id, 'upi', upiOrderToSettle.total, upiRef ? { upiRef } : {});
-                    await freeTable(restaurant.id, selected);
-                    clearUpiSettle(); setSelected(null);
+                    const orderId = upiOrderToSettle.order?.id;
+                    const tableId = upiOrderToSettle.tableId;
+                    const total = upiOrderToSettle.order?.total ?? 0;
+                    await settleOrder(restaurant.id, orderId, 'upi', total, upiRef ? { upiRef } : {});
+                    await freeTable(restaurant.id, tableId);
+                    clearUpiSettle();
+                    setSelected(null);
                     toast.success('Bill settled via UPI! Table freed.', { icon: '💳' });
                   } catch (err) { toast.error('Settle failed: ' + err.message); }
                   finally { setSettlingUpi(false); }
-                }}>
-                {settlingUpi ? 'Settling…' : 'Confirm Settled'}
+                }}
+              >
+                {settlingUpi ? <><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Settling…</> : <>✓ Confirm Settled</>}
               </button>
             </div>
           </div>

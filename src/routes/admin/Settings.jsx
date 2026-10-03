@@ -8,7 +8,8 @@ import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, RotateCcw, Coins,
-  Download, Database, ShieldCheck, FileSpreadsheet, Lock, Sparkle, Bot
+  Download, Database, ShieldCheck, FileSpreadsheet, Lock, Sparkle, Bot,
+  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone
 } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
@@ -147,17 +148,17 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',       label: 'General & Identity',      icon: '🏪', keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
-  { id: 'security',      label: 'Security & Password',     icon: '🔐', keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
-  { id: 'workflows',     label: 'Workflows & Operations',  icon: '⚙️', keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
-  { id: 'features',      label: 'Modules & Features',      icon: '🧩', keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
-  { id: 'kitchen',       label: 'Kitchen & KDS',           icon: '🍳', keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
-  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  icon: '💳', keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi', 'tally'] },
-  { id: 'receipts',      label: 'Receipt Designer',        icon: '🧾', keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
-  { id: 'displays',      label: 'Digital Displays & TV',   icon: '📺', keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
-  { id: 'online-del',    label: 'Online Store & Delivery', icon: '📱', keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
-  { id: 'hardware',      label: 'Peripherals & Hardware',  icon: '🖨️', keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
-  { id: 'notifications', label: 'Alerts & Reports',        icon: '🔔', keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
+  { id: 'general',       label: 'General & Identity',      icon: Store, keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
+  { id: 'security',      label: 'Security & Password',     icon: ShieldCheck, keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
+  { id: 'workflows',     label: 'Workflows & Operations',  icon: SlidersHorizontal, keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
+  { id: 'features',      label: 'Modules & Features',      icon: LayoutGrid, keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
+  { id: 'kitchen',       label: 'Kitchen & KDS',           icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
+  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  icon: CreditCard, keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi', 'tally'] },
+  { id: 'receipts',      label: 'Receipt Designer',        icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
+  { id: 'displays',      label: 'Digital Displays & TV',   icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
+  { id: 'online-del',    label: 'Online Store & Delivery', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
+  { id: 'hardware',      label: 'Peripherals & Hardware',  icon: Printer, keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
+  { id: 'notifications', label: 'Alerts & Reports',        icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
 ];
 
 export default function Settings() {
@@ -692,9 +693,17 @@ export default function Settings() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h2 className="text-title2" style={{ margin: 0 }}>Restaurant Settings</h2>
-            <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '2px 10px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)' }}>
-              {TABS.find(t => t.id === activeTab)?.icon} {TABS.find(t => t.id === activeTab)?.label}
-            </span>
+            {(() => {
+              const currentTab = TABS.find(t => t.id === activeTab);
+              if (!currentTab) return null;
+              const ActiveIcon = currentTab.icon;
+              return (
+                <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <ActiveIcon size={14} strokeWidth={2.2} />
+                  <span>{currentTab.label}</span>
+                </span>
+              );
+            })()}
           </div>
           <p className="text-secondary text-caption1" style={{ marginTop: 4, marginBottom: 0 }}>
             Configure operational workflows, branding, hardware, digital displays, and billing policies.
@@ -766,15 +775,18 @@ export default function Settings() {
           {filteredTabs.map(tab => {
             const isActive = activeTab === tab.id;
             const isMatch = searchQuery && tab.keywords.some(k => k.includes(searchQuery.toLowerCase()));
+            const TabIcon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`settings-nav-item ${isActive ? 'active' : ''}`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>{tab.icon}</span>
-                  <span>{tab.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="settings-nav-icon">
+                    <TabIcon size={17} strokeWidth={2.2} />
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{tab.label}</span>
                 </div>
                 {isMatch && (
                   <span className="settings-nav-badge">Match</span>
