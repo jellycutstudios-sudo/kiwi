@@ -1694,25 +1694,87 @@ html.dark .advisor-btn-icon {
   margin-left: 4px;
 }
 
+/* POS Topbar Center & Responsive Controls */
+.pos-topbar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pos-search-wrapper {
+  flex: 1;
+  min-width: 110px;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.pos-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-label-tertiary);
+  pointer-events: none;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.pos-search-input {
+  height: 34px !important;
+  width: 100% !important;
+  padding-left: 32px !important;
+  padding-right: 28px !important;
+  font-size: 13px !important;
+  border-radius: var(--radius-md, 8px) !important;
+}
+
+.pos-search-clear-btn {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--color-label-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.pos-topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .density-toggle {
   display: inline-flex;
   align-items: center;
   background: #ece8e1;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: var(--radius-full, 999px);
   padding: 2px;
   gap: 2px;
+  flex-shrink: 0;
+  height: 34px;
+  box-sizing: border-box;
 }
 
 .density-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   border: none;
   background: transparent;
   color: var(--color-label-secondary, #64748b);
   padding: 0 10px;
-  height: 30px;
+  height: 28px;
   border-radius: var(--radius-full, 999px);
   font-size: 12px;
   font-weight: 600;
@@ -1735,9 +1797,18 @@ html.dark .advisor-btn-icon {
   font-weight: 700;
 }
 
+.density-bolt-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.density-label--short {
+  display: none;
+}
+
 .density-expand-btn {
-  height: 30px !important;
-  width: 30px !important;
+  height: 34px !important;
+  width: 34px !important;
   padding: 0 !important;
   font-size: 12px !important;
   color: var(--color-label-secondary, #64748b);
@@ -1763,12 +1834,58 @@ html.dark .advisor-btn-icon {
   }
 }
 
-/* Mobile: clean compact view controls while preserving legible font on chips */
-@media (max-width: 540px) {
-  .density-label { display: none; }
-  .density-btn { padding: 0 8px; width: 32px; justify-content: center; }
-  .menu-dietary-chips { padding: 2px 0; gap: 5px; }
-  .menu-dietary-controls { padding-left: 6px; gap: 4px; }
+/* Mobile & Tablet Header Responsive Rules */
+@media (max-width: 640px) {
+  /* On mobile, show short label ("Keys" instead of "Fast Keys") */
+  .density-label--full {
+    display: none;
+  }
+  .density-label--short {
+    display: inline;
+  }
+  .density-btn {
+    padding: 0 7px;
+    font-size: 11px;
+    gap: 3px;
+  }
+
+  /* Compact Network Status Button on mobile — always icon-only */
+  .network-outbox-status-btn {
+    width: 34px !important;
+    padding: 0 !important;
+    justify-content: center;
+  }
+  .network-outbox-status-btn .network-status-text {
+    display: none !important;
+  }
+
+  /* Hide unneeded top bar options on mobile POS to prevent clutter */
+  .pos-top-bar .pos-topbar-theme-toggle {
+    display: none !important;
+  }
+  .pos-top-bar .pos-topbar-bell:not(.has-unread) {
+    display: none !important;
+  }
+
+  /* Tighter POS top bar padding on mobile — more specific than the generic .top-bar rule below */
+  .top-bar.pos-top-bar {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+}
+
+/* Ultra-compact screens (<= 390px): switch density buttons to icon-only */
+@media (max-width: 390px) {
+  .density-label {
+    display: none !important;
+  }
+  .density-btn {
+    width: 26px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
 }
 
 /* FSSAI Standard Food Dot Badges */

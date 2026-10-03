@@ -293,41 +293,25 @@ export default function AppShell() {
           {!isPOS && <h1 className="top-bar-title text-title3">{pageTitle}</h1>}
           
           {isPOS && (
-            <div className="pos-topbar-center" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, justifyContent: 'space-between' }}>
+            <div className="pos-topbar-center">
               {/* Search Bar */}
-              <div className="pos-search-wrapper" style={{ flex: 1, maxWidth: '440px', minWidth: 0, display: 'flex', alignItems: 'center', position: 'relative' }}>
-                <Search size={15} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+              <div className="pos-search-wrapper">
+                <Search size={15} className="pos-search-icon" />
                 <input
-                  className="form-input"
+                  className="form-input pos-search-input"
                   placeholder="Search menu..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   id="menu-search-input"
-                  style={{
-                    height: '36px',
-                    width: '100%',
-                    paddingLeft: '32px',
-                    paddingRight: search ? '28px' : '10px',
-                    fontSize: '13px',
-                    borderRadius: '8px'
-                  }}
+                  aria-label="Search menu"
                 />
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch('')}
-                    style={{
-                      position: 'absolute',
-                      right: 6,
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-label-tertiary)',
-                      cursor: 'pointer',
-                      padding: 4,
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
+                    className="pos-search-clear-btn"
                     title="Clear search"
+                    aria-label="Clear search"
                   >
                     <X size={13} />
                   </button>
@@ -335,27 +319,30 @@ export default function AppShell() {
               </div>
 
               {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}
-              <div className="pos-topbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                <div className="density-toggle" role="group" aria-label="Menu density">
+              <div className="pos-topbar-controls">
+                <div className="density-toggle" role="group" aria-label="Terminal view switcher">
                   <button
                     type="button"
                     onClick={() => setMenuDensity('visual', true)}
                     title="Visual Cards with photos"
+                    aria-label="Visual Cards view"
                     className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
-                    style={{ height: '34px' }}
+                    id="pos-switch-cards-btn"
                   >
-                    <LayoutGrid size={13} />
+                    <LayoutGrid size={13} className="density-icon" />
                     <span className="density-label">Cards</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setMenuDensity('dense', true)}
                     title="Fast QSR Touch Keys"
+                    aria-label="Fast QSR Touch Keys view"
                     className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
-                    style={{ height: '34px' }}
+                    id="pos-switch-keys-btn"
                   >
-                    <span>⚡</span>
-                    <span className="density-label">Fast Keys</span>
+                    <span className="density-bolt-icon">⚡</span>
+                    <span className="density-label density-label--full">Fast Keys</span>
+                    <span className="density-label density-label--short">Keys</span>
                   </button>
                 </div>
 
@@ -373,7 +360,7 @@ export default function AppShell() {
             </div>
           )}
 
-          <div className="top-bar-actions" style={isPOS ? { marginLeft: '8px' } : {}}>
+          <div className="top-bar-actions">
             {/* Direct 1-Click Update Button for Devices */}
             {hasUpdate && (
               <button
@@ -437,30 +424,6 @@ export default function AppShell() {
               </button>
             )}
 
-            {/* Network status indicator (glowing dot) */}
-            <div 
-              title={
-                isOnline 
-                  ? "System Online & Connected" 
-                  : "System Offline / Network Disconnected"
-              }
-              role="status"
-              aria-label={isOnline ? "System is online" : "System is offline"}
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: isOnline 
-                    ? '#34c759' 
-                    : '#ff3b30',
-                animation: isOnline 
-                    ? 'pulseOnline 2s infinite' 
-                    : 'pulseOffline 1.5s infinite',
-                margin: '0 var(--space-2)',
-                transition: 'all 0.3s ease',
-              }}
-            />
-
             {/* Language selector — hidden on POS to keep cashier terminal clean and focused */}
             {!isPOS && (
               <div className="desktop-only" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -494,13 +457,14 @@ export default function AppShell() {
             <button
               type="button"
               id="network-outbox-status-btn"
+              className={`network-outbox-status-btn ${isOnline && offlineQueue.length === 0 ? 'is-clean-online' : ''}`}
               onClick={() => setShowOfflineModal(true)}
               title={isOnline ? (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered - click to inspect` : 'Connected to cloud server') : 'Network Offline - buffering orders locally'}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                height: '32px',
+                height: '34px',
                 padding: '0 10px',
                 borderRadius: 'var(--radius-sm)',
                 fontSize: '11.5px',
@@ -516,9 +480,10 @@ export default function AppShell() {
                   ? 'var(--color-text-secondary)'
                   : '#d97706',
                 transition: 'all 0.2s ease',
+                flexShrink: 0
               }}
             >
-              <span style={{
+              <span className="network-status-dot" style={{
                 width: 7,
                 height: 7,
                 borderRadius: '50%',
@@ -526,7 +491,7 @@ export default function AppShell() {
                 boxShadow: !isOnline ? '0 0 6px #ef4444' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e'),
                 flexShrink: 0
               }} />
-              <span>
+              <span className="network-status-text">
                 {!isOnline 
                   ? `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}` 
                   : (offlineQueue.length > 0 ? (isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`) : 'Live Online')}
@@ -534,11 +499,13 @@ export default function AppShell() {
             </button>
 
             {/* Theme Toggle (Obsidian Dark / Light) */}
-            <ThemeToggle />
+            <div className="pos-topbar-theme-toggle">
+              <ThemeToggle />
+            </div>
 
-            {/* Notification bell */}
+            {/* Notification bell (Alerts only on mobile POS if unread orders exist) */}
             <button
-              className="btn btn-secondary btn-icon"
+              className={`btn btn-secondary btn-icon pos-topbar-bell ${unreadOnlineCount > 0 ? 'has-unread' : ''}`}
               style={{ position: 'relative' }}
               onClick={() => {
                 if (unreadOnlineCount > 0) {
