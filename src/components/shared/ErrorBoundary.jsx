@@ -22,12 +22,100 @@ export default class ErrorBoundary extends Component {
     // Track telemetry
     logError(error, {
       componentStack: info.componentStack,
-      boundary: 'RootErrorBoundary'
+      boundary: this.props.isPageLevel ? 'PageErrorBoundary' : 'RootErrorBoundary'
     });
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && this.props.resetKey !== undefined && this.props.resetKey !== prevProps.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return typeof this.props.fallback === 'function' ? this.props.fallback({ error: this.state.error, reset: this.handleRetry }) : this.props.fallback;
+      }
+
+      if (this.props.isPageLevel) {
+        return (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            minHeight: '360px',
+            padding: '32px 24px',
+            background: 'var(--color-bg-elevated, #131b2e)',
+            borderRadius: '16px',
+            margin: '20px',
+            border: '1px solid var(--color-separator, rgba(255,255,255,0.1))',
+            textAlign: 'center',
+            gap: '14px',
+          }}>
+            <div style={{ fontSize: '42px' }}>🛡️</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-label, #fff)', margin: 0 }}>
+              View Encountered an Issue
+            </h2>
+            <p style={{ color: 'var(--color-label-secondary, #94a3b8)', maxWidth: 460, fontSize: '14px', margin: 0, lineHeight: 1.5 }}>
+              This section ran into a temporary error. The rest of DineOS is still running and your cart/orders are preserved.
+            </p>
+            {this.state.error?.message && (
+              <code style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                padding: '8px 14px',
+                fontSize: '12px',
+                color: '#ef4444',
+                maxWidth: 480,
+                wordBreak: 'break-word',
+              }}>
+                {this.state.error.message}
+              </code>
+            )}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button
+                onClick={this.handleRetry}
+                style={{
+                  padding: '9px 20px',
+                  background: 'var(--color-accent, #007AFF)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Retry View
+              </button>
+              <button
+                onClick={() => { window.location.href = '/dashboard'; }}
+                style={{
+                  padding: '9px 20px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'var(--color-label, #fff)',
+                  border: '1px solid var(--color-separator, rgba(255,255,255,0.15))',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div style={{
           display: 'flex',

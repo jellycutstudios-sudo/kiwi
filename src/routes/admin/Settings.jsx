@@ -7,8 +7,8 @@ import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
-  Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, RotateCcw, Coins,
-  Download, Database, ShieldCheck, FileSpreadsheet, Lock, Sparkle, Bot,
+  Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, Coins,
+  Download, ShieldCheck, FileSpreadsheet, Bot,
   Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone
 } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
@@ -2429,6 +2429,44 @@ export default function Settings() {
                       style={{ width: 18, height: 18, cursor: 'pointer' }}
                     />
                   </label>
+
+                  {/* Slide Popup Audience Mode */}
+                  {(settings.notifications?.waiterSlidePopupEnabled ?? true) && (
+                    <div style={{
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-bg-secondary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-label)' }}>
+                        Slide Popup Target Audience
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                        Choose who receives the interactive slide-to-serve card when food is marked ready
+                      </div>
+                      <select
+                        value={settings.notifications?.slidePopupAudienceMode ?? 'smart_hybrid'}
+                        onChange={e => updateField('notifications', { ...(settings.notifications || {}), slidePopupAudienceMode: e.target.value })}
+                        style={{
+                          marginTop: 4,
+                          padding: '8px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--color-separator)',
+                          background: 'var(--color-bg-tertiary)',
+                          color: 'var(--color-label)',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="smart_hybrid">⚡ Smart Hybrid (Tables to Waiter, Takeaway to Cashier, Order Creator) — Recommended</option>
+                        <option value="waiter_only">👤 Strict Waiters Only</option>
+                        <option value="all_staff">👥 All Staff, Cashiers & Managers</option>
+                      </select>
+                    </div>
+                  )}
 
                   {/* Device Vibration Toggle */}
                   <label style={{

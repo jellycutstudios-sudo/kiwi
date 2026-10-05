@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -13,13 +13,51 @@ import { auth, db, functions } from '../firebase';
 
 let isLoggingIn = false;
 
+const getInitialPersistedAuth = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem('restaurant-os-auth');
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed.state || {};
+  } catch {
+    return {};
+  }
+};
+
+const safeStorage = {
+  getItem: (key) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch {}
+    return null;
+  },
+  setItem: (key, value) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch {}
+  },
+  removeItem: (key) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch {}
+  }
+};
+const cachedAuth = getInitialPersistedAuth();
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      user: null,           // Firebase Auth user
-      staffDoc: null,       // Firestore staff document
-      restaurant: null,     // Current restaurant doc
-      loading: true,
+      user: cachedAuth.user ?? null,           // Firebase Auth user
+      staffDoc: cachedAuth.staffDoc ?? null,   // Firestore staff document
+      restaurant: cachedAuth.restaurant ?? null, // Current restaurant doc
+      loading: !cachedAuth.staffDoc && !cachedAuth.user,
       error: null,
 
       // Identifier (Mobile Number or Email) / Password login (admin)
@@ -62,21 +100,13 @@ export const useAuthStore = create(
                   }
                 }
 
-                // 2. Fallback: check 'users' collection
-                if (!targetEmail) {
-                  const qPhone = query(collection(db, 'users'), where('phone', 'in', candidates));
-                  const snap = await getDocs(qPhone);
-                  if (!snap.empty) {
-                    const uData = snap.docs[0].data();
-                    targetEmail = (uData.email || uData.authEmail || '').trim().toLowerCase();
-                  }
-                }
+                // Fallback: check 'restaurants' by mobile candidates
               } catch (lookupErr) {
                 console.warn('Firestore phone lookup error:', lookupErr);
               }
             }
 
-            // 2. Fallback to standard synthetic phone email if no custom email found
+            // Fallback to standard synthetic phone email if no custom email found
             if (!targetEmail) {
               const phoneKey = digits.length >= 10 ? digits.slice(-10) : digits;
               targetEmail = `${phoneKey}@phone.dineos.com`;
@@ -139,7 +169,7 @@ export const useAuthStore = create(
                 }
               }
 
-              const staffData = { id: staff.id, ...staff };
+              const staffData = { id: staff.id, ...staff, isPinLogin: true, restaurantId: actualRestId };
               set({
                 user: firebaseUser || { uid: staffData.id, isPinLogin: true },
                 staffDoc: staffData,
@@ -159,14 +189,17 @@ export const useAuthStore = create(
             }
           }
 
-          // 2. Fallback (for offline or local testing environments)
+          // 2. Fallback (for offline, local testing, or when Cloud Functions are not deployed)
+          await get().ensureAnonymousAuth();
+
           let actualRestId = cleanRestId;
-          const restQuery = query(collection(db, 'restaurants'), where('customId', '==', cleanRestId));
+          const lowerRestId = cleanRestId.toLowerCase();
+          const restQuery = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
           const restSnap = await getDocs(restQuery);
           if (!restSnap.empty) {
             actualRestId = restSnap.docs[0].id;
           } else {
-            const slugQuery = query(collection(db, 'restaurants'), where('slug', '==', cleanRestId));
+            const slugQuery = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
             const slugSnap = await getDocs(slugQuery);
             if (!slugSnap.empty) {
               actualRestId = slugSnap.docs[0].id;
@@ -180,12 +213,12 @@ export const useAuthStore = create(
           );
           const staffSnap = await getDocs(staffQuery);
           if (staffSnap.empty) {
-            set({ loading: false, error: 'Invalid PIN' });
-            return { ok: false, error: 'Invalid PIN' };
+            set({ loading: false, error: 'Invalid PIN or staff member inactive' });
+            return { ok: false, error: 'Invalid PIN or staff member inactive' };
           }
 
           const staffDocSnap = staffSnap.docs[0];
-          const staffData = { id: staffDocSnap.id, ...staffDocSnap.data() };
+          const staffData = { id: staffDocSnap.id, ...staffDocSnap.data(), isPinLogin: true, restaurantId: actualRestId };
 
           const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
           if (!restDoc.exists()) {
@@ -195,7 +228,7 @@ export const useAuthStore = create(
           const restData = { id: actualRestId, ...restDoc.data() };
 
           set({
-            user: { uid: staffData.id, isPinLogin: true },
+            user: auth?.currentUser || { uid: staffData.id, isPinLogin: true },
             staffDoc: staffData,
             restaurant: restData,
             loading: false,
@@ -212,11 +245,8 @@ export const useAuthStore = create(
 
       loadUserData: async (firebaseUser) => {
         try {
-          // loadUserData: start
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          // fetching userDocRef
           const userSnap = await getDoc(userDocRef);
-          // check if user exists
 
           if (userSnap.exists()) {
             const userData = { id: userSnap.id, ...userSnap.data() };
@@ -224,16 +254,15 @@ export const useAuthStore = create(
             if (userData.restaurantId) {
               const restDocRef = doc(db, 'restaurants', userData.restaurantId);
               const restDoc = await getDoc(restDocRef);
-              // check if restDoc exists
               if (restDoc.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
-                if (restData.status && restData.status !== 'approved') {
-                  set({ loading: false, error: 'Restaurant account is not active or suspended' });
+                if (restData.status === 'suspended') {
+                  set({ loading: false, error: 'Restaurant account has been suspended. Please contact support.' });
                   await get().signOut();
                   return;
                 }
 
-                // Auto-sync email & phone to restaurant doc if missing, enabling mobile number login
+                // Auto-sync email to restaurant doc if missing, enabling mobile number login
                 const effectiveEmail = userData.email || firebaseUser.email;
                 if (userData.role === 'admin' && effectiveEmail && !restData.email) {
                   try {
@@ -246,7 +275,6 @@ export const useAuthStore = create(
                 }
               }
             }
-            // set state
             set({
               user: firebaseUser,
               staffDoc: userData,
@@ -254,7 +282,7 @@ export const useAuthStore = create(
               loading: false,
             });
           } else {
-            // user doc not found
+            // user doc not found (e.g. freshly registered, before setDoc)
             set({ user: firebaseUser, loading: false });
           }
         } catch (e) {
@@ -285,63 +313,63 @@ export const useAuthStore = create(
           return () => {};
         }
         return onAuthStateChanged(auth, async (user) => {
+          const currentStaff = get().staffDoc;
+          const currentRest = get().restaurant;
+          const isStaffSession = Boolean(currentStaff && currentRest && currentStaff.role !== 'super_admin');
+
           if (user) {
-            if (user.isAnonymous) {
-              // Anonymous user (PIN login session) — no /users doc to load.
-              if (isLoggingIn) {
-                // In the middle of loginWithPin — do nothing, loginWithPin will handle setting the state.
-                return;
-              }
-              if (get().staffDoc && get().restaurant) {
-                set({ user, loading: false });
-                // Re-verify restaurant status hasn't changed while session was stored
-                const restId = get().restaurant.id;
-                if (restId) {
-                  getDoc(doc(db, 'restaurants', restId)).then(async (rSnap) => {
-                    if (rSnap.exists()) {
-                      const rData = rSnap.data();
-                      if (rData.status && rData.status !== 'approved') {
-                        await get().signOut();
-                      } else {
-                        set({ restaurant: { id: restId, ...rData } });
-                      }
-                    } else {
+            // Case 1: Staff session already active (waiter, cashier, kitchen, etc.)
+            if (isStaffSession) {
+              set({ user, loading: false });
+              // Validate restaurant status without signing out on transient network errors
+              const restId = currentRest.id;
+              if (restId && db) {
+                try {
+                  const rSnap = await getDoc(doc(db, 'restaurants', restId));
+                  if (rSnap.exists()) {
+                    const rData = rSnap.data();
+                    if (rData.status === 'suspended') {
                       await get().signOut();
+                    } else {
+                      set({ restaurant: { id: restId, ...rData } });
                     }
-                  }).catch(console.warn);
-                }
-              } else {
-                // Page load/refresh with orphaned anonymous session — clean up and show login screen
-                if (auth) {
-                  try {
-                    await firebaseSignOut(auth);
-                  } catch (err) {
-                    console.error(err);
                   }
+                } catch (restErr) {
+                  console.warn('Could not verify restaurant status online (offline mode):', restErr);
                 }
-                set({ user: null, staffDoc: null, restaurant: null, loading: false });
               }
-            } else {
-              // Full email/password session — load full user profile from Firestore.
-              await get().loadUserData(user);
+              return;
             }
+
+            // Case 2: Anonymous user without staff profile — check if orphaned
+            if (user.isAnonymous) {
+              if (isLoggingIn) return;
+              // Clean up orphaned anonymous session
+              try {
+                await firebaseSignOut(auth);
+              } catch (err) {
+                console.error(err);
+              }
+              set({ user: null, staffDoc: null, restaurant: null, loading: false });
+              return;
+            }
+
+            // Case 3: Registered admin email/password user
+            await get().loadUserData(user);
+
           } else {
-            // No Firebase Auth session at all.
-            if (get().staffDoc?.pin) {
-              // PIN session persisted in localStorage — re-authenticate anonymously
-              // to restore Firestore write permissions (anonymous auth must be enabled
-              // in Firebase Console → Authentication → Sign-in method → Anonymous).
+            // No Firebase Auth user on initial tick
+            if (isStaffSession) {
+              // Restore anonymous auth for Firestore permissions while keeping staff session intact
               try {
                 const cred = await signInAnonymously(auth);
                 set({ user: cred.user, loading: false });
               } catch (e) {
-                console.error('PIN session anonymous re-auth failed:', e.code, e.message);
-                // Anonymous auth is likely disabled in Firebase Console.
-                // Staff stays "logged in" visually but Firestore writes will fail.
+                console.warn('Staff session anonymous re-auth failed:', e.code, e.message);
                 set({ loading: false });
               }
             } else {
-              // No PIN session — clear state and go to login screen.
+              // Not a staff session — clear state and show login screen
               set({ user: null, staffDoc: null, loading: false });
             }
           }
@@ -374,17 +402,16 @@ export const useAuthStore = create(
     }),
     {
       name: 'restaurant-os-auth',
+      storage: createJSONStorage(() => safeStorage),
       partialize: (s) => {
         // Persist only the minimum needed to restore session on refresh
         return { 
-          user: s.user ? { uid: s.user.uid, isPinLogin: s.user.isPinLogin } : null,
+          user: s.user ? { uid: s.user.uid, isPinLogin: Boolean(s.user.isPinLogin || (s.staffDoc && s.staffDoc.role !== 'super_admin')) } : null,
           staffDoc: s.staffDoc, 
           restaurant: s.restaurant 
         };
       },
       onRehydrateStorage: () => (state) => {
-        // Immediately dismiss the loading screen once localStorage is read.
-        // This gives instant app startup (0ms), while Firebase verifies the session in the background.
         if (state) {
           state.loading = false;
         }

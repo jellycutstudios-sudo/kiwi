@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { HelpCircle, Calculator, Check, ArrowRight } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 
 export default function TaxCalculatorHelper({ taxConfig, currency, onSelectMode }) {
   const [samplePrice, setSamplePrice] = useState(100);

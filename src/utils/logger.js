@@ -21,7 +21,7 @@ export const logError = (error, context = {}) => {
   // }
 };
 
-export const logEvent = (eventName, data = {}) => {
+export const logEvent = (eventName, _data = {}) => {
   if (import.meta.env.DEV) {
     // Event Tracker disabled for performance
   }

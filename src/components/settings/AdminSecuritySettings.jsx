@@ -24,7 +24,7 @@ import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
 export default function AdminSecuritySettings() {
-  const { staffDoc, restaurant } = useAuthStore();
+  const { staffDoc } = useAuthStore();
   const currentUser = auth?.currentUser;
   const isEmailAdmin = Boolean(currentUser && !currentUser.isAnonymous && currentUser.email);
   const adminEmail = currentUser?.email || staffDoc?.email || '';

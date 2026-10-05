@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { collection, onSnapshot, serverTimestamp, getDoc, doc, writeBatch, increment, query, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, serverTimestamp, getDoc, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';

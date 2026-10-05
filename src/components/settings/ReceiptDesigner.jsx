@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Printer, Eye, Sparkles, Check, RefreshCw, Upload, Image, Sliders, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Printer, Eye, Upload, Image, Trash2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { printReceiptSingle } from '../../utils/print';
 import { convertLogoForThermal } from '../../utils/thermalLogo';

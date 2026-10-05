@@ -473,3 +473,33 @@
   background: #090a0f;
 }
 
+/* --- Ready Order Glow & Badge Styles --- */
+@keyframes pulseReadyGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 3px #10b981, 0 0 16px rgba(16, 185, 129, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 5px #10b981, 0 0 28px rgba(16, 185, 129, 0.9);
+  }
+}
+
+@keyframes pulseReadyBadge {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.6);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.08);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.95);
+  }
+}
+
+.table-item.status-ready-glow {
+  border: 2.5px solid #10b981 !important;
+  animation: pulseReadyGlow 2s infinite ease-in-out !important;
+}
+
+.tm-ready-pulse-badge {
+  animation: pulseReadyBadge 1.8s infinite ease-in-out;
+}
+

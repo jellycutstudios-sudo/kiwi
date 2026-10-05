@@ -40,7 +40,7 @@ export function initSecurityGuards(options = {}) {
             return false;
           }
         }
-      } catch (_) {}
+      } catch {}
       return true;
     }
     return false;
@@ -67,7 +67,7 @@ export function initSecurityGuards(options = {}) {
           targetClassName: event.target?.className,
         }
       }));
-    } catch (_) {}
+    } catch {}
 
     return false;
   };
@@ -119,7 +119,7 @@ export function initSecurityGuards(options = {}) {
       (function() {
         Function('debugger')();
       })();
-    } catch (_) {}
+    } catch {}
   };
 
   // Run anti-debug freeze loop

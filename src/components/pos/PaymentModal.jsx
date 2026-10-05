@@ -5,7 +5,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, ChevronUp, Sparkles, Coins } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, ChevronUp, Coins } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import toast from 'react-hot-toast';
@@ -52,8 +52,8 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
 
   // Ensure cashTendered defaults to total when entering cash mode or total changes
   useEffect(() => {
-    if (paymentMethod === 'cash' && (!cashTendered || parseFloat(cashTendered) <= 0)) {
-      setCashTendered(total > 0 ? total.toString() : '');
+    if (paymentMethod === 'cash') {
+      setCashTendered(prev => (!prev || parseFloat(prev) <= 0) ? (total > 0 ? total.toString() : '') : prev);
     }
   }, [paymentMethod, total]);
 

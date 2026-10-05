@@ -46,6 +46,11 @@ export default function ThemeToggle({ showLabel = false, className = '' }) {
         ) : (
           <Sun size={16} style={{ color: '#f59e0b' }} />
         )}
+        {showLabel && (
+          <span style={{ marginLeft: 6, fontSize: '12px', fontWeight: 600 }}>
+            {isDark ? 'Dark' : 'Light'}
+          </span>
+        )}
       </button>
 
       {/* Right-click or long-press extended options dropdown */}

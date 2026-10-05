@@ -7,7 +7,7 @@ function getInitialTheme() {
     if (saved === 'dark' || saved === 'light' || saved === 'system') {
       return saved;
     }
-  } catch (e) {
+  } catch {
     // LocalStorage access may fail in restricted iframes
   }
   return 'dark'; // Default to DineOS obsidian dark
@@ -53,7 +53,7 @@ export const useThemeStore = create((set, get) => ({
   setTheme: (newTheme) => {
     try {
       localStorage.setItem('dineos_theme', newTheme);
-    } catch (e) {}
+    } catch {}
 
     applyToDOM(newTheme);
     set({

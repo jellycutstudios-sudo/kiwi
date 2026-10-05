@@ -29,7 +29,6 @@ const MenuEditor     = lazy(() => import('./routes/admin/MenuEditor'));
 const Inventory      = lazy(() => import('./routes/admin/Inventory'));
 const Customers      = lazy(() => import('./routes/admin/Customers'));
 const Reservations   = lazy(() => import('./routes/admin/Reservations'));
-const FloorPlanEditor= lazy(() => import('./routes/admin/FloorPlanEditor'));
 const Settings       = lazy(() => import('./routes/admin/Settings'));
 const Restaurants    = lazy(() => import('./routes/admin/Restaurants'));
 const DeliveryHub    = lazy(() => import('./routes/admin/DeliveryHub'));
@@ -47,12 +46,22 @@ export default function App() {
   const isSuperAdmin = userRole === 'super_admin';
   const isApproved = isSuperAdmin || restaurant?.status === 'approved';
 
-  // Init Firebase auth listener
+  // Init Firebase auth listener once on mount
   useEffect(() => {
     if (!isFirebaseConfigured) return;
     const unsub = initAuthListener();
     return unsub;
   }, [initAuthListener]);
+
+  // Safety watchdog: ensure loading screen is never stuck indefinitely
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (useAuthStore.getState().loading) {
+        useAuthStore.setState({ loading: false });
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Apply RTL direction for Arabic
   useEffect(() => {
@@ -68,6 +77,14 @@ export default function App() {
   if (loading) return <LoadingScreen />;
 
   const isAuth = !!user || !!staffDoc;
+
+  const defaultRouteForRole = (role) => {
+    if (role === 'super_admin') return '/admin/restaurants';
+    if (role === 'kitchen') return '/kds';
+    if (role === 'waiter' || role === 'server') return '/tables';
+    if (role === 'cashier') return '/pos';
+    return '/dashboard';
+  };
 
   return (
     <BrowserRouter>
@@ -91,14 +108,14 @@ export default function App() {
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public routes — no auth needed */}
-          <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={isSuperAdmin ? "/admin/restaurants" : "/dashboard"} replace /> : <Navigate to="/pending-approval" replace />) : <LandingPage />} />
+          <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={defaultRouteForRole(userRole)} replace /> : <Navigate to="/pending-approval" replace />) : <LandingPage />} />
           <Route path="/landing"                      element={<LandingPage />} />
           <Route path="/display/tokens/:restaurantId" element={<TokenDisplay />} />
           <Route path="/display/slides/:restaurantId" element={<PosterDisplay />} />
           <Route path="/display/slides/:restaurantId/:slideshowId" element={<PosterDisplay />} />
           <Route path="/order/:restaurantId"          element={<OnlineOrderPage />} />
           <Route path="/menu/:restaurantId"           element={<OnlineOrderPage />} />
-          <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to="/" replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />
+          <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to={defaultRouteForRole(userRole)} replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />
           <Route path="/pending-approval"             element={isAuth ? (!isApproved ? <PendingApproval /> : <Navigate to="/" replace />) : <Navigate to="/login" replace />} />
 
           {/* Protected POS routes — all authenticated + approved users */}

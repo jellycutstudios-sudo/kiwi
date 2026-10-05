@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useKdsStore } from '../stores/kdsStore';
@@ -47,7 +46,6 @@ function playKitchenChime() {
 }
 
 export default function KDS() {
-  const { t } = useTranslation();
   const restaurant = useAuthStore(s => s.restaurant);
   const modes = restaurant?.modes || [];
   const activeOrders = useOrderStore(s => s.activeOrders);
@@ -206,12 +204,12 @@ export default function KDS() {
   };
 
   // Helper for live stopwatch and urgency levels
-  const getElapsedSeconds = (createdAt) => {
+  const getElapsedSeconds = useCallback((createdAt) => {
     if (!createdAt) return 0;
     const timeMs = createdAt.toDate ? createdAt.toDate().getTime() : new Date(createdAt).getTime();
     if (isNaN(timeMs) || timeMs === 0) return 0;
     return Math.max(0, Math.floor((currentTime - timeMs) / 1000));
-  };
+  }, [currentTime]);
 
   const getStopwatch = (createdAt) => {
     const totalSecs = getElapsedSeconds(createdAt);
@@ -269,7 +267,7 @@ export default function KDS() {
       avgWaitMins: Math.round(totalMins / kdsOrders.length),
       maxWaitMins: maxMins
     };
-  }, [kdsOrders, currentTime]);
+  }, [kdsOrders, getElapsedSeconds]);
 
   return (
     <div className="kds-layout">

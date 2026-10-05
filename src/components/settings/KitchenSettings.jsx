@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChefHat, Printer, Monitor, Zap, Volume2, Sliders, Plus, X, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { printSingleKitchenTicket } from '../../utils/print';

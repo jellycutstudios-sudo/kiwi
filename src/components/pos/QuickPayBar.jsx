@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { Zap, Banknote, CreditCard, Smartphone, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 

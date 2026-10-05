@@ -19,8 +19,9 @@ export const useKdsStore = create(() => ({
       return item;
     });
 
-    const hasPreparing = updatedItems.some(i => i.status === 'preparing' || i.status === 'ready');
-    const allReady = updatedItems.every(i => i.status === 'ready');
+    const activeItems = updatedItems.filter(i => i.status !== 'cancelled' && i.status !== 'void');
+    const hasPreparing = activeItems.some(i => i.status === 'preparing' || i.status === 'ready');
+    const allReady = activeItems.length > 0 && activeItems.every(i => i.status === 'ready');
 
     let overallStatus = order.status;
     const updates = { items: updatedItems };
@@ -61,8 +62,9 @@ export const useKdsStore = create(() => ({
       return item;
     });
 
-    const hasPreparing = updatedItems.some(i => i.status === 'preparing' || i.status === 'ready');
-    const allReady = updatedItems.every(i => i.status === 'ready');
+    const activeItems = updatedItems.filter(i => i.status !== 'cancelled' && i.status !== 'void');
+    const hasPreparing = activeItems.some(i => i.status === 'preparing' || i.status === 'ready');
+    const allReady = activeItems.length > 0 && activeItems.every(i => i.status === 'ready');
 
     let overallStatus = order.status;
     const updates = { items: updatedItems };

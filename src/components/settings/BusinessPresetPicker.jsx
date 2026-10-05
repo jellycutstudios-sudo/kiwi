@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BUSINESS_PRESETS } from '../../hooks/useBusinessConfig';
-import { Check, Sparkles, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function BusinessPresetPicker({ currentBusinessType, currentModes, onApplyPreset }) {
-  const [selectedId, setSelectedId] = useState(currentBusinessType || 'restaurant');
+export default function BusinessPresetPicker({ currentBusinessType, onApplyPreset }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [presetToApply, setPresetToApply] = useState(null);
 
@@ -22,7 +21,6 @@ export default function BusinessPresetPicker({ currentBusinessType, currentModes
   const confirmApply = () => {
     if (!presetToApply) return;
     onApplyPreset(presetToApply);
-    setSelectedId(presetToApply.id);
     setShowConfirm(false);
     toast.success(`Switched business profile to ${presetToApply.name}! Modes and terminology updated.`, { icon: presetToApply.emoji });
   };

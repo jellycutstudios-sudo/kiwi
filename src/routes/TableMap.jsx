@@ -14,6 +14,7 @@ import {
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download
 } from 'lucide-react';
+import { useWakeLock } from '../hooks/useWakeLock';
 import './admin/FloorPlanEditor.css';
 
 /* ─── Elapsed time badge helper ─────────────────────────────── */
@@ -36,7 +37,7 @@ function formatElapsed(mins) {
 
 export default function TableMap() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const canEditLayout = !staffDoc || ['admin', 'super_admin', 'manager', 'owner'].includes(staffDoc?.role);
@@ -54,6 +55,8 @@ export default function TableMap() {
   const clearCart = useOrderStore(s => s.clearCart);
   const setTable = useOrderStore(s => s.setTable);
   const setOrderType = useOrderStore(s => s.setOrderType);
+
+  useWakeLock(true);
 
   const [selected, setSelected] = useState(null);
   const [tableOrders, setTableOrders] = useState({});
@@ -249,9 +252,11 @@ export default function TableMap() {
       if (next) {
         setViewMode('map');
         setSelected(null);
+        setSearchParams({ edit: 'true' });
       } else {
         setSelectedEditTableId(null);
         setDragging(null);
+        setSearchParams({});
       }
       return next;
     });
@@ -1063,6 +1068,7 @@ export default function TableMap() {
             .map(t => {
               const order = tableOrders[t.id];
               const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+              const isFoodReady = hasOrder && order.status === 'ready';
               const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
               const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
               const resForTable = reservations.find(r => r.tableId === t.id);
@@ -1090,10 +1096,14 @@ export default function TableMap() {
                       }
                     }}
                     style={{
-                      background: effectiveStatus === 'occupied'
+                      background: isFoodReady
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : effectiveStatus === 'occupied'
                         ? 'rgba(239, 68, 68, 0.05)'
                         : 'var(--color-bg-elevated)',
-                      border: effectiveStatus === 'occupied'
+                      border: isFoodReady
+                        ? '2px solid #10b981'
+                        : effectiveStatus === 'occupied'
                         ? '2px solid rgba(239, 68, 68, 0.7)'
                         : isReserved
                         ? '2px solid rgba(245, 158, 11, 0.7)'
@@ -1109,6 +1119,8 @@ export default function TableMap() {
                       transition: 'all 0.15s ease',
                       boxShadow: selected === t.id
                         ? '0 0 0 2px var(--color-accent), 0 8px 20px rgba(0,0,0,0.15)'
+                        : isFoodReady
+                        ? '0 0 0 2px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(16, 185, 129, 0.25)'
                         : effectiveStatus === 'occupied'
                         ? '0 3px 10px rgba(239,68,68,0.12)'
                         : '0 1px 3px rgba(0,0,0,0.02)'
@@ -1124,7 +1136,23 @@ export default function TableMap() {
                           👥{t.capacity}
                         </span>
                       </div>
-                      {effectiveStatus === 'occupied' ? (
+                      {isFoodReady ? (
+                        <span style={{
+                          fontSize: 9,
+                          fontWeight: 900,
+                          padding: '2px 7px',
+                          borderRadius: 999,
+                          background: '#10b981',
+                          color: '#ffffff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.4)',
+                          letterSpacing: '0.3px'
+                        }}>
+                          <span>🔔</span> READY
+                        </span>
+                      ) : effectiveStatus === 'occupied' ? (
                         <span style={{
                           fontSize: 9,
                           fontWeight: 800,
@@ -1210,7 +1238,9 @@ export default function TableMap() {
                   }}
                   style={{
                     background: 'var(--color-bg-elevated)',
-                    border: effectiveStatus === 'occupied'
+                    border: isFoodReady
+                      ? '2px solid #10b981'
+                      : effectiveStatus === 'occupied'
                       ? '1.5px solid rgba(239, 68, 68, 0.45)'
                       : isReserved
                       ? '1.5px solid rgba(245, 158, 11, 0.45)'
@@ -1226,6 +1256,8 @@ export default function TableMap() {
                     transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     boxShadow: selected === t.id
                       ? '0 0 0 2px var(--color-accent), 0 8px 24px rgba(0,0,0,0.12)'
+                      : isFoodReady
+                      ? '0 0 0 2px rgba(16, 185, 129, 0.4), 0 6px 18px rgba(16, 185, 129, 0.25)'
                       : effectiveStatus === 'occupied'
                       ? '0 4px 14px rgba(239,68,68,0.08)'
                       : '0 2px 6px rgba(0,0,0,0.03)',
@@ -1237,7 +1269,23 @@ export default function TableMap() {
                       <span style={{ fontSize: 21, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.3px' }}>
                         {t.name}
                       </span>
-                      {effectiveStatus === 'occupied' ? (
+                      {isFoodReady ? (
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 900,
+                          padding: '3px 9px',
+                          borderRadius: 999,
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          color: '#ffffff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                          letterSpacing: '0.3px'
+                        }}>
+                          <span>🔔</span> READY TO SERVE
+                        </span>
+                      ) : effectiveStatus === 'occupied' ? (
                         <span style={{
                           fontSize: 10,
                           fontWeight: 800,
@@ -1438,6 +1486,7 @@ export default function TableMap() {
                 {resolvedTables.map(t => {
                   const order = tableOrders[t.id];
                   const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+                  const isFoodReady = hasOrder && order.status === 'ready';
                   const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
                   const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
                   const isSelected = selected === t.id;
@@ -1463,7 +1512,7 @@ export default function TableMap() {
                       id={`map-table-${t.id}`}
                       onClick={e => handleTableClick(t, e, effectiveStatus)}
                       onMouseDown={isEditingLayout ? e => handleCanvasMouseDown(e, t) : undefined}
-                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} ${isEditSelected ? 'status-selected' : isSelected ? 'status-selected' : `status-${effectiveStatus}`}`}
+                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} ${isEditSelected ? 'status-selected' : isSelected ? 'status-selected' : isFoodReady ? 'status-ready-glow' : `status-${effectiveStatus}`}`}
                       style={{
                         position: 'absolute',
                         left: t.renderX, top: t.renderY,
@@ -1472,20 +1521,57 @@ export default function TableMap() {
                         filter: isMatch ? 'none' : 'grayscale(80%)',
                         cursor: isEditingLayout ? (isCurrentDragging ? 'grabbing' : 'grab') : 'pointer',
                         outline: isEditSelected ? '2px solid #3b82f6' : 'none',
-                        boxShadow: isEditSelected ? '0 0 0 4px rgba(59,130,246,0.35), 0 8px 24px rgba(0,0,0,0.35)' : undefined,
-                        zIndex: isCurrentDragging ? 100 : isEditSelected ? 50 : 1,
+                        boxShadow: isEditSelected
+                          ? '0 0 0 4px rgba(59,130,246,0.35), 0 8px 24px rgba(0,0,0,0.35)'
+                          : isFoodReady
+                          ? '0 0 0 3px #10b981, 0 0 24px rgba(16, 185, 129, 0.75)'
+                          : undefined,
+                        zIndex: isCurrentDragging ? 100 : isEditSelected ? 50 : isFoodReady ? 30 : 1,
                         transition: isCurrentDragging ? 'none' : 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                         userSelect: 'none',
                       }}
                       title={
                         isEditingLayout
                           ? `Drag to reposition ${t.name}, click to edit properties`
+                          : isFoodReady
+                          ? `🔔 Food ready at pass for ${t.name}! Click to view & serve`
                           : effectiveStatus === 'free'
                           ? `Click to start order at ${t.name}`
                           : `Click to manage ${t.name}`
                       }
                     >
                       {renderChairs(t, effectiveStatus === 'occupied')}
+
+                      {/* Pulsing Food Ready Badge */}
+                      {!isEditingLayout && isFoodReady && (
+                        <span
+                          className="tm-ready-pulse-badge"
+                          style={{
+                            position: 'absolute',
+                            top: -12,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: '#ffffff',
+                            borderRadius: 999,
+                            padding: '2px 8px',
+                            fontSize: '10px',
+                            fontWeight: 900,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.6)',
+                            border: '2px solid #ffffff',
+                            zIndex: 25,
+                            letterSpacing: '0.3px',
+                            textTransform: 'uppercase',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title="Food plated & ready for pickup at pass!"
+                        >
+                          <span style={{ fontSize: 11 }}>🔔</span> READY
+                        </span>
+                      )}
 
                       <span className="table-label">{t.name}</span>
 
@@ -1613,15 +1699,15 @@ export default function TableMap() {
                         padding: '3px 10px',
                         fontWeight: 700,
                         borderRadius: 999,
-                        background: 'rgba(239, 68, 68, 0.14)',
-                        color: '#ef4444',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: selOrder.status === 'ready' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.14)',
+                        color: selOrder.status === 'ready' ? '#10b981' : '#ef4444',
+                        border: selOrder.status === 'ready' ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(239, 68, 68, 0.3)',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6
                       }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
-                        Occupied
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: selOrder.status === 'ready' ? '#10b981' : '#ef4444' }} />
+                        {selOrder.status === 'ready' ? '🔔 Food Ready at Pass' : 'Occupied'}
                       </span>
                     ) : (
                       <span style={{

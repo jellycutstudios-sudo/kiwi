@@ -9,9 +9,10 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Globe, Menu, Search, X, Download, Smartphone, RefreshCw, LayoutGrid, Minimize2, Maximize2 } from 'lucide-react';
+import { Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, RefreshCw, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
+import ErrorBoundary from '../shared/ErrorBoundary';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { useUpdateStore } from '../../stores/updateStore';
 import ThemeToggle from '../shared/ThemeToggle';
@@ -178,10 +179,6 @@ export default function AppShell() {
     };
   }, [restaurant?.id, subscribeActiveOrders, subscribeMenu, subscribeStaff, subscribeTables]);
 
-  const toggleLang = () => {
-    const next = i18n.language === 'ar' ? 'en' : 'ar';
-    i18n.changeLanguage(next);
-  };
 
   // On POS-sized screens (≤ 1366px) collapse the sidebar everywhere by default —
   // 240px of nav labels wastes ~23% of a 1024px screen on every page.
@@ -538,7 +535,9 @@ export default function AppShell() {
 
         {/* Page content */}
         <main className={isPOS ? '' : 'page-content'} style={isPOS ? { flex: 1, overflow: 'hidden' } : {}}>
-          <Outlet />
+          <ErrorBoundary isPageLevel resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -619,8 +618,8 @@ export default function AppShell() {
         </div>
       )}
 
-      {/* Interactive Waiter Ready Slide Popup */}
-      <WaiterReadySlidePopup />
+      {/* Interactive Waiter Ready Slide Popup - only shown on waiter tab in service mode */}
+      {location.pathname === '/tables' && !location.search.includes('edit=true') && <WaiterReadySlidePopup />}
 
       {/* Zero-Downtime Offline Buffer & Cloud Sync Modal */}
       <OfflineSyncModal isOpen={showOfflineModal} onClose={() => setShowOfflineModal(false)} />

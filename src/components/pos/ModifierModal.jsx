@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef } from 'react';
 import { X, Check, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -21,7 +21,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
    }
 ────────────────────────────────────────────────────────────── */
 
-export function getEffectiveVariantMatrix(item) {
+function getEffectiveVariantMatrix(item) {
   if (!item) return null;
   if (item.variantMatrix) return item.variantMatrix;
 

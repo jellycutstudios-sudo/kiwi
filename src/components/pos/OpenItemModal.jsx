@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { X, Plus, Sparkles, Tag } from 'lucide-react';
+import { useState } from 'react';
+import { X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function OpenItemModal({ isOpen, onClose, onAdd, currency = 'INR' }) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [qty, setQty] = useState(1);
-  const [category, setCategory] = useState('Custom Items');
+  const category = 'Custom Items';
   const [note, setNote] = useState('');
 
   if (!isOpen) return null;

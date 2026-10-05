@@ -16,9 +16,9 @@ import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets
 import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
-  ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Star, User, Search, 
-  FileText, Check, Flame, Leaf, Clock, LayoutGrid, Maximize2, Minimize2,
-  Printer, Lock, Wallet, CreditCard, ArrowDownRight, ArrowUpRight, QrCode, Coins, Sparkles
+  ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Search, 
+  FileText, Check, Flame, Clock, LayoutGrid,
+  Printer, Lock, Wallet, ArrowDownRight, Coins
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
@@ -427,16 +427,13 @@ export default function POS() {
   );
   const { issueToken } = useTokenStore();
   useWakeLock(true);
-  const { categories, loading: loadingMenu, search, setSearch, menuDensity, setMenuDensity, isFocusMode, setIsFocusMode } = useMenuStore(
+  const { categories, loading: loadingMenu, search, setSearch, menuDensity } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
       loading: state.loading,
       search: state.search,
       setSearch: state.setSearch,
-      menuDensity: state.menuDensity,
-      setMenuDensity: state.setMenuDensity,
-      isFocusMode: state.isFocusMode,
-      setIsFocusMode: state.setIsFocusMode
+      menuDensity: state.menuDensity
     }))
   );
 
@@ -485,7 +482,6 @@ export default function POS() {
     addItem(item);
   };
 
-  const tables = useTableStore(s => s.tables);
   const [tableOrders, setTableOrders] = useState({});
 
   useEffect(() => {
@@ -507,49 +503,8 @@ export default function POS() {
     });
   }, [restaurant?.id]);
 
-  const handleTableSelectQuick = (table) => {
-    if (table.status === 'occupied') {
-      const activeOrder = tableOrders[table.id];
-      if (activeOrder) {
-        loadOrderToCart(activeOrder);
-        // Cache original items so void checks don't need per-tap Firestore reads
-        originalOrderItemsRef.current = activeOrder.items ?? [];
-        toast.success(`Loaded active order for ${table.name}`, { icon: '🍽️' });
-      } else {
-        setTable(table.id, table.name);
-        toast.success(`Selected ${table.name}`, { icon: '🪑' });
-      }
-    } else {
-      if (editingOrderId || tableId) {
-        clearCart();
-      }
-      setTable(table.id, table.name);
-      toast.success(`Assigned to ${table.name}`, { icon: '🪑' });
-    }
-  };
-
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
-  const [sevenDayAvg, setSevenDayAvg] = useState(0);
-
-  useEffect(() => {
-    if (!restaurant?.id) return;
-    let isMounted = true;
-    const past7Days = new Date();
-    past7Days.setDate(past7Days.getDate() - 7);
-    const q = query(
-      collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', past7Days),
-      limit(100)
-    );
-    getDocs(q).then(snap => {
-      if (!isMounted) return; // prevent setState on unmounted component
-      let totalSales = 0;
-      snap.docs.forEach(d => totalSales += (d.data().total || 0));
-      setSevenDayAvg(snap.docs.length > 0 ? totalSales / snap.docs.length : 0);
-    }).catch(console.error);
-    return () => { isMounted = false; };
-  }, [restaurant?.id]);
 
   // Live active orders in store
   const activeOrders = useOrderStore(s => s.activeOrders);
@@ -656,7 +611,7 @@ export default function POS() {
   const taxInfo   = getTaxInfo(restaurant);
   const total     = getTotal(restaurant);
 
-  const { terms, isRetail, enableQuickPay, enableBarcode, enableSpeedDial } = useBusinessConfig();
+  const { isRetail, enableQuickPay, enableBarcode } = useBusinessConfig();
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
   const [isQuickPaying, setIsQuickPaying] = useState(false);
@@ -1002,25 +957,21 @@ export default function POS() {
     
     try {
       await ensureAnonymousAuth();
-      // Use the same pins/ subcollection that loginWithPin uses — guarantees consistency
-      const pinDocRef = doc(db, 'restaurants', restaurant.id, 'pins', managerPin.trim());
-      const pinSnap = await getDoc(pinDocRef);
-      
-      if (!pinSnap.exists()) {
+      // Query staff directly by PIN
+      const staffQuery = query(
+        collection(db, 'restaurants', restaurant.id, 'staff'),
+        where('pin', '==', managerPin.trim()),
+        where('active', '==', true)
+      );
+      const staffSnap = await getDocs(staffQuery);
+
+      if (staffSnap.empty) {
         toast.error('Invalid Manager PIN');
         return;
       }
-      
-      const { staffId } = pinSnap.data();
-      const staffDocRef = doc(db, 'restaurants', restaurant.id, 'staff', staffId);
-      const staffSnap = await getDoc(staffDocRef);
-      
-      if (!staffSnap.exists() || staffSnap.data().active === false) {
-        toast.error('Account not found or deactivated');
-        return;
-      }
-      
-      const managerData = staffSnap.data();
+
+      const managerDoc = staffSnap.docs[0];
+      const managerData = managerDoc.data();
       if (!['admin', 'super_admin'].includes(managerData.role)) {
         toast.error('Insufficient permissions — manager or admin PIN required');
         return;
@@ -1039,7 +990,7 @@ export default function POS() {
         reducedQty: qtyReduced,
         cashierId: staffDoc?.id || 'unknown',
         cashierName: staffDoc?.name || 'Cashier',
-        managerId: staffId,
+        managerId: managerDoc.id,
         managerName: managerData.name,
         reason: voidReason,
         value: voidVal
@@ -2635,7 +2586,7 @@ export default function POS() {
           restaurantId={restaurant?.id}
           currency={currency}
           tableOrders={tableOrders}
-          onSelect={async (id, name, activeOrder, table) => {
+          onSelect={async (id, name, activeOrder) => {
             setShowTableSel(false);
 
             // Case 1: Table is occupied and has an active order

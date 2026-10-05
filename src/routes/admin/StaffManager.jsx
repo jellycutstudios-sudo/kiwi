@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
-import { collection, doc, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X, UserCheck, UserX } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { useEffect } from 'react';
 
 const ROLES = ['cashier', 'waiter', 'kitchen', 'admin'];
 
@@ -14,6 +13,7 @@ export default function StaffManager() {
   const { restaurant, staffDoc: currentUser } = useAuthStore();
   const { staff } = useStaffStore();
   const [showForm, setShowForm] = useState(false);
+  const [showPin, setShowPin] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({
     name: '',
@@ -25,96 +25,53 @@ export default function StaffManager() {
     overtimeRate: '1.5'
   });
 
-  // Self-healing migration: Ensure all active staff members have their lookup documents in the pins subcollection
-  useEffect(() => {
-    if (!restaurant?.id || staff.length === 0) return;
-
-    const migratePins = async () => {
-      try {
-        const batch = writeBatch(db);
-        let needsMigration = false;
-
-        for (const s of staff) {
-          if (s.active !== false && s.pin) {
-            const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', s.pin);
-            const pinSnap = await getDoc(pinRef);
-            if (!pinSnap.exists()) {
-              batch.set(pinRef, {
-                staffId: s.id,
-                name: s.name,
-                active: true
-              });
-              needsMigration = true;
-            }
-          }
-        }
-
-        if (needsMigration) {
-          await batch.commit();
-          console.info('[StaffManager] Secure PIN lookup index auto-migrated successfully.');
-        }
-      } catch (err) {
-        console.error('[StaffManager] PIN migration failed:', err);
+  const generatePin = () => {
+    const existingPins = new Set(staff.map(s => s.pin).filter(Boolean));
+    for (let attempts = 0; attempts < 100; attempts++) {
+      const candidate = String(Math.floor(1000 + Math.random() * 9000));
+      if (!existingPins.has(candidate)) {
+        setForm(f => ({ ...f, pin: candidate }));
+        setShowPin(true);
+        toast.success(`Generated PIN: ${candidate}`, { icon: '🔑' });
+        return;
       }
-    };
-
-    migratePins();
-  }, [restaurant?.id, staff]);
+    }
+  };
 
   const saveStaff = async () => {
-    if (!form.name.trim() || (!editId && form.pin.length < 4)) {
-      toast.error('Name required and PIN must be 4 digits');
+    if (!form.name.trim()) {
+      toast.error('Staff name is required');
       return;
     }
+
+    if (!editId) {
+      if (!form.pin) {
+        toast.error('4-digit PIN is required for staff login');
+        return;
+      }
+      if (!/^\d{4}$/.test(form.pin)) {
+        toast.error('PIN must be exactly 4 digits (e.g. 1234)');
+        return;
+      }
+    } else if (form.pin) {
+      if (!/^\d{4}$/.test(form.pin)) {
+        toast.error('New PIN must be exactly 4 digits');
+        return;
+      }
+    }
+
     try {
       if (editId) {
-        const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
-        const staffSnap = await getDoc(staffRef);
-        if (!staffSnap.exists()) {
-          toast.error('Staff member not found');
-          return;
-        }
-        const existingStaff = staffSnap.data();
-        const batch = writeBatch(db);
-
-        // If PIN is changing
-        if (form.pin && form.pin !== existingStaff.pin) {
-          if (form.pin.length < 4) {
-            toast.error('New PIN must be 4 digits');
-            return;
-          }
-          // Validate new PIN uniqueness
-          const newPinRef = doc(db, 'restaurants', restaurant.id, 'pins', form.pin);
-          const newPinSnap = await getDoc(newPinRef);
-          if (newPinSnap.exists() && newPinSnap.data().staffId !== editId) {
+        if (form.pin) {
+          const isPinInUse = staff.some(s => s.id !== editId && s.pin === form.pin && s.active !== false);
+          if (isPinInUse) {
             toast.error('PIN already in use — choose a different PIN');
             return;
           }
-
-          // Delete old PIN document
-          if (existingStaff.pin) {
-            const oldPinRef = doc(db, 'restaurants', restaurant.id, 'pins', existingStaff.pin);
-            batch.delete(oldPinRef);
-          }
-
-          // Write new PIN document
-          if (existingStaff.active !== false) {
-            batch.set(newPinRef, {
-              staffId: editId,
-              name: form.name.trim(),
-              active: true
-            });
-          }
-        } else {
-          // If PIN didn't change, but active status is true, update name in lookup
-          if (existingStaff.active !== false && existingStaff.pin) {
-            const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', existingStaff.pin);
-            batch.update(pinRef, { name: form.name.trim() });
-          }
         }
 
-        // Update staff doc
-        batch.update(staffRef, {
+        const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
+        await updateDoc(staffRef, {
           name: form.name.trim(),
           role: form.role,
           salaryType: form.salaryType,
@@ -123,21 +80,16 @@ export default function StaffManager() {
           ...(form.pin ? { pin: form.pin } : {}),
         });
 
-        await batch.commit();
         toast.success('Staff updated!');
       } else {
-        // Add new staff: validate PIN uniqueness first
-        const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', form.pin);
-        const pinSnap = await getDoc(pinRef);
-        if (pinSnap.exists()) {
+        const isPinInUse = staff.some(s => s.pin === form.pin && s.active !== false);
+        if (isPinInUse) {
           toast.error('PIN already in use — choose a different PIN');
           return;
         }
 
-        const batch = writeBatch(db);
-        const staffDocRef = doc(collection(db, 'restaurants', restaurant.id, 'staff'));
-
-        batch.set(staffDocRef, {
+        const staffColRef = collection(db, 'restaurants', restaurant.id, 'staff');
+        await addDoc(staffColRef, {
           name: form.name.trim(),
           pin: form.pin,
           role: form.role,
@@ -149,66 +101,43 @@ export default function StaffManager() {
           createdAt: new Date(),
         });
 
-        batch.set(pinRef, {
-          staffId: staffDocRef.id,
-          name: form.name.trim(),
-          active: true
-        });
-
-        await batch.commit();
         toast.success('Staff member added!');
       }
+
+      setShowForm(false);
+      setShowPin(false);
+      setEditId(null);
+      setForm({
+        name: '',
+        pin: '',
+        role: 'cashier',
+        email: '',
+        salaryType: 'monthly',
+        salaryRate: '',
+        overtimeRate: '1.5'
+      });
     } catch (err) {
       console.error(err);
       toast.error('Failed to save staff: ' + err.message);
     }
-    setShowForm(false);
-    setEditId(null);
-    setForm({
-      name: '',
-      pin: '',
-      role: 'cashier',
-      email: '',
-      salaryType: 'monthly',
-      salaryRate: '',
-      overtimeRate: '1.5'
-    });
   };
 
   const toggleActive = async (id, current) => {
     try {
-      const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
-      const staffSnap = await getDoc(staffRef);
-      if (!staffSnap.exists()) return;
-      const s = staffSnap.data();
-
-      const batch = writeBatch(db);
       const nextActive = !current;
-
-      // Update staff document
-      batch.update(staffRef, { active: nextActive });
-
-      if (s.pin) {
-        const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', s.pin);
-        if (nextActive) {
-          // Re-activating staff: verify PIN is still free
-          const pinSnap = await getDoc(pinRef);
-          if (pinSnap.exists() && pinSnap.data().staffId !== id) {
+      if (nextActive) {
+        const target = staff.find(s => s.id === id);
+        if (target?.pin) {
+          const isPinInUse = staff.some(s => s.id !== id && s.pin === target.pin && s.active !== false);
+          if (isPinInUse) {
             toast.error('PIN is currently in use by another active staff member. Update this staff member\'s PIN first.');
             return;
           }
-          batch.set(pinRef, {
-            staffId: id,
-            name: s.name,
-            active: true
-          });
-        } else {
-          // Deactivating staff: remove their PIN from the active lookup collection
-          batch.delete(pinRef);
         }
       }
 
-      await batch.commit();
+      const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
+      await updateDoc(staffRef, { active: nextActive });
       toast(nextActive ? 'Staff activated' : 'Staff deactivated', { icon: nextActive ? '✅' : '🔒' });
     } catch (err) {
       console.error(err);
@@ -220,19 +149,7 @@ export default function StaffManager() {
     if (!confirm('Remove this staff member?')) return;
     try {
       const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
-      const staffSnap = await getDoc(staffRef);
-      if (!staffSnap.exists()) return;
-      const s = staffSnap.data();
-
-      const batch = writeBatch(db);
-      batch.delete(staffRef);
-
-      if (s.pin) {
-        const pinRef = doc(db, 'restaurants', restaurant.id, 'pins', s.pin);
-        batch.delete(pinRef);
-      }
-
-      await batch.commit();
+      await deleteDoc(staffRef);
       toast.success('Removed');
     } catch (err) {
       console.error(err);
@@ -256,7 +173,7 @@ export default function StaffManager() {
             )}
           </p>
         </div>
-        <button className="btn btn-primary" id="add-staff-btn" onClick={() => { setEditId(null); setForm({name:'',pin:'',role:'cashier',email:'',salaryType:'monthly',salaryRate:'',overtimeRate:'1.5'}); setShowForm(true); }}>
+        <button className="btn btn-primary" id="add-staff-btn" onClick={() => { setEditId(null); setForm({name:'',pin:'',role:'cashier',email:'',salaryType:'monthly',salaryRate:'',overtimeRate:'1.5'}); setShowPin(false); setShowForm(true); }}>
           <Plus size={16}/> Add Staff
         </button>
       </div>
@@ -289,7 +206,7 @@ export default function StaffManager() {
                 </span>
               </div>
               <div className="staff-actions">
-                <button className="btn btn-secondary btn-icon btn-sm" id={`edit-staff-${s.id}`} onClick={() => { setEditId(s.id); setForm({name:s.name,pin:'',role:s.role,email:s.email??'',salaryType:s.salaryType||'monthly',salaryRate:s.salaryRate!==undefined?String(s.salaryRate):'',overtimeRate:s.overtimeRate!==undefined?String(s.overtimeRate):'1.5'}); setShowForm(true); }}>
+                <button className="btn btn-secondary btn-icon btn-sm" id={`edit-staff-${s.id}`} onClick={() => { setEditId(s.id); setForm({name:s.name,pin:'',role:s.role,email:s.email??'',salaryType:s.salaryType||'monthly',salaryRate:s.salaryRate!==undefined?String(s.salaryRate):'',overtimeRate:s.overtimeRate!==undefined?String(s.overtimeRate):'1.5'}); setShowPin(false); setShowForm(true); }}>
                   <Edit2 size={12}/>
                 </button>
                 <button className="btn btn-secondary btn-icon btn-sm" onClick={() => toggleActive(s.id, s.active !== false)} id={`toggle-staff-${s.id}`}>
@@ -315,12 +232,66 @@ export default function StaffManager() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label className="form-label">Full Name</label>
-                <input id="staff-name-input" className="form-input" placeholder="e.g. Ahmed Al-Hassan" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
+                <label className="form-label">
+                  Full Name <span style={{ color: 'var(--color-red)' }}>*</span>
+                </label>
+                <input id="staff-name-input" className="form-input" placeholder="e.g. Rahul Sharma" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
               </div>
               <div className="form-group">
-                <label className="form-label">PIN (4 digits) {editId && '— leave blank to keep current'}</label>
-                <input id="staff-pin-input" className="form-input" type="password" placeholder="••••" maxLength={4} value={form.pin} onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/,'')}))} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>
+                    PIN (4 digits) {!editId && <span style={{ color: 'var(--color-red)' }}>*</span>}
+                    {editId && <span style={{ fontWeight: 'normal', color: 'var(--color-label-tertiary)', marginLeft: 4 }}>— leave blank to keep current</span>}
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={generatePin}
+                    title="Generate a random unique 4-digit PIN"
+                  >
+                    <Sparkles size={12} /> Auto-Generate
+                  </button>
+                </div>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    id="staff-pin-input"
+                    className="form-input"
+                    type={showPin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="••••"
+                    maxLength={4}
+                    value={form.pin}
+                    onChange={e => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
+                    style={{ letterSpacing: form.pin ? '0.2em' : 'normal', paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--color-label-secondary)',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    onClick={() => setShowPin(p => !p)}
+                    title={showPin ? 'Hide PIN' : 'Show PIN'}
+                  >
+                    {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                  <span>Numeric PIN used by staff to switch accounts and sign into POS</span>
+                  <span style={{ fontWeight: 600, color: form.pin.length === 4 ? 'var(--color-green)' : 'inherit' }}>
+                    {form.pin.length}/4 digits
+                  </span>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Role</label>

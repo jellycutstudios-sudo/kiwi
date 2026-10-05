@@ -1,15 +1,13 @@
-import { useState } from 'react';
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Cloud, CloudOff, RefreshCw, X, CheckCircle2, AlertTriangle, Clock, Layers, Trash2 } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, X, CheckCircle2, Clock, Layers, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function OfflineSyncModal({ isOpen, onClose }) {
   const { isOnline, queue, isSyncing, lastSyncTime, processQueue, clearQueue, dequeueOrder } = useOfflineQueueStore();
   const { restaurant } = useAuthStore();
   const currency = restaurant?.currency || 'INR';
-  const [purging, setPurging] = useState(false);
 
   if (!isOpen) return null;
 

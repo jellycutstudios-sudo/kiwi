@@ -13,7 +13,10 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // Role checks using Custom Claims to save on read costs and avoid loop/recursion issues
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(uid()));
+    }
+
     function getUserDoc() {
       return get(/databases/$(database)/documents/users/$(uid()));
     }
@@ -21,7 +24,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
         ('role' in request.auth.token && request.auth.token.role == 'super_admin') ||
-        (getUserDoc() != null && getUserDoc().data.role == 'super_admin')
+        (hasUserDoc() && getUserDoc().data.role == 'super_admin')
       );
     }
 
@@ -29,25 +32,18 @@ service cloud.firestore {
       return isSignedIn() && (
         isSuperAdmin() || 
         ('role' in request.auth.token && request.auth.token.role == 'admin' && 'restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-        (getUserDoc() != null && getUserDoc().data.role == 'admin' && getUserDoc().data.restaurantId == restaurantId)
+        (hasUserDoc() && getUserDoc().data.role == 'admin' && getUserDoc().data.restaurantId == restaurantId) ||
+        (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid())
       );
     }
     
-    // Explicit check for staff access to specific restaurant
-    function belongsToRestaurant(restaurantId) {
-       return isSignedIn() && (
-         isSuperAdmin() || 
-         ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-         (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId)
-       );
-    }
-    
-    // Staff member check: requires super_admin, valid restaurant custom token claim, or registered user profile
+    // Staff member check: requires super_admin, anonymous terminal session, valid restaurant custom token claim, or registered user profile
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
+         (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
-         (getUserDoc() != null && getUserDoc().data.restaurantId == restaurantId) ||
+         (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId) ||
          (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid()) ||
          exists(/databases/$(database)/documents/restaurants/$(restaurantId)/staff/$(uid()))
        );

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Check, X, Share2, Printer, Smartphone, MessageSquare, FileText } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Check, X, Printer, MessageSquare, FileText } from 'lucide-react';
 
 export default function DigitalReceiptModal({
   order,

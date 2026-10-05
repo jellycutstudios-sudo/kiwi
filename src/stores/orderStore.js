@@ -155,34 +155,38 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  loadOrderToCart: (order) => set({
-    items: order.items.map(i => ({
-      id: i.id,
-      name: i.name,
-      price: i.price,
-      qty: i.qty,
-      selectedModifiers: i.selectedModifiers ?? [],
-      modifierTotal: i.modifierTotal ?? 0,
-      recipe: i.recipe ?? [],
-      course: i.course ?? 'Mains',
-      prepState: i.prepState ?? 'fired',
-      station: i.station ?? 'Kitchen',
-      status: i.status ?? 'pending'
-    })),
-    orderType: order.type,
-    tableId: order.tableId,
-    tableName: order.tableName,
-    customerName: order.customerName || '',
-    customerPhone: order.customerPhone || '',
-    note: order.note || '',
-    paymentMethod: order.paymentMethod || 'cash',
-    editingOrderId: order.id,
-    discount: order.discount ?? 0,
-    discountType: order.discountType ?? 'fixed',
-    splitPayments: order.splitPayments ?? [],
-    upiRef: order.upiRef ?? '',
-    tokenNumber: order.token ?? null
-  }),
+  loadOrderToCart: (order) => {
+    if (!order) return;
+    const rawItems = Array.isArray(order.items) ? order.items : [];
+    set({
+      items: rawItems.map(i => ({
+        id: i.id,
+        name: i.name,
+        price: Number(i.price) || 0,
+        qty: Number(i.qty) || 1,
+        selectedModifiers: i.selectedModifiers ?? [],
+        modifierTotal: Number(i.modifierTotal) || 0,
+        recipe: i.recipe ?? [],
+        course: i.course ?? 'Mains',
+        prepState: i.prepState ?? 'fired',
+        station: i.station ?? 'Kitchen',
+        status: i.status ?? 'pending'
+      })),
+      orderType: order.type,
+      tableId: order.tableId,
+      tableName: order.tableName,
+      customerName: order.customerName || '',
+      customerPhone: order.customerPhone || '',
+      note: order.note || '',
+      paymentMethod: order.paymentMethod || 'cash',
+      editingOrderId: order.id,
+      discount: Number(order.discount) || 0,
+      discountType: order.discountType ?? 'fixed',
+      splitPayments: order.splitPayments ?? [],
+      upiRef: order.upiRef ?? '',
+      tokenNumber: order.token ?? null
+    });
+  },
 
   clearCart: () => {
     clearPersistedCart();
@@ -300,9 +304,9 @@ export const useOrderStore = create((set, get) => ({
       const primaryOrder = primarySnap.data();
       const secondaryOrder = secondarySnap.data();
 
-      const mergedItems = [...primaryOrder.items];
+      const mergedItems = [...(primaryOrder.items || [])];
 
-      secondaryOrder.items.forEach(secItem => {
+      (secondaryOrder.items || []).forEach(secItem => {
         const existing = mergedItems.find(pItem => 
           pItem.id === secItem.id && 
           JSON.stringify(pItem.selectedModifiers) === JSON.stringify(secItem.selectedModifiers)
@@ -380,7 +384,7 @@ export const useOrderStore = create((set, get) => ({
   },
 
   // ── Totals ───────────────────────────────────────────────
-  getSubtotal: () => get().items.reduce((sum, i) => sum + i.price * i.qty, 0),
+  getSubtotal: () => get().items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0), 0),
 
   getDiscountAmount: () => {
     const { discount, discountType } = get();
@@ -435,9 +439,9 @@ export const useOrderStore = create((set, get) => ({
       taxableAmountForTax += serviceChargeAmt;
     }
     const { taxTotal } = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
-    const tipAmt = get().tipAmount ?? 0;
-    const totalBeforeGiftCard = baseTaxable + taxTotal + serviceChargeAmt + tipAmt;
-    const giftCardDeduction = useGiftCardStore.getState().giftCardDeduction;
+    const tipAmt = Number(get().tipAmount) || 0;
+    const totalBeforeGiftCard = baseTaxable + (Number(taxTotal) || 0) + (Number(serviceChargeAmt) || 0) + tipAmt;
+    const giftCardDeduction = Number(useGiftCardStore.getState().giftCardDeduction) || 0;
     return Math.max(0, Math.round((totalBeforeGiftCard - giftCardDeduction) * 100) / 100);
   },
 
@@ -493,12 +497,12 @@ export const useOrderStore = create((set, get) => ({
       note,
       staffId: staffId ?? (useAuthStore.getState().staffDoc?.id ?? null),
       staffName: useAuthStore.getState().staffDoc?.name ?? null,
-      assignedWaiterId: (useAuthStore.getState().staffDoc?.role === 'waiter') 
+      assignedWaiterId: ['waiter', 'server'].includes(useAuthStore.getState().staffDoc?.role) 
         ? (useAuthStore.getState().staffDoc?.id) 
-        : (staffId ?? null),
-      assignedWaiterName: (useAuthStore.getState().staffDoc?.role === 'waiter') 
+        : (staffId ?? useAuthStore.getState().staffDoc?.id ?? null),
+      assignedWaiterName: ['waiter', 'server'].includes(useAuthStore.getState().staffDoc?.role) 
         ? (useAuthStore.getState().staffDoc?.name) 
-        : null,
+        : (useAuthStore.getState().staffDoc?.name ?? null),
       updatedAt: serverTimestamp(),
       paidAt: isPaid ? serverTimestamp() : null,
       currency: restaurant?.currency ?? 'INR',
@@ -844,6 +848,7 @@ export const useOrderStore = create((set, get) => ({
                 const currentRest = useAuthStore.getState().restaurant;
                 const currentStaff = useAuthStore.getState().staffDoc;
                 const currentRole = currentStaff?.role ?? 'admin';
+                if (currentRole === 'kitchen') return;
                 const notifConfig = currentRest?.notifications ?? {};
 
                 const tone = notifConfig.readySoundTone || 'reception-bell';

@@ -11,8 +11,8 @@ import { auth } from '../firebase';
 import {
   Globe, Truck, Clock, Check, X, Printer, ChefHat, Bell, AlertTriangle,
   User, Eye, Zap, Search, Copy, ExternalLink, Share2, Smartphone,
-  ShoppingBag, LayoutList, Columns, MessageCircle, ChevronRight, CheckCircle2,
-  RefreshCw, MapPin, Receipt, ArrowRight, Sparkles, Filter
+  ShoppingBag, LayoutList, Columns, MessageCircle, CheckCircle2,
+  MapPin, Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,7 +32,6 @@ export default function OnlineOrders() {
   const staffDoc = useAuthStore(s => s.staffDoc);
 
   const activeOrders = useOrderStore(s => s.activeOrders);
-  const onlineOrders = useOrderStore(s => s.onlineOrders);
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const settleOrder = useOrderStore(s => s.settleOrder);
   const markOnlineOrdersRead = useOrderStore(s => s.markOnlineOrdersRead);

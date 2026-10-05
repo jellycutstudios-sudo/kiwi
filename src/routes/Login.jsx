@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -47,19 +47,16 @@ export default function Login() {
       toast.error('Please enter your mobile number or email');
       return;
     }
+    if (!cleanPw) {
+      toast.error('Please enter your password');
+      return;
+    }
     const res = await loginWithEmail(cleanId, cleanPw);
     if (!res.ok) toast.error(res.error);
     else toast.success('Welcome back!');
   };
 
-  const handlePinKey = (key) => {
-    if (pin.length >= 4) return;
-    const next = pin + key;
-    setPin(next);
-    if (next.length === 4) submitPin(next);
-  };
-
-  const submitPin = async (p) => {
+  const submitPin = useCallback(async (p) => {
     if (!restaurantId.trim()) {
       toast.error('Enter Restaurant ID first');
       setPin('');
@@ -72,7 +69,39 @@ export default function Login() {
     } else {
       toast.success('Welcome!');
     }
-  };
+  }, [restaurantId, loginWithPin]);
+
+  const handlePinKey = useCallback((key) => {
+    setPin((prev) => {
+      if (prev.length >= 4) return prev;
+      const next = prev + key;
+      if (next.length === 4) {
+        submitPin(next);
+      }
+      return next;
+    });
+  }, [submitPin]);
+
+  // Support typing PIN via physical keyboard on desktop
+  useEffect(() => {
+    if (mode !== 'pin') return;
+
+    const handleKeyDown = (e) => {
+      // Don't capture keys if typing in the Restaurant ID input
+      if (document.activeElement?.id === 'login-restaurant-id') return;
+
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        handlePinKey(e.key);
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        setPin((p) => p.slice(0, -1));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, handlePinKey]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -98,9 +127,10 @@ export default function Login() {
     }
 
     setRegistering(true);
+    let cred = null;
     try {
       // 1. Create Firebase Auth user
-      const cred = await createUserWithEmailAndPassword(auth, authEmail, regPassword);
+      cred = await createUserWithEmailAndPassword(auth, authEmail, regPassword);
       const uid = cred.user.uid;
 
       // 2. Prepare restaurant document reference & generate unique URL slug
@@ -125,7 +155,7 @@ export default function Login() {
         slug: slug,
         currency: 'INR',
         phone: phone || '',
-        email: isEmail ? authEmail : '',
+        email: authEmail,
         modes: ['pos'],
         taxConfig: { type: 'none' },
         createdAt: serverTimestamp(),
@@ -156,9 +186,18 @@ export default function Login() {
         restaurantId: newRestId,
       });
 
+      // 6. Immediately load user data into authStore so state has restaurant details
+      await useAuthStore.getState().loadUserData(cred.user);
+
       toast.success('Registration successful! Awaiting Super Admin approval.');
     } catch (err) {
       console.error(err);
+      // Clean up orphaned auth user if Firestore write failed
+      if (cred?.user && err.code !== 'auth/email-already-in-use') {
+        try {
+          await cred.user.delete();
+        } catch {}
+      }
       const errorMsg = err.code === 'auth/email-already-in-use'
         ? (isEmail ? 'This email is already registered.' : 'This mobile number is already registered.')
         : err.message;
@@ -265,7 +304,7 @@ export default function Login() {
                       return;
                     }
                     try {
-                      await sendPasswordResetEmail(auth, identifier.trim());
+                      await sendPasswordResetEmail(auth, identifier.trim().toLowerCase());
                       toast.success('Password reset email sent! Check your inbox.');
                     } catch (err) {
                       toast.error('Failed to send reset email: ' + err.message);

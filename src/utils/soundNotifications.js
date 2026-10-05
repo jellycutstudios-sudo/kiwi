@@ -22,6 +22,21 @@ function getAudioContext() {
   return _audioCtx;
 }
 
+// Automatically unlock AudioContext on first user interaction to comply with mobile browser autoplay policies
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    try {
+      const ctx = getAudioContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+    } catch {}
+  };
+  ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(evt => {
+    window.addEventListener(evt, unlockAudio, { capture: true, passive: true, once: true });
+  });
+}
+
 export function playNotificationTone(toneType = 'reception-bell', volume = 0.5) {
   try {
     const ctx = getAudioContext();

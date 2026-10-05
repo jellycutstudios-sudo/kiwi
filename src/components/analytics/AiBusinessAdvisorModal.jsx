@@ -294,7 +294,7 @@ export default function AiBusinessAdvisorModal({
     setApiKey(initialKey);
     // Focus prompt input
     setTimeout(() => inputRef.current?.focus(), 150);
-  }, [isOpen]);
+  }, [isOpen, restaurant]);
 
   // Keyboard shortcut: Esc to exit fullscreen
   useEffect(() => {

@@ -1,27 +1,53 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
 import { playNotificationTone, vibrateDevice } from '../../utils/soundNotifications';
-import { Check, ChevronRight, Utensils, X, Bell } from 'lucide-react';
+import { Check, ChevronRight, Utensils, X, Bell, ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function WaiterReadySlidePopup() {
+  const location = useLocation();
+  const isWaiterTab = location.pathname === '/tables';
+  const isEditMode = location.search.includes('edit=true');
   const { restaurant, staffDoc } = useAuthStore();
   const activeOrders = useOrderStore(s => s.activeOrders);
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
 
   const userRole = staffDoc?.role ?? 'admin';
   const staffId = staffDoc?.id ?? null;
-  const staffName = staffDoc?.name ?? '';
 
-  const notificationConfig = restaurant?.notifications ?? {};
-  const isWaiterPopupEnabled = notificationConfig.waiterSlidePopupEnabled !== false;
-  const isVibrateEnabled = notificationConfig.vibrateOnReady !== false;
+  const notificationConfig = restaurant?.notifications;
+  const isWaiterPopupEnabled = notificationConfig?.waiterSlidePopupEnabled !== false;
+  const isVibrateEnabled = notificationConfig?.vibrateOnReady !== false;
+  const chimeTone = notificationConfig?.readySoundTone || 'kitchen-bell';
+  const isFloorStaff = ['waiter', 'server', 'runner', 'captain'].includes(userRole);
+  const isManagerOrAdmin = ['admin', 'manager', 'owner', 'super_admin'].includes(userRole);
 
   // Track acknowledged order IDs locally in session so they don't pop up again
   const [acknowledgedOrderIds, setAcknowledgedOrderIds] = useState(() => new Set());
   const [currentOrder, setCurrentOrder] = useState(null);
   const currentOrderIdRef = useRef(null);
+  const notifiedOrderIdsRef = useRef(new Set());
+
+  // Browser push permission prompt state
+  const [canRequestNotif, setCanRequestNotif] = useState(() => {
+    return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default';
+  });
+
+  const handleEnablePush = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const res = await Notification.requestPermission();
+        setCanRequestNotif(false);
+        if (res === 'granted') {
+          toast.success('Push alerts enabled for food ready!', { icon: '🔔' });
+        }
+      } catch {
+        setCanRequestNotif(false);
+      }
+    }
+  };
 
   // Slider state
   const [slideX, setSlideX] = useState(0);
@@ -30,55 +56,115 @@ export default function WaiterReadySlidePopup() {
   const trackRef = useRef(null);
   const startXRef = useRef(0);
 
-  // Filter orders that are ready and relevant to this staff member
-  useEffect(() => {
-    if (!isWaiterPopupEnabled) {
-      currentOrderIdRef.current = null;
-      setCurrentOrder(null);
-      return;
-    }
+  // Compute ready orders via useMemo to avoid re-render loops
+  const readyOrdersList = useMemo(() => {
+    // Strictly only active on the waiter tab (/tables)
+    if (!isWaiterTab) return [];
+    // Strictly suppress during admin floor plan editing
+    if (isEditMode) return [];
+    if (!isWaiterPopupEnabled) return [];
+    if (userRole === 'kitchen') return [];
 
-    // STRICT: Only waiters/servers need to physically run food to the table.
-    // Cashiers focus on billing — popup blocks checkout flow.
-    // Admins/kitchen staff don't carry food — showing it is distracting noise.
-    if (userRole !== 'waiter') {
-      currentOrderIdRef.current = null;
-      setCurrentOrder(null);
-      return;
-    }
-
-    const readyOrders = activeOrders.filter(o => {
+    return activeOrders.filter(o => {
       if (o.status !== 'ready') return false;
       if (acknowledgedOrderIds.has(o.id)) return false;
 
-      // 1. If specifically assigned to this waiter — always show
-      if (o.assignedWaiterId && o.assignedWaiterId === staffId) return true;
-      if (o.staffId && o.staffId === staffId) return true;
+      // If user is a waiter/runner/floor staff:
+      if (isFloorStaff) {
+        // Specifically assigned to this waiter
+        if (o.assignedWaiterId && o.assignedWaiterId === staffId) return true;
+        // Placed by this waiter
+        if (o.staffId && o.staffId === staffId) return true;
+        // Unassigned order: any available waiter on floor can serve it
+        if (!o.assignedWaiterId) return true;
+        return false;
+      }
 
-      // 2. If unassigned — show to any on-duty waiter (first to grab it serves it)
-      if (!o.assignedWaiterId) return true;
+      // If user is admin / manager:
+      // Only show if the admin explicitly assigned themselves as the server on this order
+      if (isManagerOrAdmin) {
+        if (o.assignedWaiterId && o.assignedWaiterId === staffId) return true;
+        return false;
+      }
 
       return false;
     });
+  }, [isWaiterTab, isEditMode, activeOrders, acknowledgedOrderIds, isWaiterPopupEnabled, userRole, isFloorStaff, isManagerOrAdmin, staffId]);
 
-    if (readyOrders.length > 0) {
-      if (!currentOrderIdRef.current || !readyOrders.some(o => o.id === currentOrderIdRef.current)) {
-        const nextOrder = readyOrders[0];
+  // Handle order notifications, chimes, and popup active item
+  useEffect(() => {
+    // Detect newly ready orders to trigger chime & notifications per order
+    const newlyReady = readyOrdersList.filter(o => !notifiedOrderIdsRef.current.has(o.id));
+    if (newlyReady.length > 0) {
+      newlyReady.forEach(o => notifiedOrderIdsRef.current.add(o.id));
+
+      // 1. Play kitchen bell chime tone
+      playNotificationTone(chimeTone, 0.7);
+
+      // 2. Haptic buzz on mobile/handheld device
+      if (isVibrateEnabled) {
+        vibrateDevice([200, 100, 200, 100, 300]);
+      }
+
+      // 3. Native Browser Notification (for background tabs or locked screens)
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        newlyReady.forEach(orderItem => {
+          try {
+            const tableLabel = orderItem.tableName ? `Table ${orderItem.tableName}` : (orderItem.token ? `Token #${orderItem.token}` : 'Takeaway');
+            const itemList = (orderItem.items || []).map(i => `${i.qty}× ${i.name}`).slice(0, 3).join(', ');
+            new Notification(`🔔 Order Ready: ${tableLabel}!`, {
+              body: itemList ? `${itemList} ready for pickup at pass` : 'Food is plated and ready for pickup!',
+              icon: '/favicon.ico',
+              tag: `order-ready-${orderItem.id}`,
+            });
+          } catch (e) {
+            console.debug('Browser notification failed:', e);
+          }
+        });
+      }
+    }
+
+    if (readyOrdersList.length > 0) {
+      if (!currentOrderIdRef.current || !readyOrdersList.some(o => o.id === currentOrderIdRef.current)) {
+        const nextOrder = readyOrdersList[0];
         currentOrderIdRef.current = nextOrder.id;
         setCurrentOrder(nextOrder);
         setSlideX(0);
         setIsCompleted(false);
-
-        // Haptic buzz on new popup
-        if (isVibrateEnabled) {
-          vibrateDevice([150, 80, 150]);
-        }
       }
     } else if (currentOrderIdRef.current) {
       currentOrderIdRef.current = null;
       setCurrentOrder(null);
     }
-  }, [activeOrders, acknowledgedOrderIds, userRole, staffId, isWaiterPopupEnabled, isVibrateEnabled]);
+  }, [readyOrdersList, chimeTone, isVibrateEnabled]);
+
+  // Tab Title Flashing Alert when an order is ready
+  useEffect(() => {
+    if (!currentOrder) return;
+    const originalTitle = document.title;
+    const targetLabel = currentOrder.tableName ? `Table ${currentOrder.tableName}` : (currentOrder.token ? `#${currentOrder.token}` : 'Ready');
+    let isAlert = false;
+    const interval = setInterval(() => {
+      document.title = isAlert ? `🔔 [ORDER READY: ${targetLabel}]` : originalTitle;
+      isAlert = !isAlert;
+    }, 1200);
+
+    return () => {
+      clearInterval(interval);
+      document.title = originalTitle;
+    };
+  }, [currentOrder]);
+
+  const handleSwitchNextOrder = useCallback(() => {
+    if (readyOrdersList.length <= 1) return;
+    const currentIndex = readyOrdersList.findIndex(o => o.id === currentOrderIdRef.current);
+    const nextIndex = (currentIndex + 1) % readyOrdersList.length;
+    const next = readyOrdersList[nextIndex];
+    currentOrderIdRef.current = next.id;
+    setCurrentOrder(next);
+    setSlideX(0);
+    setIsCompleted(false);
+  }, [readyOrdersList]);
 
   const handleDismiss = useCallback((orderId) => {
     currentOrderIdRef.current = null;
@@ -93,11 +179,16 @@ export default function WaiterReadySlidePopup() {
     setIsCompleted(true);
     if (isVibrateEnabled) vibrateDevice([200]);
 
+    const isTakeaway = order.type === 'takeaway' || order.type === 'delivery' || order.type === 'pickup';
+
     try {
       await updateOrderStatus(restaurant.id, order.id, 'served');
-      toast.success(`${order.tableName ? `Table ${order.tableName}` : 'Order'} marked as Served!`, {
-        icon: '🍽️'
-      });
+      toast.success(
+        isTakeaway 
+          ? `${order.token ? `Token #${order.token}` : 'Takeaway order'} handed over!` 
+          : `${order.tableName ? `Table ${order.tableName}` : 'Order'} marked as Served!`,
+        { icon: isTakeaway ? '🛍️' : '🍽️' }
+      );
     } catch (err) {
       console.error('Failed to mark served:', err);
     } finally {
@@ -159,8 +250,9 @@ export default function WaiterReadySlidePopup() {
     };
   }, [isDragging, handlePointerMove, handlePointerUp]);
 
-  if (!currentOrder) return null;
+  if (!isWaiterTab || isEditMode || !currentOrder) return null;
 
+  const isTakeaway = currentOrder.type === 'takeaway' || currentOrder.type === 'delivery' || currentOrder.type === 'pickup';
   const trackWidth = trackRef.current?.clientWidth || 320;
   const maxSlide = Math.max(10, trackWidth - 64);
   const progress = Math.min(1, slideX / maxSlide);
@@ -176,8 +268,10 @@ export default function WaiterReadySlidePopup() {
         width: 'calc(100vw - 48px)',
         background: 'linear-gradient(145deg, #0f172a 0%, #1e293b 100%)',
         borderRadius: 20,
-        border: '1.5px solid rgba(56, 189, 248, 0.4)',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.25)',
+        border: isTakeaway ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1.5px solid rgba(56, 189, 248, 0.4)',
+        boxShadow: isTakeaway
+          ? '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(245, 158, 11, 0.25)'
+          : '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.25)',
         padding: '16px 18px',
         color: '#ffffff',
         fontFamily: 'var(--font-family)',
@@ -192,33 +286,49 @@ export default function WaiterReadySlidePopup() {
             width: 38,
             height: 38,
             borderRadius: 10,
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            background: isTakeaway
+              ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+              : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+            boxShadow: isTakeaway ? '0 4px 12px rgba(245, 158, 11, 0.4)' : '0 4px 12px rgba(16, 185, 129, 0.4)',
             color: '#ffffff',
             flexShrink: 0
           }}>
-            <Utensils size={20} />
+            {isTakeaway ? <ShoppingBag size={20} /> : <Utensils size={20} />}
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 15, fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.2px' }}>
-                Food Ready at Pass!
+                {isTakeaway ? 'Takeaway Ready!' : 'Food Ready at Pass!'}
               </span>
               <span style={{
-                background: 'rgba(16, 185, 129, 0.2)',
-                color: '#34d399',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
+                background: isTakeaway ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                color: isTakeaway ? '#fbbf24' : '#34d399',
+                border: isTakeaway ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)',
                 fontSize: 10,
                 fontWeight: 800,
                 padding: '2px 6px',
                 borderRadius: 4,
                 textTransform: 'uppercase'
               }}>
-                Ready
+                {isTakeaway ? 'Pickup' : 'Ready'}
               </span>
+              {readyOrdersList.length > 1 && (
+                <span style={{
+                  background: 'rgba(59, 130, 246, 0.25)',
+                  color: '#60a5fa',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  textTransform: 'uppercase'
+                }}>
+                  +{readyOrdersList.length - 1} more
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, fontWeight: 600 }}>
               {currentOrder.tableName ? `🪑 Table ${currentOrder.tableName}` : (currentOrder.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online Order')}
@@ -227,25 +337,69 @@ export default function WaiterReadySlidePopup() {
           </div>
         </div>
 
-        <button
-          onClick={() => handleDismiss(currentOrder.id)}
-          title="Dismiss alert"
-          style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 28,
-            height: 28,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#94a3b8',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <X size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {canRequestNotif && (
+            <button
+              onClick={handleEnablePush}
+              title="Enable background alerts"
+              style={{
+                background: 'rgba(56, 189, 248, 0.2)',
+                border: '1px solid rgba(56, 189, 248, 0.5)',
+                borderRadius: 14,
+                padding: '3px 8px',
+                color: '#38bdf8',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              <Bell size={12} />
+              Alerts
+            </button>
+          )}
+
+          {readyOrdersList.length > 1 && (
+            <button
+              onClick={handleSwitchNextOrder}
+              title="View next ready order"
+              style={{
+                background: 'rgba(59, 130, 246, 0.25)',
+                border: '1px solid rgba(59, 130, 246, 0.5)',
+                borderRadius: 14,
+                padding: '3px 8px',
+                color: '#60a5fa',
+                fontSize: 11,
+                fontWeight: 800,
+                cursor: 'pointer'
+              }}
+            >
+              Next ›
+            </button>
+          )}
+
+          <button
+            onClick={() => handleDismiss(currentOrder.id)}
+            title="Dismiss alert"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Items List Preview */}
@@ -309,8 +463,10 @@ export default function WaiterReadySlidePopup() {
             bottom: 0,
             width: `${Math.max(52, slideX + 52)}px`,
             background: isCompleted 
-              ? 'linear-gradient(90deg, #059669 0%, #10b981 100%)'
-              : 'linear-gradient(90deg, rgba(16, 185, 129, 0.3) 0%, rgba(16, 185, 129, 0.8) 100%)',
+              ? (isTakeaway ? 'linear-gradient(90deg, #d97706 0%, #f59e0b 100%)' : 'linear-gradient(90deg, #059669 0%, #10b981 100%)')
+              : (isTakeaway 
+                  ? 'linear-gradient(90deg, rgba(245, 158, 11, 0.3) 0%, rgba(245, 158, 11, 0.8) 100%)' 
+                  : 'linear-gradient(90deg, rgba(16, 185, 129, 0.3) 0%, rgba(16, 185, 129, 0.8) 100%)'),
             transition: isDragging ? 'none' : 'width 0.2s ease',
             borderRadius: 26
           }}
@@ -332,7 +488,9 @@ export default function WaiterReadySlidePopup() {
             paddingLeft: 40
           }}
         >
-          {isCompleted ? '✓ Marked Served!' : 'Slide to Acknowledge & Serve ➔'}
+          {isCompleted 
+            ? (isTakeaway ? '✓ Handed Over!' : '✓ Marked Served!') 
+            : (isTakeaway ? 'Slide to Hand Over ➔' : 'Slide to Acknowledge & Serve ➔')}
         </div>
 
         {/* Draggable Thumb Button */}
@@ -345,8 +503,8 @@ export default function WaiterReadySlidePopup() {
             height: 44,
             borderRadius: 22,
             background: isCompleted
-              ? '#10b981'
-              : 'linear-gradient(145deg, #38bdf8 0%, #0284c7 100%)',
+              ? (isTakeaway ? '#f59e0b' : '#10b981')
+              : (isTakeaway ? 'linear-gradient(145deg, #fbbf24 0%, #d97706 100%)' : 'linear-gradient(145deg, #38bdf8 0%, #0284c7 100%)'),
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
             display: 'flex',
             alignItems: 'center',
@@ -370,14 +528,14 @@ export default function WaiterReadySlidePopup() {
         <span>
           {currentOrder.assignedWaiterName
             ? `Server: ${currentOrder.assignedWaiterName}`
-            : (staffName ? `Staff: ${staffName}` : 'All Waiters')}
+            : (currentOrder.staffName ? `Staff: ${currentOrder.staffName}` : (isTakeaway ? 'Counter Staff' : 'All Waiters'))}
         </span>
         <button
           onClick={() => handleMarkServed(currentOrder)}
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#38bdf8',
+            color: isTakeaway ? '#f59e0b' : '#38bdf8',
             fontSize: 11,
             fontWeight: 700,
             cursor: 'pointer',

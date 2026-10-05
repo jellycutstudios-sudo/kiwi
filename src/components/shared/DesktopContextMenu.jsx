@@ -3,21 +3,16 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
-import { useMenuStore } from '../../stores/menuStore';
-import { useOrderStore } from '../../stores/orderStore';
 import { playNotificationTone, hapticTap } from '../../utils/soundNotifications';
 import toast from 'react-hot-toast';
 import {
   Maximize2,
-  Minimize2,
   Sun,
   Moon,
   Volume2,
   Printer,
   ShieldCheck,
   RefreshCw,
-  LayoutGrid,
-  Search,
   ShoppingCart,
   UtensilsCrossed,
   Layers,
@@ -46,8 +41,6 @@ export default function DesktopContextMenu() {
 
   const { user, staffDoc, restaurant, signOut } = useAuthStore();
   const { effectiveTheme, toggleTheme } = useThemeStore();
-  const { menuDensity, setMenuDensity } = useMenuStore();
-  const clearCart = useOrderStore(s => s.clearCart);
 
   const role = staffDoc?.role || (user ? 'admin' : 'guest');
   const isAdmin = ['admin', 'super_admin'].includes(role);
@@ -135,7 +128,7 @@ export default function DesktopContextMenu() {
         document.exitFullscreen().catch(() => {});
         toast('Exited Fullscreen', { icon: '🖥️' });
       }
-    } catch (_) {}
+    } catch {}
   };
 
   const handleToggleTheme = () => {
@@ -226,7 +219,7 @@ export default function DesktopContextMenu() {
       setTimeout(() => {
         window.location.reload();
       }, 600);
-    } catch (_) {
+    } catch {
       window.location.reload();
     }
   };
@@ -518,6 +511,128 @@ export default function DesktopContextMenu() {
               ))}
             </div>
           )}
+
+          {/* Quick System Tools Section */}
+          <div
+            style={{
+              height: '1px',
+              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              margin: '4px 0',
+            }}
+          />
+          <div
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--color-label-tertiary, #94a3b8)',
+              padding: '4px 10px 2px',
+              letterSpacing: '0.5px',
+            }}
+          >
+            System Tools
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className="dineos-ctx-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '7px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '12.5px',
+              fontWeight: 500,
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+              <Maximize2 size={15} className="text-blue-500" />
+              <span>Fullscreen Mode</span>
+            </div>
+            <span style={{ fontSize: '10px', opacity: 0.6, fontFamily: 'monospace' }}>F11</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            className="dineos-ctx-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '7px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '12.5px',
+              fontWeight: 500,
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+              {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-400" />}
+              <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => { closeMenu(); setShowDiagnostics(true); }}
+            className="dineos-ctx-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '7px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '12.5px',
+              fontWeight: 500,
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+              <ShieldCheck size={15} className="text-emerald-500" />
+              <span>Station Diagnostics</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={handleClearCacheAndSync}
+            className="dineos-ctx-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '7px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '12.5px',
+              fontWeight: 500,
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+              <RefreshCw size={15} className="text-cyan-500" />
+              <span>Clear Cache & Sync</span>
+            </div>
+          </button>
 
           {/* Separator & Lock Terminal */}
           {(user || staffDoc) && (

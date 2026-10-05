@@ -6,7 +6,7 @@ import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'f
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { downloadTallyXML } from '../utils/tallyExport';
-import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, Clock, History, ShieldAlert, X, HeartHandshake, Receipt, UtensilsCrossed, FileText, FileSpreadsheet, FileCode, Sparkles, Bot } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, X, HeartHandshake, Receipt, FileText, FileSpreadsheet, FileCode, Bot } from 'lucide-react';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
 import toast from 'react-hot-toast';
@@ -244,7 +244,7 @@ export default function Reports() {
     return { trendData: trend, maxSales, points: pts, pathD: path, areaD: area, chartWidth, chartHeight, paddingLeft, paddingTop };
   }, [data, period]);
 
-  const { trendData, maxSales, points, pathD, areaD, chartWidth, chartHeight, paddingLeft, paddingTop } = trendDataInfo;
+  const { trendData } = trendDataInfo;
 
   // Hourly Heatmap (Aggregated Order Counts)
   const heatmapInfo = useMemo(() => {

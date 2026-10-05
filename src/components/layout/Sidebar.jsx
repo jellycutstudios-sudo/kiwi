@@ -8,8 +8,8 @@ import { db } from '../../firebase';
 import {
   LayoutDashboard, Utensils, Armchair,
   ChefHat, BarChart3, Users, UtensilsCrossed,
-  Layers, Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, ClipboardList, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
+  Settings, Building2, ChevronLeft, ChevronRight, LogOut,
+  Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
   ChevronDown, ChevronUp, Copy, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
