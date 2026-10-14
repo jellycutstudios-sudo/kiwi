@@ -1,6 +1,7 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
+const { notifyPlatformOrderStatus } = require('./webhooks/deliveryCallbacks');
 admin.initializeApp();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,6 +108,49 @@ exports.sendNewOrderNotification = onDocumentCreated('restaurants/{restaurantId}
       return null;
     }
   });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Two-Way Status Handshake: Automatically notify aggregator when status changes in POS/KDS
+// ─────────────────────────────────────────────────────────────────────────────
+exports.syncOrderStatusToAggregator = onDocumentUpdated('restaurants/{restaurantId}/orders/{orderId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return null;
+
+  // Only dispatch for external delivery orders
+  if (after.type !== 'online' || !after.source || after.source === 'native') {
+    return null;
+  }
+
+  // Check if status changed
+  if (before.status === after.status) {
+    return null;
+  }
+
+  const { restaurantId } = event.params;
+  const platform = after.source;
+  const externalOrderId = after.externalOrderId || after.id;
+
+  try {
+    const restDoc = await admin.firestore().collection('restaurants').doc(restaurantId).get();
+    const config = restDoc.exists ? (restDoc.data().deliveryIntegrations?.[platform] || {}) : {};
+
+    const callbackRes = await notifyPlatformOrderStatus({
+      platform,
+      config,
+      externalOrderId,
+      status: after.status,
+      prepTimeMinutes: after.prepDuration ? Math.round(after.prepDuration / 60) : 20,
+      reason: after.cancelReason || ''
+    });
+
+    console.log(`[2-WAY SYNC] Dispatched ${platform} status ${after.status} for order ${externalOrderId}:`, callbackRes.success);
+    return callbackRes;
+  } catch (err) {
+    console.error(`[2-WAY SYNC ERROR] Failed to dispatch ${platform} status for order ${externalOrderId}:`, err);
+    return null;
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Webhook: Receive incoming orders from delivery platforms (Uber Eats, Zomato…)
@@ -230,8 +274,24 @@ exports.handleDeliveryWebhook = onRequest(async (req, res) => {
       normalizedOrder.requiresAcceptance = true;
     }
 
-    // Save order
+    // Idempotency / Deduplication check: Avoid duplicate order ingestion on network retries
     const orderRef = db.collection('restaurants').doc(restaurantId).collection('orders');
+    if (normalizedOrder.externalOrderId) {
+      const existingSnap = await orderRef
+        .where('externalOrderId', '==', normalizedOrder.externalOrderId)
+        .limit(1)
+        .get();
+
+      if (!existingSnap.empty) {
+        const existingDoc = existingSnap.docs[0];
+        console.log(`[IDEMPOTENT] Duplicate webhook delivery skipped for ${platform} order ${normalizedOrder.externalOrderId} (existing doc ${existingDoc.id})`);
+        if (platform === 'ubereats') {
+          return res.status(200).json({ status: 'ok', order_id: normalizedOrder.externalOrderId, duplicate: true });
+        }
+        return res.status(200).send('Order Already Processed');
+      }
+    }
+
     const savedDoc = await orderRef.add(normalizedOrder);
 
     console.log(`Processed ${platform} order ${normalizedOrder.externalOrderId} -> docId ${savedDoc.id}`);
@@ -266,13 +326,24 @@ exports.syncDeliveryMenu = onRequest(async (req, res) => {
     }
     try {
       console.log(`[ORDER ACTION] ${action} for ${platform} order ${orderId} at ${restaurantId} by uid=${decodedToken.uid}`);
-      // TODO: Call platform APIs (Uber Eats, Zomato…) to accept/reject the order
+      const restDoc = await admin.firestore().collection('restaurants').doc(restaurantId).get();
+      const config = restDoc.exists ? (restDoc.data().deliveryIntegrations?.[platform] || {}) : {};
+      
+      const callbackRes = await notifyPlatformOrderStatus({
+        platform,
+        config,
+        externalOrderId: orderId,
+        status: action === 'accept' ? 'accepted' : 'cancelled',
+        prepTimeMinutes: req.query.prepTime || 20,
+        reason: req.query.reason || ''
+      });
+
       return res.status(200).json({
         success: true,
         action,
         platform,
         orderId,
-        details: `Order ${action} processed for ${platform}.`
+        callback: callbackRes
       });
     } catch (err) {
       console.error(`Error notifying ${platform} of order ${action}:`, err);
