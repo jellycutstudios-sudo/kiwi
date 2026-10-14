@@ -5115,9 +5115,13 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 /* Row 1: Dedicated Full-Width Floor Navigation */
+/* Row 1: Dedicated Floor Navigation (Left) + View Switcher (Right) */
 .tm-floor-tabs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  overflow: hidden;
+  gap: 8px;
   padding: 1px 0;
 }
 
@@ -5128,7 +5132,8 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 2px 2px 4px;
 }
 .tm-floor-tabs::-webkit-scrollbar {
@@ -5213,7 +5218,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   font-weight: 700;
 }
 
-/* Row 2: Actions Bar (Filters on Left, View & Search on Right) */
+/* Row 2: Actions Bar (100% Dedicated Status Filter Pills + Expandable Search) */
 .tm-actions-bar {
   display: flex;
   align-items: center;
@@ -5290,36 +5295,53 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   white-space: nowrap;
 }
 
-.tm-actions-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* Compact Search */
+/* Expandable Search on Right */
 .tm-search {
   position: relative;
   display: flex;
   align-items: center;
   flex-shrink: 0;
 }
+.tm-search-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-search-trigger-btn:hover {
+  background: var(--color-fill);
+  color: var(--color-label);
+}
+.tm-search-trigger-btn:active {
+  transform: scale(0.92);
+}
+
 .tm-search-input {
   border: 1px solid var(--color-separator);
   background: var(--color-bg-secondary);
   border-radius: 999px;
-  padding: 4px 24px 4px 26px;
-  font-size: 11.5px;
+  padding: 4px 26px 4px 28px;
+  font-size: 12px;
   font-family: var(--font-family);
   color: var(--color-label);
-  width: 95px;
-  height: 30px;
+  width: 135px;
+  height: 32px;
   outline: none;
+  box-sizing: border-box;
   transition: width 0.2s ease, border-color 0.15s ease;
 }
 .tm-search-input:focus {
   border-color: var(--color-accent);
-  width: 140px;
   background: var(--color-bg-elevated);
 }
 .tm-search-icon {
@@ -5330,12 +5352,12 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 .tm-search-clear {
   position: absolute;
-  right: 7px;
+  right: 6px;
   background: var(--color-fill);
   border: none;
   border-radius: 50%;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5343,25 +5365,29 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   color: var(--color-label-secondary);
   padding: 0;
 }
+.tm-search-clear:hover {
+  background: var(--color-fill-secondary);
+}
 
-/* View Switchers on Right */
+/* View Switchers on Right of Row 1 */
 .tm-segmented-control {
   display: inline-flex;
-  padding: 2px;
+  padding: 3px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-separator);
-  border-radius: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .tm-segmented-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  height: 26px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 6px;
+  gap: 5px;
+  padding: 5px 10px;
+  height: 28px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 999px;
   border: none;
   background: transparent;
   color: var(--color-label-secondary);
@@ -5369,12 +5395,16 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   transition: all 0.15s ease;
   user-select: none;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-segmented-btn:hover {
+  color: var(--color-label);
 }
 .tm-segmented-btn--active {
   background: var(--color-bg-elevated);
   color: var(--color-label);
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 800;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .tm-edit-layout-btn {
@@ -5403,6 +5433,12 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 @media (max-width: 480px) {
   .tm-switcher-label {
     display: none;
+  }
+  .tm-segmented-btn {
+    padding: 5px 8px;
+  }
+  .tm-search--expanded .tm-search-input {
+    width: 110px;
   }
 }
 
