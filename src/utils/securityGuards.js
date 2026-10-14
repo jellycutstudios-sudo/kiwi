@@ -11,11 +11,32 @@
 export function initSecurityGuards(options = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
+  const isLocalDev = Boolean(
+    (import.meta.env?.DEV && import.meta.env?.MODE !== 'test') ||
+    (typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.endsWith('.local')
+    ))
+  );
+
   const isExplicitlyDisabled = localStorage.getItem('dineos_disable_guards') === 'true';
-  const shouldEnable = options.forceEnable !== undefined ? options.forceEnable : !isExplicitlyDisabled;
+  const isExplicitlyForced = localStorage.getItem('dineos_force_guards') === 'true';
+
+  const shouldEnable = options.forceEnable !== undefined
+    ? Boolean(options.forceEnable)
+    : isExplicitlyForced
+      ? true
+      : isExplicitlyDisabled
+        ? false
+        : !(isLocalDev && import.meta.env?.MODE !== 'test');
 
   if (!shouldEnable) {
-    console.info('[SecurityGuard] Anti-inspect guards are temporarily disabled via setting.');
+    if (isLocalDev && import.meta.env?.MODE !== 'test') {
+      console.info('[SecurityGuard] Local development mode detected: Anti-inspect guards disabled for responsive testing & debugging.');
+    } else {
+      console.info('[SecurityGuard] Anti-inspect guards are temporarily disabled via setting.');
+    }
     return;
   }
 
