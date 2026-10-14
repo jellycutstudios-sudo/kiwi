@@ -11,13 +11,17 @@
 export function initSecurityGuards(options = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
+  const host = typeof window !== 'undefined' ? (window.location.hostname || '') : '';
+  const port = typeof window !== 'undefined' ? (window.location.port || '') : '';
   const isLocalDev = Boolean(
     (import.meta.env?.DEV && import.meta.env?.MODE !== 'test') ||
-    (typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.hostname.endsWith('.local')
-    ))
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '' ||
+    host.endsWith('.local') ||
+    host.startsWith('192.168.') ||
+    host.startsWith('10.') ||
+    (port !== '' && port !== '80' && port !== '443')
   );
 
   const isExplicitlyDisabled = localStorage.getItem('dineos_disable_guards') === 'true';
