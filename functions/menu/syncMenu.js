@@ -205,6 +205,107 @@ function formatForDeliveroo(menu, overrides) {
 }
 
 /**
+ * Format menu to Talabat / Delivery Hero Catalog format
+ */
+function formatForTalabat(menu, overrides) {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
+  return {
+    categories: activeCategories.map(cat => ({
+      category_id: cat.id,
+      name: cat.name,
+      items: (cat.items || [])
+        .filter(item => {
+          const override = itemOverrides[item.id];
+          if (override && override.available === false) return false;
+          return item.available !== false;
+        })
+        .map(item => ({
+          item_id: item.id,
+          name: item.name,
+          price: item.price,
+          description: item.description || '',
+          modifiers: (item.modifiers || []).map(m => ({
+            name: m.name,
+            price: m.priceAdd || 0
+          })),
+          available: true
+        }))
+    }))
+  };
+}
+
+/**
+ * Format menu to Snoonu Qatar Partner format
+ */
+function formatForSnoonu(menu, overrides) {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
+  return {
+    sections: activeCategories.map(cat => ({
+      id: cat.id,
+      title: cat.name,
+      products: (cat.items || [])
+        .filter(item => {
+          const override = itemOverrides[item.id];
+          if (override && override.available === false) return false;
+          return item.available !== false;
+        })
+        .map(item => ({
+          product_id: item.id,
+          name: item.name,
+          price: item.price,
+          in_stock: true
+        }))
+    }))
+  };
+}
+
+/**
+ * Format menu to Jahez GCC Partner format
+ */
+function formatForJahez(menu, overrides) {
+  const itemOverrides = overrides && overrides.items ? overrides.items : (overrides || {});
+  const categoryOverrides = overrides && overrides.categories ? overrides.categories : {};
+
+  const activeCategories = menu.filter(cat => {
+    const catOverride = categoryOverrides[cat.id];
+    return !catOverride || catOverride.available !== false;
+  });
+
+  return {
+    menu_groups: activeCategories.map(cat => ({
+      group_id: cat.id,
+      group_name: cat.name,
+      items: (cat.items || [])
+        .filter(item => {
+          const override = itemOverrides[item.id];
+          if (override && override.available === false) return false;
+          return item.available !== false;
+        })
+        .map(item => ({
+          item_id: item.id,
+          item_name: item.name,
+          price: item.price,
+          is_active: true
+        }))
+    }))
+  };
+}
+
+/**
  * Perform actual sync request for a given platform
  */
 async function syncPlatformMenu(restaurantId, platform, config, menu, overrides) {
@@ -253,6 +354,34 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         headers = {
           'Content-Type': 'application/json',
           'x-deliveroo-api-key': config.apiKey,
+          'restaurant-id': config.restaurantId
+        };
+        break;
+      case 'talabat':
+        payload = formatForTalabat(menu, overrides);
+        url = 'https://api.talabat.com/v1/catalog/sync';
+        headers = {
+          'Content-Type': 'application/json',
+          'x-talabat-api-key': config.apiKey,
+          'restaurant-id': config.restaurantId
+        };
+        break;
+      case 'snoonu':
+        payload = formatForSnoonu(menu, overrides);
+        url = 'https://merchant-api.snoonu.com/v1/menu/sync';
+        headers = {
+          'Content-Type': 'application/json',
+          'x-snoonu-api-key': config.apiKey,
+          'restaurant-id': config.restaurantId
+        };
+        break;
+      case 'jahez':
+      case 'rafeeq':
+        payload = formatForJahez(menu, overrides);
+        url = `https://api.${platform}.com/v1/menu/sync`;
+        headers = {
+          'Content-Type': 'application/json',
+          [`x-${platform}-api-key`]: config.apiKey,
           'restaurant-id': config.restaurantId
         };
         break;
@@ -355,6 +484,9 @@ module.exports = {
   formatForUberEats,
   formatForZomato,
   formatForSwiggy,
-  formatForDeliveroo
+  formatForDeliveroo,
+  formatForTalabat,
+  formatForSnoonu,
+  formatForJahez
 };
 

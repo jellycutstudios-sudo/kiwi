@@ -12,11 +12,17 @@ import {
 import toast from 'react-hot-toast';
 
 const PLATFORM_META = {
-  ubereats: { name: 'Uber Eats', emoji: '🚗', color: '#000000', bg: '#f5f5f5' },
-  zomato:   { name: 'Zomato',    emoji: '🍕', color: '#000000', bg: '#f5f5f5' },
-  swiggy:   { name: 'Swiggy',    emoji: '🟠', color: '#000000', bg: '#f5f5f5' },
-  deliveroo:{ name: 'Deliveroo', emoji: '🦘', color: '#000000', bg: '#f5f5f5' },
+  talabat:   { name: 'Talabat',   emoji: '🟧', color: '#ff5a00', bg: '#fff4ed', region: 'Qatar & GCC' },
+  snoonu:    { name: 'Snoonu',    emoji: '🔴', color: '#e30613', bg: '#fdefef', region: 'Qatar' },
+  rafeeq:    { name: 'Rafeeq',    emoji: '🟣', color: '#5c1d8c', bg: '#f5effa', region: 'Qatar' },
+  jahez:     { name: 'Jahez',     emoji: '🟨', color: '#ffb300', bg: '#fffbf0', region: 'KSA & GCC' },
+  deliveroo: { name: 'Deliveroo', emoji: '🦘', color: '#00cdbc', bg: '#eefcfb', region: 'UAE, Qatar & Global' },
+  ubereats:  { name: 'Uber Eats', emoji: '🚗', color: '#06c167', bg: '#eefaf3', region: 'Global' },
+  zomato:    { name: 'Zomato',    emoji: '🍕', color: '#e23744', bg: '#fdefef', region: 'India & UAE' },
+  swiggy:    { name: 'Swiggy',    emoji: '🟠', color: '#fc8019', bg: '#fff5ed', region: 'India' },
 };
+
+const ALL_PLATFORMS = Object.keys(PLATFORM_META);
 
 const DAYS_OF_WEEK = [
   { value: 'all', label: 'All Days' },
@@ -73,7 +79,16 @@ export default function DeliveryHub() {
 
   // Local settings edit state (Admin only)
   const [autoAccept, setAutoAccept] = useState(false);
-  const [commissions, setCommissions] = useState({ ubereats: 20, zomato: 18, swiggy: 18, deliveroo: 20 });
+  const [commissions, setCommissions] = useState({
+    talabat: 22,
+    snoonu: 20,
+    rafeeq: 20,
+    jahez: 20,
+    deliveroo: 20,
+    ubereats: 20,
+    zomato: 18,
+    swiggy: 18
+  });
   const [busyHours, setBusyHours] = useState([]);
   const [savingSettings, setSavingSettings] = useState(false);
   
@@ -95,10 +110,14 @@ export default function DeliveryHub() {
         // Initialize admin configuration values
         setAutoAccept(data.deliverySettings?.autoAccept ?? false);
         setCommissions({
+          talabat: data.deliverySettings?.commissions?.talabat ?? 22,
+          snoonu: data.deliverySettings?.commissions?.snoonu ?? 20,
+          rafeeq: data.deliverySettings?.commissions?.rafeeq ?? 20,
+          jahez: data.deliverySettings?.commissions?.jahez ?? 20,
+          deliveroo: data.deliverySettings?.commissions?.deliveroo ?? 20,
           ubereats: data.deliverySettings?.commissions?.ubereats ?? 20,
           zomato: data.deliverySettings?.commissions?.zomato ?? 18,
-          swiggy: data.deliverySettings?.commissions?.swiggy ?? 18,
-          deliveroo: data.deliverySettings?.commissions?.deliveroo ?? 20
+          swiggy: data.deliverySettings?.commissions?.swiggy ?? 18
         });
         setBusyHours(data.deliverySettings?.busyHours ?? []);
       }
@@ -127,7 +146,7 @@ export default function DeliveryHub() {
   useEffect(() => {
     if (!restaurant?.id) return;
 
-    const platforms = ['ubereats', 'zomato', 'swiggy', 'deliveroo'];
+    const platforms = ALL_PLATFORMS;
     const overrideUnsubs = [];
     const logUnsubs = [];
 
@@ -198,7 +217,7 @@ export default function DeliveryHub() {
       const currentTime = new Date();
 
       // Check for expired timed pauses
-      for (const platformId of ['ubereats', 'zomato', 'swiggy', 'deliveroo']) {
+      for (const platformId of ALL_PLATFORMS) {
         const settings = platformSettings[platformId];
         if (settings?.paused && settings.pauseUntil) {
           const resumeTime = settings.pauseUntil.toDate ? settings.pauseUntil.toDate() : new Date(settings.pauseUntil);
@@ -265,7 +284,7 @@ export default function DeliveryHub() {
         if (shouldBePaused && matchedRule) {
           const matchedReason = `Scheduled busy hours (${matchedRule.start} - ${matchedRule.end})`;
           
-          for (const platformId of ['ubereats', 'zomato', 'swiggy', 'deliveroo']) {
+          for (const platformId of ALL_PLATFORMS) {
             const isEnabled = integrations[platformId]?.enabled === true;
             const settings = platformSettings[platformId];
             

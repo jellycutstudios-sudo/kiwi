@@ -28,6 +28,20 @@ describe('formatCurrency', () => {
     expect(normalized).toContain('250.75');
   });
 
+  it('should format QAR currency correctly with 2 decimals', () => {
+    const formatted = formatCurrency(120.50, 'QAR');
+    const normalized = normalizeSpaces(formatted);
+    expect(normalized).toMatch(/(QAR|ر\.ق\.)/);
+    expect(normalized).toContain('120.50');
+  });
+
+  it('should format KWD currency correctly with 3 decimals for GCC standards', () => {
+    const formatted = formatCurrency(4.25, 'KWD');
+    const normalized = normalizeSpaces(formatted);
+    expect(normalized).toMatch(/(KWD|د\.ك\.)/);
+    expect(normalized).toContain('4.250');
+  });
+
   it('should fallback to INR when currency code is unrecognized', () => {
     const formatted = formatCurrency(500, 'XYZ');
     const normalized = normalizeSpaces(formatted);

@@ -17,10 +17,14 @@ import {
 import toast from 'react-hot-toast';
 
 const PLATFORM_BADGES = {
+  talabat:   { label: 'Talabat',   color: '#ff5a00', bg: 'rgba(255,90,0,0.1)',    emoji: '🟧', border: 'rgba(255,90,0,0.25)' },
+  snoonu:    { label: 'Snoonu',    color: '#e30613', bg: 'rgba(227,6,19,0.1)',    emoji: '🔴', border: 'rgba(227,6,19,0.25)' },
+  rafeeq:    { label: 'Rafeeq',    color: '#5c1d8c', bg: 'rgba(92,29,140,0.1)',   emoji: '🟣', border: 'rgba(92,29,140,0.25)' },
+  jahez:     { label: 'Jahez',     color: '#ffb300', bg: 'rgba(255,179,0,0.1)',   emoji: '🟨', border: 'rgba(255,179,0,0.25)' },
+  deliveroo: { label: 'Deliveroo', color: '#00cdbc', bg: 'rgba(0,205,188,0.1)',  emoji: '🦘', border: 'rgba(0,205,188,0.25)' },
+  ubereats:  { label: 'Uber Eats', color: '#06c167', bg: 'rgba(6,193,103,0.1)',  emoji: '🚗', border: 'rgba(6,193,103,0.25)' },
   zomato:    { label: 'Zomato',    color: '#e23744', bg: 'rgba(226,55,68,0.1)',  emoji: '🍕', border: 'rgba(226,55,68,0.25)' },
   swiggy:    { label: 'Swiggy',    color: '#fc8019', bg: 'rgba(252,128,25,0.1)', emoji: '🟠', border: 'rgba(252,128,25,0.25)' },
-  ubereats:  { label: 'Uber Eats', color: '#06c167', bg: 'rgba(6,193,103,0.1)',  emoji: '🚗', border: 'rgba(6,193,103,0.25)' },
-  deliveroo: { label: 'Deliveroo', color: '#00cdbc', bg: 'rgba(0,205,188,0.1)',  emoji: '🦘', border: 'rgba(0,205,188,0.25)' },
   native:    { label: 'Store Link',color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', emoji: '🌐', border: 'rgba(139,92,246,0.25)' },
   'dine-in': { label: 'Dine-In',   color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  emoji: '🍽️', border: 'rgba(59,130,246,0.25)' },
   takeaway:  { label: 'Takeaway',  color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', emoji: '🛍️', border: 'rgba(245,158,11,0.25)' },

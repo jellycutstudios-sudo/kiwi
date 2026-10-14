@@ -12,7 +12,10 @@ import {
   formatForUberEats,
   formatForZomato,
   formatForSwiggy,
-  formatForDeliveroo
+  formatForDeliveroo,
+  formatForTalabat,
+  formatForSnoonu,
+  formatForJahez
 } from './syncMenu';
 
 const mockMenu = [
@@ -152,6 +155,46 @@ describe('syncMenu - Catalog formatters', () => {
     });
   });
 
+  describe('formatForTalabat', () => {
+    it('should format catalog correctly for Talabat GCC schema', () => {
+      const overrides = {};
+      const result = formatForTalabat(mockMenu, overrides);
+      expect(result.categories).toHaveLength(2);
+      expect(result.categories[0].category_id).toBe('cat-1');
+      expect(result.categories[0].items[0].item_id).toBe('item-1');
+      expect(result.categories[0].items[0].price).toBe(10);
+    });
+
+    it('should respect item availability overrides in Talabat', () => {
+      const overrides = { 'item-1': { available: false } };
+      const result = formatForTalabat(mockMenu, overrides);
+      expect(result.categories[0].items).toHaveLength(1);
+      expect(result.categories[0].items[0].item_id).toBe('item-2');
+    });
+  });
+
+  describe('formatForSnoonu', () => {
+    it('should format sections and products correctly for Snoonu Qatar schema', () => {
+      const overrides = {};
+      const result = formatForSnoonu(mockMenu, overrides);
+      expect(result.sections).toHaveLength(2);
+      expect(result.sections[0].id).toBe('cat-1');
+      expect(result.sections[0].products[0].product_id).toBe('item-1');
+      expect(result.sections[0].products[0].in_stock).toBe(true);
+    });
+  });
+
+  describe('formatForJahez', () => {
+    it('should format menu_groups and items correctly for Jahez schema', () => {
+      const overrides = {};
+      const result = formatForJahez(mockMenu, overrides);
+      expect(result.menu_groups).toHaveLength(2);
+      expect(result.menu_groups[0].group_id).toBe('cat-1');
+      expect(result.menu_groups[0].items[0].item_id).toBe('item-1');
+      expect(result.menu_groups[0].items[0].is_active).toBe(true);
+    });
+  });
+
   describe('Category-level overrides', () => {
     it('should filter out a whole category when it is paused', () => {
       const overrides = {
@@ -169,6 +212,10 @@ describe('syncMenu - Catalog formatters', () => {
       const zomatoResult = formatForZomato(mockMenu, overrides);
       expect(zomatoResult.categories).toHaveLength(1);
       expect(zomatoResult.categories[0].category_id).toBe('cat-2');
+
+      const talabatResult = formatForTalabat(mockMenu, overrides);
+      expect(talabatResult.categories).toHaveLength(1);
+      expect(talabatResult.categories[0].category_id).toBe('cat-2');
     });
   });
 });

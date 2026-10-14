@@ -3,14 +3,14 @@
  */
 
 const CURRENCIES = {
-  INR: { locale: 'en-IN', symbol: '₹', name: 'Indian Rupee' },
-  AED: { locale: 'ar-AE', symbol: 'AED', name: 'UAE Dirham' },
-  SAR: { locale: 'ar-SA', symbol: 'SAR', name: 'Saudi Riyal' },
-  QAR: { locale: 'ar-QA', symbol: 'QAR', name: 'Qatari Riyal' },
-  BHD: { locale: 'ar-BH', symbol: 'BHD', name: 'Bahraini Dinar' },
-  KWD: { locale: 'ar-KW', symbol: 'KWD', name: 'Kuwaiti Dinar' },
-  OMR: { locale: 'ar-OM', symbol: 'OMR', name: 'Omani Rial' },
-  USD: { locale: 'en-US', symbol: '$', name: 'US Dollar' },
+  INR: { locale: 'en-IN', symbol: '₹', name: 'Indian Rupee', decimals: 2 },
+  AED: { locale: 'ar-AE-u-nu-latn', symbol: 'AED', name: 'UAE Dirham', decimals: 2 },
+  SAR: { locale: 'ar-SA-u-nu-latn', symbol: 'SAR', name: 'Saudi Riyal', decimals: 2 },
+  QAR: { locale: 'ar-QA-u-nu-latn', symbol: 'QAR', name: 'Qatari Riyal', decimals: 2 },
+  BHD: { locale: 'ar-BH-u-nu-latn', symbol: 'BHD', name: 'Bahraini Dinar', decimals: 3 },
+  KWD: { locale: 'ar-KW-u-nu-latn', symbol: 'KWD', name: 'Kuwaiti Dinar', decimals: 3 },
+  OMR: { locale: 'ar-OM-u-nu-latn', symbol: 'OMR', name: 'Omani Rial', decimals: 3 },
+  USD: { locale: 'en-US', symbol: '$', name: 'US Dollar', decimals: 2 },
 };
 
 const formatterCache = {};
@@ -18,14 +18,15 @@ const formatterCache = {};
 export function formatCurrency(amount, currency = 'INR') {
   const finalCurrency = CURRENCIES[currency] ? currency : 'INR';
   const cfg = CURRENCIES[finalCurrency];
-  const cacheKey = `${cfg.locale}_${finalCurrency}`;
+  const decimals = cfg.decimals ?? 2;
+  const cacheKey = `${cfg.locale}_${finalCurrency}_${decimals}`;
 
   if (!formatterCache[cacheKey]) {
     formatterCache[cacheKey] = new Intl.NumberFormat(cfg.locale, {
       style: 'currency',
       currency: finalCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     });
   }
   return formatterCache[cacheKey].format(amount);
