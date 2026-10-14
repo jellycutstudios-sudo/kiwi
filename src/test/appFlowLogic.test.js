@@ -144,6 +144,32 @@ describe('Unbreakable POS App Flow & Calculation Logic', () => {
       expect(result.taxTotal).toBe(0);
       expect(result.total).toBe(250);
     });
+
+    it('rounds exclusive tax calculations to exact 2-decimal currency units without floating point leak', () => {
+      // 9% of 14.99 is 1.3491 -> rounds to 1.35
+      const result = computeTax(14.99, {
+        type: 'gst',
+        rate: 18,
+        cgst: 9,
+        sgst: 9,
+        mode: 'exclusive',
+      });
+      expect(result.lines[0].amount).toBe(1.35);
+      expect(result.lines[1].amount).toBe(1.35);
+      expect(result.taxTotal).toBe(2.7);
+      expect(result.total).toBe(17.69);
+    });
+
+    it('does not double-count tax in getTotal when restaurant uses inclusive tax mode', () => {
+      useOrderStore.getState().clearCart();
+      useOrderStore.getState().addItem({ id: 'biryani', name: 'Biryani', price: 100 });
+      const restaurant = {
+        taxConfig: { type: 'gst', rate: 18, mode: 'inclusive' }
+      };
+      // For inclusive tax, total is 100, not 118
+      const total = useOrderStore.getState().getTotal(restaurant);
+      expect(total).toBe(100);
+    });
   });
 
   describe('3. Discount & Financial Boundary Clamping', () => {

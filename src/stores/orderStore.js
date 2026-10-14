@@ -348,9 +348,10 @@ export const useOrderStore = create((set, get) => ({
         taxableAmountForTax += serviceChargeAmt;
       }
 
-      const { taxTotal } = computeTax(taxableAmountForTax, restaurantData?.taxConfig ?? { type: 'none', rate: 0 });
+      const taxRes = computeTax(taxableAmountForTax, restaurantData?.taxConfig ?? { type: 'none', rate: 0 });
       const tipAmt = primaryOrder.tipAmount ?? 0;
-      const totalBeforeGiftCard = baseTaxable + taxTotal + serviceChargeAmt + tipAmt;
+      const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
+      const totalBeforeGiftCard = baseTaxable + taxToAdd + serviceChargeAmt + tipAmt;
       const giftCardDeduction = primaryOrder.giftCardDeduction ?? 0;
       const total = Math.max(0, totalBeforeGiftCard - giftCardDeduction);
 
@@ -359,6 +360,9 @@ export const useOrderStore = create((set, get) => ({
         items: mergedItems,
         subtotal,
         discountAmount,
+        serviceChargeAmount: serviceChargeAmt,
+        taxInfo: taxRes,
+        taxTotal: taxRes.taxTotal,
         total,
         updatedAt: serverTimestamp()
       });
@@ -438,9 +442,10 @@ export const useOrderStore = create((set, get) => ({
     if (restaurant?.serviceChargeTaxable === 'yes') {
       taxableAmountForTax += serviceChargeAmt;
     }
-    const { taxTotal } = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+    const taxRes = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
     const tipAmt = Number(get().tipAmount) || 0;
-    const totalBeforeGiftCard = baseTaxable + (Number(taxTotal) || 0) + (Number(serviceChargeAmt) || 0) + tipAmt;
+    const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
+    const totalBeforeGiftCard = baseTaxable + taxToAdd + (Number(serviceChargeAmt) || 0) + tipAmt;
     const giftCardDeduction = Number(useGiftCardStore.getState().giftCardDeduction) || 0;
     return Math.max(0, Math.round((totalBeforeGiftCard - giftCardDeduction) * 100) / 100);
   },
@@ -918,8 +923,8 @@ export const useOrderStore = create((set, get) => ({
     await useAuthStore.getState().ensureAnonymousAuth();
     const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
 
-    // If moving to preparing and order is online (or inventory not yet depleted), deplete stock safely
-    if (status === 'preparing') {
+    // If moving to preparing or ready and order is online (or inventory not yet depleted), deplete stock safely
+    if (status === 'preparing' || status === 'ready') {
       try {
         const snap = await getDoc(orderRef);
         if (snap.exists()) {
@@ -974,6 +979,7 @@ export const useOrderStore = create((set, get) => ({
         status: 'billed',
         paymentMethod: method,
         paid: true,
+        paidAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         ...additionalFields
       });

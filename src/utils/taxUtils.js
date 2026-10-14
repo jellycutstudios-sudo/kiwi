@@ -36,8 +36,9 @@ export function computeTax(subtotal, taxConfig = {}) {
         };
       }
 
-      const cgstAmt  = subtotal * cgstRate / 100;
-      const sgstAmt  = subtotal * sgstRate / 100;
+      const cgstAmt  = Math.round((subtotal * cgstRate / 100) * 100) / 100;
+      const sgstAmt  = Math.round((subtotal * sgstRate / 100) * 100) / 100;
+      const taxTotal = Math.round((cgstAmt + sgstAmt) * 100) / 100;
       return {
         type: 'gst',
         mode: 'exclusive',
@@ -46,8 +47,8 @@ export function computeTax(subtotal, taxConfig = {}) {
           { label: `CGST (${cgstRate}%)`, amount: cgstAmt },
           { label: `SGST (${sgstRate}%)`, amount: sgstAmt },
         ],
-        taxTotal: cgstAmt + sgstAmt,
-        total: subtotal + cgstAmt + sgstAmt,
+        taxTotal,
+        total: Math.round((subtotal + taxTotal) * 100) / 100,
       };
     }
     case 'vat': {
@@ -63,14 +64,14 @@ export function computeTax(subtotal, taxConfig = {}) {
           total: subtotal,
         };
       }
-      const vatAmt = subtotal * rate / 100;
+      const vatAmt = Math.round((subtotal * rate / 100) * 100) / 100;
       return {
         type: 'vat',
         mode: 'exclusive',
         baseSubtotal: subtotal,
         lines: [{ label: `VAT (${rate}%)`, amount: vatAmt }],
         taxTotal: vatAmt,
-        total: subtotal + vatAmt,
+        total: Math.round((subtotal + vatAmt) * 100) / 100,
       };
     }
     case 'flat': {
@@ -86,14 +87,14 @@ export function computeTax(subtotal, taxConfig = {}) {
           total: subtotal,
         };
       }
-      const taxAmt = subtotal * rate / 100;
+      const taxAmt = Math.round((subtotal * rate / 100) * 100) / 100;
       return {
         type: 'flat',
         mode: 'exclusive',
         baseSubtotal: subtotal,
         lines: [{ label: `Tax (${rate}%)`, amount: taxAmt }],
         taxTotal: taxAmt,
-        total: subtotal + taxAmt,
+        total: Math.round((subtotal + taxAmt) * 100) / 100,
       };
     }
     case 'none':

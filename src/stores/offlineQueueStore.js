@@ -117,6 +117,7 @@ export const useOfflineQueueStore = create((set, get) => {
             ? doc(collection(db, 'restaurants', restaurantId, 'orders')).id 
             : order.id;
 
+          const isPaid = order.paid === true || (order.paymentMethod && order.paymentMethod !== 'unpaid');
           const firestoreOrder = {
             ...order,
             id: targetOrderId,
@@ -124,6 +125,7 @@ export const useOfflineQueueStore = create((set, get) => {
             syncedAt: serverTimestamp(),
             createdAt: order.createdAt || serverTimestamp(),
             updatedAt: serverTimestamp(),
+            paidAt: isPaid ? serverTimestamp() : null,
           };
 
           // Remove offline metadata flags before writing
@@ -151,8 +153,70 @@ export const useOfflineQueueStore = create((set, get) => {
             } else if (order.paymentMethod === 'upi') {
               shiftUpdate.upiSalesCount = increment(1);
               shiftUpdate.upiSalesAmount = increment(order.total);
+            } else if (order.paymentMethod === 'split' && Array.isArray(order.splitPayments)) {
+              let cashCount = 0;
+              let cashAmt = 0;
+              let cardCount = 0;
+              let cardAmt = 0;
+              let upiCount = 0;
+              let upiAmt = 0;
+
+              order.splitPayments.forEach(p => {
+                const m = p.method ?? 'cash';
+                const amt = p.amount ?? 0;
+                if (m === 'cash') {
+                  cashCount += 1;
+                  cashAmt += amt;
+                } else if (m === 'card' || m === 'terminal') {
+                  cardCount += 1;
+                  cardAmt += amt;
+                } else if (m === 'upi') {
+                  upiCount += 1;
+                  upiAmt += amt;
+                }
+              });
+
+              if (cashCount > 0) {
+                shiftUpdate.cashSalesCount = increment(cashCount);
+                shiftUpdate.cashSalesAmount = increment(cashAmt);
+                shiftUpdate.expectedCash = increment(cashAmt);
+              }
+              if (cardCount > 0) {
+                shiftUpdate.cardSalesCount = increment(cardCount);
+                shiftUpdate.cardSalesAmount = increment(cardAmt);
+              }
+              if (upiCount > 0) {
+                shiftUpdate.upiSalesCount = increment(upiCount);
+                shiftUpdate.upiSalesAmount = increment(upiAmt);
+              }
             }
             batch.update(shiftRef, shiftUpdate);
+          }
+
+          // Deplete inventory for offline orders upon sync
+          const items = order.items ?? [];
+          for (const item of items) {
+            const recipe = item.recipe ?? [];
+            for (const recipeItem of recipe) {
+              if (recipeItem.ingredientId && recipeItem.amount) {
+                const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', recipeItem.ingredientId);
+                batch.update(ingDocRef, {
+                  qty: increment(-recipeItem.amount * (item.qty || 1))
+                });
+              }
+            }
+          }
+
+          // Update customer profile with loyalty points, visit counts, and lifetime spends if paid
+          if (order.customerPhone && isPaid) {
+            const pointsEarned = order.loyaltyEarned ?? 0;
+            const pointsRedeemed = order.loyaltyRedeemed ?? 0;
+            const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', order.customerPhone);
+            batch.update(custDocRef, {
+              visitCount: increment(1),
+              lifetimeSpend: increment(order.total || 0),
+              points: increment(pointsEarned - pointsRedeemed)
+            });
           }
 
           // Commit individual order batch

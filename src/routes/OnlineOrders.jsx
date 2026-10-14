@@ -237,8 +237,15 @@ export default function OnlineOrders() {
     if (!order?.id || processingId === order.id) return;
     setProcessingId(order.id);
     try {
-      const nextStatus = order.type === 'dine-in' ? 'served' : 'billed';
-      await updateOrderStatus(restaurant.id, order.id, nextStatus);
+      if (order.type === 'dine-in') {
+        await updateOrderStatus(restaurant.id, order.id, 'served');
+      } else {
+        if (!order.paid) {
+          await settleOrder(restaurant.id, order.id, order.paymentMethod || 'cash', order.total);
+        } else {
+          await updateOrderStatus(restaurant.id, order.id, 'billed');
+        }
+      }
       if (order.tableId) {
         try {
           await useTableStore.getState().freeTable(restaurant.id, order.tableId);

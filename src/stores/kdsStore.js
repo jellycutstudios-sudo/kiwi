@@ -12,7 +12,7 @@ export const useKdsStore = create(() => ({
       return new Date(ts);
     };
 
-    const updatedItems = order.items.map((item, idx) => {
+    const updatedItems = (order?.items || []).map((item, idx) => {
       if (idx === itemIndex) {
         return { ...item, status: newStatus };
       }
@@ -55,7 +55,7 @@ export const useKdsStore = create(() => ({
       return new Date(ts);
     };
 
-    const updatedItems = order.items.map(item => {
+    const updatedItems = (order?.items || []).map(item => {
       if (stationName === 'All' || item.station === stationName) {
         return { ...item, status: newStatus };
       }
@@ -72,19 +72,19 @@ export const useKdsStore = create(() => ({
     if (newStatus === 'preparing' && order.status === 'pending') {
       overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = new Date();
+      updates.prepStartedAt = serverTimestamp();
     }
 
     if (allReady) {
       updates.status = 'ready';
-      updates.prepCompletedAt = new Date();
+      updates.prepCompletedAt = serverTimestamp();
       
       const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
       const durationSeconds = Math.floor((new Date() - startTime) / 1000);
       updates.prepDuration = Math.max(0, durationSeconds);
     } else if (hasPreparing && overallStatus === 'pending') {
       updates.status = 'preparing';
-      updates.prepStartedAt = new Date();
+      updates.prepStartedAt = serverTimestamp();
     }
 
     await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), updates);

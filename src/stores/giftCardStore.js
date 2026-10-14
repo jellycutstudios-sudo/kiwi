@@ -20,10 +20,11 @@ export const useGiftCardStore = create((set) => ({
     if (restaurant?.serviceChargeTaxable === 'yes') {
       taxableAmountForTax += serviceChargeAmt;
     }
-    const { taxTotal } = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+    const taxRes = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
     const baseTaxable = Math.max(0, subtotal - discountAmt - pointsDiscount);
-    // Mirror getTotal() exactly: baseTaxable + tax + serviceCharge + tip
-    const totalBeforeGiftCard = baseTaxable + taxTotal + serviceChargeAmt + tipAmt;
+    const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
+    // Mirror getTotal() exactly: baseTaxable + tax (if exclusive) + serviceCharge + tip
+    const totalBeforeGiftCard = baseTaxable + taxToAdd + serviceChargeAmt + tipAmt;
 
     const deduction = Math.round(Math.min(balance, totalBeforeGiftCard) * 100) / 100;
     set({

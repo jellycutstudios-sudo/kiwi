@@ -638,8 +638,8 @@ export default function TableMap() {
         setSelected(null);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [selected]);
 
   const handleSettle = async (method) => {
