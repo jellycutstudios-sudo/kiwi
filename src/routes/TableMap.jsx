@@ -240,19 +240,17 @@ export default function TableMap() {
   };
 
   const toggleEditLayout = () => {
-    setIsEditingLayout(prev => {
-      const next = !prev;
-      if (next) {
-        setViewMode('map');
-        setSelected(null);
-        setSearchParams({ edit: 'true' });
-      } else {
-        setSelectedEditTableId(null);
-        setDragging(null);
-        setSearchParams({});
-      }
-      return next;
-    });
+    const next = !isEditingLayout;
+    setIsEditingLayout(next);
+    if (next) {
+      setViewMode('map');
+      setSelected(null);
+      setSearchParams({ edit: 'true' });
+    } else {
+      setSelectedEditTableId(null);
+      setDragging(null);
+      setSearchParams({});
+    }
   };
 
   const handleAddTable = async () => {
