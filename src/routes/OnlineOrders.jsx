@@ -553,45 +553,46 @@ export default function OnlineOrders() {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button
-              className="btn btn-secondary btn-xs"
+              className="btn btn-secondary btn-sm"
               onClick={(e) => handleCopyTrackingLink(order, e)}
               title="Copy customer tracking link to share via SMS or message"
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', height: 24, padding: '0 8px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 32, padding: '0 10px', borderRadius: 'var(--radius-sm)' }}
             >
-              <Copy size={11} />
+              <Copy size={13} />
               <span>Copy Link</span>
             </button>
 
             {order.customerPhone && (
               <button
-                className="btn btn-secondary btn-xs"
+                className="btn btn-secondary btn-sm"
                 onClick={(e) => handleWhatsAppCustomer(order, e)}
                 title="Send tracking link to customer on WhatsApp"
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 4,
-                  fontSize: '11px',
-                  height: 24,
-                  padding: '0 8px',
+                  gap: 6,
+                  fontSize: '12px',
+                  minHeight: 32,
+                  padding: '0 10px',
+                  borderRadius: 'var(--radius-sm)',
                   color: '#10b981',
-                  borderColor: 'rgba(16,185,129,0.3)'
+                  borderColor: 'rgba(16,185,129,0.35)'
                 }}
               >
-                <MessageCircle size={11} />
+                <MessageCircle size={13} />
                 <span>WhatsApp</span>
               </button>
             )}
 
             <button
-              className="btn btn-secondary btn-xs"
+              className="btn btn-secondary btn-sm"
               onClick={() => setTrackingPreviewOrder(order)}
               title="Preview what the customer sees on their mobile screen"
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', height: 24, padding: '0 8px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 32, padding: '0 10px', borderRadius: 'var(--radius-sm)' }}
             >
-              <Smartphone size={11} />
+              <Smartphone size={13} />
               <span>Preview</span>
             </button>
           </div>
@@ -603,20 +604,21 @@ export default function OnlineOrders() {
             <div style={{
               display: 'flex',
               alignItems: 'flex-start',
-              gap: 6,
+              gap: 8,
               fontSize: '12px',
               color: 'var(--color-label-secondary)',
               background: 'var(--color-bg)',
-              padding: '6px 10px',
-              borderRadius: 'var(--radius-sm)'
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-separator-opaque)'
             }}>
-              <MapPin size={13} style={{ flexShrink: 0, marginTop: 1, color: 'var(--color-accent)' }} />
-              <span>{order.deliveryAddress}</span>
+              <MapPin size={15} style={{ flexShrink: 0, marginTop: 1, color: 'var(--color-accent)' }} />
+              <span style={{ lineHeight: 1.4 }}>{order.deliveryAddress}</span>
             </div>
           )}
 
-          {/* Item Checklist */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+          {/* Item Checklist - Touch friendly */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 2 }}>
             {(order.items ?? []).map((item, idx) => {
               const isCrossed = !!crossedItems[`${order.id}-${idx}`];
               return (
@@ -624,38 +626,43 @@ export default function OnlineOrders() {
                   key={idx}
                   style={{
                     display: 'flex',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 8,
+                    gap: 10,
                     cursor: 'pointer',
                     fontSize: '13px',
                     color: isCrossed ? 'var(--color-label-tertiary)' : 'var(--color-label)',
                     textDecoration: isCrossed ? 'line-through' : 'none',
-                    padding: '3px 0'
+                    padding: '8px 10px',
+                    minHeight: 38,
+                    borderRadius: 'var(--radius-sm)',
+                    background: isCrossed ? 'transparent' : 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-separator-opaque)',
+                    transition: 'background 0.15s ease'
                   }}
                   onClick={(e) => {
                     e.preventDefault();
                     toggleCrossItem(order.id, idx);
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <input
                       type="checkbox"
                       checked={isCrossed}
                       onChange={() => {}}
-                      style={{ marginTop: 2, cursor: 'pointer' }}
+                      style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-accent)' }}
                     />
                     <div>
                       <span style={{ fontWeight: 'var(--weight-bold)', marginRight: 6 }}>×{item.qty}</span>
                       <span>{item.name}</span>
                       {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                        <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)', textDecoration: 'none', paddingLeft: 16 }}>
+                        <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)', textDecoration: 'none', paddingLeft: 4, marginTop: 2 }}>
                           + {item.selectedModifiers.map(m => m.name).join(', ')}
                         </div>
                       )}
                     </div>
                   </div>
-                  <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)', flexShrink: 0 }}>
+                  <span style={{ fontSize: '12px', fontWeight: 'var(--weight-semibold)', color: 'var(--color-label-secondary)', flexShrink: 0 }}>
                     {formatCurrency(item.price * item.qty, currency)}
                   </span>
                 </label>
@@ -709,27 +716,27 @@ export default function OnlineOrders() {
               className="btn btn-secondary btn-icon btn-sm"
               onClick={() => setSelectedOrderDetails(order)}
               title="View Full Order Breakdown"
-              style={{ width: 32, height: 32, padding: 0 }}
+              style={{ width: 36, height: 36, padding: 0 }}
             >
-              <Eye size={14} />
+              <Eye size={15} />
             </button>
 
             <button
               className="btn btn-secondary btn-icon btn-sm"
               onClick={(e) => handlePrint(order, e)}
               title="Print Customer Receipt"
-              style={{ width: 32, height: 32, padding: 0 }}
+              style={{ width: 36, height: 36, padding: 0 }}
             >
-              <Printer size={14} />
+              <Printer size={15} />
             </button>
 
             <button
               className="btn btn-secondary btn-icon btn-sm"
               onClick={(e) => handlePrintKitchenTicket(order, e)}
               title="Print Kitchen Ticket (KOT)"
-              style={{ width: 32, height: 32, padding: 0 }}
+              style={{ width: 36, height: 36, padding: 0 }}
             >
-              <ChefHat size={14} />
+              <ChefHat size={15} />
             </button>
 
             {order.token && (
@@ -737,15 +744,15 @@ export default function OnlineOrders() {
                 className="btn btn-secondary btn-icon btn-sm"
                 onClick={(e) => handleCallToken(order.token, e)}
                 title={`Call Token #${order.token} on TV`}
-                style={{ width: 32, height: 32, padding: 0, color: 'var(--color-accent)' }}
+                style={{ width: 36, height: 36, padding: 0, color: 'var(--color-accent)' }}
               >
-                <Bell size={14} />
+                <Bell size={15} />
               </button>
             )}
           </div>
 
           {/* Right status updater buttons */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {/* Quick Settle */}
             <button
               className="btn btn-sm"
@@ -754,11 +761,11 @@ export default function OnlineOrders() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
-                fontSize: '11px',
+                gap: 5,
+                fontSize: '12px',
                 fontWeight: 700,
-                padding: '0 8px',
-                height: 32,
+                padding: '0 12px',
+                minHeight: 38,
                 background: 'var(--color-green)',
                 color: '#fff',
                 border: 'none',
@@ -766,7 +773,7 @@ export default function OnlineOrders() {
                 cursor: 'pointer'
               }}
             >
-              <Zap size={12} fill="#fff" />
+              <Zap size={13} fill="#fff" />
               <span>Settle</span>
             </button>
 
@@ -778,9 +785,9 @@ export default function OnlineOrders() {
                   id={`reject-order-${order.id}`}
                   disabled={processingId === order.id}
                   onClick={() => handleReject(order)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', height: 32 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12px', minHeight: 38, padding: '0 12px' }}
                 >
-                  <X size={13} />
+                  <X size={14} />
                   <span>Reject</span>
                 </button>
                 <button
@@ -788,9 +795,9 @@ export default function OnlineOrders() {
                   id={`accept-order-${order.id}`}
                   disabled={processingId === order.id}
                   onClick={() => handleAccept(order)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', fontWeight: 700, height: 32 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 700, minHeight: 38, padding: '0 14px' }}
                 >
-                  <ChefHat size={13} />
+                  <ChefHat size={14} />
                   <span>Accept & Cook</span>
                 </button>
               </>
@@ -806,15 +813,16 @@ export default function OnlineOrders() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
-                  fontSize: '12px',
+                  gap: 6,
+                  fontSize: '13px',
                   fontWeight: 700,
-                  height: 32,
+                  minHeight: 38,
+                  padding: '0 14px',
                   background: 'var(--color-teal)',
                   borderColor: 'var(--color-teal)'
                 }}
               >
-                {order.orderType === 'delivery' || order.source ? <Truck size={13} /> : <Check size={13} />}
+                {order.orderType === 'delivery' || order.source ? <Truck size={14} /> : <Check size={14} />}
                 <span>{order.orderType === 'delivery' || order.source ? 'Out for Delivery' : 'Mark Ready'}</span>
               </button>
             )}
@@ -829,15 +837,16 @@ export default function OnlineOrders() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
-                  fontSize: '12px',
+                  gap: 6,
+                  fontSize: '13px',
                   fontWeight: 700,
-                  height: 32,
+                  minHeight: 38,
+                  padding: '0 14px',
                   background: 'var(--color-green)',
                   borderColor: 'var(--color-green)'
                 }}
               >
-                <CheckCircle2 size={13} />
+                <CheckCircle2 size={14} />
                 <span>{order.orderType === 'delivery' || order.source ? 'Delivered' : 'Completed'}</span>
               </button>
             )}
@@ -930,9 +939,9 @@ export default function OnlineOrders() {
         border: '1px solid var(--color-separator-opaque)'
       }}>
         {/* Row 1: Channel Tabs + View Mode */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           {/* Scope / Channel selector */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[
               { id: 'online',   label: 'Online & Delivery', icon: Globe },
               { id: 'all',      label: 'All Channels',      icon: Filter },
@@ -947,9 +956,18 @@ export default function OnlineOrders() {
                   id={`channel-filter-${tab.id}`}
                   className={`btn btn-sm ${active ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setChannelFilter(tab.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px' }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '12px',
+                    fontWeight: active ? 'var(--weight-bold)' : 'var(--weight-medium)',
+                    minHeight: 38,
+                    padding: '0 14px',
+                    borderRadius: 'var(--radius-md)'
+                  }}
                 >
-                  <Icon size={13} />
+                  <Icon size={14} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -966,88 +984,91 @@ export default function OnlineOrders() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="input input-sm"
-                style={{ paddingLeft: 30, width: '100%', fontSize: '12px' }}
+                style={{ paddingLeft: 30, width: '100%', fontSize: '12px', minHeight: 38, borderRadius: 'var(--radius-md)' }}
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)' }}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 4 }}
                 >
-                  <X size={12} />
+                  <X size={14} />
                 </button>
               )}
             </div>
 
-            <div style={{ display: 'flex', border: '1px solid var(--color-separator-opaque)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', border: '1px solid var(--color-separator-opaque)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
               <button
-                className={`btn btn-xs ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setViewMode('list')}
                 title="Detailed List Feed"
-                style={{ borderRadius: 0, padding: '4px 8px' }}
+                style={{ borderRadius: 0, padding: '0 12px', minHeight: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                <LayoutList size={14} />
+                <LayoutList size={16} />
               </button>
               <button
-                className={`btn btn-xs ${viewMode === 'board' ? 'btn-primary' : 'btn-secondary'}`}
+                className={`btn btn-sm ${viewMode === 'board' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setViewMode('board')}
                 title="Kanban Board Workflow"
-                style={{ borderRadius: 0, padding: '4px 8px' }}
+                style={{ borderRadius: 0, padding: '0 12px', minHeight: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                <Columns size={14} />
+                <Columns size={16} />
               </button>
             </div>
           </div>
         </div>
 
         {/* Row 2: Status Lifecycle Badges & Filter Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, borderTop: '1px solid var(--color-separator-opaque)', paddingTop: 10 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, borderTop: '1px solid var(--color-separator-opaque)', paddingTop: 12 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
-              className={`btn btn-xs ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+              className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('all')}
-              style={{ fontSize: '12px', padding: '3px 10px' }}
+              style={{ fontSize: '12px', minHeight: 36, padding: '0 14px', borderRadius: 'var(--radius-md)', fontWeight: statusFilter === 'all' ? 'var(--weight-bold)' : 'var(--weight-medium)' }}
             >
               All Active ({counts.total})
             </button>
 
             <button
-              className={`btn btn-xs ${statusFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+              className={`btn btn-sm ${statusFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('pending')}
               style={{
                 fontSize: '12px',
-                padding: '3px 10px',
+                minHeight: 36,
+                padding: '0 14px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: statusFilter === 'pending' ? 'var(--weight-bold)' : 'var(--weight-medium)',
                 borderColor: counts.pending > 0 ? 'var(--color-yellow)' : undefined
               }}
             >
               <span>⏳ Pending</span>
               {counts.pending > 0 && (
-                <span className="badge badge-yellow" style={{ fontSize: '10px', padding: '1px 5px', marginLeft: 4 }}>
+                <span className="badge badge-yellow" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>
                   {counts.pending}
                 </span>
               )}
             </button>
 
             <button
-              className={`btn btn-xs ${statusFilter === 'preparing' ? 'btn-primary' : 'btn-secondary'}`}
+              className={`btn btn-sm ${statusFilter === 'preparing' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('preparing')}
-              style={{ fontSize: '12px', padding: '3px 10px' }}
+              style={{ fontSize: '12px', minHeight: 36, padding: '0 14px', borderRadius: 'var(--radius-md)', fontWeight: statusFilter === 'preparing' ? 'var(--weight-bold)' : 'var(--weight-medium)' }}
             >
               <span>🍳 Cooking</span>
               {counts.preparing > 0 && (
-                <span className="badge badge-blue" style={{ fontSize: '10px', padding: '1px 5px', marginLeft: 4 }}>
+                <span className="badge badge-blue" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>
                   {counts.preparing}
                 </span>
               )}
             </button>
 
             <button
-              className={`btn btn-xs ${statusFilter === 'ready' ? 'btn-primary' : 'btn-secondary'}`}
+              className={`btn btn-sm ${statusFilter === 'ready' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('ready')}
-              style={{ fontSize: '12px', padding: '3px 10px' }}
+              style={{ fontSize: '12px', minHeight: 36, padding: '0 14px', borderRadius: 'var(--radius-md)', fontWeight: statusFilter === 'ready' ? 'var(--weight-bold)' : 'var(--weight-medium)' }}
             >
               <span>🛵 Out / Ready</span>
               {counts.ready > 0 && (
-                <span className="badge badge-teal" style={{ fontSize: '10px', padding: '1px 5px', marginLeft: 4 }}>
+                <span className="badge badge-teal" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>
                   {counts.ready}
                 </span>
               )}
@@ -1055,10 +1076,10 @@ export default function OnlineOrders() {
           </div>
 
           {/* Quick Rush Hour Batch Action Buttons */}
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {counts.preparing > 0 && (
               <button
-                className="btn btn-secondary btn-xs"
+                className="btn btn-secondary btn-sm"
                 onClick={() => {
                   const preparing = baseOrders.filter(o => o.status === 'preparing');
                   toast((tItem) => (
@@ -1075,16 +1096,16 @@ export default function OnlineOrders() {
                     </div>
                   ));
                 }}
-                style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4 }}
+                style={{ fontSize: '12px', minHeight: 36, padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
               >
-                <Zap size={11} />
+                <Zap size={13} />
                 <span>Mark All Cooking Ready</span>
               </button>
             )}
 
             {counts.ready > 0 && (
               <button
-                className="btn btn-secondary btn-xs"
+                className="btn btn-secondary btn-sm"
                 onClick={() => {
                   const ready = baseOrders.filter(o => o.status === 'ready');
                   toast((tItem) => (
@@ -1101,9 +1122,9 @@ export default function OnlineOrders() {
                     </div>
                   ));
                 }}
-                style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4 }}
+                style={{ fontSize: '12px', minHeight: 36, padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
               >
-                <CheckCircle2 size={11} />
+                <CheckCircle2 size={13} />
                 <span>Batch Settle Ready</span>
               </button>
             )}
@@ -1159,10 +1180,13 @@ export default function OnlineOrders() {
         /* Kanban Board Workflow */
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: 'var(--space-4)',
           alignItems: 'start',
-          minHeight: '600px'
+          minHeight: '600px',
+          overflowX: 'auto',
+          paddingBottom: 'var(--space-3)',
+          WebkitOverflowScrolling: 'touch'
         }}>
           {/* Column 1: Pending */}
           <div style={{

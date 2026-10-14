@@ -658,47 +658,64 @@ export default function DeliveryHub() {
         </div>
       </div>
 
-      {/* Tabs list */}
-      <div style={{ display: 'flex', gap: 'var(--space-1)', borderBottom: '1px solid var(--color-separator)', paddingBottom: 0 }}>
+      {/* Tabs list with touch scroll */}
+      <div style={{
+        display: 'flex',
+        gap: 'var(--space-2)',
+        borderBottom: '1px solid var(--color-separator)',
+        paddingBottom: 0,
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none'
+      }}>
         <button 
-          className={`btn`} 
+          className="btn" 
           onClick={() => setActiveTab('partners')}
           style={{
-            borderBottom: activeTab === 'partners' ? '2px solid var(--color-accent)' : 'none',
+            borderBottom: activeTab === 'partners' ? '2.5px solid var(--color-accent)' : 'none',
             borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
             background: activeTab === 'partners' ? 'var(--color-accent-light)' : 'transparent',
             color: activeTab === 'partners' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-            fontWeight: activeTab === 'partners' ? 'var(--weight-semibold)' : 'var(--weight-normal)',
+            fontWeight: activeTab === 'partners' ? 'var(--weight-bold)' : 'var(--weight-medium)',
             padding: 'var(--space-3) var(--space-4)',
+            minHeight: 44,
+            whiteSpace: 'nowrap',
+            fontSize: 'var(--text-subhead)'
           }}
         >
           🤝 Live Channels
         </button>
         <button 
-          className={`btn`} 
+          className="btn" 
           onClick={() => setActiveTab('categories')}
           style={{
-            borderBottom: activeTab === 'categories' ? '2px solid var(--color-accent)' : 'none',
+            borderBottom: activeTab === 'categories' ? '2.5px solid var(--color-accent)' : 'none',
             borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
             background: activeTab === 'categories' ? 'var(--color-accent-light)' : 'transparent',
             color: activeTab === 'categories' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-            fontWeight: activeTab === 'categories' ? 'var(--weight-semibold)' : 'var(--weight-normal)',
+            fontWeight: activeTab === 'categories' ? 'var(--weight-bold)' : 'var(--weight-medium)',
             padding: 'var(--space-3) var(--space-4)',
+            minHeight: 44,
+            whiteSpace: 'nowrap',
+            fontSize: 'var(--text-subhead)'
           }}
         >
           🗂️ Menu Controls
         </button>
         {isUserAdmin && (
           <button 
-            className={`btn`} 
+            className="btn" 
             onClick={() => setActiveTab('settings')}
             style={{
-              borderBottom: activeTab === 'settings' ? '2px solid var(--color-accent)' : 'none',
-              borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-              background: activeTab === 'settings' ? 'var(--color-accent-light)' : 'transparent',
-              color: activeTab === 'settings' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-              fontWeight: activeTab === 'settings' ? 'var(--weight-semibold)' : 'var(--weight-normal)',
-              padding: 'var(--space-3) var(--space-4)',
+            borderBottom: activeTab === 'settings' ? '2.5px solid var(--color-accent)' : 'none',
+            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+            background: activeTab === 'settings' ? 'var(--color-accent-light)' : 'transparent',
+            color: activeTab === 'settings' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
+            fontWeight: activeTab === 'settings' ? 'var(--weight-bold)' : 'var(--weight-medium)',
+            padding: 'var(--space-3) var(--space-4)',
+            minHeight: 44,
+            whiteSpace: 'nowrap',
+            fontSize: 'var(--text-subhead)'
             }}
           >
             ⚙️ Hub Settings
@@ -807,12 +824,26 @@ export default function DeliveryHub() {
                   }}
                 >
                   {/* Card Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                       <span style={{ fontSize: '1.8rem' }}>{meta.emoji}</span>
                       <div>
-                        <h4 style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{meta.name}</h4>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <h4 style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', margin: 0 }}>{meta.name}</h4>
+                          {meta.region && (
+                            <span style={{
+                              fontSize: '10px',
+                              fontWeight: 'var(--weight-medium)',
+                              padding: '1px 5px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'var(--color-bg-secondary)',
+                              color: 'var(--color-label-secondary)'
+                            }}>
+                              {meta.region}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
                           <span style={{
                             width: 8, height: 8, borderRadius: '50%',
                             background: dotBg
@@ -836,9 +867,9 @@ export default function DeliveryHub() {
                         className="btn btn-secondary btn-sm"
                         onClick={() => triggerSync(id)}
                         disabled={syncing || syncingPlatform !== null}
-                        style={{ padding: '4px 8px' }}
+                        style={{ padding: '6px 12px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 6 }}
                       >
-                        <RefreshCw size={12} className={isSyncingThis ? 'spin' : ''} /> Sync
+                        <RefreshCw size={13} className={isSyncingThis ? 'spin' : ''} /> Sync
                       </button>
                     )}
                   </div>
@@ -867,7 +898,7 @@ export default function DeliveryHub() {
                       {paused ? (
                         <button 
                           className="btn btn-secondary" 
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 'var(--weight-semibold)' }}
                           onClick={() => handleResumePlatform(id)}
                         >
                           <CheckCircle2 size={16} style={{ color: 'var(--color-success)' }} /> Resume Channel
@@ -875,7 +906,7 @@ export default function DeliveryHub() {
                       ) : (
                         <button 
                           className="btn btn-secondary" 
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, borderColor: 'rgba(255, 149, 0, 0.4)' }}
+                          style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderColor: 'rgba(255, 149, 0, 0.4)', fontWeight: 'var(--weight-semibold)' }}
                           onClick={() => openPauseModal(id)}
                         >
                           <Clock size={16} style={{ color: '#ff9500' }} /> Pause Channel
@@ -987,17 +1018,18 @@ export default function DeliveryHub() {
                         <td style={{ padding: 'var(--space-4) var(--space-5)', textAlign: 'center' }}>
                           <button 
                             className="btn btn-ghost" 
-                            style={{ padding: 4, display: 'flex', alignItems: 'center' }}
+                            style={{ width: 34, height: 34, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
                             onClick={() => toggleExpandCategory(category.id)}
+                            title={isExpanded ? 'Collapse items' : 'Expand items'}
                           >
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                           </button>
                         </td>
 
                         {/* Category identity */}
                         <td style={{ padding: 'var(--space-4) var(--space-5)' }}>
                           <span style={{ fontSize: '1.2rem', marginRight: 8 }}>{category.emoji}</span>
-                          <span>{category.name}</span>
+                          <span style={{ fontWeight: 'var(--weight-bold)' }}>{category.name}</span>
                           <span className="text-secondary" style={{ fontSize: 'var(--text-caption2)', fontWeight: 'normal', marginLeft: 8 }}>
                             ({category.items?.length || 0} items)
                           </span>
@@ -1017,7 +1049,7 @@ export default function DeliveryHub() {
                                 onChange={() => toggleCategoryOverride(platformId, category.id, isCatAvail)}
                                 style={{ 
                                   cursor: isEnabled ? 'pointer' : 'not-allowed',
-                                  width: 18, height: 18,
+                                  width: 20, height: 20,
                                   accentColor: 'var(--color-accent)',
                                   opacity: isEnabled ? 1 : 0.2
                                 }}
@@ -1031,7 +1063,7 @@ export default function DeliveryHub() {
                           {enabledOnAny ? (
                             <button 
                               className="btn btn-secondary btn-sm"
-                              style={{ color: 'var(--color-red)', borderColor: 'rgba(255, 59, 48, 0.2)', padding: '2px 8px', fontSize: 'var(--text-caption2)' }}
+                              style={{ color: 'var(--color-red)', borderColor: 'rgba(255, 59, 48, 0.25)', minHeight: 32, padding: '4px 12px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)', borderRadius: 'var(--radius-sm)' }}
                               onClick={() => toggleCategoryAllPlatforms(category.id, false)}
                               disabled={activePlatforms.length === 0}
                             >
@@ -1040,7 +1072,7 @@ export default function DeliveryHub() {
                           ) : (
                             <button 
                               className="btn btn-secondary btn-sm"
-                              style={{ color: 'var(--color-success)', borderColor: 'rgba(52, 199, 89, 0.2)', padding: '2px 8px', fontSize: 'var(--text-caption2)' }}
+                              style={{ color: 'var(--color-success)', borderColor: 'rgba(52, 199, 89, 0.25)', minHeight: 32, padding: '4px 12px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)', borderRadius: 'var(--radius-sm)' }}
                               onClick={() => toggleCategoryAllPlatforms(category.id, true)}
                               disabled={activePlatforms.length === 0}
                             >
@@ -1099,7 +1131,8 @@ export default function DeliveryHub() {
                                     onChange={() => toggleOverride(platformId, item.id, isItmAvail)}
                                     style={{ 
                                       cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                      width: 15, height: 15,
+                                      width: 18, height: 18,
+                                      accentColor: 'var(--color-accent)',
                                       opacity: isEnabled ? (isCatAvail ? 1 : 0.3) : 0.1
                                     }}
                                   />
@@ -1308,28 +1341,31 @@ export default function DeliveryHub() {
       {pauseModal.isOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0, 0, 0, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 9999,
-          backdropFilter: 'blur(2px)'
+          backdropFilter: 'blur(3px)',
+          padding: 'var(--space-4)'
         }}>
-          <div className="card card-padded" style={{ width: 400, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', boxShadow: 'var(--shadow-2xl)' }}>
+          <div className="card card-padded" style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', boxShadow: 'var(--shadow-2xl)', borderRadius: 'var(--radius-lg)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="text-title3" style={{ margin: 0 }}>⏸️ Pause {PLATFORM_META[pauseModal.platformId]?.name}</h3>
+              <h3 className="text-title3" style={{ margin: 0, fontWeight: 'var(--weight-bold)' }}>⏸️ Pause {PLATFORM_META[pauseModal.platformId]?.name}</h3>
               <button 
                 className="btn btn-ghost" 
-                style={{ padding: 4 }}
+                style={{ width: 36, height: 36, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
                 onClick={() => setPauseModal(prev => ({ ...prev, isOpen: false }))}
+                title="Close modal"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
             
             <div className="form-group">
-              <label className="form-label">Pause Duration</label>
+              <label className="form-label" style={{ fontWeight: 'var(--weight-semibold)', marginBottom: 6 }}>Pause Duration</label>
               <select 
                 className="form-select"
                 value={pauseModal.duration}
                 onChange={e => setPauseModal(prev => ({ ...prev, duration: e.target.value }))}
+                style={{ minHeight: 42, fontSize: 'var(--text-subhead)' }}
               >
                 <option value="30">30 Minutes</option>
                 <option value="60">1 Hour</option>
@@ -1341,7 +1377,7 @@ export default function DeliveryHub() {
 
             {pauseModal.duration === 'custom' && (
               <div className="form-group">
-                <label className="form-label">Duration in Minutes</label>
+                <label className="form-label" style={{ fontWeight: 'var(--weight-semibold)', marginBottom: 6 }}>Duration in Minutes</label>
                 <input 
                   type="number"
                   min="1"
@@ -1349,32 +1385,35 @@ export default function DeliveryHub() {
                   placeholder="e.g. 45"
                   value={pauseModal.customDuration}
                   onChange={e => setPauseModal(prev => ({ ...prev, customDuration: e.target.value }))}
+                  style={{ minHeight: 42, fontSize: 'var(--text-subhead)' }}
                 />
               </div>
             )}
 
             <div className="form-group">
-              <label className="form-label">Reason for Pausing</label>
+              <label className="form-label" style={{ fontWeight: 'var(--weight-semibold)', marginBottom: 6 }}>Reason for Pausing</label>
               <input 
                 type="text"
                 className="form-input"
                 placeholder="e.g., Kitchen full, rush hour, staffing shortage"
                 value={pauseModal.reason}
                 onChange={e => setPauseModal(prev => ({ ...prev, reason: e.target.value }))}
+                style={{ minHeight: 42, fontSize: 'var(--text-subhead)' }}
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'end', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
               <button 
                 className="btn btn-secondary" 
                 onClick={() => setPauseModal(prev => ({ ...prev, isOpen: false }))}
+                style={{ minHeight: 44, padding: '0 18px', fontWeight: 'var(--weight-semibold)' }}
               >
                 Cancel
               </button>
               <button 
                 className="btn btn-primary" 
                 onClick={handlePausePlatformSubmit}
-                style={{ background: 'var(--color-red)', borderColor: 'var(--color-red)' }}
+                style={{ background: 'var(--color-red)', borderColor: 'var(--color-red)', minHeight: 44, padding: '0 18px', fontWeight: 'var(--weight-semibold)' }}
               >
                 Confirm Pause
               </button>
