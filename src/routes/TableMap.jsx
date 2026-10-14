@@ -10,7 +10,7 @@ import { printReceipt } from '../utils/print';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 import {
-  ZoomIn, ZoomOut, Maximize2, LayoutGrid, Grid, Map as MapIcon, Search, X, Plus, Printer,
+  ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download
 } from 'lucide-react';
@@ -95,15 +95,6 @@ export default function TableMap() {
     }
   }, [searchParams]);
 
-  // Grid density: 'compact' (fits 30+ tables on screen with zero scroll) vs 'comfortable' (larger cards with inline buttons)
-  const [gridDensity, setGridDensity] = useState(() => {
-    return localStorage.getItem('dineos_table_density') || 'compact';
-  });
-
-  const handleDensityChange = (density) => {
-    setGridDensity(density);
-    localStorage.setItem('dineos_table_density', density);
-  };
 
   const [activeFloor, setActiveFloor] = useState('Ground Floor');
   const allFloors = useMemo(() => {
@@ -747,111 +738,114 @@ export default function TableMap() {
 
   return (
     <div className="tm-root">
-      {/* ═══ CONSOLIDATED UNIFIED TOOLBAR ═══ */}
-      <div className="tm-toolbar" style={{ alignItems: 'center', gap: 10, padding: '6px 0', flexWrap: 'wrap' }}>
-        {/* 1. Floor Tabs */}
-        <div className="tm-floor-tabs">
-          {allFloors.map(floor => {
-            const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
-            const isCanDelete = isEditingLayout && floor !== 'Ground Floor' && floorCount === 0;
-            return (
-              <div key={floor} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className={`tm-floor-tab ${activeFloor === floor ? 'tm-floor-tab--active' : ''}`}
-                  onClick={() => { setActiveFloor(floor); setSelected(null); }}
-                >
-                  {floor}
-                  <span className="tm-floor-badge">
-                    {floorCount}
-                  </span>
-                </button>
-                {isCanDelete && (
+      {/* ═══ STREAMLINED TOUCH-OPTIMIZED CONTROLS BAR (2 ROWS MAX) ═══ */}
+      <div className="tm-controls-bar">
+        {/* Row 1: Swipeable Floor Tabs + View Mode Controls */}
+        <div className="tm-controls-row tm-controls-row--primary">
+          <div className="tm-floor-tabs">
+            {allFloors.map(floor => {
+              const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
+              const isCanDelete = isEditingLayout && floor !== 'Ground Floor' && floorCount === 0;
+              return (
+                <div key={floor} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleDeleteFloor(floor); }}
-                    style={{
-                      border: 'none',
-                      background: 'rgba(239, 68, 68, 0.2)',
-                      color: '#ef4444',
-                      borderRadius: '50%',
-                      width: 18,
-                      height: 18,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      marginLeft: -10,
-                      marginRight: 4,
-                      zIndex: 3
-                    }}
-                    title={`Delete empty floor "${floor}"`}
+                    className={`tm-floor-tab ${activeFloor === floor ? 'tm-floor-tab--active' : ''}`}
+                    onClick={() => { setActiveFloor(floor); setSelected(null); }}
                   >
-                    ×
+                    <span>{floor}</span>
+                    <span className="tm-floor-badge">{floorCount}</span>
                   </button>
-                )}
-              </div>
-            );
-          })}
-          {isEditingLayout && (
-            <button
-              type="button"
-              className="tm-floor-tab"
-              onClick={handleAddFloor}
-              style={{ border: '1px dashed var(--color-separator-opaque)', color: 'var(--color-accent)', fontWeight: 700, gap: 4 }}
-              title="Add a new dining floor or area"
-            >
-              <Plus size={12} /> Add Floor
-            </button>
-          )}
+                  {isCanDelete && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFloor(floor); }}
+                      className="tm-floor-del-btn"
+                      title={`Delete empty floor "${floor}"`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {isEditingLayout && (
+              <button
+                type="button"
+                className="tm-floor-tab tm-floor-tab--add"
+                onClick={handleAddFloor}
+                title="Add a new dining floor or area"
+              >
+                <Plus size={12} /> Add Floor
+              </button>
+            )}
+          </div>
+
+          {/* Right: View Switchers & Edit Layout */}
+          <div className="tm-view-switchers">
+            <div className="tm-segmented-control">
+              <button
+                type="button"
+                className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
+                onClick={() => setViewMode('grid')}
+                title="Grid View"
+              >
+                <LayoutGrid size={12} />
+                <span>Grid</span>
+              </button>
+              <button
+                type="button"
+                className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
+                onClick={() => setViewMode('map')}
+                title="Floor Map"
+              >
+                <MapIcon size={12} />
+                <span>Map</span>
+              </button>
+            </div>
+
+            {canEditLayout && (
+              <button
+                type="button"
+                className={`tm-edit-layout-btn ${isEditingLayout ? 'tm-edit-layout-btn--active' : ''}`}
+                onClick={toggleEditLayout}
+                title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+              >
+                {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
+                <span>{isEditingLayout ? 'Done' : 'Edit'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        <div style={{ width: 1, height: 22, background: 'var(--color-separator)', margin: '0 2px' }} />
+        {/* Row 2: Status Filter Pills & Inline Quick Search */}
+        <div className="tm-controls-row tm-controls-row--secondary">
+          <div className="tm-filter-pills">
+            {[
+              { key: 'all', label: `All (${floorTables.length})` },
+              { key: 'free', label: `🟢 Free (${floorMetrics.free})` },
+              { key: 'occupied', label: `🔴 Seated (${floorMetrics.occupied})` },
+              ...(floorMetrics.reserved > 0 ? [{ key: 'reserved', label: `⭐ Reserved (${floorMetrics.reserved})` }] : []),
+            ].map(p => (
+              <button
+                key={p.key}
+                type="button"
+                className={`tm-pill ${statusFilter === p.key ? 'tm-pill--active tm-pill--' + p.key : ''}`}
+                onClick={() => setStatusFilter(statusFilter === p.key && p.key !== 'all' ? 'all' : p.key)}
+              >
+                {p.label}
+              </button>
+            ))}
+            {floorMetrics.liveRevenue > 0 && (
+              <span className="tm-revenue-pill" title="Current live dining room revenue on this floor">
+                <TrendingUp size={11} />
+                <span>{formatCurrency(floorMetrics.liveRevenue, currency)}</span>
+              </span>
+            )}
+          </div>
 
-        {/* 2. Filter Pills with live counts & Revenue chip */}
-        <div className="tm-filter-pills" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {[
-            { key: 'all', label: `All (${floorTables.length})` },
-            { key: 'free', label: `🟢 Free (${floorMetrics.free})` },
-            { key: 'occupied', label: `🔴 Seated (${floorMetrics.occupied})` },
-            ...(floorMetrics.reserved > 0 ? [{ key: 'reserved', label: `⭐ Reserved (${floorMetrics.reserved})` }] : []),
-          ].map(p => (
-            <button
-              key={p.key}
-              type="button"
-              className={`tm-pill ${statusFilter === p.key ? 'tm-pill--active tm-pill--' + p.key : ''}`}
-              onClick={() => setStatusFilter(statusFilter === p.key && p.key !== 'all' ? 'all' : p.key)}
-            >
-              {p.label}
-            </button>
-          ))}
-          {floorMetrics.liveRevenue > 0 && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#10b981',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                padding: '3px 9px',
-                borderRadius: 999
-              }}
-              title="Current live dining room revenue on this floor"
-            >
-              <TrendingUp size={12} /> {formatCurrency(floorMetrics.liveRevenue, currency)}
-            </span>
-          )}
-        </div>
-
-        {/* 3. Right: Search + Density + View Switcher + Edit Layout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          {/* Compact Search */}
-          <div className="tm-search" style={{ height: 30, minWidth: 150, maxWidth: 200 }}>
+          {/* Compact Inline Search */}
+          <div className="tm-search">
             <Search size={12} className="tm-search-icon" />
             <input
               type="text"
@@ -859,92 +853,13 @@ export default function TableMap() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="tm-search-input"
-              style={{ fontSize: 12 }}
             />
-            {searchQuery && <button className="tm-search-clear" onClick={() => setSearchQuery('')}><X size={11} /></button>}
-          </div>
-
-          {/* Density toggle (Grid mode only) */}
-          {viewMode === 'grid' && (
-            <div style={{
-              display: 'inline-flex',
-              padding: 2,
-              background: 'var(--color-bg-secondary)',
-              borderRadius: 8,
-              border: '1px solid var(--color-separator)'
-            }}>
-              <button
-                type="button"
-                className={`btn btn-xs ${gridDensity === 'compact' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
-                onClick={() => handleDensityChange('compact')}
-                title="High-density zero-scroll grid"
-              >
-                <Grid size={12} /> Compact
+            {searchQuery && (
+              <button type="button" className="tm-search-clear" onClick={() => setSearchQuery('')}>
+                <X size={11} />
               </button>
-              <button
-                type="button"
-                className={`btn btn-xs ${gridDensity === 'comfortable' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
-                onClick={() => handleDensityChange('comfortable')}
-                title="Detailed cards with buttons"
-              >
-                <LayoutGrid size={12} /> Detailed
-              </button>
-            </div>
-          )}
-
-          {/* View mode toggle */}
-          <div style={{
-            display: 'inline-flex',
-            padding: 2,
-            background: 'var(--color-bg-secondary)',
-            borderRadius: 8,
-            border: '1px solid var(--color-separator)'
-          }}>
-            <button
-              type="button"
-              className={`btn btn-xs ${viewMode === 'grid' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 10px' }}
-              onClick={() => setViewMode('grid')}
-            >
-              <LayoutGrid size={12} /> Grid
-            </button>
-            <button
-              type="button"
-              className={`btn btn-xs ${viewMode === 'map' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ borderRadius: 6, height: 26, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 10px' }}
-              onClick={() => setViewMode('map')}
-            >
-              <MapIcon size={12} /> Floor Map
-            </button>
+            )}
           </div>
-
-          {/* Edit Layout toggle */}
-          {canEditLayout && (
-            <button
-              type="button"
-              className={`btn btn-xs ${isEditingLayout ? 'btn-primary' : 'btn-ghost'}`}
-              style={{
-                borderRadius: 8,
-                height: 30,
-                fontSize: 11,
-                fontWeight: 700,
-                gap: 5,
-                padding: '0 12px',
-                background: isEditingLayout ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'var(--color-bg-secondary)',
-                border: isEditingLayout ? 'none' : '1px solid var(--color-separator)',
-                color: isEditingLayout ? '#fff' : 'var(--color-label)',
-                boxShadow: isEditingLayout ? '0 2px 8px rgba(37,99,235,0.3)' : 'none',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={toggleEditLayout}
-              title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
-            >
-              {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
-              {isEditingLayout ? 'Done' : 'Edit Layout'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -1040,22 +955,9 @@ export default function TableMap() {
         </div>
       )}
 
-      {/* ═══ VIEW MODE: QUICK GRID (PETPOOJA / TOAST STYLE) ═══ */}
+      {/* ═══ VIEW MODE: QUICK GRID (TOUCH & SMALL DEVICE OPTIMIZED) ═══ */}
       {viewMode === 'grid' ? (
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: gridDensity === 'compact' ? '12px 16px 30px' : '16px 20px 40px',
-          display: 'grid',
-          gridTemplateColumns: gridDensity === 'compact'
-            ? 'repeat(auto-fill, minmax(130px, 1fr))'
-            : 'repeat(auto-fill, minmax(210px, 1fr))',
-          gap: gridDensity === 'compact' ? 10 : 14,
-          alignContent: 'start',
-          background: 'var(--color-bg)',
-          borderRadius: 20,
-          border: '1.5px solid var(--color-separator-opaque)'
-        }}>
+        <div className="tm-grid">
           {sortedFloorTables
             .filter(t => {
               const order = tableOrders[t.id];
@@ -1090,149 +992,6 @@ export default function TableMap() {
                 elapsedMins = Math.max(0, Math.floor((nowTime - d.getTime()) / 60000));
               }
 
-              /* ─── COMPACT TILE MODE (Petpooja zero-scroll style for 20+ tables) ─── */
-              if (gridDensity === 'compact') {
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => {
-                      if (effectiveStatus === 'free') {
-                        clearCart();
-                        setTable(t.id, t.name);
-                        setOrderType('dine-in');
-                        toast.success(`Order started for ${t.name}`);
-                        navigate('/pos');
-                      } else {
-                        setSelected(t.id);
-                      }
-                    }}
-                    style={{
-                      background: isFoodReady
-                        ? 'rgba(16, 185, 129, 0.08)'
-                        : effectiveStatus === 'occupied'
-                        ? 'rgba(239, 68, 68, 0.05)'
-                        : 'var(--color-bg-elevated)',
-                      border: isFoodReady
-                        ? '2px solid #10b981'
-                        : effectiveStatus === 'occupied'
-                        ? '2px solid rgba(239, 68, 68, 0.7)'
-                        : isReserved
-                        ? '2px solid rgba(245, 158, 11, 0.7)'
-                        : '1.5px solid var(--color-separator)',
-                      borderRadius: '14px',
-                      padding: '10px 12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      minHeight: '92px',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      transition: 'all 0.15s ease',
-                      boxShadow: selected === t.id
-                        ? '0 0 0 2px var(--color-accent), 0 8px 20px rgba(0,0,0,0.15)'
-                        : isFoodReady
-                        ? '0 0 0 2px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(16, 185, 129, 0.25)'
-                        : effectiveStatus === 'occupied'
-                        ? '0 3px 10px rgba(239,68,68,0.12)'
-                        : '0 1px 3px rgba(0,0,0,0.02)'
-                    }}
-                  >
-                    {/* Top Row: Name & Status */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.3px' }}>
-                          {t.name}
-                        </span>
-                        <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginLeft: 5, fontWeight: 600 }}>
-                          👥{t.capacity}
-                        </span>
-                      </div>
-                      {isFoodReady ? (
-                        <span style={{
-                          fontSize: 9,
-                          fontWeight: 900,
-                          padding: '2px 7px',
-                          borderRadius: 999,
-                          background: '#10b981',
-                          color: '#ffffff',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.4)',
-                          letterSpacing: '0.3px'
-                        }}>
-                          <span>🔔</span> READY
-                        </span>
-                      ) : effectiveStatus === 'occupied' ? (
-                        <span style={{
-                          fontSize: 9,
-                          fontWeight: 800,
-                          padding: '2px 6px',
-                          borderRadius: 999,
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3
-                        }}>
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444' }} />
-                          {elapsedMins > 0 ? formatElapsed(elapsedMins).replace(' seated', '') : 'BUSY'}
-                        </span>
-                      ) : isReserved ? (
-                        <span style={{
-                          fontSize: 9,
-                          fontWeight: 800,
-                          padding: '2px 6px',
-                          borderRadius: 999,
-                          background: 'rgba(245, 158, 11, 0.15)',
-                          color: '#f59e0b',
-                          border: '1px solid rgba(245, 158, 11, 0.3)'
-                        }}>
-                          RES
-                        </span>
-                      ) : (
-                        <span style={{
-                          fontSize: 9,
-                          fontWeight: 800,
-                          padding: '2px 6px',
-                          borderRadius: 999,
-                          background: 'rgba(16, 185, 129, 0.12)',
-                          color: '#10b981',
-                          border: '1px solid rgba(16, 185, 129, 0.25)'
-                        }}>
-                          FREE
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bottom Row: Bill total or Tap to Order */}
-                    <div style={{ marginTop: 4 }}>
-                      {effectiveStatus === 'occupied' && order ? (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-label)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.3px' }}>
-                            {formatCurrency(order.total ?? 0, currency)}
-                          </span>
-                          <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', fontWeight: 600 }}>
-                            {(order.items ?? []).length} items
-                          </span>
-                        </div>
-                      ) : isReserved ? (
-                        <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {resForTable?.name || 'Reserved'}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ color: '#10b981', fontWeight: 800 }}>⚡</span>
-                          <span>Start Order</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              /* ─── DETAILED / COMFORTABLE CARD MODE ─── */
               return (
                 <div
                   key={t.id}
@@ -1247,213 +1006,64 @@ export default function TableMap() {
                       setSelected(t.id);
                     }
                   }}
-                  style={{
-                    background: 'var(--color-bg-elevated)',
-                    border: isFoodReady
-                      ? '2px solid #10b981'
+                  className={`tm-card ${
+                    isFoodReady
+                      ? 'tm-card--ready'
                       : effectiveStatus === 'occupied'
-                      ? '1.5px solid rgba(239, 68, 68, 0.45)'
+                      ? 'tm-card--occupied'
                       : isReserved
-                      ? '1.5px solid rgba(245, 158, 11, 0.45)'
-                      : '1.5px solid var(--color-separator)',
-                    borderRadius: '16px',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: '175px',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: selected === t.id
-                      ? '0 0 0 2px var(--color-accent), 0 8px 24px rgba(0,0,0,0.12)'
-                      : isFoodReady
-                      ? '0 0 0 2px rgba(16, 185, 129, 0.4), 0 6px 18px rgba(16, 185, 129, 0.25)'
-                      : effectiveStatus === 'occupied'
-                      ? '0 4px 14px rgba(239,68,68,0.08)'
-                      : '0 2px 6px rgba(0,0,0,0.03)',
-                  }}
+                      ? 'tm-card--reserved'
+                      : 'tm-card--free'
+                  } ${selected === t.id ? 'tm-card--selected' : ''}`}
                 >
-                  {/* Top Bar: Table Name + Status Badge */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 21, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.3px' }}>
-                        {t.name}
+                  {/* Top Row: Table Name + Capacity + Status Badge */}
+                  <div className="tm-card-header">
+                    <div className="tm-card-title-group">
+                      <span className="tm-card-name">{t.name}</span>
+                      <span className="tm-card-cap">👥{t.capacity}</span>
+                    </div>
+
+                    {isFoodReady ? (
+                      <span className="tm-badge tm-badge--ready">🔔 READY</span>
+                    ) : effectiveStatus === 'occupied' ? (
+                      <span className="tm-badge tm-badge--occupied">
+                        <span className="tm-badge-dot" />
+                        {elapsedMins > 0 ? formatElapsed(elapsedMins).replace(' seated', '') : 'BUSY'}
                       </span>
-                      {isFoodReady ? (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 900,
-                          padding: '3px 9px',
-                          borderRadius: 999,
-                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                          color: '#ffffff',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
-                          letterSpacing: '0.3px'
-                        }}>
-                          <span>🔔</span> READY TO SERVE
-                        </span>
-                      ) : effectiveStatus === 'occupied' ? (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
-                          OCCUPIED
-                        </span>
-                      ) : isReserved ? (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: 'rgba(245, 158, 11, 0.15)',
-                          color: '#f59e0b',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}>
-                          ⭐ RESERVED
-                        </span>
-                      ) : (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10b981',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                          VACANT
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Capacity & Elapsed Time */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                      <span>👥 {t.capacity} Guests</span>
-                      {hasOrder && elapsedMins > 0 && (
-                        <>
-                          <span>·</span>
-                          <span style={{ color: elapsedMins > 60 ? '#f87171' : 'var(--color-label-tertiary)', fontWeight: 600 }}>
-                            ⏱️ {formatElapsed(elapsedMins)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Middle Info */}
-                  <div style={{ margin: '10px 0 6px' }}>
-                    {effectiveStatus === 'occupied' && order ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--color-label)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
-                          {formatCurrency(order.total ?? 0, currency)}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                          <span>👤 {order.assignedWaiterName || order.staffName || 'Walter'}</span>
-                          <span>{(order.items ?? []).length} {(order.items ?? []).length === 1 ? 'item' : 'items'}</span>
-                        </div>
-                      </div>
                     ) : isReserved ? (
-                      <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                        <div style={{ fontWeight: 700, color: '#f59e0b' }}>{resForTable?.name || 'Guest'}</div>
-                        <div>{resForTable?.time ? `At ${resForTable.time}` : 'Reserved Today'}</div>
-                      </div>
+                      <span className="tm-badge tm-badge--reserved">RES</span>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-label-tertiary)', fontSize: 12 }}>
-                        <span style={{ fontSize: 18 }}>🍽️</span>
-                        <span>Available for seating</span>
-                      </div>
+                      <span className="tm-badge tm-badge--free">FREE</span>
                     )}
                   </div>
 
-                  {/* Footer Quick Action Buttons */}
-                  <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 10, display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
+                  {/* Bottom Row: Financial / Active Status info */}
+                  <div className="tm-card-footer">
                     {effectiveStatus === 'occupied' && order ? (
                       <>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-xs"
-                          style={{ flex: 1, height: 30, fontSize: 11, fontWeight: 700, gap: 4 }}
-                          onClick={() => {
-                            loadOrderToCart(order);
-                            navigate('/pos');
-                          }}
-                          title="Add items to this table"
-                        >
-                          <Plus size={12} /> Add
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          style={{ height: 30, fontSize: 11, fontWeight: 600, padding: '0 8px' }}
-                          onClick={() => {
-                            printReceipt({ restaurant, order, items: order.items, taxInfo: order.taxInfo, staffName: order.customerName || 'Waiter' });
-                            toast.success('Bill printed!');
-                          }}
-                          title="Print customer bill"
-                        >
-                          <Printer size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-xs"
-                          style={{ height: 30, fontSize: 11, fontWeight: 700, padding: '0 10px', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)' }}
-                          onClick={() => setSelected(t.id)}
-                          title="Settle bill payment"
-                        >
-                          Settle
-                        </button>
+                        <span className="tm-card-total">
+                          {formatCurrency(order.total ?? 0, currency)}
+                        </span>
+                        <span className="tm-card-meta">
+                          {(order.items ?? []).length} itm
+                        </span>
                       </>
                     ) : isReserved ? (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-xs"
-                        style={{ width: '100%', height: 30, fontSize: 11, fontWeight: 700, background: '#f59e0b', border: 'none' }}
-                        onClick={() => setSelected(t.id)}
-                      >
-                        🪑 View / Seat
-                      </button>
+                      <span className="tm-card-reserved-info">
+                        {resForTable?.name || 'Reserved'}
+                      </span>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-xs"
-                        style={{ width: '100%', height: 32, fontSize: 12, fontWeight: 700, gap: 5 }}
-                        onClick={() => {
-                          clearCart();
-                          setTable(t.id, t.name);
-                          setOrderType('dine-in');
-                          toast.success(`Order started for ${t.name}`);
-                          navigate('/pos');
-                        }}
-                      >
-                        ⚡ Start Order
-                      </button>
+                      <div className="tm-card-vacant-indicator">
+                        <span className="tm-vacant-dot" />
+                        <span>Available</span>
+                      </div>
                     )}
                   </div>
                 </div>
               );
             })}
           {sortedFloorTables.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--color-label-tertiary)' }}>
+            <div className="tm-empty-state">
               No tables found on this floor.
             </div>
           )}
