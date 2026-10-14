@@ -70,6 +70,17 @@ if (typeof window !== 'undefined') {
         window.__swRegistration.update().catch(() => {});
       }
     });
+
+    // Handle stale bundle chunks gracefully upon new deployments (prevents 404 on outdated chunks)
+    window.addEventListener('vite:preloadError', (event) => {
+      event.preventDefault();
+      const lastReload = sessionStorage.getItem('dineos_preload_reload');
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+        sessionStorage.setItem('dineos_preload_reload', String(now));
+        window.location.reload();
+      }
+    });
   }
 
   // Request persistent storage so the browser/OS never purges offline IndexedDB & cache under disk pressure

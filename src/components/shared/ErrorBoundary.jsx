@@ -16,6 +16,21 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
+    // Check if error is due to stale dynamic import chunk from a new deployment
+    const isChunkError = error?.message?.includes('dynamically imported module') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.name === 'ChunkLoadError';
+
+    if (isChunkError && typeof window !== 'undefined') {
+      const lastReload = sessionStorage.getItem('dineos_chunk_error_reload');
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+        sessionStorage.setItem('dineos_chunk_error_reload', String(now));
+        window.location.reload();
+        return;
+      }
+    }
+
     // Log to console natively
     console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
     
@@ -33,6 +48,13 @@ export default class ErrorBoundary extends Component {
   }
 
   handleRetry = () => {
+    const isChunkError = this.state.error?.message?.includes('dynamically imported module') ||
+      this.state.error?.message?.includes('Loading chunk') ||
+      this.state.error?.name === 'ChunkLoadError';
+    if (isChunkError && typeof window !== 'undefined') {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 
@@ -41,6 +63,10 @@ export default class ErrorBoundary extends Component {
       if (this.props.fallback) {
         return typeof this.props.fallback === 'function' ? this.props.fallback({ error: this.state.error, reset: this.handleRetry }) : this.props.fallback;
       }
+
+      const isChunkError = this.state.error?.message?.includes('dynamically imported module') ||
+        this.state.error?.message?.includes('Loading chunk') ||
+        this.state.error?.name === 'ChunkLoadError';
 
       if (this.props.isPageLevel) {
         return (
@@ -59,14 +85,16 @@ export default class ErrorBoundary extends Component {
             textAlign: 'center',
             gap: '14px',
           }}>
-            <div style={{ fontSize: '42px' }}>🛡️</div>
+            <div style={{ fontSize: '42px' }}>{isChunkError ? '🔄' : '🛡️'}</div>
             <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-label, #fff)', margin: 0 }}>
-              View Encountered an Issue
+              {isChunkError ? 'New Version Available' : 'View Encountered an Issue'}
             </h2>
             <p style={{ color: 'var(--color-label-secondary, #94a3b8)', maxWidth: 460, fontSize: '14px', margin: 0, lineHeight: 1.5 }}>
-              This section ran into a temporary error. The rest of DineOS is still running and your cart/orders are preserved.
+              {isChunkError
+                ? 'A new version of DineOS was deployed. Reloading will fetch the latest view components.'
+                : 'This section ran into a temporary error. The rest of DineOS is still running and your cart/orders are preserved.'}
             </p>
-            {this.state.error?.message && (
+            {this.state.error?.message && !isChunkError && (
               <code style={{
                 background: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -94,7 +122,7 @@ export default class ErrorBoundary extends Component {
                   cursor: 'pointer',
                 }}
               >
-                Retry View
+                {isChunkError ? 'Update & Reload' : 'Retry View'}
               </button>
               <button
                 onClick={() => { window.location.href = '/dashboard'; }}

@@ -12,32 +12,33 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 import { isFirebaseConfigured } from './firebase';
 import FirebaseSetupWizard from './components/shared/FirebaseSetupWizard';
 import DesktopContextMenu from './components/shared/DesktopContextMenu';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-// Lazy-loaded routes for maximum perf
-const Login          = lazy(() => import('./routes/Login'));
-const Dashboard      = lazy(() => import('./routes/Dashboard'));
-const POS            = lazy(() => import('./routes/POS'));
-const TableMap       = lazy(() => import('./routes/TableMap'));
-const OnlineOrders   = lazy(() => import('./routes/OnlineOrders'));
-const KDS            = lazy(() => import('./routes/KDS'));
-const TokenDisplay   = lazy(() => import('./routes/TokenDisplay'));
-const OnlineOrderPage= lazy(() => import('./routes/OnlineOrderPage'));
-const Reports        = lazy(() => import('./routes/Reports'));
-const StaffManager   = lazy(() => import('./routes/admin/StaffManager'));
-const Payroll        = lazy(() => import('./routes/admin/Payroll'));
-const MenuEditor     = lazy(() => import('./routes/admin/MenuEditor'));
-const Inventory      = lazy(() => import('./routes/admin/Inventory'));
-const Customers      = lazy(() => import('./routes/admin/Customers'));
-const Reservations   = lazy(() => import('./routes/admin/Reservations'));
-const Settings       = lazy(() => import('./routes/admin/Settings'));
-const Restaurants    = lazy(() => import('./routes/admin/Restaurants'));
-const DeliveryHub    = lazy(() => import('./routes/admin/DeliveryHub'));
-const Transactions   = lazy(() => import('./routes/admin/Transactions'));
-const PendingApproval= lazy(() => import('./routes/PendingApproval'));
-const ActiveOrders   = lazy(() => import('./routes/ActiveOrders'));
-const LandingPage    = lazy(() => import('./routes/LandingPage'));
-const PosterManager   = lazy(() => import('./routes/admin/PosterManager'));
-const PosterDisplay   = lazy(() => import('./routes/PosterDisplay'));
+// Lazy-loaded routes with deployment-resilient auto-recovery
+const Login          = lazyWithRetry(() => import('./routes/Login'));
+const Dashboard      = lazyWithRetry(() => import('./routes/Dashboard'));
+const POS            = lazyWithRetry(() => import('./routes/POS'));
+const TableMap       = lazyWithRetry(() => import('./routes/TableMap'));
+const OnlineOrders   = lazyWithRetry(() => import('./routes/OnlineOrders'));
+const KDS            = lazyWithRetry(() => import('./routes/KDS'));
+const TokenDisplay   = lazyWithRetry(() => import('./routes/TokenDisplay'));
+const OnlineOrderPage= lazyWithRetry(() => import('./routes/OnlineOrderPage'));
+const Reports        = lazyWithRetry(() => import('./routes/Reports'));
+const StaffManager   = lazyWithRetry(() => import('./routes/admin/StaffManager'));
+const Payroll        = lazyWithRetry(() => import('./routes/admin/Payroll'));
+const MenuEditor     = lazyWithRetry(() => import('./routes/admin/MenuEditor'));
+const Inventory      = lazyWithRetry(() => import('./routes/admin/Inventory'));
+const Customers      = lazyWithRetry(() => import('./routes/admin/Customers'));
+const Reservations   = lazyWithRetry(() => import('./routes/admin/Reservations'));
+const Settings       = lazyWithRetry(() => import('./routes/admin/Settings'));
+const Restaurants    = lazyWithRetry(() => import('./routes/admin/Restaurants'));
+const DeliveryHub    = lazyWithRetry(() => import('./routes/admin/DeliveryHub'));
+const Transactions   = lazyWithRetry(() => import('./routes/admin/Transactions'));
+const PendingApproval= lazyWithRetry(() => import('./routes/PendingApproval'));
+const ActiveOrders   = lazyWithRetry(() => import('./routes/ActiveOrders'));
+const LandingPage    = lazyWithRetry(() => import('./routes/LandingPage'));
+const PosterManager  = lazyWithRetry(() => import('./routes/admin/PosterManager'));
+const PosterDisplay  = lazyWithRetry(() => import('./routes/PosterDisplay'));
 
 export default function App() {
   const { i18n } = useTranslation();
