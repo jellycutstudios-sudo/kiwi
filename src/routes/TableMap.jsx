@@ -12,7 +12,7 @@ import QRCode from 'qrcode';
 import {
   ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
-  Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download
+  Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download, BarChart3
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import './admin/FloorPlanEditor.css';
@@ -83,6 +83,7 @@ export default function TableMap() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
   // View mode: 'grid' (clean, organized Petpooja-style table cards) or 'map' (2D layout)
@@ -741,7 +742,7 @@ export default function TableMap() {
     <div className="tm-root">
       {/* ═══ TOUCH-FIRST CONTROLS BAR ═══ */}
       <div className="tm-controls-bar">
-        {/* Row 1: Floor Tabs (Left) + View Switcher (Right) */}
+        {/* Row 1: Floor Tabs (Left) + View Switcher & Edit Button (Right) */}
         <div className="tm-floor-tabs-bar">
           <div className="tm-floor-tabs">
             {allFloors.map(floor => {
@@ -782,30 +783,45 @@ export default function TableMap() {
             )}
           </div>
 
-          {/* Compact View Switcher: Grid vs Map */}
-          <div className="tm-segmented-control" style={{ flexShrink: 0, marginLeft: 8 }}>
-            <button
-              type="button"
-              className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
-              onClick={() => setViewMode('grid')}
-              title="Table Grid"
-            >
-              <LayoutGrid size={13} />
-              <span className="tm-switcher-label">Grid</span>
-            </button>
-            <button
-              type="button"
-              className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
-              onClick={() => setViewMode('map')}
-              title="Floor Map"
-            >
-              <MapIcon size={13} />
-              <span className="tm-switcher-label">Map</span>
-            </button>
+          {/* Header Actions: View Switcher (Grid/Map) + Edit Layout Button */}
+          <div className="tm-header-actions-right">
+            <div className="tm-segmented-control">
+              <button
+                type="button"
+                className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
+                onClick={() => setViewMode('grid')}
+                title="Table Grid"
+              >
+                <LayoutGrid size={13} />
+                <span className="tm-switcher-label">Grid</span>
+              </button>
+              <button
+                type="button"
+                className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
+                onClick={() => setViewMode('map')}
+                title="Floor Map"
+              >
+                <MapIcon size={13} />
+                <span className="tm-switcher-label">Map</span>
+              </button>
+            </div>
+
+            {canEditLayout && (
+              <button
+                type="button"
+                className={`tm-edit-layout-trigger ${isEditingLayout ? 'tm-edit-layout-trigger--active' : ''}`}
+                onClick={toggleEditLayout}
+                title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+                aria-label={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+              >
+                {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
+                <span className="tm-switcher-label">{isEditingLayout ? 'Done' : 'Edit'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Row 2: 100% Dedicated Status Filter Pills + Expandable Search */}
+        {/* Row 2: Status Filter Pills (Left) + Stats Modal Trigger & Search (Right) */}
         <div className="tm-actions-bar">
           <div className="tm-filter-pills">
             {[
@@ -823,50 +839,57 @@ export default function TableMap() {
                 {p.label}
               </button>
             ))}
-            {floorMetrics.liveRevenue > 0 && (
-              <span className="tm-revenue-pill" title="Current live dining room revenue on this floor">
-                <TrendingUp size={11} />
-                <span>{formatCurrency(floorMetrics.liveRevenue, currency)}</span>
-              </span>
-            )}
           </div>
 
-          {/* Expandable Search on Right */}
-          <div className={`tm-search ${isSearchOpen || searchQuery ? 'tm-search--expanded' : ''}`}>
-            {(isSearchOpen || searchQuery) ? (
-              <>
-                <Search size={13} className="tm-search-icon" />
-                <input
-                  type="text"
-                  placeholder="Find table…"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="tm-search-input"
-                  autoFocus
-                />
+          <div className="tm-actions-row2-right">
+            {/* Quick Stats / Revenue Pill - Tapping opens Floor & Shift Stats Modal */}
+            <button
+              type="button"
+              className="tm-stats-trigger-pill"
+              onClick={() => setShowStatsModal(true)}
+              title="View floor metrics, occupancy & sales breakdown"
+            >
+              <TrendingUp size={11} className="tm-stats-icon" />
+              <span>{floorMetrics.liveRevenue > 0 ? formatCurrency(floorMetrics.liveRevenue, currency) : 'Stats'}</span>
+            </button>
+
+            {/* Expandable Search on Right */}
+            <div className={`tm-search ${isSearchOpen || searchQuery ? 'tm-search--expanded' : ''}`}>
+              {(isSearchOpen || searchQuery) ? (
+                <>
+                  <Search size={13} className="tm-search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Find table…"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="tm-search-input"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="tm-search-clear"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setIsSearchOpen(false);
+                    }}
+                    title="Close search"
+                  >
+                    <X size={12} />
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  className="tm-search-clear"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setIsSearchOpen(false);
-                  }}
-                  title="Close search"
+                  className="tm-search-trigger-btn"
+                  onClick={() => setIsSearchOpen(true)}
+                  title="Search tables"
+                  aria-label="Search tables"
                 >
-                  <X size={12} />
+                  <Search size={14} />
                 </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="tm-search-trigger-btn"
-                onClick={() => setIsSearchOpen(true)}
-                title="Search tables"
-                aria-label="Search tables"
-              >
-                <Search size={14} />
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2198,6 +2221,152 @@ export default function TableMap() {
           </div>
         </div>
       )}
+      {/* ═══ FLOOR & SHIFT STATS MODAL ═══ */}
+      {showStatsModal && (
+        <div className="tm-stats-modal-backdrop" onClick={() => setShowStatsModal(false)}>
+          <div
+            className="tm-stats-modal"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Modal Header */}
+            <div className="tm-stats-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="tm-stats-modal-icon-badge">
+                  <BarChart3 size={18} />
+                </div>
+                <div>
+                  <h3 className="tm-stats-modal-title">{activeFloor} Overview</h3>
+                  <p className="tm-stats-modal-subtitle">Live occupancy, revenue & section actions</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="tm-stats-modal-close"
+                onClick={() => setShowStatsModal(false)}
+                aria-label="Close stats modal"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body: Metrics Grid */}
+            <div className="tm-stats-grid">
+              <div className="tm-stat-card tm-stat-card--revenue">
+                <div className="tm-stat-card-label">
+                  <TrendingUp size={12} />
+                  <span>Active Dining Revenue</span>
+                </div>
+                <div className="tm-stat-card-value">{formatCurrency(floorMetrics.liveRevenue, currency)}</div>
+                <div className="tm-stat-card-sub">Current unsettled table bills on {activeFloor}</div>
+              </div>
+
+              <div className="tm-stat-card">
+                <div className="tm-stat-card-label">
+                  <Utensils size={12} />
+                  <span>Table Occupancy</span>
+                </div>
+                <div className="tm-stat-card-value">
+                  {floorMetrics.occupied} <span className="tm-stat-card-denom">/ {floorTables.length}</span>
+                </div>
+                <div className="tm-stat-card-sub">
+                  {floorTables.length ? Math.round((floorMetrics.occupied / floorTables.length) * 100) : 0}% occupied ({floorMetrics.free} free)
+                </div>
+              </div>
+
+              <div className="tm-stat-card">
+                <div className="tm-stat-card-label">
+                  <Users size={12} />
+                  <span>Seating Capacity</span>
+                </div>
+                <div className="tm-stat-card-value">
+                  {floorTables.reduce((sum, t) => sum + (Number(t.capacity) || 4), 0)}
+                </div>
+                <div className="tm-stat-card-sub">Total seats across {floorTables.length} tables</div>
+              </div>
+
+              <div className="tm-stat-card">
+                <div className="tm-stat-card-label">
+                  <Clock size={12} />
+                  <span>Floor Status</span>
+                </div>
+                <div className="tm-stat-card-value" style={{ fontSize: 16, color: '#10b981' }}>
+                  {floorMetrics.free > 0 ? `${floorMetrics.free} Free Tables` : 'Full House'}
+                </div>
+                <div className="tm-stat-card-sub">{floorMetrics.reserved} reserved tables</div>
+              </div>
+            </div>
+
+            {/* Modal Actions: Quick Management Buttons */}
+            {canEditLayout && (
+              <div className="tm-stats-actions-section">
+                <div className="tm-stats-section-title">Floor Management</div>
+                <div className="tm-stats-actions-grid">
+                  <button
+                    type="button"
+                    className="tm-stats-action-btn tm-stats-action-btn--primary"
+                    onClick={() => {
+                      setShowStatsModal(false);
+                      handleAddTable();
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span>Add Table</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tm-stats-action-btn"
+                    onClick={() => {
+                      setShowStatsModal(false);
+                      handleAddFloor();
+                    }}
+                  >
+                    <Layers size={14} />
+                    <span>Add Floor</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tm-stats-action-btn"
+                    onClick={() => {
+                      setShowStatsModal(false);
+                      toggleEditLayout();
+                    }}
+                  >
+                    <Sliders size={14} />
+                    <span>{isEditingLayout ? 'Exit Studio' : 'Edit Layout'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tm-stats-action-btn"
+                    onClick={() => {
+                      setShowStatsModal(false);
+                      handleAutoAlign();
+                    }}
+                    disabled={floorTables.length === 0}
+                  >
+                    <LayoutGrid size={14} />
+                    <span>Auto-Align</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="tm-stats-modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary w-full"
+                onClick={() => setShowStatsModal(false)}
+                style={{ height: 40, borderRadius: 12, fontWeight: 700 }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══ ADD FLOOR MODAL ═══ */}
       {showAddFloorModal && (
         <div
