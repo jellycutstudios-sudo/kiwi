@@ -17,6 +17,18 @@ export default function InfoTooltip({ text, size = 14 }) {
     }
   }, [show]);
 
+  // Touch & pointer outside dismissal
+  useEffect(() => {
+    if (!show) return;
+    const handleOutside = (e) => {
+      if (iconRef.current && !iconRef.current.contains(e.target)) {
+        setShow(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    return () => document.removeEventListener('pointerdown', handleOutside);
+  }, [show]);
+
   return (
     <>
       <div 
@@ -24,19 +36,27 @@ export default function InfoTooltip({ text, size = 14 }) {
         style={{ 
           display: 'inline-flex', 
           alignItems: 'center', 
-          marginLeft: '6px',
+          justifyContent: 'center',
+          marginLeft: '4px',
+          padding: '8px',
+          margin: '-8px 0 -8px 2px',
           verticalAlign: 'middle',
           transition: 'transform 0.2s',
-          transform: show ? 'scale(1.1)' : 'scale(1)',
+          transform: show ? 'scale(1.15)' : 'scale(1)',
+          cursor: 'pointer',
+          touchAction: 'manipulation'
         }}
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
-        onClick={() => setShow(!show)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShow(!show);
+        }}
       >
         <Info 
           size={size} 
           color={show ? "var(--color-accent)" : "var(--color-label-tertiary)"} 
-          style={{ cursor: 'help', transition: 'color 0.2s' }} 
+          style={{ transition: 'color 0.2s', pointerEvents: 'none' }} 
         />
       </div>
       

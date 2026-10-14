@@ -862,6 +862,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                 <input
                   id="tip-custom-input"
                   type="number"
+                  inputMode="decimal"
                   className="form-input"
                   placeholder="Enter custom tip amount"
                   value={customTip}
@@ -873,7 +874,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                     if (!isNaN(val) && val >= 0) setTip(val);
                     else { setCustomTip(''); setTip(0); }
                   }}
-                  style={{ flex: 1, height: 32, fontSize: 12, borderRadius: 8 }}
+                  style={{ flex: 1, minHeight: 38, height: 38, fontSize: 15, borderRadius: 8 }}
                 />
                 <button
                   type="button"
@@ -971,19 +972,21 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       <button
                         type="button"
                         className="qty-btn"
+                        aria-label="Decrease guests"
                         disabled={numGuests <= 2}
                         onClick={() => setNumGuests(n => Math.max(2, n - 1))}
-                        style={{ width: 28, height: 28 }}
+                        style={{ width: 38, height: 38, fontSize: 18 }}
                       >-</button>
-                      <span style={{ fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', minWidth: 24, textAlign: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', minWidth: 28, textAlign: 'center' }}>
                         {numGuests}
                       </span>
                       <button
                         type="button"
                         className="qty-btn"
+                        aria-label="Increase guests"
                         disabled={numGuests >= 10}
                         onClick={() => setNumGuests(n => Math.min(10, n + 1))}
-                        style={{ width: 28, height: 28 }}
+                        style={{ width: 38, height: 38, fontSize: 18 }}
                       >+</button>
                     </div>
                   </div>

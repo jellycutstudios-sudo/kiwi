@@ -8,6 +8,7 @@ import { Plus, Minus, Check, Clock, ChefHat, CheckSquare } from 'lucide-react';
 import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
 import LoadingScreen from '../components/shared/LoadingScreen';
+import { triggerHaptic, triggerHapticSuccess } from '../utils/haptics';
 
 export default function OnlineOrderPage() {
   const { restaurantId } = useParams();
@@ -180,6 +181,7 @@ export default function OnlineOrderPage() {
   };
 
   const addToCart = (item, selectedModifiers = [], flatPrice = null) => {
+    triggerHapticSuccess();
     setCart(c => {
       const isVariant = flatPrice !== null && flatPrice !== undefined;
       const modifierTotal = isVariant ? 0 : selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
@@ -226,6 +228,7 @@ export default function OnlineOrderPage() {
   }, [allMenuItems, cart]);
 
   const updateQty = (id, qty) => {
+    triggerHaptic(10);
     if (qty <= 0) setCart(c => c.filter(i => i.id !== id));
     else setCart(c => c.map(i => i.id === id ? { ...i, qty } : i));
   };
@@ -771,11 +774,11 @@ export default function OnlineOrderPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
-                        <button className="qty-btn" onClick={() => updateQty(cartItem.id, cartItem.qty - 1)}><Minus size={10}/></button>
-                        <span style={{ fontWeight:'var(--weight-bold)', minWidth:18, textAlign:'center', fontSize: 'var(--text-footnote)' }}>{cartItem.qty}</span>
-                        <button className="qty-btn" onClick={() => updateQty(cartItem.id, cartItem.qty + 1)}><Plus size={10}/></button>
+                        <button className="qty-btn" aria-label="Decrease quantity" onClick={() => updateQty(cartItem.id, cartItem.qty - 1)}><Minus size={14}/></button>
+                        <span style={{ fontWeight:'var(--weight-bold)', minWidth:24, textAlign:'center', fontSize: 'var(--text-body)' }}>{cartItem.qty}</span>
+                        <button className="qty-btn" aria-label="Increase quantity" onClick={() => updateQty(cartItem.id, cartItem.qty + 1)}><Plus size={14}/></button>
                       </div>
-                      <span style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-label)', minWidth: 60, textAlign: 'right' }}>
+                      <span style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-label)', minWidth: 64, textAlign: 'right' }}>
                         {formatCurrency(cartItem.price * cartItem.qty, currency)}
                       </span>
                     </div>
@@ -840,6 +843,8 @@ export default function OnlineOrderPage() {
                   className="form-input" 
                   placeholder="Enter your name" 
                   value={name} 
+                  autoComplete="name"
+                  enterKeyHint="next"
                   onChange={e => setName(e.target.value)} 
                 />
               </div>
@@ -850,6 +855,9 @@ export default function OnlineOrderPage() {
                   id="online-phone-input" 
                   className="form-input" 
                   type="tel" 
+                  inputMode="tel"
+                  autoComplete="tel"
+                  enterKeyHint="next"
                   placeholder="Enter mobile number" 
                   value={phone} 
                   onChange={e => setPhone(e.target.value)} 
@@ -1021,12 +1029,13 @@ export default function OnlineOrderPage() {
         )}
 
         {/* Categories */}
-        <div style={{ display:'flex', gap:'var(--space-2)', overflowX:'auto', marginBottom:'var(--space-4)', scrollbarWidth:'none' }}>
+        <div className="category-scroll-container" style={{ display:'flex', gap:'var(--space-2)', overflowX:'auto', marginBottom:'var(--space-4)', scrollbarWidth:'none', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
           {categories.map(c => (
             <button
               key={c.id}
               id={`online-cat-${c.id}`}
               className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
+              style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: 40, touchAction: 'manipulation' }}
               onClick={() => setActiveCat(c.id)}
             >
               {c.emoji} {c.name}
@@ -1038,8 +1047,28 @@ export default function OnlineOrderPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)', marginBottom:'var(--space-6)' }}>
           {items.map(item => {
             const cartItem = cart.find(c => c.menuItemId === item.id || c.id === item.id);
+            const handleItemTap = () => {
+              if (item.modifierGroups && item.modifierGroups.length > 0) {
+                setActiveModifierItem(item);
+              } else {
+                addToCart(item);
+              }
+            };
+
             return (
-              <div key={item.id} className="card" style={{ display:'flex', alignItems:'center', padding:'var(--space-4)', gap:'var(--space-4)' }}>
+              <div 
+                key={item.id} 
+                className="card" 
+                style={{ 
+                  display:'flex', 
+                  alignItems:'center', 
+                  padding:'var(--space-4)', 
+                  gap:'var(--space-4)',
+                  cursor: !cartItem ? 'pointer' : 'default',
+                  touchAction: 'manipulation'
+                }}
+                onClick={!cartItem ? handleItemTap : undefined}
+              >
                 {item.imageUrl || item.image ? (
                   <img 
                     src={item.imageUrl || item.image} 
@@ -1050,13 +1079,13 @@ export default function OnlineOrderPage() {
                         e.currentTarget.nextElementSibling.style.display = 'flex';
                       }
                     }}
-                    style={{ width:64, height:64, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} 
+                    style={{ width:68, height:68, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} 
                   />
                 ) : null}
                 <div 
                   style={{ 
-                    width:64, 
-                    height:64, 
+                    width:68, 
+                    height:68, 
                     background:'var(--color-bg-secondary)', 
                     borderRadius:'var(--radius-md)', 
                     display: (item.imageUrl || item.image) ? 'none' : 'flex', 
@@ -1068,10 +1097,10 @@ export default function OnlineOrderPage() {
                 >
                   {item.emoji ?? '🍽️'}
                 </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:'var(--weight-semibold)' }}>{item.name}</div>
-                  {item.description && <div style={{ fontSize:'var(--text-footnote)', color:'var(--color-label-secondary)', marginTop:2 }}>{item.description}</div>}
-                  <div style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)', marginTop:4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex:1, minWidth: 0 }}>
+                  <div style={{ fontWeight:'var(--weight-semibold)', fontSize: 'var(--text-body)' }}>{item.name}</div>
+                  {item.description && <div style={{ fontSize:'var(--text-footnote)', color:'var(--color-label-secondary)', marginTop:2, lineHeight: 1.3 }}>{item.description}</div>}
+                  <div style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)', marginTop:4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span>
                       {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
                         (() => {
@@ -1084,52 +1113,50 @@ export default function OnlineOrderPage() {
                       )}
                     </span>
                     {item.modifierGroups?.length > 0 && (
-                      <span style={{ fontSize: '10.5px', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px', color: 'var(--color-label-secondary)', fontWeight: 'normal' }}>
+                      <span style={{ fontSize: '10.5px', background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px', color: 'var(--color-label-secondary)', fontWeight: 'normal' }}>
                         Customizable
                       </span>
                     )}
                   </div>
                 </div>
-                {cartItem ? (
-                  <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
-                    <button className="qty-btn" onClick={() => updateQty(cartItem.id, cartItem.qty - 1)}><Minus size={12}/></button>
-                    <span style={{ fontWeight:'var(--weight-bold)', minWidth:20, textAlign:'center' }}>{cartItem.qty}</span>
-                    <button className="qty-btn" onClick={() => updateQty(cartItem.id, cartItem.qty + 1)}><Plus size={12}/></button>
-                  </div>
-                ) : (
-                  <button
-                    id={`online-add-${item.id}`}
-                    className="btn btn-primary btn-sm"
-                    onClick={() => {
-                      if (item.modifierGroups && item.modifierGroups.length > 0) {
-                        setActiveModifierItem(item);
-                      } else {
-                        addToCart(item);
-                      }
-                    }}
-                  >
-                    <Plus size={14}/> Add
-                  </button>
-                )}
+                <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                  {cartItem ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
+                      <button className="qty-btn" aria-label="Decrease quantity" onClick={() => updateQty(cartItem.id, cartItem.qty - 1)}><Minus size={14}/></button>
+                      <span style={{ fontWeight:'var(--weight-bold)', minWidth:24, textAlign:'center', fontSize: 'var(--text-body)' }}>{cartItem.qty}</span>
+                      <button className="qty-btn" aria-label="Increase quantity" onClick={() => updateQty(cartItem.id, cartItem.qty + 1)}><Plus size={14}/></button>
+                    </div>
+                  ) : (
+                    <button
+                      id={`online-add-${item.id}`}
+                      className="btn btn-primary"
+                      style={{ minHeight: 40, minWidth: 80, padding: '8px 14px', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)' }}
+                      onClick={handleItemTap}
+                    >
+                      <Plus size={15}/> Add
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
 
-      {/* Floating cart bar for menu browsing */}
+      {/* Floating cart bar for menu browsing with Safe Area Inset */}
       {cart.length > 0 && step === 'menu' && (
         <div 
           onClick={() => setStep('checkout')}
           style={{
             position: 'fixed',
-            bottom: '16px',
+            bottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
             left: '50%',
             transform: 'translateX(-50%)',
             width: 'calc(100% - 32px)',
             maxWidth: '648px',
             background: 'var(--color-accent)',
             color: 'var(--color-on-dark)',
-            padding: '14px 20px',
+            padding: '16px 22px',
+            minHeight: 52,
             borderRadius: 'var(--radius-xl)',
             boxShadow: 'var(--shadow-lg)',
             display: 'flex',
@@ -1139,7 +1166,8 @@ export default function OnlineOrderPage() {
             zIndex: 1000,
             fontWeight: 'var(--weight-bold)',
             fontSize: 'var(--text-subhead)',
-            animation: 'slide-up 0.2s ease-out'
+            animation: 'slide-up 0.2s ease-out',
+            touchAction: 'manipulation'
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

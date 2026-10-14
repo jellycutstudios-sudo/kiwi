@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#0c0d11" />
     <meta name="description" content="DineOS — Lightning-fast multi-mode restaurant POS system with table management, token system, and online orders." />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -42,8 +42,13 @@
         try {
           if (localStorage.getItem('dineos_disable_guards') === 'true') return;
 
-          // 1. Block Context Menu (Right Click)
+          // 1. Block Context Menu (Right Click), but permit on input/textarea for mobile long-press paste
           var block = function(e) {
+            var target = e.target;
+            var tag = target && target.tagName ? target.tagName.toUpperCase() : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || (target && target.isContentEditable)) {
+              return true; // Allow native context menu / paste on mobile touch inputs
+            }
             if (e.preventDefault) e.preventDefault();
             if (e.stopPropagation) e.stopPropagation();
             return false;

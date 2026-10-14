@@ -464,19 +464,25 @@ export default function TableMap() {
     printWindow.document.close();
   };
 
-  const handleCanvasMouseDown = (e, table) => {
+  const handleCanvasPointerDown = (e, table) => {
     if (!isEditingLayout) return;
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
     isActuallyDragged.current = false;
+
+    if (e.currentTarget?.setPointerCapture && e.pointerId !== undefined) {
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    }
 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const curX = table.x ?? 80;
     const curY = table.y ?? 80;
-    const offsetX = (e.clientX - rect.left) / zoom - curX;
-    const offsetY = (e.clientY - rect.top) / zoom - curY;
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+    const offsetX = (clientX - rect.left) / zoom - curX;
+    const offsetY = (clientY - rect.top) / zoom - curY;
 
     activeDragRef.current = {
       id: table.id,
@@ -486,8 +492,8 @@ export default function TableMap() {
       offsetY,
       currentX: curX,
       currentY: curY,
-      startX: e.clientX,
-      startY: e.clientY
+      startX: clientX,
+      startY: clientY
     };
 
     setDragging(table.id);
@@ -497,19 +503,22 @@ export default function TableMap() {
   useEffect(() => {
     if (!dragging) return;
 
-    const handleWindowMouseMove = (e) => {
+    const handlePointerMove = (e) => {
       const active = activeDragRef.current;
       if (!active) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      if (Math.hypot(e.clientX - active.startX, e.clientY - active.startY) > 5) {
+      const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+
+      if (Math.hypot(clientX - active.startX, clientY - active.startY) > 5) {
         isActuallyDragged.current = true;
       }
 
       const rect = canvas.getBoundingClientRect();
-      const rawX = (e.clientX - rect.left) / zoom - active.offsetX;
-      const rawY = (e.clientY - rect.top) / zoom - active.offsetY;
+      const rawX = (clientX - rect.left) / zoom - active.offsetX;
+      const rawY = (clientY - rect.top) / zoom - active.offsetY;
       const x = Math.max(0, Math.min(rawX, 1000 - active.tableW));
       const y = Math.max(0, Math.min(rawY, 650 - active.tableH));
       const snapX = Math.round(x / 20) * 20;
@@ -520,7 +529,7 @@ export default function TableMap() {
       setDragTablePos({ id: active.id, x: snapX, y: snapY });
     };
 
-    const handleWindowMouseUp = async () => {
+    const handlePointerUp = async () => {
       const active = activeDragRef.current;
       if (active && restaurant?.id && isActuallyDragged.current) {
         try {
@@ -537,11 +546,13 @@ export default function TableMap() {
       setDragTablePos(null);
     };
 
-    window.addEventListener('mousemove', handleWindowMouseMove);
-    window.addEventListener('mouseup', handleWindowMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleWindowMouseMove);
-      window.removeEventListener('mouseup', handleWindowMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [dragging, zoom, restaurant?.id, updateTable]);
 
@@ -1511,7 +1522,7 @@ export default function TableMap() {
                       key={t.id}
                       id={`map-table-${t.id}`}
                       onClick={e => handleTableClick(t, e, effectiveStatus)}
-                      onMouseDown={isEditingLayout ? e => handleCanvasMouseDown(e, t) : undefined}
+                      onPointerDown={isEditingLayout ? e => handleCanvasPointerDown(e, t) : undefined}
                       className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} ${isEditSelected ? 'status-selected' : isSelected ? 'status-selected' : isFoodReady ? 'status-ready-glow' : `status-${effectiveStatus}`}`}
                       style={{
                         position: 'absolute',
@@ -1520,6 +1531,7 @@ export default function TableMap() {
                         opacity: isMatch ? 1 : 0.2,
                         filter: isMatch ? 'none' : 'grayscale(80%)',
                         cursor: isEditingLayout ? (isCurrentDragging ? 'grabbing' : 'grab') : 'pointer',
+                        touchAction: isEditingLayout ? 'none' : 'manipulation',
                         outline: isEditSelected ? '2px solid #3b82f6' : 'none',
                         boxShadow: isEditSelected
                           ? '0 0 0 4px rgba(59,130,246,0.35), 0 8px 24px rgba(0,0,0,0.35)'

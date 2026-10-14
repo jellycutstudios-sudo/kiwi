@@ -350,6 +350,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
                           borderRadius: 'var(--radius-lg)',
                           padding: 'var(--space-3) var(--space-4)',
+                          minHeight: 44,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
@@ -357,6 +358,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           transition: 'all var(--duration-fast) var(--ease-out)',
                           textAlign: 'left',
                           fontFamily: 'var(--font-family)',
+                          touchAction: 'manipulation',
                           boxShadow: isSelected ? '0 4px 12px rgba(0,122,255,0.1)' : 'var(--shadow-sm)',
                         }}
                       >

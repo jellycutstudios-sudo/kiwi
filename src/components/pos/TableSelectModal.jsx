@@ -143,27 +143,29 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         </div>
 
         {/* Search & Filters Bar */}
-        <div style={{ padding: '10px 22px 10px', borderBottom: '1px solid var(--color-separator-opaque)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'var(--color-bg-secondary)' }}>
+        <div style={{ padding: '12px 22px', borderBottom: '1px solid var(--color-separator-opaque)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'var(--color-bg-secondary)' }}>
           {/* Search Input */}
           <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
             <input
               type="text"
               className="form-input"
               placeholder="Search table (e.g. T1, G8)..."
               value={search}
+              inputMode="search"
+              enterKeyHint="search"
               onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: 32, height: 32, fontSize: 12, borderRadius: 8 }}
+              style={{ paddingLeft: 36, minHeight: 40, height: 40, fontSize: 16, borderRadius: 10 }}
             />
           </div>
 
           {/* Quick Filter Status Pills */}
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
               type="button"
               className={`cart-addon-btn ${filterStatus === 'all' ? 'active' : ''}`}
               onClick={() => setFilterStatus('all')}
-              style={{ height: 32, padding: '0 10px', fontSize: 11.5, borderRadius: 8 }}
+              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, touchAction: 'manipulation' }}
             >
               All ({counts.all})
             </button>
@@ -171,7 +173,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               type="button"
               className={`cart-addon-btn ${filterStatus === 'free' ? 'active' : ''}`}
               onClick={() => setFilterStatus('free')}
-              style={{ height: 32, padding: '0 10px', fontSize: 11.5, borderRadius: 8, color: '#15803d' }}
+              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#15803d', touchAction: 'manipulation' }}
             >
               🟢 Free ({counts.free})
             </button>
@@ -179,7 +181,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               type="button"
               className={`cart-addon-btn ${filterStatus === 'occupied' ? 'active' : ''}`}
               onClick={() => setFilterStatus('occupied')}
-              style={{ height: 32, padding: '0 10px', fontSize: 11.5, borderRadius: 8, color: '#be123c' }}
+              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#be123c', touchAction: 'manipulation' }}
             >
               🔴 Occupied ({counts.occupied})
             </button>
@@ -188,7 +190,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 type="button"
                 className={`cart-addon-btn ${filterStatus === 'reserved' ? 'active' : ''}`}
                 onClick={() => setFilterStatus('reserved')}
-                style={{ height: 32, padding: '0 10px', fontSize: 11.5, borderRadius: 8, color: '#b45309' }}
+                style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#b45309', touchAction: 'manipulation' }}
               >
                 ⭐ Reserved ({counts.reserved})
               </button>
@@ -200,17 +202,19 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               className={`cart-addon-btn ${freeFirst ? 'active' : ''}`}
               onClick={() => setFreeFirst(v => !v)}
               style={{
-                height: 32,
-                padding: '0 10px',
-                fontSize: 11.5,
-                borderRadius: 8,
+                height: 38,
+                minHeight: 38,
+                padding: '0 12px',
+                fontSize: 13,
+                borderRadius: 10,
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 4,
+                gap: 5,
+                touchAction: 'manipulation'
               }}
               title="Prioritize available free tables at the top"
             >
-              <ArrowDownUp size={12} />
+              <ArrowDownUp size={14} />
               Free First
             </button>
           </div>

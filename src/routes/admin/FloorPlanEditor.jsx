@@ -45,26 +45,33 @@ export default function FloorPlanEditor() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleMouseDown = (e, table) => {
-    e.preventDefault();
+  const handlePointerDown = (e, table) => {
+    if (e.cancelable) e.preventDefault();
+    if (e.currentTarget?.setPointerCapture && e.pointerId !== undefined) {
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    }
     setDragging(table.id);
     setSelected(table.id);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
     setDragOffset({
-      x: (e.clientX - rect.left) / zoom - table.x,
-      y: (e.clientY - rect.top) / zoom - table.y
+      x: (clientX - rect.left) / zoom - table.x,
+      y: (clientY - rect.top) / zoom - table.y
     });
   };
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!dragging) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const rawX = (e.clientX - rect.left) / zoom - dragOffset.x;
-    const rawY = (e.clientY - rect.top) / zoom - dragOffset.y;
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+    const rawX = (clientX - rect.left) / zoom - dragOffset.x;
+    const rawY = (clientY - rect.top) / zoom - dragOffset.y;
     const table = tables.find(t => t.id === dragging);
     const tableW = table?.w ?? 80;
     const tableH = table?.h ?? 80;
@@ -73,7 +80,7 @@ export default function FloorPlanEditor() {
     updateTable(restaurant.id, dragging, { x: Math.round(x / 40) * 40, y: Math.round(y / 40) * 40 });
   };
 
-  const handleMouseUp = () => setDragging(null);
+  const handlePointerUp = () => setDragging(null);
 
   const handleAddTable = () => {
     const floorTables = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
@@ -435,10 +442,11 @@ export default function FloorPlanEditor() {
                 className={`table-canvas ${dragging ? 'dragging' : ''}`}
                 style={{
                   transform: `scale(${zoom})`,
+                  touchAction: 'none'
                 }}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
               >
                 {tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).map(table => (
                   <div
@@ -450,8 +458,9 @@ export default function FloorPlanEditor() {
                       top: table.y,
                       width: table.w ?? 80,
                       height: table.h ?? 80,
+                      touchAction: 'none'
                     }}
-                    onMouseDown={e => handleMouseDown(e, table)}
+                    onPointerDown={e => handlePointerDown(e, table)}
                   >
                     {renderChairs(table)}
                     <div className="table-label">{table.name}</div>
