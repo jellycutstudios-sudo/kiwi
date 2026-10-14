@@ -196,7 +196,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             </span>
           )}
         </div>
-        {!isCollapsed && (
+        {mobileOpen && (
           <button
             className="btn btn-ghost btn-icon sidebar-close-btn"
             onClick={() => setMobileOpen(false)}
