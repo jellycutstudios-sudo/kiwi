@@ -17,7 +17,8 @@ import {
   Check, 
   Timer,
   Printer,
-  Sun
+  Sun,
+  CheckCircle2
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -271,204 +272,316 @@ export default function KDS() {
 
   return (
     <div className="kds-layout">
-      {/* High-Visibility Header */}
-      <div className="kds-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-          }}>
-            <ChefHat size={24} color="#000000" strokeWidth={2.5} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="kds-title">{restaurant?.name ? `${restaurant.name} Kitchen` : 'Kitchen Display'}</span>
-              <span style={{
-                padding: '2px 10px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--color-yellow-light)',
-                color: 'var(--color-yellow)',
-                fontSize: 12,
-                fontWeight: 800,
-                border: '1px solid var(--color-yellow)'
-              }}>
-                {kdsOrders.length} ACTIVE
-              </span>
+      {/* ── High-Visibility Kitchen Header ── */}
+      <div style={{
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-separator-opaque)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '14px 18px',
+        marginBottom: '14px',
+        boxShadow: 'var(--shadow-xs)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
+        {/* Tier 1: Brand / Title + Queue Status + Utility Tools Cluster */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          {/* Brand & Kitchen Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: 42,
+              height: 42,
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(217,119,6,0.2) 100%)',
+              border: '1px solid rgba(245,158,11,0.35)',
+              color: 'var(--color-yellow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <ChefHat size={22} strokeWidth={2.4} />
             </div>
-            <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
-              Real-time line production & bump bar
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 className="kds-title" style={{ margin: 0, fontSize: '17px', fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--color-label)' }}>
+                  {restaurant?.name ? `${restaurant.name} Kitchen` : 'Kitchen Display'}
+                </h2>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  background: kdsOrders.length > 0 ? 'rgba(245, 158, 11, 0.16)' : 'rgba(16, 185, 129, 0.12)',
+                  color: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-green)',
+                  border: kdsOrders.length > 0 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.25)'
+                }}>
+                  <span style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-green)',
+                    boxShadow: kdsOrders.length > 0 ? '0 0 6px var(--color-yellow)' : '0 0 6px var(--color-green)'
+                  }} />
+                  {kdsOrders.length > 0 ? `${kdsOrders.length} In Queue` : 'Queue Clear'}
+                </span>
+              </div>
+              <p className="text-caption1 text-secondary" style={{ margin: 0, marginTop: 2 }}>
+                Real-time line production & kitchen bump bar
+              </p>
+            </div>
+          </div>
+
+          {/* Utility Toolbar: Sound, Wake Lock, Fullscreen, Clock */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Audio Chime Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextState = !soundEnabled;
+                setSoundEnabled(nextState);
+                if (nextState) {
+                  playKitchenChime();
+                  toast.success('Kitchen sound chime enabled', { icon: '🔔' });
+                } else {
+                  toast('Kitchen sound muted', { icon: '🔕' });
+                }
+              }}
+              title={soundEnabled ? 'Chime sound is ON (Tap to mute)' : 'Chime sound is MUTED (Tap to enable)'}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 'var(--radius-md)',
+                background: soundEnabled ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
+                border: soundEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--color-separator-opaque)',
+                color: soundEnabled ? 'var(--color-green)' : 'var(--color-label-tertiary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            </button>
+
+            {/* Screen Wake Lock Indicator */}
+            {isWakeSupported && (
+              <div
+                title={isWakeLocked ? 'Screen Wake Lock Active: Display will stay awake' : 'Screen Wake Lock Inactive'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '0 10px',
+                  height: 36,
+                  borderRadius: 'var(--radius-md)',
+                  background: isWakeLocked ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
+                  border: isWakeLocked ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--color-separator-opaque)',
+                  color: isWakeLocked ? 'var(--color-green)' : 'var(--color-label-secondary)',
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                <Sun size={14} className={isWakeLocked ? 'animate-pulse' : ''} />
+                <span className="desktop-only">{isWakeLocked ? 'Awake' : 'Sleep OK'}</span>
+              </div>
+            )}
+
+            {/* Fullscreen Toggle */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-separator-opaque)',
+                color: 'var(--color-label)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            {/* Digital Clock */}
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 13,
+              fontWeight: 800,
+              color: 'var(--color-label)',
+              background: 'var(--color-bg)',
+              padding: '0 12px',
+              height: 36,
+              display: 'inline-flex',
+              alignItems: 'center',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-separator-opaque)',
+              letterSpacing: '0.04em'
+            }}>
+              {new Date(currentTime).toLocaleTimeString()}
             </div>
           </div>
         </div>
 
-        {/* Center/Right Metrics & Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          {/* Kitchen Health Chips */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Tier 2: View Switcher (Active vs Ready) + Kitchen Health HUD Metrics */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          borderTop: '1px solid var(--color-separator-opaque)',
+          paddingTop: '10px'
+        }}>
+          {/* Active vs Ready Tabs */}
+          <div style={{
+            display: 'inline-flex',
+            background: 'var(--color-bg)',
+            padding: '3px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-separator-opaque)'
+          }}>
+            <button
+              type="button"
+              onClick={() => setViewTab('active')}
+              style={{
+                background: viewTab === 'active' ? 'var(--color-bg-elevated)' : 'transparent',
+                color: viewTab === 'active' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '6px 14px',
+                fontSize: '12.5px',
+                fontWeight: viewTab === 'active' ? 700 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: viewTab === 'active' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <span>Active Queue</span>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 18,
+                height: 18,
+                padding: '0 5px',
+                borderRadius: '9999px',
+                fontSize: '10.5px',
+                fontWeight: 700,
+                background: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-fill)',
+                color: kdsOrders.length > 0 ? '#000000' : 'var(--color-label-secondary)'
+              }}>
+                {kdsOrders.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewTab('recent')}
+              style={{
+                background: viewTab === 'recent' ? 'var(--color-bg-elevated)' : 'transparent',
+                color: viewTab === 'recent' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '6px 14px',
+                fontSize: '12.5px',
+                fontWeight: viewTab === 'recent' ? 700 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: viewTab === 'recent' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <span>Plated & Ready</span>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 18,
+                height: 18,
+                padding: '0 5px',
+                borderRadius: '9999px',
+                fontSize: '10.5px',
+                fontWeight: 700,
+                background: 'var(--color-fill)',
+                color: 'var(--color-label-secondary)'
+              }}>
+                {recentReadyOrders.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Kitchen Health HUD Chips */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <div style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              padding: '5px 10px',
-              borderRadius: 8,
-              background: 'var(--color-bg-secondary)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--color-bg)',
               border: '1px solid var(--color-separator-opaque)',
-              fontSize: 12,
-              fontWeight: 700,
+              fontSize: '12px',
+              fontWeight: 600,
               color: 'var(--color-label)'
             }}>
               <Timer size={14} color="var(--color-accent)" />
-              <span>Avg: {kitchenMetrics.avgWaitMins}m</span>
+              <span style={{ color: 'var(--color-label-secondary)' }}>Avg:</span>
+              <span style={{ fontWeight: 700 }}>{kitchenMetrics.avgWaitMins}m</span>
             </div>
 
             <div style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              padding: '5px 10px',
-              borderRadius: 8,
-              background: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red-light)' : 'var(--color-bg-secondary)',
-              border: kitchenMetrics.maxWaitMins > 20 ? '1px solid var(--color-red)' : '1px solid var(--color-separator-opaque)',
-              fontSize: 12,
-              fontWeight: 700,
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-md)',
+              background: kitchenMetrics.maxWaitMins > 20 ? 'rgba(239, 68, 68, 0.12)' : 'var(--color-bg)',
+              border: kitchenMetrics.maxWaitMins > 20 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--color-separator-opaque)',
+              fontSize: '12px',
+              fontWeight: 600,
               color: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-label)'
             }}>
               <Flame size={14} color={kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-orange)'} />
-              <span>Max: {kitchenMetrics.maxWaitMins}m</span>
+              <span style={{ color: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-label-secondary)' }}>Max:</span>
+              <span style={{ fontWeight: 700 }}>{kitchenMetrics.maxWaitMins}m</span>
             </div>
-          </div>
-
-          {/* Active vs Ready Tabs */}
-          <div style={{ display: 'flex', background: 'var(--color-bg-secondary)', borderRadius: 10, padding: 3, border: '1px solid var(--color-separator-opaque)' }}>
-            <button
-              onClick={() => setViewTab('active')}
-              style={{
-                background: viewTab === 'active' ? '#10b981' : 'transparent',
-                color: viewTab === 'active' ? '#ffffff' : 'var(--color-label-secondary)',
-                border: 'none',
-                borderRadius: 7,
-                padding: '6px 12px',
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Active ({kdsOrders.length})
-            </button>
-            <button
-              onClick={() => setViewTab('recent')}
-              style={{
-                background: viewTab === 'recent' ? '#10b981' : 'transparent',
-                color: viewTab === 'recent' ? '#ffffff' : 'var(--color-label-secondary)',
-                border: 'none',
-                borderRadius: 7,
-                padding: '6px 12px',
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Ready ({recentReadyOrders.length})
-            </button>
-          </div>
-
-          {/* Audio Chime Button */}
-          <button
-            onClick={() => {
-              setSoundEnabled(!soundEnabled);
-              if (!soundEnabled) playKitchenChime();
-            }}
-            title={soundEnabled ? 'Chime sound is ON' : 'Chime sound is MUTED'}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: soundEnabled ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
-              border: soundEnabled ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
-              color: soundEnabled ? 'var(--color-accent)' : 'var(--color-label-tertiary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-separator-opaque)',
-              color: 'var(--color-label)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-          </button>
-
-          {/* Screen Wake Lock Indicator */}
-          {isWakeSupported && (
-            <div
-              title={isWakeLocked ? 'Screen Wake Lock Active: Display will stay on' : 'Screen Wake Lock Inactive'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '6px 10px',
-                borderRadius: 8,
-                background: isWakeLocked ? 'var(--color-green-light)' : 'var(--color-bg-secondary)',
-                border: isWakeLocked ? '1px solid var(--color-green)' : '1px solid var(--color-separator-opaque)',
-                color: isWakeLocked ? 'var(--color-green)' : 'var(--color-label-secondary)',
-                fontSize: 12,
-                fontWeight: 700
-              }}
-            >
-              <Sun size={14} className={isWakeLocked ? 'animate-pulse' : ''} />
-              <span className="desktop-only">{isWakeLocked ? 'Awake' : 'Sleep OK'}</span>
-            </div>
-          )}
-
-          {/* Digital Clock */}
-          <div style={{
-            fontFamily: 'monospace',
-            fontSize: 14,
-            fontWeight: 800,
-            color: 'var(--color-label)',
-            background: 'var(--color-bg-secondary)',
-            padding: '6px 10px',
-            borderRadius: 8,
-            border: '1px solid var(--color-separator-opaque)'
-          }}>
-            {new Date(currentTime).toLocaleTimeString()}
           </div>
         </div>
       </div>
 
-      {/* Station Pills Filter */}
+      {/* ── Station Pills Filter ── */}
       <div style={{
         display: 'flex',
-        gap: 'var(--space-2)',
+        alignItems: 'center',
+        gap: '6px',
         overflowX: 'auto',
-        marginBottom: 'var(--space-4)',
-        paddingBottom: 6,
-        borderBottom: '1px solid var(--color-separator-opaque)'
+        marginBottom: '16px',
+        padding: '2px 0 6px 0',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        WebkitOverflowScrolling: 'touch'
       }}>
         {stationsList.map(station => {
           const count = getStationOrderCount(station);
@@ -478,11 +591,38 @@ export default function KDS() {
               key={station}
               onClick={() => setActiveStation(station)}
               title={station === 'All' ? 'Show all orders from every station' : `Show only orders for the ${station} station`}
-              className={`kds-station-pill ${isActive ? 'active' : ''}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '12.5px',
+                fontWeight: isActive ? 700 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+                background: isActive ? 'var(--color-accent)' : 'var(--color-bg-elevated)',
+                color: isActive ? '#ffffff' : 'var(--color-label-secondary)',
+                boxShadow: isActive ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none',
+                border: isActive ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)'
+              }}
             >
               <span>{station}</span>
               {count > 0 && (
-                <span className="kds-station-pill-count">
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  borderRadius: '9999px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--color-fill)',
+                  color: isActive ? '#ffffff' : 'var(--color-label)'
+                }}>
                   {count}
                 </span>
               )}
@@ -495,11 +635,50 @@ export default function KDS() {
       {viewTab === 'recent' ? (
         recentReadyOrders.length === 0 ? (
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '50vh', color: 'var(--color-label-tertiary)', gap: 'var(--space-4)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '48px 20px',
+            background: 'var(--color-bg-elevated)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--color-separator-opaque)',
+            boxShadow: 'var(--shadow-xs)',
+            minHeight: 320
           }}>
-            <div style={{ fontSize: 52 }}>✅</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-label)' }}>No completed orders in the last 30 minutes</div>
+            <div style={{
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(59,130,246,0.12))',
+              border: '1px solid rgba(16,185,129,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-green)',
+              marginBottom: '16px',
+              boxShadow: '0 6px 20px rgba(16,185,129,0.12)'
+            }}>
+              <CheckCircle2 size={26} />
+            </div>
+
+            <h3 className="text-title3" style={{ margin: 0, fontWeight: 700, color: 'var(--color-label)' }}>
+              No Completed Orders Yet
+            </h3>
+
+            <p className="text-secondary text-subhead" style={{ maxWidth: 420, margin: '8px auto 20px auto', lineHeight: 1.5 }}>
+              Tickets bumped or completed within the last 30 minutes will show up here for quick review or recall back to the queue.
+            </p>
+
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setViewTab('active')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+            >
+              <span>Return to Active Queue</span>
+            </button>
           </div>
         ) : (
           <div className="kds-grid">
@@ -606,12 +785,78 @@ export default function KDS() {
       ) : (
         kdsOrders.length === 0 ? (
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '50vh', color: 'var(--color-label-tertiary)', gap: 'var(--space-4)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '48px 20px',
+            background: 'var(--color-bg-elevated)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--color-separator-opaque)',
+            boxShadow: 'var(--shadow-xs)',
+            minHeight: 320
           }}>
-            <div style={{ fontSize: 52 }}>🍳</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-label)' }}>All orders cleared! Kitchen queue is empty.</div>
-            <div style={{ fontSize: 14, color: 'var(--color-label-secondary)' }}>New tickets will appear here with sound alert.</div>
+            <div style={{
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(245,158,11,0.14), rgba(16,185,129,0.14))',
+              border: '1px solid rgba(245,158,11,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-yellow)',
+              marginBottom: '16px',
+              boxShadow: '0 6px 20px rgba(245,158,11,0.12)'
+            }}>
+              <ChefHat size={26} strokeWidth={2.3} />
+            </div>
+
+            <h3 className="text-title3" style={{ margin: 0, fontWeight: 700, color: 'var(--color-label)' }}>
+              Kitchen Queue Is All Clear!
+            </h3>
+
+            <p className="text-secondary text-subhead" style={{ maxWidth: 440, margin: '8px auto 20px auto', lineHeight: 1.5 }}>
+              All tickets have been prepared and plated. Incoming food orders from POS, dining tables, and delivery channels will appear here with instant sound chimes.
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  playKitchenChime();
+                  toast.success('Chime tested! Sound volume is working.', { icon: '🔔' });
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+              >
+                <Volume2 size={14} color="var(--color-accent)" />
+                <span>Test Audio Chime</span>
+              </button>
+
+              {recentReadyOrders.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setViewTab('recent')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+                >
+                  <Check size={14} />
+                  <span>View Plated ({recentReadyOrders.length})</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={toggleFullscreen}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+              >
+                {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Display'}</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="kds-grid">

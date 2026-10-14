@@ -10,10 +10,11 @@ import { printReceipt, printSingleKitchenTicket, printKitchenTickets } from '../
 import { auth } from '../firebase';
 import {
   Globe, Truck, Clock, Check, X, Printer, ChefHat, Bell, AlertTriangle,
-  User, Eye, Zap, Search, Copy, ExternalLink, Share2, Smartphone,
+  User, Eye, Zap, Search, Copy, ExternalLink, Smartphone,
   ShoppingBag, LayoutList, Columns, MessageCircle, CheckCircle2,
-  MapPin, Filter
+  MapPin, Filter, QrCode
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 
 const PLATFORM_BADGES = {
@@ -53,8 +54,34 @@ export default function OnlineOrders() {
   const [quickSettleOrder, setQuickSettleOrder] = useState(null);
   const [settling, setSettling] = useState(false);
   const [crossedItems, setCrossedItems] = useState({});
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const currency = restaurant?.currency ?? 'INR';
+  const storeUrl = restaurant?.id ? `${window.location.origin}/order/${restaurant.id}` : '';
+
+  useEffect(() => {
+    if (showQrModal && storeUrl) {
+      QRCode.toDataURL(storeUrl, {
+        width: 300,
+        margin: 2,
+        color: { dark: '#0c0d11', light: '#ffffff' }
+      }).then(setQrCodeDataUrl).catch(console.error);
+    }
+  }, [showQrModal, storeUrl]);
+
+  const handleCopyStoreLink = (e) => {
+    if (e) e.stopPropagation();
+    if (!storeUrl) return;
+    navigator.clipboard.writeText(storeUrl).then(() => {
+      setCopiedLink(true);
+      toast.success('Online Store link copied! Customers can order & track live.', { icon: '📋' });
+      setTimeout(() => setCopiedLink(false), 2000);
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
+  };
 
   // Mark pending online orders as read when visiting
   useEffect(() => {
@@ -448,21 +475,23 @@ export default function OnlineOrders() {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          borderLeft: isLate ? '4px solid var(--color-red)' : `4px solid ${trackerInfo.color}`,
           background: 'var(--color-bg-elevated)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--color-separator-opaque)',
+          borderLeft: isLate ? '4px solid var(--color-red)' : `4px solid ${trackerInfo.color}`,
+          boxShadow: 'var(--shadow-xs)',
           transition: 'all 0.2s ease',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
           overflow: 'hidden'
         }}
       >
         {/* Card Header */}
         <div style={{
-          padding: 'var(--space-3) var(--space-4)',
+          padding: '12px 16px',
           borderBottom: '1px solid var(--color-separator-opaque)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          gap: 8,
+          gap: 10,
           background: 'var(--color-bg)'
         }}>
           <div>
@@ -496,13 +525,13 @@ export default function OnlineOrders() {
                 </span>
               )}
 
-              <span style={{ fontSize: '12px', fontWeight: 'var(--weight-bold)', color: 'var(--color-label)' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
                 {order.customerName || 'Anonymous Customer'}
               </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: '11px', color: 'var(--color-label-secondary)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                 {order.externalOrderId ? `ID: ${order.externalOrderId}` : `#${order.id.slice(-6).toUpperCase()}`}
               </span>
               <span>•</span>
@@ -516,8 +545,8 @@ export default function OnlineOrders() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: 'var(--color-label)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+            <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-label)', letterSpacing: '-0.01em' }}>
               {formatCurrency(order.total ?? 0, currency)}
             </span>
             <div style={{
@@ -537,62 +566,76 @@ export default function OnlineOrders() {
 
         {/* Live Customer Tracking Progress Bar */}
         <div style={{
-          padding: '8px var(--space-4)',
-          background: 'var(--color-bg-secondary)',
+          padding: '8px 16px',
+          background: 'var(--color-bg)',
           borderBottom: '1px solid var(--color-separator-opaque)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 6
+          gap: 8
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px' }}>
-            <span style={{ fontWeight: 600, color: 'var(--color-label-secondary)' }}>Customer Live Status:</span>
-            <span className={`badge ${trackerInfo.badgeClass}`} style={{ fontSize: '11px', fontWeight: 700 }}>
-              Step {trackerInfo.step}/4: {trackerInfo.label}
+            <div style={{ display: 'flex', gap: 3, alignItems: 'center' }} title={`Step ${trackerInfo.step} of 4`}>
+              {[1, 2, 3, 4].map(stepNum => (
+                <div
+                  key={stepNum}
+                  style={{
+                    width: 12,
+                    height: 4,
+                    borderRadius: 2,
+                    background: stepNum <= trackerInfo.step ? trackerInfo.color : 'var(--color-separator-opaque)',
+                    transition: 'background 0.2s ease'
+                  }}
+                />
+              ))}
+            </div>
+            <span style={{ fontWeight: 600, color: 'var(--color-label-secondary)', fontSize: '11.5px' }}>Tracker:</span>
+            <span className={`badge ${trackerInfo.badgeClass}`} style={{ fontSize: '10.5px', fontWeight: 700, padding: '1px 7px' }}>
+              {trackerInfo.label}
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-xs"
               onClick={(e) => handleCopyTrackingLink(order, e)}
               title="Copy customer tracking link to share via SMS or message"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 32, padding: '0 10px', borderRadius: 'var(--radius-sm)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '11px', minHeight: 26, padding: '0 8px', borderRadius: 'var(--radius-sm)' }}
             >
-              <Copy size={13} />
-              <span>Copy Link</span>
+              <Copy size={11} />
+              <span>Link</span>
             </button>
 
             {order.customerPhone && (
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-xs"
                 onClick={(e) => handleWhatsAppCustomer(order, e)}
                 title="Send tracking link to customer on WhatsApp"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6,
-                  fontSize: '12px',
-                  minHeight: 32,
-                  padding: '0 10px',
+                  gap: 4,
+                  fontSize: '11px',
+                  minHeight: 26,
+                  padding: '0 8px',
                   borderRadius: 'var(--radius-sm)',
-                  color: '#10b981',
+                  color: 'var(--color-green)',
                   borderColor: 'rgba(16,185,129,0.35)'
                 }}
               >
-                <MessageCircle size={13} />
+                <MessageCircle size={11} />
                 <span>WhatsApp</span>
               </button>
             )}
 
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-xs"
               onClick={() => setTrackingPreviewOrder(order)}
               title="Preview what the customer sees on their mobile screen"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 32, padding: '0 10px', borderRadius: 'var(--radius-sm)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '11px', minHeight: 26, padding: '0 8px', borderRadius: 'var(--radius-sm)' }}
             >
-              <Smartphone size={13} />
+              <Smartphone size={11} />
               <span>Preview</span>
             </button>
           </div>
@@ -858,90 +901,131 @@ export default function OnlineOrders() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', height: '100%' }}>
-      {/* Top Banner / Store Link Card */}
+      {/* ── Top Header / Online Ordering Hub ── */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(59,130,246,0.08) 100%)',
-        border: '1px solid rgba(139,92,246,0.2)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-4) var(--space-5)',
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-separator-opaque)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '16px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 'var(--space-3)'
+        gap: '14px',
+        boxShadow: 'var(--shadow-xs)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             borderRadius: 'var(--radius-md)',
-            background: 'var(--color-accent)',
-            color: '#fff',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.18))',
+            border: '1px solid rgba(16,185,129,0.3)',
+            color: 'var(--color-accent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(59,130,246,0.3)'
+            flexShrink: 0
           }}>
             <Globe size={22} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h2 className="text-title3" style={{ margin: 0, fontWeight: 700 }}>
-                {t('onlineOrders')} & Live Status Tracker
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h2 className="text-title3" style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--color-label)' }}>
+                {t('onlineOrders')} & Live Tracker
               </h2>
-              <span className="badge badge-purple" style={{ fontSize: '11px', fontWeight: 600 }}>
-                Syncs with Customer Tracker
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+                fontSize: '11px',
+                fontWeight: 600,
+                background: 'rgba(16, 185, 129, 0.12)',
+                color: 'var(--color-green)',
+                border: '1px solid rgba(16, 185, 129, 0.25)'
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-green)', boxShadow: '0 0 6px var(--color-green)' }} />
+                Live Sync Active
               </span>
             </div>
-            <p className="text-secondary text-caption1" style={{ margin: 0, marginTop: 2 }}>
-              Accept incoming online orders, advance cooking & delivery statuses, and let customers track their food in real time.
+            <p className="text-caption1 text-secondary" style={{ margin: 0, marginTop: 2 }}>
+              Accept incoming online orders, advance kitchen cooking stages, and let customers track food live.
             </p>
           </div>
         </div>
 
-        {/* Share live order page */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Share & Customer Store Action Group */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
+            type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => {
-              const url = `${window.location.origin}/order/${restaurant?.id}`;
-              navigator.clipboard.writeText(url).then(() => {
-                toast.success('Online Store link copied! Customers can order & track here.', { icon: '📋' });
-              });
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px' }}
+            onClick={() => setShowQrModal(true)}
+            title="Show Store QR Code to scan or download"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
           >
-            <Share2 size={13} />
-            <span>Copy Store Link</span>
+            <QrCode size={14} />
+            <span>Store QR</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handleCopyStoreLink}
+            title="Copy digital store link"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+          >
+            {copiedLink ? <Check size={14} color="var(--color-green)" /> : <Copy size={14} />}
+            <span>{copiedLink ? 'Copied Link' : 'Copy Store Link'}</span>
           </button>
 
           <a
-            href={`/order/${restaurant?.id}`}
+            href={storeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px' }}
+            title="Open customer ordering experience in a new tab"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)', textDecoration: 'none' }}
           >
-            <ExternalLink size={13} />
+            <ExternalLink size={14} />
             <span>Open Customer Page</span>
           </a>
         </div>
       </div>
 
-      {/* Control Bar: Filters, Tabs, Search, View switch */}
+      {/* ── Filter & Search Control Center ── */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--space-3)',
+        gap: '12px',
         background: 'var(--color-bg-elevated)',
-        padding: 'var(--space-3) var(--space-4)',
-        borderRadius: 'var(--radius-md)',
-        border: '1px solid var(--color-separator-opaque)'
+        padding: '12px 16px',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--color-separator-opaque)',
+        boxShadow: 'var(--shadow-xs)'
       }}>
-        {/* Row 1: Channel Tabs + View Mode */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          {/* Scope / Channel selector */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {/* Tier 1: Channels Pills + Search + View Switcher */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          {/* Channel selector as sleek pill tabs */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'var(--color-bg)',
+            padding: '3px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-separator-opaque)',
+            overflowX: 'auto',
+            maxWidth: '100%',
+            WebkitOverflowScrolling: 'touch'
+          }}>
             {[
               { id: 'online',   label: 'Online & Delivery', icon: Globe },
               { id: 'all',      label: 'All Channels',      icon: Filter },
@@ -954,131 +1038,231 @@ export default function OnlineOrders() {
                 <button
                   key={tab.id}
                   id={`channel-filter-${tab.id}`}
-                  className={`btn btn-sm ${active ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setChannelFilter(tab.id)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '12px',
-                    fontWeight: active ? 'var(--weight-bold)' : 'var(--weight-medium)',
-                    minHeight: 38,
-                    padding: '0 14px',
-                    borderRadius: 'var(--radius-md)'
+                    fontWeight: active ? 600 : 500,
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    background: active ? 'var(--color-bg-elevated)' : 'transparent',
+                    color: active ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  <Icon size={14} />
+                  <Icon size={13} style={{ color: active ? 'var(--color-accent)' : 'inherit' }} />
                   <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Search + View mode */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ position: 'relative', width: 220 }}>
-              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)' }} />
+          {/* Right side: Search Input + View Toggle */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flex: '1 1 auto',
+            justifyContent: 'flex-end',
+            minWidth: 200
+          }}>
+            {/* Search Input */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: 280, minWidth: 150 }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-label-tertiary)',
+                  pointerEvents: 'none'
+                }}
+              />
               <input
                 type="text"
-                placeholder="Search orders, phone..."
+                placeholder="Search orders, phone, ID..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="input input-sm"
-                style={{ paddingLeft: 30, width: '100%', fontSize: '12px', minHeight: 38, borderRadius: 'var(--radius-md)' }}
+                style={{
+                  width: '100%',
+                  paddingLeft: 32,
+                  paddingRight: search ? 30 : 12,
+                  height: 36,
+                  fontSize: '12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg)',
+                  border: '1px solid var(--color-separator-opaque)',
+                  color: 'var(--color-label)',
+                  outline: 'none',
+                  transition: 'border-color 0.15s ease'
+                }}
               />
               {search && (
                 <button
+                  type="button"
                   onClick={() => setSearch('')}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 4 }}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--color-label-tertiary)',
+                    padding: 4,
+                    display: 'flex'
+                  }}
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
 
-            <div style={{ display: 'flex', border: '1px solid var(--color-separator-opaque)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            {/* View Mode Toggle: List vs Kanban Board */}
+            <div style={{
+              display: 'inline-flex',
+              background: 'var(--color-bg)',
+              padding: '3px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-separator-opaque)'
+            }}>
               <button
-                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+                type="button"
                 onClick={() => setViewMode('list')}
                 title="Detailed List Feed"
-                style={{ borderRadius: 0, padding: '0 12px', minHeight: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 30,
+                  borderRadius: 'var(--radius-sm)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: viewMode === 'list' ? 'var(--color-bg-elevated)' : 'transparent',
+                  color: viewMode === 'list' ? 'var(--color-label)' : 'var(--color-label-tertiary)',
+                  boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <LayoutList size={16} />
+                <LayoutList size={15} />
               </button>
               <button
-                className={`btn btn-sm ${viewMode === 'board' ? 'btn-primary' : 'btn-secondary'}`}
+                type="button"
                 onClick={() => setViewMode('board')}
-                title="Kanban Board Workflow"
-                style={{ borderRadius: 0, padding: '0 12px', minHeight: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Kanban Board View"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 30,
+                  borderRadius: 'var(--radius-sm)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: viewMode === 'board' ? 'var(--color-bg-elevated)' : 'transparent',
+                  color: viewMode === 'board' ? 'var(--color-label)' : 'var(--color-label-tertiary)',
+                  boxShadow: viewMode === 'board' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <Columns size={16} />
+                <Columns size={15} />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Row 2: Status Lifecycle Badges & Filter Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, borderTop: '1px solid var(--color-separator-opaque)', paddingTop: 12 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setStatusFilter('all')}
-              style={{ fontSize: '12px', minHeight: 36, padding: '0 14px', borderRadius: 'var(--radius-md)', fontWeight: statusFilter === 'all' ? 'var(--weight-bold)' : 'var(--weight-medium)' }}
-            >
-              All Active ({counts.total})
-            </button>
-
-            <button
-              className={`btn btn-sm ${statusFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setStatusFilter('pending')}
-              style={{
-                fontSize: '12px',
-                minHeight: 36,
-                padding: '0 14px',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: statusFilter === 'pending' ? 'var(--weight-bold)' : 'var(--weight-medium)',
-                borderColor: counts.pending > 0 ? 'var(--color-yellow)' : undefined
-              }}
-            >
-              <span>⏳ Pending</span>
-              {counts.pending > 0 && (
-                <span className="badge badge-yellow" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>
-                  {counts.pending}
-                </span>
-              )}
-            </button>
-
-            <button
-              className={`btn btn-sm ${statusFilter === 'preparing' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setStatusFilter('preparing')}
-              style={{ fontSize: '12px', minHeight: 36, padding: '0 14px', borderRadius: 'var(--radius-md)', fontWeight: statusFilter === 'preparing' ? 'var(--weight-bold)' : 'var(--weight-medium)' }}
-            >
-              <span>🍳 Cooking</span>
-              {counts.preparing > 0 && (
-                <span className="badge badge-blue" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>
-                  {counts.preparing}
-                </span>
-              )}
-            </button>
-
-            <button
-              className={`btn btn-sm ${statusFilter === 'ready' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setStatusFilter('ready')}
-              style={{ fontSize: '12px', minHeight: 36, padding: '0 14px', borderRadius: 'var(--radius-md)', fontWeight: statusFilter === 'ready' ? 'var(--weight-bold)' : 'var(--weight-medium)' }}
-            >
-              <span>🛵 Out / Ready</span>
-              {counts.ready > 0 && (
-                <span className="badge badge-teal" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>
-                  {counts.ready}
-                </span>
-              )}
-            </button>
+        {/* Tier 2: Order Lifecycle Status Tabs + Rush Actions */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          borderTop: '1px solid var(--color-separator-opaque)',
+          paddingTop: '10px'
+        }}>
+          {/* Status Tabs with clean pill styling and non-wrapping horizontal scroll */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            overflowX: 'auto',
+            maxWidth: '100%',
+            paddingBottom: '2px',
+            WebkitOverflowScrolling: 'touch'
+          }}>
+            {[
+              { id: 'all',       label: 'All Active', count: counts.total, icon: null },
+              { id: 'pending',   label: 'Pending',    count: counts.pending, emoji: '⏳', isPending: true },
+              { id: 'preparing', label: 'Cooking',    count: counts.preparing, emoji: '🍳' },
+              { id: 'ready',     label: 'Out / Ready', count: counts.ready, emoji: '🛵' },
+            ].map(tab => {
+              const active = statusFilter === tab.id;
+              const hasAlert = tab.isPending && tab.count > 0;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '12px',
+                    fontWeight: active ? 600 : 500,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    background: active
+                      ? (hasAlert ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-fill-secondary)')
+                      : 'var(--color-bg)',
+                    color: active ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                    border: active
+                      ? (hasAlert ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--color-separator-opaque)')
+                      : '1px solid transparent'
+                  }}
+                >
+                  {tab.emoji && <span>{tab.emoji}</span>}
+                  <span>{tab.label}</span>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 18,
+                    height: 18,
+                    padding: '0 5px',
+                    borderRadius: '9999px',
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    background: hasAlert
+                      ? 'var(--color-yellow)'
+                      : (active ? 'var(--color-label)' : 'var(--color-fill)'),
+                    color: hasAlert
+                      ? '#000000'
+                      : (active ? 'var(--color-bg)' : 'var(--color-label-secondary)')
+                  }}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Quick Rush Hour Batch Action Buttons */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             {counts.preparing > 0 && (
               <button
+                type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
                   const preparing = baseOrders.filter(o => o.status === 'preparing');
@@ -1096,15 +1280,16 @@ export default function OnlineOrders() {
                     </div>
                   ));
                 }}
-                style={{ fontSize: '12px', minHeight: 36, padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
+                style={{ fontSize: '12px', minHeight: 32, padding: '0 10px', display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 'var(--radius-md)' }}
               >
-                <Zap size={13} />
-                <span>Mark All Cooking Ready</span>
+                <Zap size={13} color="var(--color-accent)" />
+                <span>Mark All Ready ({counts.preparing})</span>
               </button>
             )}
 
             {counts.ready > 0 && (
               <button
+                type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
                   const ready = baseOrders.filter(o => o.status === 'ready');
@@ -1122,10 +1307,10 @@ export default function OnlineOrders() {
                     </div>
                   ));
                 }}
-                style={{ fontSize: '12px', minHeight: 36, padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
+                style={{ fontSize: '12px', minHeight: 32, padding: '0 10px', display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 'var(--radius-md)' }}
               >
-                <CheckCircle2 size={13} />
-                <span>Batch Settle Ready</span>
+                <CheckCircle2 size={13} color="var(--color-green)" />
+                <span>Batch Settle ({counts.ready})</span>
               </button>
             )}
           </div>
@@ -1135,40 +1320,97 @@ export default function OnlineOrders() {
       {/* Main Content Area: List view vs Board view */}
       {filteredOrders.length === 0 ? (
         <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           textAlign: 'center',
-          padding: 'var(--space-12) var(--space-4)',
-          color: 'var(--color-label-tertiary)',
+          padding: '48px 20px',
           background: 'var(--color-bg-elevated)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px dashed var(--color-separator-opaque)'
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--color-separator-opaque)',
+          boxShadow: 'var(--shadow-xs)',
+          minHeight: 320
         }}>
-          <div style={{ fontSize: 48 }}>📱</div>
-          <h3 className="text-title3" style={{ marginTop: 'var(--space-3)', color: 'var(--color-label)' }}>
-            No {statusFilter !== 'all' ? statusFilter : ''} orders found
+          {/* Ambient icon badge */}
+          <div style={{
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(59,130,246,0.12))',
+            border: '1px solid rgba(16,185,129,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-accent)',
+            marginBottom: '16px',
+            boxShadow: '0 6px 20px rgba(16,185,129,0.12)'
+          }}>
+            {search ? <Search size={24} /> : <ShoppingBag size={24} />}
+          </div>
+
+          <h3 className="text-title3" style={{ margin: 0, fontWeight: 700, color: 'var(--color-label)' }}>
+            {search
+              ? `No orders matching "${search}"`
+              : statusFilter === 'pending'
+                ? 'No Pending Orders'
+                : statusFilter === 'preparing'
+                  ? 'Kitchen Is All Caught Up'
+                  : statusFilter === 'ready'
+                    ? 'No Orders Waiting for Pickup'
+                    : 'No Active Orders'}
           </h3>
-          <p className="text-secondary text-subhead" style={{ maxWidth: 440, margin: '8px auto' }}>
-            New online orders submitted through your customer ordering link or delivery integrations will appear here in real time.
+
+          <p className="text-secondary text-subhead" style={{ maxWidth: 440, margin: '8px auto 20px auto', lineHeight: 1.5 }}>
+            {search
+              ? 'Try searching by a different customer name, order ID, or phone number.'
+              : 'Incoming orders from your customer ordering link, table QR codes, and delivery platforms will appear here in real time.'}
           </p>
-          <div style={{ marginTop: 'var(--space-4)', display: 'flex', justifyContent: 'center', gap: 8 }}>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                const url = `${window.location.origin}/order/${restaurant?.id}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  toast.success('Online Store link copied!');
-                });
-              }}
-            >
-              Copy Customer Order Link
-            </button>
-            <a
-              href={`/order/${restaurant?.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary btn-sm"
-            >
-              Test Customer Experience
-            </a>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {search ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSearch('')}
+                style={{ padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+              >
+                Clear Search
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleCopyStoreLink}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+                >
+                  <Copy size={14} />
+                  <span>Copy Store Link</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowQrModal(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+                >
+                  <QrCode size={14} />
+                  <span>Store QR Code</span>
+                </button>
+
+                <a
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)', textDecoration: 'none' }}
+                >
+                  <ExternalLink size={14} />
+                  <span>Open Store Page</span>
+                </a>
+              </>
+            )}
           </div>
         </div>
       ) : viewMode === 'list' ? (
@@ -1526,6 +1768,68 @@ export default function OnlineOrders() {
               <button className="btn btn-secondary btn-sm" onClick={() => setQuickSettleOrder(null)} disabled={settling}>
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Store Ordering QR Code ── */}
+      {showQrModal && (
+        <div className="modal-backdrop" onClick={() => setShowQrModal(false)}>
+          <div className="modal-box" style={{ maxWidth: 380, textAlign: 'center', padding: '24px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <QrCode size={18} color="var(--color-accent)" />
+                <h3 className="text-title3" style={{ margin: 0 }}>Online Store QR</h3>
+              </div>
+              <button className="btn btn-secondary btn-icon btn-xs" onClick={() => setShowQrModal(false)}>
+                <X size={14} />
+              </button>
+            </div>
+
+            <div style={{
+              background: '#ffffff',
+              padding: '16px',
+              borderRadius: 'var(--radius-lg)',
+              display: 'inline-block',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              margin: '0 auto 16px auto'
+            }}>
+              {qrCodeDataUrl ? (
+                <img src={qrCodeDataUrl} alt="Store QR Code" style={{ width: 220, height: 220, display: 'block' }} />
+              ) : (
+                <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                  Generating QR...
+                </div>
+              )}
+            </div>
+
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 700, color: 'var(--color-label)' }}>
+              {restaurant?.name || 'Your Restaurant'}
+            </h4>
+            <p className="text-caption1 text-secondary" style={{ margin: '0 0 16px 0', lineHeight: 1.4 }}>
+              Customers scan this code with their smartphone camera to browse your digital menu, order food, and track kitchen status live.
+            </p>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleCopyStoreLink}
+                style={{ flex: 1, minHeight: 36 }}
+              >
+                <Copy size={13} /> Copy Link
+              </button>
+              {qrCodeDataUrl && (
+                <a
+                  href={qrCodeDataUrl}
+                  download={`${(restaurant?.name || 'store').replace(/\s+/g, '_')}_qr.png`}
+                  className="btn btn-primary btn-sm"
+                  style={{ flex: 1, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+                >
+                  Download QR
+                </a>
+              )}
             </div>
           </div>
         </div>
