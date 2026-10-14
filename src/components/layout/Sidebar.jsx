@@ -528,38 +528,64 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         )}
 
         {/* Bottom Actions: Guide, Theme, Logout, Collapse */}
-        <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+        <div style={{ width: '100%' }}>
           {!isCollapsed ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowGuide(true)}
-                title="Help & Guide"
-                style={{
-                  flex: 1,
-                  height: '40px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '10px'
-                }}
-              >
-                <BookOpen size={16} />
-                Guide
-              </button>
-              <ThemeToggle className="sidebar-theme-toggle" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              {/* Utility row: Guide + Theme + Collapse */}
+              <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowGuide(true)}
+                  title="Help & Guide"
+                  style={{
+                    flex: 1,
+                    height: '38px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '10px'
+                  }}
+                >
+                  <BookOpen size={15} />
+                  <span>Guide</span>
+                </button>
+
+                <ThemeToggle className="sidebar-theme-toggle" />
+
+                {!mobileOpen && (
+                  <button
+                    className="btn btn-secondary btn-icon sidebar-collapse-btn"
+                    style={{ 
+                      width: '38px',
+                      height: '38px',
+                      flexShrink: 0,
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    onClick={() => setCollapsed(!collapsed)}
+                    title="Collapse sidebar"
+                    aria-label="Collapse sidebar"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Logout Button */}
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={handleSignOut}
                 title="Sign out"
                 style={{
-                  flex: 1,
-                  height: '40px',
+                  width: '100%',
+                  height: '38px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -567,20 +593,22 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '10px',
-                  color: '#ef4444'
+                  color: 'var(--color-red)',
+                  borderColor: 'rgba(239, 68, 68, 0.25)',
+                  background: 'rgba(239, 68, 68, 0.05)'
                 }}
               >
-                <LogOut size={16} />
-                Logout
+                <LogOut size={15} />
+                <span>Logout</span>
               </button>
-            </>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
               <button
                 className="btn btn-secondary btn-icon"
                 onClick={() => setShowGuide(true)}
                 title="Help & Guide"
-                style={{ width: '38px', height: '38px' }}
+                style={{ width: '38px', height: '38px', borderRadius: '10px' }}
               >
                 <BookOpen size={16} />
               </button>
@@ -589,29 +617,29 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 className="btn btn-secondary btn-icon"
                 onClick={handleSignOut}
                 title="Sign out"
-                style={{ width: '38px', height: '38px', color: '#ef4444' }}
+                style={{ width: '38px', height: '38px', borderRadius: '10px', color: 'var(--color-red)' }}
               >
                 <LogOut size={16} />
               </button>
+              {!mobileOpen && (
+                <button
+                  className="btn btn-secondary btn-icon sidebar-collapse-btn"
+                  style={{ 
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onClick={() => setCollapsed(!collapsed)}
+                  title="Expand sidebar"
+                  aria-label="Expand sidebar"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              )}
             </div>
-          )}
-
-          {/* Desktop Collapse Button */}
-          {!mobileOpen && (
-            <button
-              className="btn btn-secondary btn-icon sidebar-collapse-btn"
-              style={{ 
-                width: '38px',
-                height: '40px',
-                flexShrink: 0,
-                borderRadius: '10px'
-              }}
-              onClick={() => setCollapsed(!collapsed)}
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </button>
           )}
         </div>
       </div>
