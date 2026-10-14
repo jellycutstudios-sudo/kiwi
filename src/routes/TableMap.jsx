@@ -738,10 +738,10 @@ export default function TableMap() {
 
   return (
     <div className="tm-root">
-      {/* ═══ STREAMLINED TOUCH-OPTIMIZED CONTROLS BAR (2 ROWS MAX) ═══ */}
+      {/* ═══ TOUCH-FIRST CONTROLS BAR ═══ */}
       <div className="tm-controls-bar">
-        {/* Row 1: Swipeable Floor Tabs + View Mode Controls */}
-        <div className="tm-controls-row tm-controls-row--primary">
+        {/* Row 1: Dedicated Full-Width Swipeable Floor Navigation */}
+        <div className="tm-floor-tabs-bar">
           <div className="tm-floor-tabs">
             {allFloors.map(floor => {
               const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
@@ -780,46 +780,10 @@ export default function TableMap() {
               </button>
             )}
           </div>
-
-          {/* Right: View Switchers & Edit Layout */}
-          <div className="tm-view-switchers">
-            <div className="tm-segmented-control">
-              <button
-                type="button"
-                className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-              >
-                <LayoutGrid size={12} />
-                <span>Grid</span>
-              </button>
-              <button
-                type="button"
-                className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
-                onClick={() => setViewMode('map')}
-                title="Floor Map"
-              >
-                <MapIcon size={12} />
-                <span>Map</span>
-              </button>
-            </div>
-
-            {canEditLayout && (
-              <button
-                type="button"
-                className={`tm-edit-layout-btn ${isEditingLayout ? 'tm-edit-layout-btn--active' : ''}`}
-                onClick={toggleEditLayout}
-                title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
-              >
-                {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
-                <span>{isEditingLayout ? 'Done' : 'Edit'}</span>
-              </button>
-            )}
-          </div>
         </div>
 
-        {/* Row 2: Status Filter Pills & Inline Quick Search */}
-        <div className="tm-controls-row tm-controls-row--secondary">
+        {/* Row 2: Status Filter Pills + View Switcher & Search */}
+        <div className="tm-actions-bar">
           <div className="tm-filter-pills">
             {[
               { key: 'all', label: `All (${floorTables.length})` },
@@ -844,19 +808,55 @@ export default function TableMap() {
             )}
           </div>
 
-          {/* Compact Inline Search */}
-          <div className="tm-search">
-            <Search size={12} className="tm-search-icon" />
-            <input
-              type="text"
-              placeholder="Find table…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="tm-search-input"
-            />
-            {searchQuery && (
-              <button type="button" className="tm-search-clear" onClick={() => setSearchQuery('')}>
-                <X size={11} />
+          <div className="tm-actions-right">
+            {/* Compact Search */}
+            <div className="tm-search">
+              <Search size={12} className="tm-search-icon" />
+              <input
+                type="text"
+                placeholder="Find table…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="tm-search-input"
+              />
+              {searchQuery && (
+                <button type="button" className="tm-search-clear" onClick={() => setSearchQuery('')}>
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+
+            {/* View Switchers: Grid vs Floor Map */}
+            <div className="tm-segmented-control">
+              <button
+                type="button"
+                className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
+                onClick={() => setViewMode('grid')}
+                title="Grid View"
+              >
+                <LayoutGrid size={12} />
+                <span className="tm-switcher-label">Grid</span>
+              </button>
+              <button
+                type="button"
+                className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
+                onClick={() => setViewMode('map')}
+                title="Floor Map"
+              >
+                <MapIcon size={12} />
+                <span className="tm-switcher-label">Map</span>
+              </button>
+            </div>
+
+            {canEditLayout && (
+              <button
+                type="button"
+                className={`tm-edit-layout-btn ${isEditingLayout ? 'tm-edit-layout-btn--active' : ''}`}
+                onClick={toggleEditLayout}
+                title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+              >
+                {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
+                <span className="tm-switcher-label">{isEditingLayout ? 'Done' : 'Edit'}</span>
               </button>
             )}
           </div>

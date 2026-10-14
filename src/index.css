@@ -5106,33 +5106,30 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 .tm-search-clear:hover { background: var(--color-fill-secondary); }
 
-/* ── Modern Touch-First Controls Bar (2 Rows Max, No Clutter) ── */
+/* ── Modern Touch-First Controls Bar ── */
 .tm-controls-bar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
-.tm-controls-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
+/* Row 1: Dedicated Full-Width Floor Navigation */
+.tm-floor-tabs-bar {
+  width: 100%;
+  overflow: hidden;
+  padding: 1px 0;
 }
 
-/* Row 1: Floor Tabs & View Switchers */
 .tm-floor-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  flex: 1;
-  min-width: 0;
-  padding: 1px 0;
+  width: 100%;
+  padding: 2px 2px 4px;
 }
 .tm-floor-tabs::-webkit-scrollbar {
   display: none;
@@ -5141,10 +5138,11 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .tm-floor-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 8px;
+  padding: 8px 16px;
+  height: 38px;
+  font-size: 13px;
+  font-weight: 700;
   border-radius: 999px;
   border: 1px solid var(--color-separator);
   background: var(--color-bg-secondary);
@@ -5156,6 +5154,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   font-family: var(--font-family);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .tm-floor-tab:hover {
   background: var(--color-fill);
@@ -5168,15 +5167,16 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   background: var(--color-label);
   color: var(--color-bg);
   border-color: transparent;
-  font-weight: 700;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .tm-floor-badge {
-  font-size: 10px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.25);
   color: inherit;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
   line-height: 1.2;
 }
@@ -5213,74 +5213,19 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   font-weight: 700;
 }
 
-/* View Switchers on Right */
-.tm-view-switchers {
-  display: inline-flex;
+/* Row 2: Actions Bar (Filters on Left, View & Search on Right) */
+.tm-actions-bar {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
-.tm-segmented-control {
-  display: inline-flex;
-  padding: 2px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-separator);
-  border-radius: 8px;
-}
-
-.tm-segmented-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  height: 26px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--color-label-secondary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  user-select: none;
-  white-space: nowrap;
-}
-.tm-segmented-btn--active {
-  background: var(--color-bg-elevated);
-  color: var(--color-label);
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.tm-edit-layout-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 30px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 8px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-separator);
-  color: var(--color-label);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-.tm-edit-layout-btn--active {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-}
-
-/* Row 2: Filter Pills & Search */
 .tm-filter-pills {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -5296,8 +5241,9 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 6px 12px;
+  height: 32px;
+  font-size: 11.5px;
   font-weight: 700;
   border-radius: 999px;
   border: 1px solid var(--color-separator);
@@ -5336,10 +5282,19 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   color: #10b981;
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.25);
-  padding: 3px 8px;
+  padding: 4px 9px;
+  height: 32px;
+  box-sizing: border-box;
   border-radius: 999px;
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.tm-actions-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 /* Compact Search */
@@ -5357,14 +5312,14 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   font-size: 11.5px;
   font-family: var(--font-family);
   color: var(--color-label);
-  width: 120px;
-  height: 28px;
+  width: 95px;
+  height: 30px;
   outline: none;
   transition: width 0.2s ease, border-color 0.15s ease;
 }
 .tm-search-input:focus {
   border-color: var(--color-accent);
-  width: 155px;
+  width: 140px;
   background: var(--color-bg-elevated);
 }
 .tm-search-icon {
@@ -5389,53 +5344,117 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   padding: 0;
 }
 
-/* ── Modern Table Grid & Cards ── */
+/* View Switchers on Right */
+.tm-segmented-control {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  border-radius: 8px;
+}
+
+.tm-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  height: 26px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-label-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+.tm-segmented-btn--active {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tm-edit-layout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.tm-edit-layout-btn--active {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+@media (max-width: 480px) {
+  .tm-switcher-label {
+    display: none;
+  }
+}
+
+/* ── Modern Table Grid & Touch Cards (2 Columns on Mobile for Huge Touch Area) ── */
 .tm-grid {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
   align-content: start;
-  padding: 4px 0 20px;
+  padding: 6px 0 32px;
 }
 
-@media (min-width: 641px) {
+@media (min-width: 601px) {
   .tm-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    padding: 6px 0 24px;
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    gap: 12px;
+    padding: 8px 0 32px;
   }
   .tm-search-input {
-    width: 140px;
+    width: 120px;
   }
   .tm-search-input:focus {
-    width: 180px;
+    width: 160px;
   }
 }
 
 @media (min-width: 1024px) {
   .tm-grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    padding: 10px 0 36px;
   }
 }
 
 .tm-card {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-separator);
-  border-radius: 12px;
-  padding: 9px 10px;
+  border-radius: 14px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 76px;
+  min-height: 94px;
   cursor: pointer;
   position: relative;
   transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 .tm-card:active {
   transform: scale(0.97);
@@ -5443,7 +5462,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 
 .tm-card--free:hover {
   border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.1);
 }
 
 .tm-card--occupied {
@@ -5452,7 +5471,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 .tm-card--occupied:hover {
   border-color: rgba(239, 68, 68, 0.6);
-  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.14);
+  box-shadow: 0 3px 12px rgba(239, 68, 68, 0.16);
 }
 
 .tm-card--ready {
@@ -5475,41 +5494,41 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .tm-card-title-group {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
 }
 
 .tm-card-name {
-  font-size: 17px;
-  font-weight: 800;
+  font-size: 21px;
+  font-weight: 900;
   color: var(--color-label);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .tm-card-cap {
-  font-size: 10px;
+  font-size: 11.5px;
   color: var(--color-label-tertiary);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .tm-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   letter-spacing: 0.2px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -5546,24 +5565,24 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 .tm-card-footer {
-  margin-top: 6px;
+  margin-top: 8px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  min-height: 16px;
+  min-height: 18px;
 }
 
 .tm-card-total {
-  font-size: 14.5px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--color-label);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
   line-height: 1;
 }
 
 .tm-card-meta {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-label-tertiary);
   font-weight: 600;
   white-space: nowrap;
@@ -5572,22 +5591,22 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .tm-card-vacant-indicator {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: var(--color-label-tertiary);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .tm-vacant-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #10b981;
   display: inline-block;
 }
 
 .tm-card-reserved-info {
-  font-size: 10.5px;
+  font-size: 11px;
   color: #f59e0b;
   font-weight: 600;
   overflow: hidden;
