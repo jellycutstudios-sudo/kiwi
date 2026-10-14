@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { collection, onSnapshot, doc, setDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { 
@@ -599,6 +599,21 @@ export default function DeliveryHub() {
   const isPlatformEnabled = (platformId) => integrations[platformId]?.enabled === true;
   const isPlatformPaused = (platformId) => platformSettings[platformId]?.paused === true;
 
+  const handleTogglePlatform = async (platformId, enable) => {
+    if (!restaurant?.id || !isUserAdmin) return;
+    try {
+      await updateDoc(doc(db, 'restaurants', restaurant.id), {
+        [`deliveryIntegrations.${platformId}.enabled`]: enable
+      });
+      toast.success(`${PLATFORM_META[platformId]?.name} ${enable ? 'activated' : 'deactivated'}!`, {
+        icon: enable ? '⚡' : '⏸️'
+      });
+    } catch (err) {
+      console.error('Error toggling platform:', err);
+      toast.error('Failed to update platform status');
+    }
+  };
+
   // Category status check
   const isCategoryEnabled = (platformId, categoryId) => {
     const platformOverride = categoryOverrides[platformId]?.[categoryId];
@@ -863,14 +878,25 @@ export default function DeliveryHub() {
                     </div>
 
                     {isEnabled && isUserAdmin && (
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => triggerSync(id)}
-                        disabled={syncing || syncingPlatform !== null}
-                        style={{ padding: '6px 12px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 6 }}
-                      >
-                        <RefreshCw size={13} className={isSyncingThis ? 'spin' : ''} /> Sync
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => triggerSync(id)}
+                          disabled={syncing || syncingPlatform !== null}
+                          style={{ padding: '6px 12px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 6 }}
+                          title="Trigger manual menu catalog sync to platform"
+                        >
+                          <RefreshCw size={13} className={isSyncingThis ? 'spin' : ''} /> Sync
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleTogglePlatform(id, false)}
+                          title="Deactivate this channel"
+                          style={{ padding: '6px 8px', minHeight: 36, color: 'var(--color-label-tertiary)', fontSize: '11px' }}
+                        >
+                          Disable
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -928,8 +954,28 @@ export default function DeliveryHub() {
                       </div>
                     </div>
                   ) : (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 60, color: 'var(--color-label-tertiary)', fontSize: 'var(--text-footnote)', textAlign: 'center', padding: '0 var(--space-4)' }}>
-                      Inactive. Enable this platform in settings to begin receiving orders.
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 'var(--space-4) var(--space-2)', minHeight: 100 }}>
+                      <span style={{ color: 'var(--color-label-tertiary)', fontSize: 'var(--text-caption1)', textAlign: 'center' }}>
+                        Inactive. Enable to start receiving orders & menu sync.
+                      </span>
+                      {isUserAdmin && (
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleTogglePlatform(id, true)}
+                            style={{ minHeight: 36, padding: '0 14px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          >
+                            <Check size={14} /> Quick Enable
+                          </button>
+                          <a
+                            href="/admin/settings"
+                            className="btn btn-secondary btn-sm"
+                            style={{ minHeight: 36, padding: '0 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            Configure API Keys →
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
 

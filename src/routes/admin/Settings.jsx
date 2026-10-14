@@ -2191,8 +2191,61 @@ export default function Settings() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
                   {[
                     {
+                      id: 'talabat',
+                      name: 'Talabat',
+                      region: 'Qatar & GCC',
+                      emoji: '🟧',
+                      fields: [
+                        { key: 'apiKey', label: 'Talabat Partner API Key', placeholder: 'talabat_api_key_...' },
+                        { key: 'restaurantId', label: 'Talabat Restaurant / Chain ID', placeholder: 'talabat_branch_id_...' },
+                        { key: 'storeId', label: 'Store Code (Optional)', placeholder: 'e.g. DOH-001' }
+                      ]
+                    },
+                    {
+                      id: 'snoonu',
+                      name: 'Snoonu',
+                      region: 'Qatar',
+                      emoji: '🔴',
+                      fields: [
+                        { key: 'apiKey', label: 'Snoonu Merchant API Token', placeholder: 'snoonu_token_...' },
+                        { key: 'merchantId', label: 'Merchant ID', placeholder: 'snoonu_merchant_id_...' },
+                        { key: 'branchId', label: 'Branch ID', placeholder: 'snoonu_branch_id_...' }
+                      ]
+                    },
+                    {
+                      id: 'rafeeq',
+                      name: 'Rafeeq',
+                      region: 'Qatar',
+                      emoji: '🟣',
+                      fields: [
+                        { key: 'apiKey', label: 'Rafeeq Partner API Token', placeholder: 'rafeeq_api_key_...' },
+                        { key: 'vendorId', label: 'Vendor / Branch ID', placeholder: 'rafeeq_vendor_id_...' }
+                      ]
+                    },
+                    {
+                      id: 'jahez',
+                      name: 'Jahez',
+                      region: 'Qatar & GCC',
+                      emoji: '🟨',
+                      fields: [
+                        { key: 'apiKey', label: 'Jahez API Key', placeholder: 'jahez_key_...' },
+                        { key: 'branchId', label: 'Branch Code', placeholder: 'jahez_branch_code_...' }
+                      ]
+                    },
+                    {
+                      id: 'deliveroo',
+                      name: 'Deliveroo',
+                      region: 'UAE, Qatar & Global',
+                      emoji: '🦘',
+                      fields: [
+                        { key: 'apiKey', label: 'API Key', placeholder: 'deliveroo_api_key_...' },
+                        { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'deliveroo_restaurant_id_...' }
+                      ]
+                    },
+                    {
                       id: 'ubereats',
                       name: 'Uber Eats',
+                      region: 'Global',
                       emoji: '🚗',
                       fields: [
                         { key: 'clientId', label: 'Client ID', placeholder: 'client_id_...' },
@@ -2203,6 +2256,7 @@ export default function Settings() {
                     {
                       id: 'zomato',
                       name: 'Zomato',
+                      region: 'India & UAE',
                       emoji: '🍕',
                       fields: [
                         { key: 'apiKey', label: 'API Key', placeholder: 'zomato_api_key_...' },
@@ -2212,19 +2266,11 @@ export default function Settings() {
                     {
                       id: 'swiggy',
                       name: 'Swiggy',
+                      region: 'India',
                       emoji: '🟠',
                       fields: [
                         { key: 'apiKey', label: 'API Key', placeholder: 'swiggy_api_key_...' },
                         { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'swiggy_restaurant_id_...' }
-                      ]
-                    },
-                    {
-                      id: 'deliveroo',
-                      name: 'Deliveroo',
-                      emoji: '🦘',
-                      fields: [
-                        { key: 'apiKey', label: 'API Key', placeholder: 'deliveroo_api_key_...' },
-                        { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'deliveroo_restaurant_id_...' }
                       ]
                     }
                   ].map(platform => {
@@ -2252,6 +2298,20 @@ export default function Settings() {
                             <span style={{ fontSize: '1.5rem' }}>{platform.emoji}</span>
                             <div>
                               <span style={{ fontWeight: 'var(--weight-semibold)' }}>{platform.name}</span>
+                              {platform.region && (
+                                <span style={{
+                                  marginLeft: 'var(--space-2)',
+                                  fontSize: '10px',
+                                  fontWeight: 'var(--weight-medium)',
+                                  padding: '1px 6px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  background: 'var(--color-bg)',
+                                  border: '1px solid var(--color-separator-opaque)',
+                                  color: 'var(--color-label-secondary)'
+                                }}>
+                                  {platform.region}
+                                </span>
+                              )}
                               <span style={{
                                 marginLeft: 'var(--space-2)',
                                 fontSize: 'var(--text-caption2)',
