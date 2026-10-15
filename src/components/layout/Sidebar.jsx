@@ -302,6 +302,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             {NAV.filter(n => {
               const hasRole = n.roles.includes('all') || n.roles.includes(role);
               if (!hasRole) return false;
+              if (n.key === 'dashboard' && role === 'cashier' && !restaurant?.allowCashierDashboard) {
+                return false;
+              }
               if (n.requiredMode) {
                 if (n.key === 'kds') {
                   const km = restaurant?.kitchenConfig?.mode;

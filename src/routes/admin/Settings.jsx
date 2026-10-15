@@ -9,7 +9,7 @@ import {
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, Coins,
   Download, ShieldCheck, FileSpreadsheet, Bot,
-  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone, HardDrive
+  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard
 } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
@@ -1069,7 +1069,74 @@ export default function Settings() {
 
           {/* Security & Password Tab */}
           {activeTab === 'security' && (
-            <AdminSecuritySettings />
+            <>
+              {/* Cashier Dashboard Access Card */}
+              <div 
+                className="card card-padded"
+                style={{ 
+                  borderLeft: settings.allowCashierDashboard ? '4px solid #10b981' : '4px solid var(--color-separator)',
+                  background: 'var(--color-bg-elevated)',
+                  marginBottom: 'var(--space-4)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <LayoutDashboard size={18} color={settings.allowCashierDashboard ? '#10b981' : 'var(--color-accent)'} />
+                      <h3 className="text-title3" style={{ margin: 0 }}>
+                        Cashier Dashboard &amp; Sales Access
+                      </h3>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        padding: '2px 8px', 
+                        borderRadius: 999, 
+                        background: settings.allowCashierDashboard ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)', 
+                        color: settings.allowCashierDashboard ? '#10b981' : '#94a3b8', 
+                        border: settings.allowCashierDashboard ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(100, 116, 139, 0.3)' 
+                      }}>
+                        {settings.allowCashierDashboard ? 'Cashiers Can View Sales' : 'Hidden from Cashiers (Recommended)'}
+                      </span>
+                    </div>
+                    <p className="text-secondary text-footnote" style={{ margin: 0, lineHeight: 1.5 }}>
+                      When turned off, cashiers land directly on the POS register and cannot see total daily sales, revenue charts, or managerial analytics. Keep this off to protect confidential business figures.
+                    </p>
+                  </div>
+                  <label className="toggle-switch" style={{ cursor: 'pointer', flexShrink: 0 }}>
+                    <input
+                      type="checkbox"
+                      id="toggle-cashier-dashboard"
+                      checked={Boolean(settings.allowCashierDashboard)}
+                      onChange={async (e) => {
+                        const enable = e.target.checked;
+                        updateField('allowCashierDashboard', enable);
+                        const updatedRest = { ...(restaurant || {}), allowCashierDashboard: enable };
+                        useAuthStore.setState({ restaurant: updatedRest });
+                        try {
+                          if (typeof localStorage !== 'undefined' && restaurant?.id) {
+                            localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
+                          }
+                          if (!settings.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+                            await updateDoc(doc(db, 'restaurants', restaurant.id), { allowCashierDashboard: enable });
+                          }
+                        } catch (err) {
+                          console.warn('[Settings] Failed to save allowCashierDashboard directly:', err);
+                        }
+                        if (enable) {
+                          toast.success('Cashiers can now view the Dashboard overview.', { icon: '📊' });
+                        } else {
+                          toast.success('Dashboard hidden from cashiers. Cashiers will land on the POS register.', { icon: '🔒' });
+                        }
+                      }}
+                    />
+                    <span className="toggle-slider" />
+                  </label>
+                </div>
+              </div>
+
+              <AdminSecuritySettings />
+            </>
           )}
 
           {/* Workflows & Operations Tab */}

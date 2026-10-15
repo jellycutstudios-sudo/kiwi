@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useMenuStore } from '../stores/menuStore';
@@ -29,6 +30,16 @@ import {
 export default function Dashboard() {
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
+  const user = useAuthStore(s => s.user);
+
+  // Cashier access control: Cashiers land directly on /pos and cannot view management turnover
+  const staffRole = staffDoc?.role ?? (user ? 'admin' : 'cashier');
+  const isCashier = staffRole === 'cashier';
+  const canAccessDashboard = !isCashier || Boolean(restaurant?.allowCashierDashboard);
+
+  if (!canAccessDashboard) {
+    return <Navigate to="/pos" replace />;
+  }
   const activeOrders = useOrderStore(s => s.activeOrders);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const categories = useMenuStore(s => s.categories);
