@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -74,6 +74,27 @@ export default function AppShell() {
     const cleanup = useOfflineQueueStore.getState().initNetworkListeners();
     return () => cleanup && cleanup();
   }, []);
+
+  // Subtle 1-time transition toast when entering or recovering from offline mode
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (!isOnline) {
+      toast('🛡️ Offline Mode active — POS, tables & receipts work without internet.', {
+        id: 'offline-mode-status',
+        icon: '🛡️',
+        duration: 4000
+      });
+    } else {
+      toast.success('🌐 Connection restored — cloud auto-sync active.', {
+        id: 'offline-mode-status',
+        duration: 3000
+      });
+    }
+  }, [isOnline]);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
@@ -233,49 +254,6 @@ export default function AppShell() {
       )}
 
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        {/* Offline Unbreakable Mode Banner */}
-        {!isOnline && (
-          <div 
-            role="alert"
-            style={{ 
-              background: 'linear-gradient(90deg, #18181b 0%, #09090b 100%)', 
-              color: '#ffffff', 
-              padding: '9px 16px', 
-              textAlign: 'center', 
-              fontSize: '13px', 
-              fontWeight: 500, 
-              zIndex: 100, 
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
-              borderBottom: '1px solid rgba(255,255,255,0.12)'
-            }}
-          >
-            <span style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: '4px',
-              background: 'rgba(249, 115, 22, 0.2)', 
-              color: '#fb923c', 
-              border: '1px solid rgba(249, 115, 22, 0.35)',
-              padding: '2px 8px', 
-              borderRadius: '999px',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase'
-            }}>
-              🛡️ Offline Unbreakable Mode
-            </span>
-            <span style={{ color: '#e4e4e7' }}>
-              Taking orders, printing receipts &amp; table operations continue seamlessly. All changes will auto-sync when reconnected.
-            </span>
-          </div>
-        )}
-
         {/* Top Bar */}
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
           {/* Burger menu button visible only on mobile/tablet */}
@@ -459,7 +437,9 @@ export default function AppShell() {
               id="network-outbox-status-btn"
               className={`network-outbox-status-btn ${isOnline && offlineQueue.length === 0 ? 'is-clean-online' : ''}`}
               onClick={() => setShowOfflineModal(true)}
-              title={isOnline ? (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered - click to inspect` : 'Connected to cloud server') : 'Network Offline - buffering orders locally'}
+              title={!isOnline 
+                ? `Offline Mode Active — ${offlineQueue.length} order(s) buffered locally. Tap to inspect.` 
+                : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — click to inspect` : 'Connected to cloud server')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -487,8 +467,8 @@ export default function AppShell() {
                 width: 7,
                 height: 7,
                 borderRadius: '50%',
-                background: !isOnline ? '#ef4444' : (offlineQueue.length > 0 ? '#f59e0b' : '#22c55e'),
-                boxShadow: !isOnline ? '0 0 6px #ef4444' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e'),
+                background: !isOnline ? '#f59e0b' : (offlineQueue.length > 0 ? '#f59e0b' : '#22c55e'),
+                boxShadow: !isOnline ? '0 0 8px rgba(245, 158, 11, 0.6)' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e'),
                 flexShrink: 0
               }} />
               <span className="network-status-text">

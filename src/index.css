@@ -1931,14 +1931,22 @@ html.dark .advisor-btn-icon {
     gap: 3px;
   }
 
-  /* Compact Network Status Button on mobile — always icon-only */
-  .network-outbox-status-btn {
+  /* Compact Network Status Button on mobile */
+  .network-outbox-status-btn.is-clean-online {
     width: 34px !important;
     padding: 0 !important;
     justify-content: center;
   }
-  .network-outbox-status-btn .network-status-text {
+  .network-outbox-status-btn.is-clean-online .network-status-text {
     display: none !important;
+  }
+  .network-outbox-status-btn:not(.is-clean-online) {
+    width: auto !important;
+    padding: 0 8px !important;
+  }
+  .network-outbox-status-btn:not(.is-clean-online) .network-status-text {
+    display: inline !important;
+    font-size: 11px !important;
   }
 
   /* Hide unneeded top bar options on mobile POS to prevent clutter */
