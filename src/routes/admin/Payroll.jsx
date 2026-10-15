@@ -268,19 +268,20 @@ export default function Payroll() {
       <div className="card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
           <span className="card-title">Employee Salaries</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 240 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flex: '1 1 200px', maxWidth: 320 }}>
             <Search size={16} className="text-secondary" style={{ marginRight: -32, zIndex: 1 }} />
             <input 
               className="form-input" 
               placeholder="Search staff or role..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: 'var(--space-8)' }}
+              style={{ paddingLeft: 'var(--space-8)', width: '100%' }}
             />
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table */}
+        <div className="desktop-only" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 800 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
@@ -383,6 +384,94 @@ export default function Payroll() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Touch Cards View */}
+        <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {filteredRecords.map(r => (
+              <div
+                key={r.staffId}
+                className="card"
+                style={{
+                  padding: 'var(--space-3)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-separator)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-2)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%',
+                      background: 'var(--color-accent-light)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', fontSize: 'var(--text-subhead)',
+                      flexShrink: 0
+                    }}>
+                      {r.staffName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 'var(--weight-bold)', fontSize: '15px' }}>{r.staffName}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', textTransform: 'capitalize' }}>{r.role}</div>
+                    </div>
+                  </div>
+                  <span className={`badge ${r.hasSavedEntry ? 'badge-green' : 'badge-gray'}`}>
+                    {r.hasSavedEntry ? 'Saved' : 'Draft'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', background: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-md)' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Structure</div>
+                    <div style={{ fontSize: '12.5px', fontWeight: 700, marginTop: 2 }}>
+                      <span className={`badge ${r.salaryType === 'hourly' ? 'badge-blue' : 'badge-purple'}`} style={{ fontSize: 10 }}>
+                        {r.salaryType === 'hourly' ? 'Hourly' : 'Monthly'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                      {formatCurrency(r.salaryRate, restaurant?.currency)}{r.salaryType === 'hourly' ? '/hr' : ''}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Net Payout</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-accent)', marginTop: 2 }}>
+                      {formatCurrency(r.netPay, restaurant?.currency)}
+                    </div>
+                    {r.salaryType === 'hourly' && (
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        {r.hoursWorked} hrs {r.overtimeHours > 0 ? `(+${r.overtimeHours} OT)` : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(r.bonus > 0 || r.deductions > 0) && (
+                  <div style={{ display: 'flex', gap: 12, fontSize: '11.5px', padding: '0 4px' }}>
+                    {r.bonus > 0 && <span className="text-green">+{formatCurrency(r.bonus, restaurant?.currency)} bonus</span>}
+                    {r.deductions > 0 && <span className="text-red">-{formatCurrency(r.deductions, restaurant?.currency)} ded.</span>}
+                  </div>
+                )}
+
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openEditModal(r)}
+                  style={{ width: '100%', height: 38, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600 }}
+                >
+                  <Edit2 size={13} /> Edit Pay Details
+                </button>
+              </div>
+            ))}
+            {filteredRecords.length === 0 && (
+              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                No matching employees found
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

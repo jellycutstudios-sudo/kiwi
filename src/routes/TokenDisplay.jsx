@@ -241,17 +241,7 @@ export default function TokenDisplay() {
 
       <div className="token-display-brand" style={{ color: themeColors.brand }}>🍽️ DineOS</div>
 
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        width: '100%',
-        maxWidth: 1400,
-        margin: '0 auto',
-        paddingTop: 'var(--space-8)',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        gap: '8vw'
-      }}>
+      <div className="token-display-layout">
         {/* Left Side: Recent History */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', opacity: isLight ? 1 : 0.6, paddingTop: 'var(--space-12)' }}>
           {recentHistory.length > 0 && (
@@ -333,14 +323,17 @@ export default function TokenDisplay() {
       </div>
 
       {/* Stats bar */}
-      <div style={{
-        position: 'fixed',
-        bottom: 'var(--space-6)',
-        display: 'flex',
-        gap: 'var(--space-8)',
-        color: themeColors.textTertiary,
-        fontSize: 14,
-      }}>
+      <div 
+        className="token-display-stats"
+        style={{
+          position: 'fixed',
+          bottom: 'var(--space-6)',
+          display: 'flex',
+          gap: 'var(--space-8)',
+          color: themeColors.textTertiary,
+          fontSize: 14,
+        }}
+      >
         <div>Issued: <strong style={{ color: themeColors.textSecondary }}>{latestIssued ?? 0}</strong></div>
         <div>Waiting: <strong style={{ color: themeColors.textSecondary }}>{Math.max(0, (latestIssued ?? 0) - (currentServing ?? 0))}</strong></div>
       </div>

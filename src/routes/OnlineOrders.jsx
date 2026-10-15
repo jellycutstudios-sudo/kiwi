@@ -902,7 +902,7 @@ export default function OnlineOrders() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', height: '100%' }}>
       {/* ── Top Header / Online Ordering Hub ── */}
-      <div style={{
+      <div className="online-orders-hero-header" style={{
         background: 'var(--color-bg-elevated)',
         border: '1px solid var(--color-separator-opaque)',
         borderRadius: 'var(--radius-xl)',
@@ -914,10 +914,10 @@ export default function OnlineOrders() {
         gap: '14px',
         boxShadow: 'var(--shadow-xs)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             borderRadius: 'var(--radius-md)',
             background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.18))',
             border: '1px solid rgba(16,185,129,0.3)',
@@ -927,7 +927,7 @@ export default function OnlineOrders() {
             justifyContent: 'center',
             flexShrink: 0
           }}>
-            <Globe size={22} />
+            <Globe size={20} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -947,17 +947,17 @@ export default function OnlineOrders() {
                 border: '1px solid rgba(16, 185, 129, 0.25)'
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-green)', boxShadow: '0 0 6px var(--color-green)' }} />
-                Live Sync Active
+                Live Sync
               </span>
             </div>
             <p className="text-caption1 text-secondary" style={{ margin: 0, marginTop: 2 }}>
-              Accept incoming online orders, advance kitchen cooking stages, and let customers track food live.
+              Accept incoming orders & manage live tracking.
             </p>
           </div>
         </div>
 
         {/* Share & Customer Store Action Group */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="online-orders-action-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -977,7 +977,7 @@ export default function OnlineOrders() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
           >
             {copiedLink ? <Check size={14} color="var(--color-green)" /> : <Copy size={14} />}
-            <span>{copiedLink ? 'Copied Link' : 'Copy Store Link'}</span>
+            <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
           </button>
 
           <a
@@ -989,7 +989,7 @@ export default function OnlineOrders() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)', textDecoration: 'none' }}
           >
             <ExternalLink size={14} />
-            <span>Open Customer Page</span>
+            <span>Customer Page</span>
           </a>
         </div>
       </div>
@@ -1014,7 +1014,7 @@ export default function OnlineOrders() {
           gap: '10px'
         }}>
           {/* Channel selector as sleek pill tabs */}
-          <div style={{
+          <div className="no-scrollbar touch-scroll-x" style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '4px',
@@ -1022,9 +1022,7 @@ export default function OnlineOrders() {
             padding: '3px',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--color-separator-opaque)',
-            overflowX: 'auto',
-            maxWidth: '100%',
-            WebkitOverflowScrolling: 'touch'
+            maxWidth: '100%'
           }}>
             {[
               { id: 'online',   label: 'Online & Delivery', icon: Globe },
@@ -1191,14 +1189,12 @@ export default function OnlineOrders() {
           paddingTop: '10px'
         }}>
           {/* Status Tabs with clean pill styling and non-wrapping horizontal scroll */}
-          <div style={{
+          <div className="no-scrollbar touch-scroll-x" style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            overflowX: 'auto',
             maxWidth: '100%',
-            paddingBottom: '2px',
-            WebkitOverflowScrolling: 'touch'
+            paddingBottom: '2px'
           }}>
             {[
               { id: 'all',       label: 'All Active', count: counts.total, icon: null },
@@ -1415,7 +1411,7 @@ export default function OnlineOrders() {
         </div>
       ) : viewMode === 'list' ? (
         /* Detailed List Feed */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))', gap: 'var(--space-4)' }}>
           {filteredOrders.map(order => renderOrderCard(order))}
         </div>
       ) : (

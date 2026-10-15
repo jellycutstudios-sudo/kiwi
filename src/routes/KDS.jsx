@@ -273,19 +273,9 @@ export default function KDS() {
   return (
     <div className="kds-layout">
       {/* ── High-Visibility Kitchen Header ── */}
-      <div style={{
-        background: 'var(--color-bg-elevated)',
-        border: '1px solid var(--color-separator-opaque)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '14px 18px',
-        marginBottom: '14px',
-        boxShadow: 'var(--shadow-xs)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-      }}>
+      <div className="kds-header">
         {/* Tier 1: Brand / Title + Queue Status + Utility Tools Cluster */}
-        <div style={{
+        <div className="kds-header-tier1" style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -440,7 +430,7 @@ export default function KDS() {
         </div>
 
         {/* Tier 2: View Switcher (Active vs Ready) + Kitchen Health HUD Metrics */}
-        <div style={{
+        <div className="kds-header-tier2" style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -532,8 +522,32 @@ export default function KDS() {
             </button>
           </div>
 
-          {/* Kitchen Health HUD Chips */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Mobile Sound Chime Quick Toggle */}
+          <button
+            type="button"
+            className="kds-mobile-sound-btn"
+            onClick={() => {
+              const nextState = !soundEnabled;
+              setSoundEnabled(nextState);
+              if (nextState) {
+                playKitchenChime();
+                toast.success('Kitchen sound chime enabled', { icon: '🔔' });
+              } else {
+                toast('Kitchen sound muted', { icon: '🔕' });
+              }
+            }}
+            title={soundEnabled ? 'Chime sound is ON (Tap to mute)' : 'Chime sound is MUTED (Tap to enable)'}
+            style={{
+              background: soundEnabled ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
+              border: soundEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--color-separator-opaque)',
+              color: soundEnabled ? 'var(--color-green)' : 'var(--color-label-tertiary)'
+            }}
+          >
+            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
+
+          {/* Kitchen Health HUD Chips (Desktop / Tablet) */}
+          <div className="kds-metrics-hud" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -572,16 +586,12 @@ export default function KDS() {
       </div>
 
       {/* ── Station Pills Filter ── */}
-      <div style={{
+      <div className="kds-stations-bar no-scrollbar touch-scroll-x" style={{
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
-        overflowX: 'auto',
         marginBottom: '16px',
-        padding: '2px 0 6px 0',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-        WebkitOverflowScrolling: 'touch'
+        padding: '2px 0 6px 0'
       }}>
         {stationsList.map(station => {
           const count = getStationOrderCount(station);
@@ -596,6 +606,7 @@ export default function KDS() {
                 alignItems: 'center',
                 gap: '6px',
                 padding: '6px 14px',
+                minHeight: 38,
                 borderRadius: 'var(--radius-md)',
                 fontSize: '12.5px',
                 fontWeight: isActive ? 700 : 500,

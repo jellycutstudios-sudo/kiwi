@@ -4,7 +4,7 @@ import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getKitchenStations } from '../../utils/stations';
@@ -47,6 +47,14 @@ export default function MenuEditor() {
   const { categories } = useMenuStore();
   const { terms } = useBusinessConfig();
   const [activeCat, setActiveCat] = useState(null);
+  const [mobileViewTab, setMobileViewTab] = useState('items'); // 'items' | 'categories'
+
+  useEffect(() => {
+    if (!activeCat && categories.length > 0) {
+      setActiveCat(categories[0].id);
+    }
+  }, [categories, activeCat]);
+
   const [showCatForm, setShowCatForm] = useState(false);
   const [editingCat, setEditingCat] = useState(null);
   const [showItemForm, setShowItemForm] = useState(false);
@@ -375,60 +383,155 @@ export default function MenuEditor() {
 
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <h2 className="text-title2" style={{ margin: 0 }}>Menu Editor</h2>
+    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+      {/* Top Header Bar with balanced Action Buttons */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+        <div>
+          <h2 className="text-title2" style={{ margin: 0, fontWeight: 'var(--weight-heavy)' }}>Menu Editor</h2>
+          <p className="text-secondary text-caption1" style={{ margin: '2px 0 0 0' }}>
+            {categories.length} {terms.categories?.toLowerCase() || 'categories'} · {categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)} {terms.items?.toLowerCase() || 'items'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={openAddCategory}
+            style={{ height: 36, padding: '0 12px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
+          >
+            <Plus size={14} /> Category
+          </button>
+          {activeCatId && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              id="add-item-btn-top"
+              onClick={openAddItemModal}
+              style={{ height: 36, padding: '0 14px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
+            >
+              <Plus size={14} /> Item
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile/Tablet Horizontal Segmented Control */}
+      <div className="mobile-only" style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-separator)' }}>
+        <button
+          type="button"
+          onClick={() => setMobileViewTab('items')}
+          style={{
+            flex: 1,
+            height: 36,
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            background: mobileViewTab === 'items' ? 'var(--color-bg-elevated)' : 'transparent',
+            color: mobileViewTab === 'items' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+            fontWeight: mobileViewTab === 'items' ? 700 : 500,
+            fontSize: '12.5px',
+            cursor: 'pointer',
+            boxShadow: mobileViewTab === 'items' ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}
+        >
+          <span>🍽️ Menu Items ({categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileViewTab('categories')}
+          style={{
+            flex: 1,
+            height: 36,
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            background: mobileViewTab === 'categories' ? 'var(--color-bg-elevated)' : 'transparent',
+            color: mobileViewTab === 'categories' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+            fontWeight: mobileViewTab === 'categories' ? 700 : 500,
+            fontSize: '12.5px',
+            cursor: 'pointer',
+            boxShadow: mobileViewTab === 'categories' ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}
+        >
+          <span>📁 Categories ({categories.length})</span>
+        </button>
       </div>
 
       <div className="menu-editor-layout">
-        {/* Categories sidebar */}
-        <div className={`menu-editor-sidebar card ${activeCat !== null ? 'desktop-only' : ''}`}>
+        {/* Categories sidebar (Desktop standard view & Mobile categories management tab) */}
+        <div className={`menu-editor-sidebar card ${mobileViewTab !== 'categories' ? 'desktop-only' : ''}`}>
           <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-3) var(--space-4)' }}>
-            <span className="card-title" style={{ fontSize: '15px' }}>Categories</span>
+            <div>
+              <span className="card-title" style={{ fontSize: '15px' }}>Categories</span>
+              <p className="text-secondary mobile-only" style={{ margin: '2px 0 0', fontSize: '11.5px' }}>
+                Tap category to browse items or use actions to edit
+              </p>
+            </div>
             <button
               type="button"
               className="btn btn-primary btn-sm"
               id="add-category-btn"
               onClick={openAddCategory}
-              style={{ padding: '4px 9px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ height: 32, padding: '0 12px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               title="Add Category"
             >
-              <Plus size={13} /> Add
+              <Plus size={14} /> Add Category
             </button>
           </div>
-          <div style={{ padding:'var(--space-2)' }}>
-            {categories.map(c => (
-              <div
-                key={c.id}
-                className={`menu-editor-cat-item ${activeCatId === c.id ? 'active' : ''}`}
-                onClick={() => setActiveCat(c.id)}
-              >
-                <span>{c.emoji}</span>
-                <span style={{ flex:1, fontWeight: activeCatId === c.id ? 700 : 'var(--weight-medium)', fontSize:'var(--text-subhead)', color: activeCatId === c.id ? '#ffffff' : 'var(--color-label)' }}>
-                  {c.name}
-                </span>
-                <span style={{ fontSize:'var(--text-caption2)', color: activeCatId === c.id ? 'rgba(255,255,255,0.7)' : 'var(--color-label-tertiary)' }}>
-                  {c.items?.length ?? 0}
-                </span>
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); openEditCategory(c); }}
-                  className="cat-edit-btn"
-                  title="Edit category"
-                  id={`edit-cat-${c.id}`}
+          <div className="categories-list-container" style={{ padding: 'var(--space-2)' }}>
+            {categories.map(c => {
+              const isSelected = activeCatId === c.id;
+              return (
+                <div
+                  key={c.id}
+                  className={`menu-editor-cat-item ${isSelected ? 'active' : ''}`}
+                  onClick={() => { setActiveCat(c.id); setMobileViewTab('items'); }}
                 >
-                  <Edit2 size={12}/>
-                </button>
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); deleteCategory(c.id); }}
-                  style={{ background:'none', border:'none', color:'var(--color-red)', cursor:'pointer', padding:2, opacity:0.6 }}
-                  title="Delete category"
-                >
-                  <Trash2 size={12}/>
-                </button>
-              </div>
-            ))}
+                  <div className="cat-item-icon-box">
+                    <span>{c.emoji || '🍽️'}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="cat-item-name">
+                        {c.name}
+                      </span>
+                      {isSelected && (
+                        <span className="badge badge-accent mobile-only" style={{ fontSize: '9.5px', padding: '1px 6px' }}>Active</span>
+                      )}
+                    </div>
+                    <span className="cat-item-count">
+                      {c.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
+                    </span>
+                  </div>
+                  <div className="cat-item-actions" onClick={e => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => openEditCategory(c)}
+                      className="cat-touch-action-btn edit"
+                      title="Edit category"
+                      id={`edit-cat-${c.id}`}
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteCategory(c.id)}
+                      className="cat-touch-action-btn delete"
+                      title="Delete category"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <ChevronRight size={18} className="cat-item-chevron mobile-only" />
+                </div>
+              );
+            })}
             {categories.length === 0 ? (
               <div style={{ padding:'var(--space-4)', color:'var(--color-label-tertiary)', fontSize:'var(--text-footnote)', textAlign:'center' }}>
                 No categories yet
@@ -441,49 +544,40 @@ export default function MenuEditor() {
               onClick={openAddCategory}
               title="Add New Category"
             >
-              <Plus size={13} />
-              <span>Add Category</span>
+              <Plus size={14} />
+              <span>Add New Category</span>
             </button>
           </div>
         </div>
 
         {/* Items panel */}
-        <div className={`card ${activeCat === null ? 'desktop-only' : ''}`} style={{ flex: 1 }}>
-          <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm mobile-only"
-                onClick={() => setActiveCat(null)}
-                style={{ padding: '6px 12px' }}
-              >
-                ← Back
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="card-title" style={{ margin: 0 }}>
-                  {activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}
+        <div className={`card ${mobileViewTab !== 'items' ? 'desktop-only' : ''}`} style={{ flex: 1 }}>
+          {/* Desktop Card Header */}
+          <div className="card-header desktop-only" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="card-title" style={{ margin: 0 }}>
+                {activeCatData?.emoji} {activeCatData?.name ?? 'Select a category'}
+              </span>
+              {activeCatData && (
+                <span className="badge badge-gray" style={{ fontSize: '11px', fontWeight: 600 }}>
+                  {activeCatData.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
                 </span>
-                {activeCatData && (
-                  <span className="badge badge-gray" style={{ fontSize: '11px', fontWeight: 600 }}>
-                    {activeCatData.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
-                  </span>
-                )}
-                {activeCatData && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-icon"
-                    onClick={() => openEditCategory(activeCatData)}
-                    style={{ width: 26, height: 26, padding: 0 }}
-                    title={`Edit ${activeCatData.name}`}
-                    id="edit-active-cat-btn"
-                  >
-                    <Edit2 size={12} />
-                  </button>
-                )}
-              </div>
+              )}
+              {activeCatData && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-icon"
+                  onClick={() => openEditCategory(activeCatData)}
+                  style={{ width: 28, height: 28, padding: 0 }}
+                  title={`Edit ${activeCatData.name}`}
+                  id="edit-active-cat-btn"
+                >
+                  <Edit2 size={13} />
+                </button>
+              )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {activeCatId && (activeCatData?.items ?? []).length > 0 && (
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <Search size={13} style={{ position: 'absolute', left: 10, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
@@ -498,7 +592,7 @@ export default function MenuEditor() {
                       paddingRight: searchQuery ? 24 : 10,
                       height: 32,
                       fontSize: '12px',
-                      width: 140,
+                      width: 150,
                       borderRadius: 8
                     }}
                   />
@@ -514,14 +608,14 @@ export default function MenuEditor() {
                 </div>
               )}
 
-              {/* View Switcher: Card Grid (Tablet & POS optimized) vs List */}
+              {/* View Switcher Desktop */}
               <div style={{ display: 'inline-flex', background: 'var(--color-bg-secondary)', padding: '2px', borderRadius: '8px', border: '1px solid var(--color-separator)' }}>
                 <button
                   type="button"
                   className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ padding: '4px 8px', height: 28, borderRadius: 6, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onClick={() => setViewMode('grid')}
-                  title="Card Grid (Optimized for Tablets & POS screens)"
+                  title="Card Grid"
                 >
                   <LayoutGrid size={13} />
                 </button>
@@ -541,6 +635,155 @@ export default function MenuEditor() {
                   <Plus size={14}/> Add {terms.item || 'Item'}
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* Mobile & Tablet Clean Category Switcher Strip */}
+          <div className="no-scrollbar touch-scroll-x" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--color-separator-opaque)',
+            background: 'var(--color-bg-secondary)'
+          }}>
+            {categories.map(c => {
+              const isSelected = activeCatId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => { setActiveCat(c.id); setMobileViewTab('items'); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    minHeight: '36px',
+                    borderRadius: '999px',
+                    fontSize: '12.5px',
+                    fontWeight: isSelected ? 700 : 500,
+                    border: isSelected ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
+                    background: isSelected ? 'var(--color-accent)' : 'var(--color-bg-elevated)',
+                    color: isSelected ? '#ffffff' : 'var(--color-label)',
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    boxShadow: isSelected ? '0 2px 8px rgba(16,185,129,0.3)' : 'none'
+                  }}
+                >
+                  <span>{c.emoji}</span>
+                  <span>{c.name}</span>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    background: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--color-fill)',
+                    color: isSelected ? '#ffffff' : 'var(--color-label-tertiary)'
+                  }}>
+                    {c.items?.length ?? 0}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={openAddCategory}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 12px',
+                minHeight: '36px',
+                borderRadius: '999px',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: '1px dashed var(--color-separator)',
+                background: 'transparent',
+                color: 'var(--color-accent)',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              <Plus size={13} /> New Category
+            </button>
+          </div>
+
+          {/* Mobile Clean 2-Row Toolbar */}
+          <div className="mobile-only" style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-separator-opaque)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Row 1: Active Category Info & Edit Button */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '18px' }}>{activeCatData?.emoji}</span>
+                <span style={{ fontWeight: 700, fontSize: '15px' }}>{activeCatData?.name ?? 'Select category'}</span>
+                <span className="badge badge-gray" style={{ fontSize: '10px', padding: '2px 6px' }}>
+                  {activeCatData?.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
+                </span>
+              </div>
+              {activeCatData && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openEditCategory(activeCatData)}
+                  style={{ height: 30, padding: '0 10px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  title={`Edit ${activeCatData.name}`}
+                >
+                  <Edit2 size={12} /> Edit
+                </button>
+              )}
+            </div>
+
+            {/* Row 2: Search input + View switcher side-by-side (100% balanced, no wrapping!) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                <Search size={14} style={{ position: 'absolute', left: 12, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder={`Search in ${activeCatData?.name || 'items'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="form-input"
+                  style={{
+                    paddingLeft: 34,
+                    paddingRight: searchQuery ? 30 : 12,
+                    height: 36,
+                    fontSize: '13px',
+                    width: '100%',
+                    borderRadius: 'var(--radius-md)'
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    style={{ position: 'absolute', right: 8, background: 'none', border: 'none', color: 'var(--color-label-tertiary)', cursor: 'pointer', padding: 4 }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'inline-flex', background: 'var(--color-bg-secondary)', padding: '2px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '6px 10px', height: 32, borderRadius: 'var(--radius-sm)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={() => setViewMode('grid')}
+                  title="Card Grid"
+                >
+                  <LayoutGrid size={15} />
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '6px 10px', height: 32, borderRadius: 'var(--radius-sm)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={() => setViewMode('list')}
+                  title="List View"
+                >
+                  <List size={15} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -967,19 +1210,28 @@ export default function MenuEditor() {
                   </div>
                 </div>
 
-                {/* Row 3: Compact Media Strip (Photo + Emoji + Margin chip) */}
-                <div className="item-editor-media-card">
-                  {/* Photo Uploader */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                {/* Row 3: Photo & Icon Card */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  background: 'var(--color-bg-secondary)',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--color-separator)'
+                }}>
+                  {/* Photo Uploader (Left) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                     {itemForm.imageUrl ? (
-                      <div style={{ position: 'relative', width: 44, height: 44, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-separator)', flexShrink: 0 }}>
+                      <div style={{ position: 'relative', width: 44, height: 44, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-separator)', flexShrink: 0, boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
                         <img src={itemForm.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <button
                           type="button"
                           onClick={() => setItemForm(f => ({ ...f, imageUrl: '' }))}
                           style={{
-                            position: 'absolute', top: 1, right: 1,
-                            background: 'rgba(239, 68, 68, 0.9)', color: '#fff',
+                            position: 'absolute', top: 2, right: 2,
+                            background: 'rgba(239, 68, 68, 0.95)', color: '#fff',
                             border: 'none', borderRadius: '50%',
                             width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 8, cursor: 'pointer', fontWeight: 'bold'
@@ -990,11 +1242,11 @@ export default function MenuEditor() {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ width: 44, height: 44, borderRadius: '8px', border: '1px dashed var(--color-separator)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'var(--color-bg)', flexShrink: 0 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: '8px', border: '1.5px dashed var(--color-separator)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'var(--color-bg)', flexShrink: 0 }}>
                         📷
                       </div>
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
                       <input
                         type="file"
                         accept="image/*"
@@ -1004,23 +1256,25 @@ export default function MenuEditor() {
                       />
                       <button
                         type="button"
-                        className="btn btn-secondary btn-xs"
+                        className="btn btn-secondary btn-sm"
                         onClick={() => document.getElementById('item-image-file').click()}
                         disabled={uploadingImage}
-                        style={{ alignSelf: 'flex-start', padding: '4px 10px', fontSize: '11px', height: 28 }}
+                        style={{ height: 28, padding: '0 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: '6px' }}
                       >
-                        {uploadingImage ? 'Optimizing...' : (itemForm.imageUrl ? 'Change Photo' : 'Upload Photo')}
+                        <Camera size={12} />
+                        <span>{uploadingImage ? 'Optimizing...' : (itemForm.imageUrl ? 'Change Photo' : 'Upload Photo')}</span>
                       </button>
-                      <span style={{ fontSize: '9px', color: 'var(--color-label-tertiary)', lineHeight: 1 }}>
+                      <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', lineHeight: 1 }}>
                         Auto-compressed
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ width: 1, height: 28, background: 'var(--color-separator)', flexShrink: 0 }} />
+                  {/* Vertical Divider */}
+                  <div style={{ width: 1, height: 34, background: 'var(--color-separator)', flexShrink: 0 }} />
 
-                  {/* Emoji input */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {/* Emoji input (Right) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>Emoji</span>
                     <input 
                       id="item-emoji-input" 
@@ -1028,34 +1282,38 @@ export default function MenuEditor() {
                       placeholder="🍽️" 
                       value={itemForm.emoji} 
                       onChange={e => setItemForm(f=>({...f,emoji:e.target.value}))} 
-                      style={{ width: 44, height: 32, textAlign: 'center', fontSize: 16, padding: '0 4px' }}
+                      style={{ width: 44, height: 34, textAlign: 'center', fontSize: 17, padding: '0 4px', borderRadius: '8px' }}
                     />
                   </div>
+                </div>
 
-                  <div style={{ width: 1, height: 28, background: 'var(--color-separator)', flexShrink: 0 }} />
+                {/* Highlights & Badges Section */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label className="form-label" style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.4px', margin: 0 }}>
+                    Badges & Highlights
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setItemForm(f => ({ ...f, highMargin: !f.highMargin }))}
+                      className={`high-margin-chip ${itemForm.highMargin ? 'is-active' : ''}`}
+                      style={{ height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px', borderRadius: '8px' }}
+                    >
+                      <span style={{ fontSize: '13px' }}>⭐</span>
+                      <span>High Margin</span>
+                    </button>
 
-                  {/* High Margin toggle chip */}
-                  <button
-                    type="button"
-                    onClick={() => setItemForm(f => ({ ...f, highMargin: !f.highMargin }))}
-                    className={`high-margin-chip ${itemForm.highMargin ? 'is-active' : ''}`}
-                    title="Highlight as high margin item"
-                  >
-                    <span>⭐</span>
-                    <span>High Margin</span>
-                  </button>
-
-                  {/* Bestseller toggle chip */}
-                  <button
-                    type="button"
-                    id="item-bestseller-toggle"
-                    onClick={() => setItemForm(f => ({ ...f, isBestseller: !f.isBestseller }))}
-                    className={`bestseller-chip ${itemForm.isBestseller ? 'is-active' : ''}`}
-                    title="Mark as signature Bestseller dish"
-                  >
-                    <span>🔥</span>
-                    <span>Bestseller</span>
-                  </button>
+                    <button
+                      type="button"
+                      id="item-bestseller-toggle"
+                      onClick={() => setItemForm(f => ({ ...f, isBestseller: !f.isBestseller }))}
+                      className={`bestseller-chip ${itemForm.isBestseller ? 'is-active' : ''}`}
+                      style={{ height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px', borderRadius: '8px' }}
+                    >
+                      <span style={{ fontSize: '13px' }}>🔥</span>
+                      <span>Bestseller</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Section 4: Collapsible Optional Details (SKU, Unit, Description) */}
@@ -1148,7 +1406,7 @@ export default function MenuEditor() {
                         type="button"
                         className="btn btn-secondary btn-xs"
                         onClick={toggleCollapseAll}
-                        style={{ height: 28, padding: '0 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ height: 30, padding: '0 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
                         <ChevronsUpDown size={12} />
                         {areAllGroupsCollapsed ? 'Expand All' : 'Collapse All'}
@@ -1156,30 +1414,53 @@ export default function MenuEditor() {
                     )}
                     <button
                       type="button"
-                      className="btn btn-primary btn-xs"
+                      className="btn btn-primary btn-sm"
                       onClick={() => addModifierPreset('custom')}
-                      style={{ height: 28, padding: '0 12px', fontSize: '11.5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                      style={{ height: 30, padding: '0 12px', fontSize: '11.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                     >
                       <Plus size={13} /> Custom Group
                     </button>
                   </div>
                 </div>
 
-                {/* Sleek Minimal Quick Template Pills */}
-                <div className="modifier-presets-ribbon">
-                  <span className="modifier-presets-label">⚡ Templates:</span>
-                  <button type="button" className="modifier-preset-pill" onClick={() => addModifierPreset('portions')}>
-                    🍗 Quarter / Half / Full
-                  </button>
-                  <button type="button" className="modifier-preset-pill" onClick={() => addModifierPreset('sizes')}>
-                    📏 Small / Med / Large
-                  </button>
-                  <button type="button" className="modifier-preset-pill" onClick={() => addModifierPreset('spice')}>
-                    🌶️ Spice Level
-                  </button>
-                  <button type="button" className="modifier-preset-pill" onClick={() => addModifierPreset('addons')}>
-                    🧀 Extras & Toppings
-                  </button>
+                {/* Structured Quick Template Cards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.4px' }}>
+                      ⚡ Quick Presets
+                    </span>
+                    <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)' }}>1-click template add</span>
+                  </div>
+                  <div className="modifier-presets-grid">
+                    <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('portions')}>
+                      <div className="preset-card-top">
+                        <span>🍗</span>
+                        <span>Portions</span>
+                      </div>
+                      <span className="preset-card-desc">Quarter / Half / Full</span>
+                    </button>
+                    <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('sizes')}>
+                      <div className="preset-card-top">
+                        <span>📏</span>
+                        <span>Sizes</span>
+                      </div>
+                      <span className="preset-card-desc">Small / Med / Large</span>
+                    </button>
+                    <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('spice')}>
+                      <div className="preset-card-top">
+                        <span>🌶️</span>
+                        <span>Spice Level</span>
+                      </div>
+                      <span className="preset-card-desc">Mild / Med / Hot</span>
+                    </button>
+                    <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('addons')}>
+                      <div className="preset-card-top">
+                        <span>🧀</span>
+                        <span>Add-ons</span>
+                      </div>
+                      <span className="preset-card-desc">Extras & Toppings</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Collapsible Modifier Groups List */}
@@ -1431,7 +1712,7 @@ export default function MenuEditor() {
                       fontSize: 'var(--text-footnote)', 
                       color: 'var(--color-label-tertiary)', 
                       textAlign: 'center', 
-                      padding: 'var(--space-6) var(--space-4)',
+                      padding: 'var(--space-5) var(--space-4)',
                       background: 'var(--color-bg-secondary)',
                       borderRadius: 'var(--radius-lg)',
                       border: '1.5px dashed var(--color-separator)',
@@ -1440,29 +1721,21 @@ export default function MenuEditor() {
                       alignItems: 'center',
                       gap: 'var(--space-2)'
                     }}>
-                      <div style={{ fontSize: 28 }}>🍗</div>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-label)' }}>
-                        No Portions or Add-ons Added Yet
+                      <div style={{ fontSize: 26 }}>🍽️</div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--color-label)' }}>
+                        No Modifiers or Sizes Configured
                       </div>
-                      <span style={{ maxWidth: 340, lineHeight: 1.4, fontSize: 12 }}>
-                        Add portion sizes (Quarter, Half, Full) or extra toppings for <strong>{itemForm.name || 'this item'}</strong>.
+                      <span style={{ maxWidth: 320, lineHeight: 1.4, fontSize: 11.5, color: 'var(--color-label-secondary)' }}>
+                        Choose a quick preset above (Portions, Sizes, Spice Level) or create a custom modifier group below.
                       </span>
-                      <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 4 }}>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => addModifierPreset('portions')}
-                        >
-                          🍗 Add Quarter / Half / Full
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => addModifierPreset('custom')}
-                        >
-                          + Custom Group
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => addModifierPreset('custom')}
+                        style={{ marginTop: 4, height: 32, padding: '0 14px', fontSize: '11.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                      >
+                        <Plus size={13} /> Create Custom Group
+                      </button>
                     </div>
                   )}
                 </div>

@@ -186,7 +186,17 @@ export default function Restaurants() {
       </div>
 
       {/* Tabs Selector Navigation */}
-      <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-separator)', marginBottom: '-1px' }}>
+      <div 
+        className="no-scrollbar touch-scroll-x"
+        style={{ 
+          display: 'flex', 
+          borderBottom: '1.5px solid var(--color-separator)', 
+          marginBottom: '-1px',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          gap: 'var(--space-2)'
+        }}
+      >
         {[
           { key: 'outlets', label: 'Outlets Directory', icon: Building2 },
           { key: 'analytics', label: 'Consolidated Analytics', icon: BarChart3 }
@@ -198,7 +208,9 @@ export default function Restaurants() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '12px 20px',
+              padding: '12px 18px',
+              minHeight: 44,
+              whiteSpace: 'nowrap',
               background: 'none',
               border: 'none',
               borderBottom: `2.5px solid ${activeTab === tab.key ? 'var(--color-accent)' : 'transparent'}`,
@@ -349,7 +361,7 @@ export default function Restaurants() {
           {/* Sales Leaderboard and Outlets Overview Tables */}
           <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
             {/* Sales Share Leaderboard SVG chart */}
-            <div className="card card-padded" style={{ flex: 1, minWidth: 350, display: 'flex', flexDirection: 'column' }}>
+            <div className="card card-padded" style={{ flex: 1, minWidth: 'min(100%, 320px)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
                 <h3 style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)' }}>Sales Leaderboard</h3>
                 <span className="badge badge-blue">Comparison Shares</span>
@@ -416,9 +428,11 @@ export default function Restaurants() {
             </div>
 
             {/* Outlets comparison table */}
-            <div className="card card-padded" style={{ flex: 1.2, minWidth: 350 }}>
+            <div className="card card-padded" style={{ flex: 1.2, minWidth: 'min(100%, 320px)' }}>
               <h3 style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)', marginBottom: 'var(--space-4)' }}>Outlets Overview</h3>
-              <div style={{ overflowX: 'auto' }}>
+              
+              {/* Desktop Table */}
+              <div className="desktop-only" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -461,6 +475,42 @@ export default function Restaurants() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Cards */}
+              <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {analyticsData.outletsData.map(res => (
+                  <div key={res.id} style={{
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 'var(--space-3)',
+                    border: '1px solid var(--color-separator)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{res.name}</div>
+                        <code style={{ fontSize: 10, color: 'var(--color-label-tertiary)', fontFamily: 'var(--font-mono)' }}>{res.id}</code>
+                      </div>
+                      <span className={`badge ${res.lowStockCount > 0 ? 'badge-red' : 'badge-green'}`}>
+                        {res.lowStockCount} alerts
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, background: 'var(--color-bg)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase' }}>Net Sales</div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-footnote)' }}>{formatCurrency(res.revenue, res.currency)}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase' }}>Orders</div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-footnote)' }}>{res.ordersCount}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase' }}>Staff</div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-footnote)' }}>{res.staffCount}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -475,49 +525,86 @@ export default function Restaurants() {
                 🎉 All outlets are fully stocked! No low stock warnings.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
-                      {['Outlet Branch', 'Ingredient', 'Stock Quantity', 'Safety Level', 'Unit Cost', 'Status'].map(h => (
-                        <th key={h} style={{
-                          padding: 'var(--space-3) var(--space-4)',
-                          textAlign: h === 'Outlet Branch' || h === 'Ingredient' ? 'left' : (h === 'Status' ? 'center' : 'right'),
-                          fontSize: 'var(--text-caption1)',
-                          fontWeight: 'var(--weight-semibold)',
-                          color: 'var(--color-label-secondary)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em'
-                        }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analyticsData.lowStockList.map((ing, idx) => (
-                      <tr key={`${ing.restaurantId}-${ing.id}-${idx}`} style={{ borderBottom: '1px solid var(--color-separator)' }}>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-semibold)' }}>
-                          {ing.restaurantName}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)' }}>
-                          {ing.name}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', fontWeight: 'var(--weight-semibold)', color: 'var(--color-red)' }}>
-                          {ing.qty} {ing.unit}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', color: 'var(--color-label-secondary)' }}>
-                          {ing.minQty} {ing.unit}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right' }}>
-                          {formatCurrency(ing.cost, 'INR')}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center' }}>
-                          <span className="badge badge-red">Low Stock</span>
-                        </td>
+              <>
+                {/* Desktop Table */}
+                <div className="desktop-only" style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
+                        {['Outlet Branch', 'Ingredient', 'Stock Quantity', 'Safety Level', 'Unit Cost', 'Status'].map(h => (
+                          <th key={h} style={{
+                            padding: 'var(--space-3) var(--space-4)',
+                            textAlign: h === 'Outlet Branch' || h === 'Ingredient' ? 'left' : (h === 'Status' ? 'center' : 'right'),
+                            fontSize: 'var(--text-caption1)',
+                            fontWeight: 'var(--weight-semibold)',
+                            color: 'var(--color-label-secondary)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em'
+                          }}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {analyticsData.lowStockList.map((ing, idx) => (
+                        <tr key={`${ing.restaurantId}-${ing.id}-${idx}`} style={{ borderBottom: '1px solid var(--color-separator)' }}>
+                          <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-semibold)' }}>
+                            {ing.restaurantName}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)' }}>
+                            {ing.name}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', fontWeight: 'var(--weight-semibold)', color: 'var(--color-red)' }}>
+                            {ing.qty} {ing.unit}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', color: 'var(--color-label-secondary)' }}>
+                            {ing.minQty} {ing.unit}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right' }}>
+                            {formatCurrency(ing.cost, 'INR')}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center' }}>
+                            <span className="badge badge-red">Low Stock</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {analyticsData.lowStockList.map((ing, idx) => (
+                    <div key={`${ing.restaurantId}-${ing.id}-${idx}`} style={{
+                      background: 'var(--color-bg-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'var(--space-3)',
+                      border: '1px solid var(--color-separator)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{ing.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>📍 {ing.restaurantName}</div>
+                        </div>
+                        <span className="badge badge-red">Low Stock</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, background: 'var(--color-bg)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase' }}>Stock</div>
+                          <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-footnote)', color: 'var(--color-red)' }}>{ing.qty} {ing.unit}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase' }}>Min Safe</div>
+                          <div style={{ fontWeight: 'var(--weight-medium)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>{ing.minQty} {ing.unit}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase' }}>Unit Cost</div>
+                          <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-footnote)' }}>{formatCurrency(ing.cost, 'INR')}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>

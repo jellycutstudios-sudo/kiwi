@@ -540,37 +540,50 @@ export default function Reports() {
             Real-time business insights, best-selling menus, heatmaps, and staff leaderboards.
           </p>
         </div>
-        <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap' }}>
-          <button 
-            type="button" 
-            className="advisor-trigger-btn advisor-trigger-btn-sm" 
-            onClick={() => setShowAiAdvisor(true)}
-            title="Analyze with AI Advisor"
-          >
-            <span className="advisor-btn-icon">
-              <Bot size={13} />
-            </span>
-            <span>Advisor</span>
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Download size={14} /> PDF
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <FileSpreadsheet size={14} /> CSV
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={handleExportTally} title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML" style={{ display: 'flex', alignItems: 'center', gap: 6, borderColor: 'var(--color-primary)' }}>
-            <FileCode size={14} /> Tally XML
-          </button>
-          {['today','week','month'].map(p => (
-            <button key={p} id={`report-period-${p}`} className={`btn btn-sm ${period===p?'btn-primary':'btn-secondary'}`} onClick={()=>setPeriod(p)}>
-              {p.charAt(0).toUpperCase()+p.slice(1)}
+        <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap', alignItems: 'center' }}>
+          {/* Period Segmented Control */}
+          <div style={{ display: 'flex', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-separator)' }}>
+            {['today','week','month'].map(p => (
+              <button 
+                key={p} 
+                id={`report-period-${p}`} 
+                className={`btn btn-sm ${period===p?'btn-primary':'btn-ghost'}`} 
+                style={{ height: 32, padding: '0 12px', fontSize: '12px', fontWeight: period === p ? 700 : 500 }}
+                onClick={()=>setPeriod(p)}
+              >
+                {p.charAt(0).toUpperCase()+p.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Export & Advisor Actions */}
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button 
+              type="button" 
+              className="advisor-trigger-btn advisor-trigger-btn-sm" 
+              onClick={() => setShowAiAdvisor(true)}
+              title="Analyze with AI Advisor"
+            >
+              <span className="advisor-btn-icon">
+                <Bot size={13} />
+              </span>
+              <span>Advisor</span>
             </button>
-          ))}
+            <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
+              <Download size={14} /> PDF
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
+              <FileSpreadsheet size={14} /> CSV
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportTally} title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML" style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
+              <FileCode size={14} /> Tally
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Dashboard Sub-navigation Tabs */}
-      <div className="reports-tabs">
+      <div className="reports-tabs no-scrollbar touch-scroll-x">
         {[
           { key: 'overview', label: 'Sales Overview', icon: Activity },
           { key: 'menu', label: 'Menu Performance', icon: PieChart },
@@ -581,11 +594,14 @@ export default function Reports() {
         ].map(t => (
           <button
             key={t.key}
-            onClick={() => setActiveTab(t.key)}
+            onClick={(e) => {
+              setActiveTab(t.key);
+              e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }}
             className={`reports-tab-btn ${activeTab === t.key ? 'active' : ''}`}
           >
             <t.icon size={15} />
-            {t.label}
+            <span style={{ whiteSpace: 'nowrap' }}>{t.label}</span>
           </button>
         ))}
       </div>

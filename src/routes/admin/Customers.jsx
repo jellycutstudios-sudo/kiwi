@@ -356,7 +356,8 @@ export default function Customers() {
               <span className="card-title">Customer Database</span>
               <span className="badge badge-gray">{filteredCustomers.length} accounts</span>
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            {/* Desktop Table */}
+            <div className="desktop-only" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -435,6 +436,92 @@ export default function Customers() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch Cards View */}
+            <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {filteredCustomers.map(cust => (
+                  <div 
+                    key={cust.id}
+                    className="card"
+                    style={{
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-separator)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-2)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: '15px' }}>{cust.name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                          {formatDisplayPhone(cust.phone)}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          style={{ height: 34, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => {
+                            setEditPhone(cust.phone);
+                            setForm({
+                              name: cust.name,
+                              phone: cust.phone,
+                              birthday: cust.birthday ?? '',
+                              notes: cust.notes ?? '',
+                              points: String(cust.points ?? 0),
+                              visitCount: String(cust.visitCount ?? 0),
+                              lifetimeSpend: String(cust.lifetimeSpend ?? 0)
+                            });
+                            setShowForm(true);
+                          }}
+                        >
+                          <Edit2 size={12} /> Edit
+                        </button>
+                        <button 
+                          className="btn btn-icon btn-sm"
+                          style={{ color: 'var(--color-red)', height: 34, width: 34 }}
+                          onClick={() => deleteCustomer(cust.phone)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Stats Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: 'var(--color-bg)', padding: '8px', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Visits</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700 }}>{cust.visitCount ?? 0}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Points</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-orange)' }}>{cust.points ?? 0}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Spend</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-green)' }}>{formatCurrency(cust.lifetimeSpend ?? 0, currency)}</div>
+                      </div>
+                    </div>
+
+                    {(cust.birthday || cust.notes) && (
+                      <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', display: 'flex', flexDirection: 'column', gap: 2, borderTop: '1px dashed var(--color-separator)', paddingTop: 6 }}>
+                        {cust.birthday && <div>🎂 Birthday: {cust.birthday}</div>}
+                        {cust.notes && <div style={{ color: 'var(--color-label-tertiary)' }}>📝 {cust.notes}</div>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {filteredCustomers.length === 0 && !loading && (
+                  <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                    No customer accounts found.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -446,7 +533,8 @@ export default function Customers() {
             <span className="card-title">Prepaid Gift Vouchers</span>
             <span className="badge badge-gray">{giftCards.length} vouchers</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          {/* Desktop Table */}
+          <div className="desktop-only" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -511,6 +599,77 @@ export default function Customers() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Touch Cards View */}
+          <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {giftCards.map(gc => {
+                const expiryStr = gc.expiresAt?.toDate
+                  ? gc.expiresAt.toDate().toLocaleDateString()
+                  : (gc.expiresAt ? new Date(gc.expiresAt).toLocaleDateString() : 'Never');
+                
+                const isExpired = gc.expiresAt && (gc.expiresAt.toDate ? gc.expiresAt.toDate() : new Date(gc.expiresAt)) < new Date();
+                const computedStatus = isExpired && gc.status === 'active' ? 'expired' : gc.status;
+
+                return (
+                  <div 
+                    key={gc.id}
+                    className="card"
+                    style={{
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-separator)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-2)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)' }}>
+                        🎫 {gc.id}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className={`badge ${
+                          computedStatus === 'active' ? 'badge-green' : 
+                          computedStatus === 'redeemed' ? 'badge-blue' : 'badge-red'
+                        }`} style={{ textTransform: 'uppercase', fontSize: 10 }}>
+                          {computedStatus}
+                        </span>
+                        <button 
+                          className="btn btn-icon btn-sm" 
+                          style={{ color: 'var(--color-red)', width: 32, height: 32 }} 
+                          onClick={() => deleteGiftCard(gc.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-md)' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Initial</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700 }}>{formatCurrency(gc.initialValue, currency)}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Remaining Balance</div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-green)' }}>{formatCurrency(gc.balance, currency)}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>
+                      Expires: <strong>{expiryStr}</strong>
+                    </div>
+                  </div>
+                );
+              })}
+              {giftCards.length === 0 && (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                  No gift vouchers issued yet. Generate a card to start.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

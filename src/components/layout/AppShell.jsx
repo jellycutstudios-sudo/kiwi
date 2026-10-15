@@ -9,7 +9,10 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, RefreshCw, LayoutGrid } from 'lucide-react';
+import { 
+  Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, 
+  RefreshCw, LayoutGrid 
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 import ErrorBoundary from '../shared/ErrorBoundary';
@@ -417,7 +420,7 @@ export default function AppShell() {
                 id="install-pwa-btn"
               >
                 <Download size={14} />
-                <span>Install</span>
+                <span className="desktop-only">Install</span>
               </button>
             )}
 

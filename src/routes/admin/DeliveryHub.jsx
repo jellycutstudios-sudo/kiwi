@@ -1023,7 +1023,8 @@ export default function DeliveryHub() {
             </p>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
+          {/* Desktop Table View */}
+          <div className="desktop-only" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-subhead)' }}>
               <thead>
                 <tr style={{ background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-separator)' }}>
@@ -1050,164 +1051,325 @@ export default function DeliveryHub() {
                   const enabledOnAny = activePlatforms.some(platformId => isCategoryEnabled(platformId, category.id));
 
                   return (
-                    <>
-                      {/* Category row */}
-                      <tr 
-                        key={category.id} 
-                        style={{ 
-                          borderBottom: '1px solid var(--color-separator)', 
-                          background: 'rgba(var(--color-accent-rgb), 0.02)',
-                          fontWeight: 'var(--weight-semibold)'
-                        }}
-                      >
-                        {/* Expand/Collapse arrow */}
-                        <td style={{ padding: 'var(--space-4) var(--space-5)', textAlign: 'center' }}>
-                          <button 
-                            className="btn btn-ghost" 
-                            style={{ width: 34, height: 34, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
-                            onClick={() => toggleExpandCategory(category.id)}
-                            title={isExpanded ? 'Collapse items' : 'Expand items'}
-                          >
-                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                          </button>
-                        </td>
-
-                        {/* Category identity */}
-                        <td style={{ padding: 'var(--space-4) var(--space-5)' }}>
-                          <span style={{ fontSize: '1.2rem', marginRight: 8 }}>{category.emoji}</span>
-                          <span style={{ fontWeight: 'var(--weight-bold)' }}>{category.name}</span>
-                          <span className="text-secondary" style={{ fontSize: 'var(--text-caption2)', fontWeight: 'normal', marginLeft: 8 }}>
-                            ({category.items?.length || 0} items)
-                          </span>
-                        </td>
-
-                        {/* Category Platform Matrix checkboxes */}
-                        {Object.keys(PLATFORM_META).map(platformId => {
-                          const isEnabled = isPlatformEnabled(platformId);
-                          const isCatAvail = isCategoryEnabled(platformId, category.id);
-                          
-                          return (
-                            <td key={platformId} style={{ textAlign: 'center', padding: 'var(--space-4) var(--space-5)' }}>
-                              <input
-                                type="checkbox"
-                                disabled={!isEnabled}
-                                checked={isEnabled && isCatAvail}
-                                onChange={() => toggleCategoryOverride(platformId, category.id, isCatAvail)}
-                                style={{ 
-                                  cursor: isEnabled ? 'pointer' : 'not-allowed',
-                                  width: 20, height: 20,
-                                  accentColor: 'var(--color-accent)',
-                                  opacity: isEnabled ? 1 : 0.2
-                                }}
-                              />
-                            </td>
-                          );
-                        })}
-
-                        {/* Bulk Action Column */}
-                        <td style={{ textAlign: 'center', padding: 'var(--space-4) var(--space-5)' }}>
-                          {enabledOnAny ? (
-                            <button 
-                              className="btn btn-secondary btn-sm"
-                              style={{ color: 'var(--color-red)', borderColor: 'rgba(255, 59, 48, 0.25)', minHeight: 32, padding: '4px 12px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)', borderRadius: 'var(--radius-sm)' }}
-                              onClick={() => toggleCategoryAllPlatforms(category.id, false)}
-                              disabled={activePlatforms.length === 0}
+                    <tr key={category.id} style={{ display: 'contents' }}>
+                      <td colSpan={Object.keys(PLATFORM_META).length + 3} style={{ padding: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            {/* Category row */}
+                            <tr 
+                              style={{ 
+                                borderBottom: '1px solid var(--color-separator)', 
+                                background: 'rgba(var(--color-accent-rgb), 0.02)',
+                                fontWeight: 'var(--weight-semibold)'
+                              }}
                             >
-                              Pause All
-                            </button>
-                          ) : (
-                            <button 
-                              className="btn btn-secondary btn-sm"
-                              style={{ color: 'var(--color-success)', borderColor: 'rgba(52, 199, 89, 0.25)', minHeight: 32, padding: '4px 12px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)', borderRadius: 'var(--radius-sm)' }}
-                              onClick={() => toggleCategoryAllPlatforms(category.id, true)}
-                              disabled={activePlatforms.length === 0}
-                            >
-                              Enable All
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-
-                      {/* Expandable items sub-table */}
-                      {isExpanded && (category.items ?? []).map(item => (
-                        <tr 
-                          key={item.id} 
-                          style={{ 
-                            borderBottom: '1px solid var(--color-separator-opaque)',
-                            background: 'var(--color-bg)'
-                          }}
-                        >
-                          <td></td>
-                          {/* Item identity */}
-                          <td style={{ padding: 'var(--space-3) var(--space-5)', paddingLeft: 'var(--space-8)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                              <span style={{ fontSize: '1rem' }}>{item.emoji}</span>
-                              <div>
-                                <span>{item.name}</span>
-                                <span style={{ color: 'var(--color-label-secondary)', fontSize: 'var(--text-caption2)', marginLeft: 8 }}>
-                                  ({formatCurrency(item.price, currency)})
-                                </span>
-                                {!item.available && (
-                                  <span className="badge badge-gray" style={{ marginLeft: 8, fontSize: '0.65rem', padding: '1px 4px' }}>
-                                    POS Off
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Item Platform overrides */}
-                          {Object.keys(PLATFORM_META).map(platformId => {
-                            const isEnabled = isPlatformEnabled(platformId);
-                            const isCatAvail = isCategoryEnabled(platformId, category.id);
-                            const isItmAvail = isItemEnabled(platformId, item.id, item.available);
-
-                            // Active checkbox rules:
-                            // Checkbox is checked if the platform is enabled, the category is enabled, and the item itself is enabled.
-                            const checked = isEnabled && isCatAvail && isItmAvail;
-                            const isDisabled = !isEnabled || !isCatAvail;
-
-                            return (
-                              <td key={platformId} style={{ textAlign: 'center', padding: 'var(--space-3) var(--space-5)' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                                  <input
-                                    type="checkbox"
-                                    disabled={isDisabled}
-                                    checked={checked}
-                                    onChange={() => toggleOverride(platformId, item.id, isItmAvail)}
-                                    style={{ 
-                                      cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                      width: 18, height: 18,
-                                      accentColor: 'var(--color-accent)',
-                                      opacity: isEnabled ? (isCatAvail ? 1 : 0.3) : 0.1
-                                    }}
-                                  />
-                                  {!isCatAvail && isEnabled && (
-                                    <span style={{ fontSize: '0.55rem', color: 'var(--color-label-tertiary)', whiteSpace: 'nowrap' }}>
-                                      Cat Paused
-                                    </span>
-                                  )}
-                                </div>
+                              {/* Expand/Collapse arrow */}
+                              <td style={{ width: 40, padding: 'var(--space-4) var(--space-5)', textAlign: 'center' }}>
+                                <button 
+                                  className="btn btn-ghost" 
+                                  style={{ width: 34, height: 34, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
+                                  onClick={() => toggleExpandCategory(category.id)}
+                                  title={isExpanded ? 'Collapse items' : 'Expand items'}
+                                >
+                                  {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                </button>
                               </td>
-                            );
-                          })}
-                          <td></td>
-                        </tr>
-                      ))}
 
-                      {isExpanded && (category.items ?? []).length === 0 && (
-                        <tr style={{ background: 'var(--color-bg)' }}>
-                          <td></td>
-                          <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--color-label-tertiary)', fontSize: 'var(--text-footnote)' }}>
-                            No items found in this category.
-                          </td>
-                        </tr>
-                      )}
-                    </>
+                              {/* Category identity */}
+                              <td style={{ padding: 'var(--space-4) var(--space-5)', textAlign: 'left' }}>
+                                <span style={{ fontSize: '1.2rem', marginRight: 8 }}>{category.emoji}</span>
+                                <span style={{ fontWeight: 'var(--weight-bold)' }}>{category.name}</span>
+                                <span className="text-secondary" style={{ fontSize: 'var(--text-caption2)', fontWeight: 'normal', marginLeft: 8 }}>
+                                  ({category.items?.length || 0} items)
+                                </span>
+                              </td>
+
+                              {/* Category Platform Matrix checkboxes */}
+                              {Object.keys(PLATFORM_META).map(platformId => {
+                                const isEnabled = isPlatformEnabled(platformId);
+                                const isCatAvail = isCategoryEnabled(platformId, category.id);
+                                
+                                return (
+                                  <td key={platformId} style={{ textAlign: 'center', padding: 'var(--space-4) var(--space-5)' }}>
+                                    <input
+                                      type="checkbox"
+                                      disabled={!isEnabled}
+                                      checked={isEnabled && isCatAvail}
+                                      onChange={() => toggleCategoryOverride(platformId, category.id, isCatAvail)}
+                                      style={{ 
+                                        cursor: isEnabled ? 'pointer' : 'not-allowed',
+                                        width: 20, height: 20,
+                                        accentColor: 'var(--color-accent)',
+                                        opacity: isEnabled ? 1 : 0.2
+                                      }}
+                                    />
+                                  </td>
+                                );
+                              })}
+
+                              {/* Bulk Action Column */}
+                              <td style={{ textAlign: 'center', padding: 'var(--space-4) var(--space-5)', width: 140 }}>
+                                {enabledOnAny ? (
+                                  <button 
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ color: 'var(--color-red)', borderColor: 'rgba(255, 59, 48, 0.25)', minHeight: 32, padding: '4px 12px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)', borderRadius: 'var(--radius-sm)' }}
+                                    onClick={() => toggleCategoryAllPlatforms(category.id, false)}
+                                    disabled={activePlatforms.length === 0}
+                                  >
+                                    Pause All
+                                  </button>
+                                ) : (
+                                  <button 
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ color: 'var(--color-success)', borderColor: 'rgba(52, 199, 89, 0.25)', minHeight: 32, padding: '4px 12px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)', borderRadius: 'var(--radius-sm)' }}
+                                    onClick={() => toggleCategoryAllPlatforms(category.id, true)}
+                                    disabled={activePlatforms.length === 0}
+                                  >
+                                    Enable All
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+
+                            {/* Expandable items sub-table */}
+                            {isExpanded && (category.items ?? []).map(item => (
+                              <tr 
+                                key={item.id} 
+                                style={{ 
+                                  borderBottom: '1px solid var(--color-separator-opaque)',
+                                  background: 'var(--color-bg)'
+                                }}
+                              >
+                                <td style={{ width: 40 }}></td>
+                                {/* Item identity */}
+                                <td style={{ padding: 'var(--space-3) var(--space-5)', paddingLeft: 'var(--space-8)', textAlign: 'left' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                    <span style={{ fontSize: '1rem' }}>{item.emoji}</span>
+                                    <div>
+                                      <span>{item.name}</span>
+                                      <span style={{ color: 'var(--color-label-secondary)', fontSize: 'var(--text-caption2)', marginLeft: 8 }}>
+                                        ({formatCurrency(item.price, currency)})
+                                      </span>
+                                      {!item.available && (
+                                        <span className="badge badge-gray" style={{ marginLeft: 8, fontSize: '0.65rem', padding: '1px 4px' }}>
+                                          POS Off
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Item Platform overrides */}
+                                {Object.keys(PLATFORM_META).map(platformId => {
+                                  const isEnabled = isPlatformEnabled(platformId);
+                                  const isCatAvail = isCategoryEnabled(platformId, category.id);
+                                  const isItmAvail = isItemEnabled(platformId, item.id, item.available);
+
+                                  const checked = isEnabled && isCatAvail && isItmAvail;
+                                  const isDisabled = !isEnabled || !isCatAvail;
+
+                                  return (
+                                    <td key={platformId} style={{ textAlign: 'center', padding: 'var(--space-3) var(--space-5)' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                        <input
+                                          type="checkbox"
+                                          disabled={isDisabled}
+                                          checked={checked}
+                                          onChange={() => toggleOverride(platformId, item.id, isItmAvail)}
+                                          style={{ 
+                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                            width: 18, height: 18,
+                                            accentColor: 'var(--color-accent)',
+                                            opacity: isEnabled ? (isCatAvail ? 1 : 0.3) : 0.1
+                                          }}
+                                        />
+                                        {!isCatAvail && isEnabled && (
+                                          <span style={{ fontSize: '0.55rem', color: 'var(--color-label-tertiary)', whiteSpace: 'nowrap' }}>
+                                            Cat Paused
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                  );
+                                })}
+                                <td style={{ width: 140 }}></td>
+                              </tr>
+                            ))}
+
+                            {isExpanded && (category.items ?? []).length === 0 && (
+                              <tr style={{ background: 'var(--color-bg)' }}>
+                                <td style={{ width: 40 }}></td>
+                                <td colSpan={Object.keys(PLATFORM_META).length + 2} style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--color-label-tertiary)', fontSize: 'var(--text-footnote)' }}>
+                                  No items found in this category.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Category Cards View */}
+          <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-3)' }}>
+            {categories.map(category => {
+              const isExpanded = expandedCategories[category.id] === true;
+              const activePlatforms = Object.keys(PLATFORM_META).filter(isPlatformEnabled);
+              const enabledOnAny = activePlatforms.some(platformId => isCategoryEnabled(platformId, category.id));
+
+              return (
+                <div 
+                  key={category.id} 
+                  style={{
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-separator)',
+                    padding: 'var(--space-3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-3)'
+                  }}
+                >
+                  {/* Category Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '1.4rem' }}>{category.emoji}</span>
+                      <div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{category.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>{category.items?.length || 0} items</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                          color: enabledOnAny ? 'var(--color-red)' : 'var(--color-success)',
+                          borderColor: enabledOnAny ? 'rgba(255, 59, 48, 0.25)' : 'rgba(52, 199, 89, 0.25)',
+                          minHeight: 34,
+                          padding: '4px 10px',
+                          fontSize: 11,
+                          fontWeight: 'var(--weight-semibold)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}
+                        onClick={() => toggleCategoryAllPlatforms(category.id, !enabledOnAny)}
+                        disabled={activePlatforms.length === 0}
+                      >
+                        {enabledOnAny ? 'Pause All' : 'Enable All'}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        style={{ width: 34, height: 34, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
+                        onClick={() => toggleExpandCategory(category.id)}
+                        title={isExpanded ? 'Collapse items' : 'Expand items'}
+                      >
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Platform chips quick toggles for Category */}
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--color-label-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                      Category Channels ({activePlatforms.length} active)
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {Object.keys(PLATFORM_META).map(platformId => {
+                        const meta = PLATFORM_META[platformId];
+                        const isEnabled = isPlatformEnabled(platformId);
+                        const isCatAvail = isCategoryEnabled(platformId, category.id);
+                        if (!isEnabled) return null;
+
+                        return (
+                          <button
+                            key={platformId}
+                            type="button"
+                            onClick={() => toggleCategoryOverride(platformId, category.id, isCatAvail)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '6px 10px',
+                              minHeight: 32,
+                              borderRadius: 'var(--radius-full)',
+                              border: `1.5px solid ${isCatAvail ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                              background: isCatAvail ? 'var(--color-accent-light)' : 'var(--color-bg)',
+                              color: isCatAvail ? 'var(--color-accent)' : 'var(--color-label-tertiary)',
+                              fontWeight: isCatAvail ? 'var(--weight-bold)' : 'var(--weight-normal)',
+                              fontSize: 12,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <span>{meta.emoji}</span>
+                            <span>{meta.name}</span>
+                            <span style={{ fontSize: 10, opacity: 0.8 }}>{isCatAvail ? '✓' : '✕'}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Sub-items if expanded */}
+                  {isExpanded && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--color-separator)', paddingTop: 10, marginTop: 4 }}>
+                      {(category.items ?? []).map(item => (
+                        <div
+                          key={item.id}
+                          style={{
+                            background: 'var(--color-bg)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '8px 10px',
+                            border: '1px solid var(--color-separator-opaque)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 14 }}>{item.emoji}</span>
+                              <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-footnote)' }}>{item.name}</span>
+                            </div>
+                            <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-caption1)' }}>{formatCurrency(item.price, currency)}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {Object.keys(PLATFORM_META).map(platformId => {
+                              const meta = PLATFORM_META[platformId];
+                              const isEnabled = isPlatformEnabled(platformId);
+                              const isCatAvail = isCategoryEnabled(platformId, category.id);
+                              const isItmAvail = isItemEnabled(platformId, item.id, item.available);
+                              if (!isEnabled) return null;
+
+                              const checked = isEnabled && isCatAvail && isItmAvail;
+                              return (
+                                <button
+                                  key={platformId}
+                                  type="button"
+                                  disabled={!isCatAvail}
+                                  onClick={() => toggleOverride(platformId, item.id, isItmAvail)}
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '3px 8px',
+                                    borderRadius: 'var(--radius-xs)',
+                                    border: `1px solid ${checked ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                                    background: checked ? 'var(--color-accent-light)' : 'transparent',
+                                    color: checked ? 'var(--color-accent)' : 'var(--color-label-tertiary)',
+                                    cursor: isCatAvail ? 'pointer' : 'not-allowed',
+                                    opacity: isCatAvail ? 1 : 0.4
+                                  }}
+                                >
+                                  {meta.emoji} {meta.name}: {checked ? 'ON' : 'OFF'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

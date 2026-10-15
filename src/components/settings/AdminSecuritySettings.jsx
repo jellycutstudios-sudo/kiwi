@@ -170,7 +170,7 @@ export default function AdminSecuritySettings() {
       </div>
 
       {/* Main Grid: Direct Password Change & 1-Click Reset */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--space-4)' }}>
         
         {/* Method 1: Change Password Directly In-App */}
         <div className="settings-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

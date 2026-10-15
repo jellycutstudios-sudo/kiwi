@@ -379,7 +379,7 @@ export default function Inventory() {
       )}
 
       {/* Tabs Selector Navigation */}
-      <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-separator)', marginBottom: '-1px' }}>
+      <div className="no-scrollbar touch-scroll-x" style={{ display: 'flex', borderBottom: '1.5px solid var(--color-separator)', marginBottom: '-1px' }}>
         {[
           { key: 'stock', label: 'Stock Ledger', icon: Boxes },
           { key: 'suppliers', label: 'Suppliers Directory', icon: Truck },
@@ -392,7 +392,7 @@ export default function Inventory() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '12px 20px',
+              padding: '12px 18px',
               background: 'none',
               border: 'none',
               borderBottom: `2.5px solid ${activeTab === tab.key ? 'var(--color-accent)' : 'transparent'}`,
@@ -402,7 +402,9 @@ export default function Inventory() {
               cursor: 'pointer',
               transition: 'all var(--duration-fast)',
               fontFamily: 'var(--font-family)',
-              marginBottom: '-2px'
+              marginBottom: '-2px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
           >
             <tab.icon size={16} />
@@ -447,7 +449,81 @@ export default function Inventory() {
                 style={{ minWidth: 200 }}
               />
             </div>
-            <div style={{ overflowX: 'auto' }}>
+
+            {/* Mobile Touch Cards View (visible on mobile <= 768px) */}
+            <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+              {ingredients.map(ing => {
+                const isLow = ing.qty <= ing.minQty;
+                const totalCostVal = ing.cost * ing.qty;
+                return (
+                  <div key={ing.id} className="inventory-mobile-card">
+                    <div className="inventory-mobile-card-header">
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-label)' }}>
+                          {ing.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                          {formatCurrency(ing.cost, currency)} / {ing.unit}
+                        </div>
+                      </div>
+                      <span className={`badge ${isLow ? 'badge-orange' : 'badge-green'}`} style={{ textTransform: 'uppercase', fontSize: '10.5px', fontWeight: 700 }}>
+                        {isLow ? '⚠️ Low Stock' : '✓ Good'}
+                      </span>
+                    </div>
+
+                    <div className="inventory-mobile-card-body">
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>In Stock</div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: isLow ? 'var(--color-orange)' : 'var(--color-label)', marginTop: '2px' }}>
+                          {ing.qty} {ing.unit}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Safety Minimum</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', marginTop: '2px' }}>
+                          {ing.minQty} {ing.unit}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Stock Value</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-accent)', marginTop: '2px' }}>
+                          {formatCurrency(totalCostVal, currency)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Unit Cost</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', marginTop: '2px' }}>
+                          {formatCurrency(ing.cost, currency)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="inventory-mobile-card-actions">
+                      <button className="btn btn-secondary btn-sm" id={`mob-edit-ing-${ing.id}`} onClick={() => {
+                        setEditId(ing.id);
+                        setForm({ name: ing.name, unit: ing.unit, qty: String(ing.qty), minQty: String(ing.minQty), cost: String(ing.cost) });
+                        setShowForm(true);
+                      }}>
+                        <Edit2 size={13} />
+                        <span>Edit</span>
+                      </button>
+                      <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteIngredient(ing.id)} id={`mob-delete-ing-${ing.id}`}>
+                        <Trash2 size={13} />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {ingredients.length === 0 && !loading && (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                  No ingredients found. Tap "+ Add Ingredient" above.
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="inventory-desktop-table" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -539,7 +615,77 @@ export default function Inventory() {
             <span className="card-title">Registered Suppliers Directory</span>
             <span className="badge badge-gray">{suppliers.length} vendors</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+
+          {/* Mobile Touch Cards for Suppliers */}
+          <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+            {suppliers.map(sup => (
+              <div key={sup.id} className="inventory-mobile-card">
+                <div className="inventory-mobile-card-header">
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-label)' }}>
+                      {sup.name}
+                    </div>
+                    {sup.contactName && (
+                      <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                        Contact: {sup.contactName}
+                      </div>
+                    )}
+                  </div>
+                  <span className={`badge ${sup.status === 'active' ? 'badge-green' : 'badge-red'}`} style={{ textTransform: 'uppercase', fontSize: '10.5px', fontWeight: 700 }}>
+                    {sup.status}
+                  </span>
+                </div>
+                <div className="inventory-mobile-card-body">
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Phone</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', marginTop: '2px' }}>
+                      {sup.phone ? <a href={`tel:${sup.phone}`} style={{ color: 'var(--color-accent)', textDecoration: 'none' }}>{sup.phone}</a> : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Email</div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-label)', marginTop: '2px', wordBreak: 'break-all' }}>
+                      {sup.email || '—'}
+                    </div>
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Address</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                      {sup.address || '—'}
+                    </div>
+                  </div>
+                </div>
+                <div className="inventory-mobile-card-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => {
+                    setEditSupplierId(sup.id);
+                    setSupplierForm({
+                      name: sup.name,
+                      contactName: sup.contactName,
+                      phone: sup.phone,
+                      email: sup.email ?? '',
+                      address: sup.address ?? '',
+                      status: sup.status ?? 'active'
+                    });
+                    setShowSupplierForm(true);
+                  }}>
+                    <Edit2 size={13} />
+                    <span>Edit</span>
+                  </button>
+                  <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteSupplier(sup.id)}>
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+            {suppliers.length === 0 && (
+              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                No suppliers registered yet.
+              </div>
+            )}
+          </div>
+
+          <div className="inventory-desktop-table" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -622,7 +768,70 @@ export default function Inventory() {
             <span className="card-title">Purchase Order Ledger</span>
             <span className="badge badge-gray">{purchaseOrders.length} records</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+
+          {/* Mobile Touch Cards for Purchase Orders */}
+          <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+            {purchaseOrders.map(po => {
+              const dateStr = po.createdAt?.toDate 
+                ? po.createdAt.toDate().toLocaleDateString()
+                : (po.createdAt ? new Date(po.createdAt).toLocaleDateString() : '—');
+              return (
+                <div key={po.id} className="inventory-mobile-card" style={{ opacity: po.status === 'cancelled' ? 0.6 : 1 }}>
+                  <div className="inventory-mobile-card-header">
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-label)' }}>
+                        #{po.id.slice(-6).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                        Supplier: {po.supplierName || '—'}
+                      </div>
+                    </div>
+                    <span className={`badge ${po.status === 'received' ? 'badge-green' : (po.status === 'ordered' ? 'badge-blue' : (po.status === 'draft' ? 'badge-gray' : 'badge-red'))}`} style={{ textTransform: 'uppercase', fontSize: '10.5px', fontWeight: 700 }}>
+                      {po.status}
+                    </span>
+                  </div>
+                  <div className="inventory-mobile-card-body">
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Total Cost</div>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-accent)', marginTop: '2px' }}>
+                        {formatCurrency(po.totalCost, currency)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Items Count</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', marginTop: '2px' }}>
+                        {po.items?.length ?? 0} items
+                      </div>
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>Date Created</div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-label)', marginTop: '2px' }}>
+                        {dateStr}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="inventory-mobile-card-actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => setViewPo(po)}>
+                      <Eye size={13} />
+                      <span>View PO</span>
+                    </button>
+                    {po.status === 'ordered' && (
+                      <button className="btn btn-success btn-sm" onClick={() => handleUpdatePoStatus(po, 'received')}>
+                        <span>Receive</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {purchaseOrders.length === 0 && (
+              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                No purchase orders yet. Tap "+ Create PO" above.
+              </div>
+            )}
+          </div>
+
+          <div className="inventory-desktop-table" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>

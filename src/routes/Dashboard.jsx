@@ -747,7 +747,7 @@ export default function Dashboard() {
           {/* 7-day sparkline */}
           {weeklySparkline.some(d => d.rev > 0) && (
             <div style={{
-              gridColumn: 'span 2',
+              gridColumn: '1 / -1',
               background: 'var(--color-bg-elevated)',
               border: '1px solid var(--color-separator)',
               borderRadius: '12px',
@@ -971,95 +971,167 @@ export default function Dashboard() {
               <span className="card-title" style={{ fontSize: 'var(--text-title3)', fontWeight: 700 }}>Active Orders</span>
               <span className="badge badge-blue" style={{ fontSize: '11px', fontWeight: 700 }}>{activeOrders.length}</span>
             </div>
-            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-              {activeOrders.length === 0 ? (
-                <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
-                  <div style={{ fontSize: 32, marginBottom: 'var(--space-2)' }}>🎉</div>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>All caught up!</div>
-                  <div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--color-label-tertiary)' }}>No active orders in progress right now.</div>
-                </div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
-                      {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Status', 'Action'].map(h => (
-                        <th key={h} style={{
-                          padding: 'var(--space-3) var(--space-5)',
-                          textAlign: 'left',
-                          fontSize: '10px',
-                          fontWeight: 'bold',
-                          color: 'var(--color-label-secondary)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                        }}>{h}</th>
+            {activeOrders.length === 0 ? (
+              <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                <div style={{ fontSize: 32, marginBottom: 'var(--space-2)' }}>🎉</div>
+                <div style={{ fontWeight: 600, fontSize: '14px' }}>All caught up!</div>
+                <div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--color-label-tertiary)' }}>No active orders in progress right now.</div>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table View */}
+                <div className="desktop-only" style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
+                        {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Status', 'Action'].map(h => (
+                          <th key={h} style={{
+                            padding: 'var(--space-3) var(--space-5)',
+                            textAlign: 'left',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            color: 'var(--color-label-secondary)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                          }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeOrders.slice(0, 15).map((o) => (
+                        <tr key={o.id} style={{
+                          borderBottom: '1px solid var(--color-separator)',
+                          transition: 'background var(--duration-fast)',
+                        }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-secondary)'}
+                          onMouseLeave={e => e.currentTarget.style.background = ''}
+                        >
+                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)' }}>
+                            #{o.id.slice(-6).toUpperCase()}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
+                            <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`}>
+                              {o.type}
+                            </span>
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--text-footnote)', fontWeight: 600 }}>
+                            {o.tableName ?? (o.token ? `#${o.token}` : '—')}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
+                            {(o.items ?? []).length} item(s)
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontWeight: 700 }}>
+                            {formatCurrency(o.total ?? 0, o.currency ?? currency)}
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
+                            <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`}>
+                              {o.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
+                            {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
+                              <button
+                                onClick={() => setSettleOrderModal(o)}
+                                className="btn btn-sm"
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  padding: '4px 10px',
+                                  background: '#10b981',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: 'var(--radius-md)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
+                                }}
+                              >
+                                <Zap size={11} fill="#fff" /> Settle
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <Check size={12} color="#10b981" /> Paid
+                              </span>
+                            )}
+                          </td>
+                        </tr>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeOrders.slice(0, 15).map((o) => (
-                      <tr key={o.id} style={{
-                        borderBottom: '1px solid var(--color-separator)',
-                        transition: 'background var(--duration-fast)',
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="mobile-only" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  {activeOrders.slice(0, 15).map(o => (
+                    <div 
+                      key={o.id}
+                      style={{
+                        padding: 'var(--space-3)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--color-bg-secondary)',
+                        border: '1px solid var(--color-separator)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 'var(--space-2)'
                       }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-secondary)'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}
-                      >
-                        <td style={{ padding: 'var(--space-3) var(--space-5)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)' }}>
-                          #{o.id.slice(-6).toUpperCase()}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
-                          <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`}>
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700 }}>
+                            #{o.id.slice(-6).toUpperCase()}
+                          </span>
+                          <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`} style={{ fontSize: '10px' }}>
                             {o.type}
                           </span>
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--text-footnote)', fontWeight: 600 }}>
-                          {o.tableName ?? (o.token ? `#${o.token}` : '—')}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
-                          {(o.items ?? []).length} item(s)
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-5)', fontWeight: 700 }}>
-                          {formatCurrency(o.total ?? 0, o.currency ?? currency)}
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
-                          <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`}>
-                            {o.status}
+                          <span style={{ fontSize: '12px', fontWeight: 600 }}>
+                            {o.tableName ?? (o.token ? `#${o.token}` : '—')}
                           </span>
-                        </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
-                          {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
-                            <button
-                              onClick={() => setSettleOrderModal(o)}
-                              className="btn btn-sm"
-                              style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '4px 10px',
-                                background: '#10b981',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: 'var(--radius-md)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
-                              }}
-                            >
-                              <Zap size={11} fill="#fff" /> Settle
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              <Check size={12} color="#10b981" /> Paid
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                        </div>
+                        <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`} style={{ fontSize: '10px' }}>
+                          {o.status}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>{(o.items ?? []).length} item(s) • </span>
+                          <span style={{ fontSize: '14px', fontWeight: 800 }}>{formatCurrency(o.total ?? 0, o.currency ?? currency)}</span>
+                        </div>
+                        {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
+                          <button
+                            onClick={() => setSettleOrderModal(o)}
+                            className="btn btn-sm"
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              height: 34,
+                              padding: '0 12px',
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 'var(--radius-md)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
+                            }}
+                          >
+                            <Zap size={11} fill="#fff" /> Settle
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <Check size={12} color="#10b981" /> Paid
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Hourly Traffic Peaks Chart Card */}

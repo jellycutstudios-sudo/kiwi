@@ -190,31 +190,35 @@ export default function StaffManager() {
             </div>
           ) : staff.map(s => (
             <div key={s.id} className="staff-row" style={{ opacity: s.active === false ? 0.5 : 1 }}>
-              <div className="staff-avatar">
-                {s.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="staff-info">
-                <div style={{fontWeight:'var(--weight-semibold)', color:'var(--color-label)'}}>{s.name}</div>
-                <div style={{fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:1, wordBreak: 'break-all'}}>
-                  PIN: {'●'.repeat(s.pin?.length ?? 4)} {s.email ? `· ${s.email}` : ''} {s.salaryRate ? `· ${s.salaryType === 'hourly' ? 'Hourly' : 'Monthly'} (${formatCurrency(s.salaryRate, restaurant?.currency)})` : ''}
+              <div className="staff-row-top">
+                <div className="staff-avatar">
+                  {s.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="staff-info">
+                  <div style={{fontWeight:'var(--weight-semibold)', color:'var(--color-label)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                    <span>{s.name}</span>
+                    <span className={`badge ${roleColors[s.role] ?? 'badge-gray'}`}>{s.role}</span>
+                    <span className={`badge ${s.active !== false ? 'badge-green' : 'badge-gray'}`}>
+                      {s.active !== false ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div style={{fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:2, wordBreak: 'break-all'}}>
+                    PIN: {'●'.repeat(s.pin?.length ?? 4)} {s.email ? `· ${s.email}` : ''} {s.salaryRate ? `· ${s.salaryType === 'hourly' ? 'Hourly' : 'Monthly'} (${formatCurrency(s.salaryRate, restaurant?.currency)})` : ''}
+                  </div>
                 </div>
               </div>
-              <div className="staff-meta">
-                <span className={`badge ${roleColors[s.role] ?? 'badge-gray'}`}>{s.role}</span>
-                <span className={`badge ${s.active !== false ? 'badge-green' : 'badge-gray'}`}>
-                  {s.active !== false ? 'Active' : 'Inactive'}
-                </span>
-              </div>
               <div className="staff-actions">
-                <button className="btn btn-secondary btn-icon btn-sm" id={`edit-staff-${s.id}`} onClick={() => { setEditId(s.id); setForm({name:s.name,pin:'',role:s.role,email:s.email??'',salaryType:s.salaryType||'monthly',salaryRate:s.salaryRate!==undefined?String(s.salaryRate):'',overtimeRate:s.overtimeRate!==undefined?String(s.overtimeRate):'1.5'}); setShowPin(false); setShowForm(true); }}>
-                  <Edit2 size={12}/>
+                <button className="btn btn-secondary btn-sm" id={`edit-staff-${s.id}`} onClick={() => { setEditId(s.id); setForm({name:s.name,pin:'',role:s.role,email:s.email??'',salaryType:s.salaryType||'monthly',salaryRate:s.salaryRate!==undefined?String(s.salaryRate):'',overtimeRate:s.overtimeRate!==undefined?String(s.overtimeRate):'1.5'}); setShowPin(false); setShowForm(true); }}>
+                  <Edit2 size={13}/>
+                  <span>Edit</span>
                 </button>
-                <button className="btn btn-secondary btn-icon btn-sm" onClick={() => toggleActive(s.id, s.active !== false)} id={`toggle-staff-${s.id}`}>
-                  {s.active !== false ? <UserX size={12} color="var(--color-red)"/> : <UserCheck size={12} color="var(--color-green)"/>}
+                <button className="btn btn-secondary btn-sm" onClick={() => toggleActive(s.id, s.active !== false)} id={`toggle-staff-${s.id}`}>
+                  {s.active !== false ? <><UserX size={13} color="var(--color-red)"/><span>Deactivate</span></> : <><UserCheck size={13} color="var(--color-green)"/><span>Activate</span></>}
                 </button>
                 {s.id !== currentUser?.id && (
-                  <button className="btn btn-secondary btn-icon btn-sm" style={{color:'var(--color-red)'}} onClick={() => deleteStaff(s.id)} id={`delete-staff-${s.id}`}>
-                    <Trash2 size={12}/>
+                  <button className="btn btn-secondary btn-sm" style={{color:'var(--color-red)'}} onClick={() => deleteStaff(s.id)} id={`delete-staff-${s.id}`}>
+                    <Trash2 size={13}/>
+                    <span>Delete</span>
                   </button>
                 )}
               </div>

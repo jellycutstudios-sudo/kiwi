@@ -691,7 +691,7 @@ export default function Settings() {
       {/* Header Banner */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h2 className="text-title2" style={{ margin: 0 }}>Restaurant Settings</h2>
             {(() => {
               const currentTab = TABS.find(t => t.id === activeTab);
@@ -743,13 +743,14 @@ export default function Settings() {
         <div className="settings-nav">
           {/* Quick Search */}
           <div className="settings-search-wrap">
-            <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+            <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
             <input
               type="text"
               className="settings-search-input"
               placeholder="Search settings..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              style={{ paddingLeft: 34 }}
             />
             {searchQuery && (
               <button
@@ -757,14 +758,14 @@ export default function Settings() {
                 onClick={() => setSearchQuery('')}
                 style={{
                   position: 'absolute',
-                  right: 8,
+                  right: 10,
                   top: 9,
                   background: 'none',
                   border: 'none',
                   color: 'var(--color-label-tertiary)',
                   cursor: 'pointer',
                   padding: 2,
-                  fontSize: 12
+                  fontSize: 13
                 }}
               >
                 ✕
@@ -772,28 +773,33 @@ export default function Settings() {
             )}
           </div>
 
-          {filteredTabs.map(tab => {
-            const isActive = activeTab === tab.id;
-            const isMatch = searchQuery && tab.keywords.some(k => k.includes(searchQuery.toLowerCase()));
-            const TabIcon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`settings-nav-item ${isActive ? 'active' : ''}`}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span className="settings-nav-icon">
-                    <TabIcon size={17} strokeWidth={2.2} />
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{tab.label}</span>
-                </div>
-                {isMatch && (
-                  <span className="settings-nav-badge">Match</span>
-                )}
-              </button>
-            );
-          })}
+          <div className="settings-tabs-strip no-scrollbar touch-scroll-x">
+            {filteredTabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              const isMatch = searchQuery && tab.keywords.some(k => k.includes(searchQuery.toLowerCase()));
+              const TabIcon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={(e) => {
+                    setActiveTab(tab.id);
+                    e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                  }}
+                  className={`settings-nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+                    <span className="settings-nav-icon">
+                      <TabIcon size={16} strokeWidth={2.2} />
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{tab.label}</span>
+                  </div>
+                  {isMatch && (
+                    <span className="settings-nav-badge">Match</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Content Area */}

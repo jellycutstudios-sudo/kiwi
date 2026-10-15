@@ -325,7 +325,8 @@ export default function Reservations() {
             <span className="card-title">Bookings Ledger</span>
             <span className="badge badge-gray">{selectedDate}</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          {/* Desktop Table View */}
+          <div className="desktop-only" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -438,6 +439,127 @@ export default function Reservations() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Touch Cards View */}
+          <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {reservations.map(res => {
+                const matchedTable = tables.find(t => t.id === res.tableId);
+
+                return (
+                  <div 
+                    key={res.id}
+                    className="card"
+                    style={{
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-separator)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-2)',
+                      opacity: res.status === 'cancelled' || res.status === 'no-show' ? 0.6 : 1
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-accent)' }}>
+                          🕒 {res.time}
+                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: 700 }}>
+                          • {res.partySize} Guests
+                        </span>
+                      </div>
+                      <span className={`badge ${
+                        res.status === 'seated' ? 'badge-green' : 
+                        res.status === 'confirmed' ? 'badge-blue' : 
+                        res.status === 'no-show' ? 'badge-gray' : 'badge-red'
+                      }`} style={{ textTransform: 'uppercase', fontSize: 10 }}>
+                        {res.status}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: '14px' }}>{res.name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>{res.phone}</div>
+                      </div>
+                      {matchedTable ? (
+                        <span className="badge badge-blue">🪑 Table {matchedTable.name}</span>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', fontStyle: 'italic' }}>Unassigned</span>
+                      )}
+                    </div>
+
+                    {res.notes && (
+                      <div style={{ fontSize: '11.5px', color: 'var(--color-label-tertiary)', background: 'var(--color-bg)', padding: '6px 8px', borderRadius: 'var(--radius-sm)' }}>
+                        📝 {res.notes}
+                      </div>
+                    )}
+
+                    {/* Touch Action Buttons */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', borderTop: '1px solid var(--color-separator)', paddingTop: 8, marginTop: 4 }}>
+                      {res.status === 'confirmed' && (
+                        <>
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => setSeatRes(res)}
+                            style={{ height: 36, padding: '0 12px', fontSize: 12, fontWeight: 700, flex: 1 }}
+                          >
+                            Seat Party
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => updateResStatus(res.id, 'no-show')}
+                            style={{ height: 36, padding: '0 10px', fontSize: 12 }}
+                          >
+                            No-Show
+                          </button>
+                          <button
+                            className="btn btn-sm"
+                            onClick={() => updateResStatus(res.id, 'cancelled')}
+                            style={{ background: 'var(--color-red-light)', color: 'var(--color-red)', border: 'none', height: 36, padding: '0 10px', fontSize: 12 }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        style={{ height: 36, padding: '0 10px' }}
+                        onClick={() => {
+                          setEditResId(res.id);
+                          setResForm({
+                            name: res.name,
+                            phone: res.phone,
+                            time: res.time,
+                            partySize: String(res.partySize),
+                            tableId: res.tableId ?? '',
+                            notes: res.notes ?? ''
+                          });
+                          setShowResForm(true);
+                        }}
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button 
+                        className="btn btn-icon btn-sm"
+                        style={{ color: 'var(--color-red)', height: 36, width: 36 }}
+                        onClick={() => deleteReservation(res.id)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {reservations.length === 0 && (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                  No bookings scheduled for this date.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -448,7 +570,8 @@ export default function Reservations() {
             <span className="card-title">Walk-In Waiting Queue</span>
             <span className="badge badge-purple">{waitlist.length} in line</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          {/* Desktop Table View */}
+          <div className="desktop-only" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
@@ -528,6 +651,86 @@ export default function Reservations() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Touch Cards View */}
+          <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {waitlist.map((wait, idx) => {
+                const minsWaiting = Math.floor((currentTime - (wait.createdAt?.toDate ? wait.createdAt.toDate() : new Date(wait.createdAt))) / 60000);
+
+                return (
+                  <div 
+                    key={wait.id}
+                    className="card"
+                    style={{
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-separator)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-2)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ 
+                          width: 24, height: 24, borderRadius: '50%', 
+                          background: 'var(--color-accent-light)', color: 'var(--color-accent)', 
+                          fontSize: '11px', fontWeight: 800, display: 'inline-flex', 
+                          alignItems: 'center', justifyContent: 'center' 
+                        }}>
+                          #{idx + 1}
+                        </span>
+                        <span style={{ fontWeight: 'var(--weight-bold)', fontSize: '14.5px' }}>{wait.name}</span>
+                        <span style={{ fontSize: '12.5px', color: 'var(--color-label-secondary)' }}>• {wait.partySize} Guests</span>
+                      </div>
+                      <span className={`badge ${wait.status === 'called' ? 'badge-orange' : 'badge-gray'}`} style={{ textTransform: 'uppercase', fontSize: 10 }}>
+                        {wait.status === 'called' ? 'Notified' : 'Waiting'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg)', padding: '6px 10px', borderRadius: 'var(--radius-md)' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>{wait.phone}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: minsWaiting >= 30 ? 'var(--color-red)' : (minsWaiting >= 15 ? 'var(--color-orange)' : 'var(--color-green)') }}>
+                        🕒 Waiting {minsWaiting}m
+                      </span>
+                    </div>
+
+                    {/* Touch actions */}
+                    <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-separator)', paddingTop: 8, marginTop: 4 }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => callWaitlistGuest(wait)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 38, fontSize: 12, fontWeight: 600, flex: 1 }}
+                      >
+                        <PhoneCall size={14} /> Notify (WA)
+                      </button>
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => setSeatRes(wait)}
+                        style={{ height: 38, fontSize: 12, fontWeight: 700, flex: 1 }}
+                      >
+                        Seat Party
+                      </button>
+                      <button
+                        className="btn btn-icon btn-sm"
+                        style={{ color: 'var(--color-red)', height: 38, width: 38 }}
+                        onClick={() => removeWaitlistGuest(wait.id)}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {waitlist.length === 0 && (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                  No guests waiting in queue.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
