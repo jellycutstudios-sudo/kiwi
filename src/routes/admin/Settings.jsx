@@ -148,17 +148,17 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',       label: 'General & Identity',      icon: Store, keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
-  { id: 'security',      label: 'Security & Password',     icon: ShieldCheck, keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
-  { id: 'workflows',     label: 'Workflows & Operations',  icon: SlidersHorizontal, keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
-  { id: 'features',      label: 'Modules & Features',      icon: LayoutGrid, keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
-  { id: 'kitchen',       label: 'Kitchen & KDS',           icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
-  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  icon: CreditCard, keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi', 'tally'] },
-  { id: 'receipts',      label: 'Receipt Designer',        icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
-  { id: 'displays',      label: 'Digital Displays & TV',   icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
-  { id: 'online-del',    label: 'Online Store & Delivery', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
-  { id: 'hardware',      label: 'Peripherals & Hardware',  icon: Printer, keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
-  { id: 'notifications', label: 'Alerts & Reports',        icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
+  { id: 'general',       label: 'General & Identity',      shortLabel: 'General',      icon: Store, keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
+  { id: 'security',      label: 'Security & Password',     shortLabel: 'Security',     icon: ShieldCheck, keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
+  { id: 'workflows',     label: 'Workflows & Operations',  shortLabel: 'Workflows',    icon: SlidersHorizontal, keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
+  { id: 'features',      label: 'Modules & Features',      shortLabel: 'Modules',      icon: LayoutGrid, keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
+  { id: 'kitchen',       label: 'Kitchen & KDS',           shortLabel: 'Kitchen',      icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
+  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  shortLabel: 'Taxes & Cash', icon: CreditCard, keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi', 'tally'] },
+  { id: 'receipts',      label: 'Receipt Designer',        shortLabel: 'Receipts',     icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
+  { id: 'displays',      label: 'Digital Displays & TV',   shortLabel: 'Displays',     icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
+  { id: 'online-del',    label: 'Online Store & Delivery', shortLabel: 'Online Store', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
+  { id: 'hardware',      label: 'Peripherals & Hardware',  shortLabel: 'Hardware',     icon: Printer, keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
+  { id: 'notifications', label: 'Alerts & Reports',        shortLabel: 'Alerts',       icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
 ];
 
 export default function Settings() {
@@ -641,7 +641,7 @@ export default function Settings() {
   if (!settings) return <div style={{padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)'}}>Loading settings...</div>;
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-6)', maxWidth: 1240, width: '100%', margin: '0 auto', paddingBottom: 80 }}>
+    <div className="settings-page-wrapper" style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)', maxWidth: 1240, width: '100%', minWidth: 0, margin: '0 auto', paddingBottom: 80, boxSizing: 'border-box' }}>
       {/* Draft Restored Banner */}
       {hasRestoredDraft && (
         <div style={{
@@ -689,34 +689,34 @@ export default function Settings() {
       )}
 
       {/* Header Banner */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+      <div className="settings-header-banner" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h2 className="text-title2" style={{ margin: 0 }}>Restaurant Settings</h2>
+            <h2 className="text-title2 settings-header-title" style={{ margin: 0 }}>Restaurant Settings</h2>
             {(() => {
               const currentTab = TABS.find(t => t.id === activeTab);
               if (!currentTab) return null;
               const ActiveIcon = currentTab.icon;
               return (
-                <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span className="settings-header-badge" style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <ActiveIcon size={14} strokeWidth={2.2} />
                   <span>{currentTab.label}</span>
                 </span>
               );
             })()}
           </div>
-          <p className="text-secondary text-caption1" style={{ marginTop: 4, marginBottom: 0 }}>
+          <p className="text-secondary text-caption1 settings-header-desc" style={{ marginTop: 4, marginBottom: 0 }}>
             Configure operational workflows, branding, hardware, digital displays, and billing policies.
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="settings-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {hasUnsavedChanges && (
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary btn-sm"
               onClick={handleDiscard}
               disabled={saving}
-              style={{ height: '38px' }}
+              style={{ height: '34px' }}
             >
               Discard
             </button>
@@ -727,13 +727,13 @@ export default function Settings() {
             onClick={save}
             disabled={saving || !hasUnsavedChanges}
             style={{
-              height: '38px',
-              padding: '0 var(--space-4)',
+              height: '34px',
+              padding: '0 14px',
               opacity: !hasUnsavedChanges ? 0.75 : 1,
               boxShadow: hasUnsavedChanges ? '0 0 0 2px var(--color-accent-light)' : 'none'
             }}
           >
-            <Save size={15}/> {saving ? 'Saving...' : (hasUnsavedChanges ? 'Save Changes' : 'Saved')}
+            <Save size={14}/> {saving ? 'Saving...' : (hasUnsavedChanges ? 'Save Changes' : 'Saved')}
           </button>
         </div>
       </div>
@@ -741,6 +741,25 @@ export default function Settings() {
       <div className="settings-container">
         {/* Navigation Sidebar */}
         <div className="settings-nav">
+          {/* Quick Mobile Category Selector */}
+          <div className="settings-mobile-picker-wrap">
+            <select
+              className="form-select settings-mobile-select"
+              value={activeTab}
+              onChange={e => {
+                setActiveTab(e.target.value);
+                const el = document.getElementById(`tab-${e.target.value}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+              }}
+            >
+              {TABS.map(tab => (
+                <option key={tab.id} value={tab.id}>
+                  {tab.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Quick Search */}
           <div className="settings-search-wrap">
             <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
@@ -781,6 +800,7 @@ export default function Settings() {
               return (
                 <button
                   key={tab.id}
+                  id={`tab-${tab.id}`}
                   onClick={(e) => {
                     setActiveTab(tab.id);
                     e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
@@ -791,7 +811,8 @@ export default function Settings() {
                     <span className="settings-nav-icon">
                       <TabIcon size={16} strokeWidth={2.2} />
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{tab.label}</span>
+                    <span className="settings-nav-label-desktop" style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{tab.label}</span>
+                    <span className="settings-nav-label-mobile" style={{ fontSize: 12, fontWeight: isActive ? 700 : 500 }}>{tab.shortLabel || tab.label}</span>
                   </div>
                   {isMatch && (
                     <span className="settings-nav-badge">Match</span>
@@ -818,7 +839,7 @@ export default function Settings() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Restaurant Logo (POS Thermal Receipts &amp; Branding)</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
                       {(settings.receiptConfig?.thermalLogo || settings.receiptConfig?.logoUrl || settings.logo) ? (
                         <div style={{
                           width: 80,
@@ -854,7 +875,7 @@ export default function Settings() {
                           🍽️
                         </div>
                       )}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 180px', minWidth: 0 }}>
                         <input
                           type="file"
                           id="settings-brand-logo-file"
@@ -893,7 +914,7 @@ export default function Settings() {
                     <label className="form-label">Address</label>
                     <input id="settings-address" className="form-input" placeholder="Street, City" value={settings.address??''} onChange={e=>updateField('address',e.target.value)} />
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap:'var(--space-3)' }}>
                     <div className="form-group">
                       <label className="form-label">Phone</label>
                       <input id="settings-phone" className="form-input" placeholder="+971 50 000 0000" value={settings.phone??''} onChange={e=>updateField('phone',e.target.value)} />
@@ -905,7 +926,7 @@ export default function Settings() {
                       </select>
                     </div>
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap:'var(--space-3)' }}>
                     <div className="form-group">
                       <label className="form-label">GSTIN / Tax ID</label>
                       <input id="settings-gstin" className="form-input" placeholder="e.g. 27AAAAA0000A1Z5" value={settings.gstin??''} onChange={e=>updateField('gstin', e.target.value.toUpperCase())} />

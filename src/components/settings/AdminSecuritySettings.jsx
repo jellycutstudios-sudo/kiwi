@@ -126,7 +126,7 @@ export default function AdminSecuritySettings() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <ShieldCheck size={22} color="var(--color-accent)" />
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>
                 Admin Account & Security
@@ -170,7 +170,7 @@ export default function AdminSecuritySettings() {
       </div>
 
       {/* Main Grid: Direct Password Change & 1-Click Reset */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 'var(--space-4)', width: '100%', minWidth: 0 }}>
         
         {/* Method 1: Change Password Directly In-App */}
         <div className="settings-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
