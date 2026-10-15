@@ -9,12 +9,13 @@ import {
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, Coins,
   Download, ShieldCheck, FileSpreadsheet, Bot,
-  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone
+  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone, HardDrive
 } from 'lucide-react';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
 import { convertLogoForThermal } from '../../utils/thermalLogo';
 import { downloadTallyXML } from '../../utils/tallyExport';
+import { getStorageProtectionStatus, exportLocalStoreBackup, restoreLocalStoreBackup } from '../../utils/localPersistence';
 import toast from 'react-hot-toast';
 import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker';
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
@@ -214,7 +215,13 @@ export default function Settings() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [storageStatus, setStorageStatus] = useState(null);
   const { hasUpdate, isUpdating, applyUpdate, checkForUpdates } = useUpdateStore();
+
+  // Query device storage protection and usage footprint
+  useEffect(() => {
+    getStorageProtectionStatus().then(status => setStorageStatus(status)).catch(() => {});
+  }, []);
 
   // Detect if an unsaved draft was restored on mount
   useEffect(() => {
@@ -1088,6 +1095,109 @@ export default function Settings() {
                   }));
                 }}
               />
+
+              {/* Local-Only Storage Mode & Data Protection */}
+              <div 
+                className="card card-padded"
+                style={{ 
+                  borderLeft: settings.localStorageOnly ? '4px solid #38bdf8' : '1px solid var(--color-separator)',
+                  background: settings.localStorageOnly ? 'rgba(56, 189, 248, 0.03)' : 'var(--color-bg-elevated)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <HardDrive size={18} color={settings.localStorageOnly ? '#38bdf8' : 'var(--color-accent)'} />
+                      <h3 className="text-title3" style={{ margin: 0 }}>
+                        Local-Only Storage Mode (Zero-Cloud Air-Gapped)
+                      </h3>
+                      {settings.localStorageOnly && (
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                          Active On Device
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                      Process and store all orders, tickets, cash drawer shifts, and settings 100% on this local device. Never syncs to external cloud servers.
+                    </p>
+                  </div>
+                  <label className="toggle-switch" style={{ cursor: 'pointer', flexShrink: 0 }}>
+                    <input
+                      type="checkbox"
+                      id="toggle-local-storage-only"
+                      checked={Boolean(settings.localStorageOnly)}
+                      onChange={e => {
+                        const enable = e.target.checked;
+                        updateField('localStorageOnly', enable);
+                        if (enable) {
+                          toast.success('Local-Only Storage Mode activated! Cloud sync is paused.', { icon: '💾' });
+                        } else {
+                          toast('Cloud sync mode re-enabled.', { icon: '🌐' });
+                        }
+                      }}
+                    />
+                    <span className="toggle-slider" />
+                  </label>
+                </div>
+
+                {/* Storage Protection & Local Backup Utilities */}
+                <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-separator)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ color: storageStatus?.persisted ? '#10b981' : '#f59e0b' }}>
+                        {storageStatus?.persisted ? '🛡️' : '⚠️'}
+                      </span>
+                      <strong style={{ color: 'var(--color-label)' }}>Storage Protection:</strong>
+                      <span style={{ color: storageStatus?.persisted ? '#10b981' : 'var(--color-label-secondary)', fontWeight: 600 }}>
+                        {storageStatus?.persisted ? 'Protected (Eviction-Proof)' : 'Standard'}
+                      </span>
+                      {storageStatus?.usageFormatted && (
+                        <span style={{ color: 'var(--color-label-tertiary)', fontSize: '11px' }}>
+                          • {storageStatus.usageFormatted} used
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => {
+                          const res = exportLocalStoreBackup(restaurant);
+                          if (res.ok) {
+                            toast.success(`Exported offline backup (${res.filename})`, { icon: '💾' });
+                          }
+                        }}
+                      >
+                        <Download size={13} /> Export Local Backup (.json)
+                      </button>
+                      <label className="btn btn-secondary btn-xs" style={{ cursor: 'pointer', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Upload size={13} /> Restore from Backup
+                        <input
+                          type="file"
+                          accept=".json"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const res = restoreLocalStoreBackup(event.target.result);
+                              if (res.ok) {
+                                toast.success(`Restored ${res.restoredCount} records! Reloading...`, { icon: '✅' });
+                                setTimeout(() => window.location.reload(), 1200);
+                              } else {
+                                toast.error('Failed to restore backup: ' + res.error);
+                              }
+                            };
+                            reader.readAsText(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Service Flow Style */}
               <div className="card card-padded">

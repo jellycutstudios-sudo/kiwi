@@ -526,11 +526,22 @@ export const useOrderStore = create((set, get) => ({
       orderData.splitPayments = splitPayments ?? [];
     }
 
-    // Zero-Downtime Fast Path: If offline in browser, buffer immediately without waiting on network
+    // Zero-Downtime Fast Path: If offline in browser or Local-Only mode is enabled
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
-    const isNetworkOffline = isBrowser && (navigator.onLine === false || useOfflineQueueStore.getState().isOnline === false);
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isNetworkOffline = isBrowser && (isLocalOnly || navigator.onLine === false || useOfflineQueueStore.getState().isOnline === false);
     if (isNetworkOffline) {
       const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
+      const localActiveOrder = {
+        ...orderData,
+        id: offlineRes.orderId,
+        token: offlineRes.token,
+        isOffline: true,
+        createdAt: new Date().toISOString(),
+      };
+      set(s => ({
+        activeOrders: [localActiveOrder, ...(s.activeOrders || [])]
+      }));
       get().clearCart();
       return { ok: true, orderId: offlineRes.orderId, isOffline: true, token: offlineRes.token };
     }

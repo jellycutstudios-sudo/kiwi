@@ -97,6 +97,12 @@ export const useOfflineQueueStore = create((set, get) => {
       const restaurantId = explicitRestaurantId || useAuthStore.getState().restaurant?.id;
       if (!restaurantId) return { syncedCount: 0, failedCount: 0 };
 
+      const restaurant = useAuthStore.getState().restaurant;
+      if (restaurant?.localStorageOnly) {
+        // Local-Only Mode active: keep orders safely buffered on device, do not send to cloud
+        return { syncedCount: 0, failedCount: 0, isLocalOnly: true };
+      }
+
       // Ensure anonymous or valid auth session before pushing
       try {
         await useAuthStore.getState().ensureAnonymousAuth();

@@ -432,51 +432,66 @@ export default function AppShell() {
             )}
 
             {/* Zero-Downtime Offline Outbox & Network Status Pill */}
-            <button
-              type="button"
-              id="network-outbox-status-btn"
-              className={`network-outbox-status-btn ${isOnline && offlineQueue.length === 0 ? 'is-clean-online' : ''}`}
-              onClick={() => setShowOfflineModal(true)}
-              title={!isOnline 
-                ? `Offline Mode Active — ${offlineQueue.length} order(s) buffered locally. Tap to inspect.` 
-                : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — click to inspect` : 'Connected to cloud server')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '11.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: isOnline && offlineQueue.length === 0
-                  ? '1px solid var(--color-border)'
-                  : '1px solid rgba(245, 158, 11, 0.45)',
-                background: isOnline && offlineQueue.length === 0
-                  ? 'var(--color-surface)'
-                  : 'rgba(245, 158, 11, 0.14)',
-                color: isOnline && offlineQueue.length === 0
-                  ? 'var(--color-text-secondary)'
-                  : '#d97706',
-                transition: 'all 0.2s ease',
-                flexShrink: 0
-              }}
-            >
-              <span className="network-status-dot" style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: !isOnline ? '#f59e0b' : (offlineQueue.length > 0 ? '#f59e0b' : '#22c55e'),
-                boxShadow: !isOnline ? '0 0 8px rgba(245, 158, 11, 0.6)' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e'),
-                flexShrink: 0
-              }} />
-              <span className="network-status-text">
-                {!isOnline 
-                  ? `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}` 
-                  : (offlineQueue.length > 0 ? (isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`) : 'Live Online')}
-              </span>
-            </button>
+            {(() => {
+              const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+              return (
+                <button
+                  type="button"
+                  id="network-outbox-status-btn"
+                  className={`network-outbox-status-btn ${!isLocalOnly && isOnline && offlineQueue.length === 0 ? 'is-clean-online' : ''}`}
+                  onClick={() => setShowOfflineModal(true)}
+                  title={isLocalOnly
+                    ? `Local-Only Mode Active — ${offlineQueue.length} order(s) stored on device. Click to backup or inspect.`
+                    : (!isOnline 
+                      ? `Offline Mode Active — ${offlineQueue.length} order(s) buffered locally. Tap to inspect.` 
+                      : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — click to inspect` : 'Connected to cloud server'))}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    height: '34px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    border: isLocalOnly 
+                      ? '1px solid rgba(56, 189, 248, 0.45)'
+                      : (isOnline && offlineQueue.length === 0
+                        ? '1px solid var(--color-border)'
+                        : '1px solid rgba(245, 158, 11, 0.45)'),
+                    background: isLocalOnly
+                      ? 'rgba(56, 189, 248, 0.12)'
+                      : (isOnline && offlineQueue.length === 0
+                        ? 'var(--color-surface)'
+                        : 'rgba(245, 158, 11, 0.14)'),
+                    color: isLocalOnly
+                      ? '#38bdf8'
+                      : (isOnline && offlineQueue.length === 0
+                        ? 'var(--color-text-secondary)'
+                        : '#d97706'),
+                    transition: 'all 0.2s ease',
+                    flexShrink: 0
+                  }}
+                >
+                  <span className="network-status-dot" style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: isLocalOnly ? '#38bdf8' : (!isOnline ? '#f59e0b' : (offlineQueue.length > 0 ? '#f59e0b' : '#22c55e')),
+                    boxShadow: isLocalOnly ? '0 0 8px rgba(56, 189, 248, 0.6)' : (!isOnline ? '0 0 8px rgba(245, 158, 11, 0.6)' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e')),
+                    flexShrink: 0
+                  }} />
+                  <span className="network-status-text">
+                    {isLocalOnly
+                      ? `Local Mode${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}`
+                      : (!isOnline 
+                        ? `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}` 
+                        : (offlineQueue.length > 0 ? (isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`) : 'Live Online'))}
+                  </span>
+                </button>
+              );
+            })()}
 
             {/* Theme Toggle (Obsidian Dark / Light) */}
             <div className="pos-topbar-theme-toggle">
