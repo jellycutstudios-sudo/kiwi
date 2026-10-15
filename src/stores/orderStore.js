@@ -542,6 +542,17 @@ export const useOrderStore = create((set, get) => ({
       set(s => ({
         activeOrders: [localActiveOrder, ...(s.activeOrders || [])]
       }));
+
+      // Immediately occupy or free table locally if dine-in
+      if (orderType === 'dine-in' && tableId) {
+        useTableStore.getState().setTableStatus(
+          restaurant?.id,
+          tableId,
+          isPaid ? 'free' : 'occupied',
+          isPaid ? null : offlineRes.orderId
+        );
+      }
+
       get().clearCart();
       return { ok: true, orderId: offlineRes.orderId, isOffline: true, token: offlineRes.token };
     }
@@ -930,45 +941,63 @@ export const useOrderStore = create((set, get) => ({
     };
   },
 
-  updateOrderStatus: async (restaurantId, orderId, status) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+  patchActiveOrder: (orderId, partial) => {
+    set(s => ({
+      activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o)
+    }));
+  },
 
-    // If moving to preparing or ready and order is online (or inventory not yet depleted), deplete stock safely
-    if (status === 'preparing' || status === 'ready') {
-      try {
-        const snap = await getDoc(orderRef);
-        if (snap.exists()) {
-          const order = snap.data();
-          if (order.type === 'online' && !order.inventoryDepleted) {
-            const batch = writeBatch(db);
-            const items = order.items ?? [];
-            for (const item of items) {
-              const recipe = item.recipe ?? [];
-              for (const recipeItem of recipe) {
-                if (recipeItem.ingredientId && recipeItem.amount) {
-                  const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', recipeItem.ingredientId);
-                  batch.update(ingDocRef, {
-                    qty: increment(-recipeItem.amount * (item.qty || 1))
-                  });
-                }
-              }
-            }
-            batch.update(orderRef, { status, inventoryDepleted: true, updatedAt: serverTimestamp() });
-            await batch.commit();
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn('Inventory depletion on order prepare check failed:', err);
-      }
-    }
+  updateOrderStatus: async (restaurantId, orderId, status) => {
+    // 1. Immediately update active order status locally for zero UI lag
+    set(s => ({
+      activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status } : o)
+    }));
 
     if (status === 'cancelled') {
       localCancelledOrderIds.add(orderId);
     }
 
-    await updateDoc(orderRef, { status, updatedAt: serverTimestamp() });
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+
+        // If moving to preparing or ready and order is online (or inventory not yet depleted), deplete stock safely
+        if (status === 'preparing' || status === 'ready') {
+          try {
+            const snap = await getDoc(orderRef);
+            if (snap.exists()) {
+              const order = snap.data();
+              if (order.type === 'online' && !order.inventoryDepleted) {
+                const batch = writeBatch(db);
+                const items = order.items ?? [];
+                for (const item of items) {
+                  const recipe = item.recipe ?? [];
+                  for (const recipeItem of recipe) {
+                    if (recipeItem.ingredientId && recipeItem.amount) {
+                      const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', recipeItem.ingredientId);
+                      batch.update(ingDocRef, {
+                        qty: increment(-recipeItem.amount * (item.qty || 1))
+                      });
+                    }
+                  }
+                }
+                batch.update(orderRef, { status, inventoryDepleted: true, updatedAt: serverTimestamp() });
+                await batch.commit();
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn('Inventory depletion on order prepare check failed:', err);
+          }
+        }
+
+        await updateDoc(orderRef, { status, updatedAt: serverTimestamp() });
+      }
+    } catch (e) {
+      console.warn('[useOrderStore] updateOrderStatus cloud sync deferred:', e?.message);
+    }
   },
 
   markOnlineOrdersRead: () => {

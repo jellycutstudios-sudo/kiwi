@@ -87,8 +87,8 @@ export const useTableStore = create((set, get) => {
   clearSelection: () => set({ selectedTable: null }),
 
   addTable: async (restaurantId, tableData) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    await addDoc(collection(db, 'restaurants', restaurantId, 'tables'), {
+    const newTable = {
+      id: `tbl_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       name: tableData.name,
       capacity: tableData.capacity ?? 4,
       shape: tableData.shape ?? 'rect',
@@ -99,29 +99,111 @@ export const useTableStore = create((set, get) => {
       h: tableData.h ?? 80,
       currentOrderId: null,
       floor: tableData.floor ?? 'Ground Floor',
+    };
+    set(s => {
+      const updated = [...s.tables, newTable];
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('dineos_cached_tables', JSON.stringify(updated));
+        }
+      } catch {}
+      return { tables: updated };
     });
+
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const docRef = await addDoc(collection(db, 'restaurants', restaurantId, 'tables'), {
+          ...newTable,
+          id: undefined // let Firestore assign doc id
+        });
+        // Swap local id with real docRef id
+        set(s => {
+          const updated = s.tables.map(t => t.id === newTable.id ? { ...t, id: docRef.id } : t);
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('dineos_cached_tables', JSON.stringify(updated));
+            }
+          } catch {}
+          return { tables: updated };
+        });
+      }
+    } catch (e) {
+      console.warn('[useTableStore] addTable cloud sync deferred:', e?.message);
+    }
   },
 
   updateTable: async (restaurantId, tableId, data) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId), data);
+    set(s => {
+      const updated = s.tables.map(t => t.id === tableId ? { ...t, ...data } : t);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('dineos_cached_tables', JSON.stringify(updated));
+        }
+      } catch {}
+      return { tables: updated };
+    });
+
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        await updateDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId), data);
+      }
+    } catch (e) {
+      console.warn('[useTableStore] updateTable cloud sync deferred:', e?.message);
+    }
   },
 
   deleteTable: async (restaurantId, tableId) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    await deleteDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId));
+    set(s => {
+      const updated = s.tables.filter(t => t.id !== tableId);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('dineos_cached_tables', JSON.stringify(updated));
+        }
+      } catch {}
+      return { tables: updated };
+    });
+
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        await deleteDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId));
+      }
+    } catch (e) {
+      console.warn('[useTableStore] deleteTable cloud sync deferred:', e?.message);
+    }
   },
 
   setTableStatus: async (restaurantId, tableId, status, orderId = null) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId), {
-      status,
-      currentOrderId: orderId,
+    set(s => {
+      const updated = s.tables.map(t => t.id === tableId ? { ...t, status, currentOrderId: orderId } : t);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('dineos_cached_tables', JSON.stringify(updated));
+        }
+      } catch {}
+      return { tables: updated };
     });
+
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        await updateDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId), {
+          status,
+          currentOrderId: orderId,
+        });
+      }
+    } catch (e) {
+      console.warn('[useTableStore] setTableStatus cloud sync deferred:', e?.message);
+    }
   },
 
   freeTable: async (restaurantId, tableId) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
     await get().setTableStatus(restaurantId, tableId, 'free', null);
   },
   };

@@ -5,8 +5,30 @@ import {
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';
 
+const getInitialShift = () => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('dineos_active_shift');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveShiftLocally = (shift) => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (shift) {
+        localStorage.setItem('dineos_active_shift', JSON.stringify(shift));
+      } else {
+        localStorage.removeItem('dineos_active_shift');
+      }
+    }
+  } catch {}
+};
+
 export const useShiftStore = create((set, get) => ({
-  activeShift: null,
+  activeShift: getInitialShift(),
 
   subscribeActiveShift: (restaurantId, shiftMode, staffId, onReady) => {
     let constraints = [where('status', '==', 'open')];
@@ -20,19 +42,25 @@ export const useShiftStore = create((set, get) => ({
     );
     return onSnapshot(q, snap => {
       if (!snap.empty) {
-        set({ activeShift: { id: snap.docs[0].id, ...snap.docs[0].data() } });
+        const shiftDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        set({ activeShift: shiftDoc });
+        saveShiftLocally(shiftDoc);
       } else {
         set({ activeShift: null });
+        saveShiftLocally(null);
       }
       if (typeof onReady === 'function') onReady();
     }, err => {
-      console.error("Shift subscription error:", err);
-      set({ activeShift: null });
+      console.warn("[ShiftStore] Subscription error (retaining local shift):", err?.message);
       if (typeof onReady === 'function') onReady();
     });
   },
 
   checkActiveShift: async (restaurantId, shiftMode, staffId) => {
+    const rest = useAuthStore.getState().restaurant;
+    if (rest?.localStorageOnly || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      return get().activeShift;
+    }
     try {
       let constraints = [where('status', '==', 'open')];
       if (shiftMode === 'staff' && staffId) {
@@ -47,129 +75,150 @@ export const useShiftStore = create((set, get) => ({
       if (!snap.empty) {
         const docData = { id: snap.docs[0].id, ...snap.docs[0].data() };
         set({ activeShift: docData });
+        saveShiftLocally(docData);
         return docData;
       } else {
         set({ activeShift: null });
+        saveShiftLocally(null);
         return null;
       }
     } catch (e) {
-      console.error(e);
-      return null;
+      console.warn("[ShiftStore] checkActiveShift error, falling back to local:", e?.message);
+      return get().activeShift;
     }
   },
 
   openShift: async (restaurantId, staffId, staffName, startCash) => {
+    const payload = {
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: staffName,
+      openedById: staffId,
+      startCash: parseFloat(startCash) || 0,
+      expectedCash: parseFloat(startCash) || 0,
+      cashSalesAmount: 0,
+      cashSalesCount: 0,
+      cardSalesAmount: 0,
+      cardSalesCount: 0,
+      upiSalesAmount: 0,
+      upiSalesCount: 0,
+      totalSalesAmount: 0,
+      cashDrops: [],
+      paidOuts: []
+    };
+    const localId = `shift_${Date.now()}`;
+    const docData = { id: localId, ...payload };
+    set({ activeShift: docData });
+    saveShiftLocally(docData);
+
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const payload = {
-        status: 'open',
-        openedAt: serverTimestamp(),
-        openedBy: staffName,
-        openedById: staffId,
-        startCash: parseFloat(startCash) || 0,
-        expectedCash: parseFloat(startCash) || 0,
-        cashSalesAmount: 0,
-        cashSalesCount: 0,
-        cardSalesAmount: 0,
-        cardSalesCount: 0,
-        upiSalesAmount: 0,
-        upiSalesCount: 0,
-        totalSalesAmount: 0,
-        cashDrops: [],
-        paidOuts: []
-      };
-      const ref = await addDoc(collection(db, 'restaurants', restaurantId, 'shifts'), payload);
-      const docData = { id: ref.id, ...payload };
-      set({ activeShift: docData });
-      return { ok: true, shift: docData };
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const ref = await addDoc(collection(db, 'restaurants', restaurantId, 'shifts'), {
+          ...payload,
+          openedAt: serverTimestamp()
+        });
+        const cloudData = { ...docData, id: ref.id };
+        set({ activeShift: cloudData });
+        saveShiftLocally(cloudData);
+        return { ok: true, shift: cloudData };
+      }
     } catch (e) {
-      return { ok: false, error: e.message };
+      console.warn('[useShiftStore] openShift cloud sync deferred:', e?.message);
     }
+    return { ok: true, shift: docData };
   },
 
   recordCashTransaction: async (restaurantId, shiftId, amount, type, reason) => {
+    const numAmt = parseFloat(amount) || 0;
+    if (numAmt <= 0) return { ok: false, error: 'Amount must be greater than 0' };
+
+    const txObj = {
+      amount: numAmt,
+      reason: reason || '',
+      timestamp: new Date().toISOString()
+    };
+
+    const currentShift = get().activeShift;
+    if (!currentShift) return { ok: false, error: 'No active shift found' };
+
+    const newExpected = (currentShift.expectedCash ?? currentShift.startCash ?? 0) - numAmt;
+    const listKey = type === 'drop' ? 'cashDrops' : 'paidOuts';
+    const updatedShift = {
+      ...currentShift,
+      expectedCash: newExpected,
+      [listKey]: [...(currentShift[listKey] ?? []), txObj]
+    };
+    set({ activeShift: updatedShift });
+    saveShiftLocally(updatedShift);
+
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
-      
-      const numAmt = parseFloat(amount) || 0;
-      if (numAmt <= 0) return { ok: false, error: 'Amount must be greater than 0' };
-      
-      const txObj = {
-        amount: numAmt,
-        reason: reason || '',
-        timestamp: new Date()
-      };
-      
-      const updates = {};
-      // Use atomic increment() to avoid read-then-write race conditions across multiple terminals
-      if (type === 'drop') {
-        updates.cashDrops = arrayUnion(txObj);
-        updates.expectedCash = increment(-numAmt);
-      } else if (type === 'paidout') {
-        updates.paidOuts = arrayUnion(txObj);
-        updates.expectedCash = increment(-numAmt);
-      } else {
-        return { ok: false, error: `Unknown transaction type: ${type}` };
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
+        const updates = {};
+        if (type === 'drop') {
+          updates.cashDrops = arrayUnion(txObj);
+          updates.expectedCash = increment(-numAmt);
+        } else if (type === 'paidout') {
+          updates.paidOuts = arrayUnion(txObj);
+          updates.expectedCash = increment(-numAmt);
+        }
+        await updateDoc(docRef, updates);
       }
-      
-      await updateDoc(docRef, updates);
-      
-      // Update local state optimistically (no full re-read needed)
-      const currentShift = get().activeShift;
-      if (currentShift) {
-        const newExpected = (currentShift.expectedCash ?? currentShift.startCash ?? 0) - numAmt;
-        const listKey = type === 'drop' ? 'cashDrops' : 'paidOuts';
-        set({
-          activeShift: {
-            ...currentShift,
-            expectedCash: newExpected,
-            [listKey]: [...(currentShift[listKey] ?? []), txObj]
-          }
-        });
-      }
-      return { ok: true };
     } catch (e) {
-      return { ok: false, error: e.message };
+      console.warn('[useShiftStore] recordCashTransaction cloud sync deferred:', e?.message);
     }
+
+    return { ok: true };
   },
 
   closeShift: async (restaurantId, shiftId, countedCash, staffId, staffName) => {
+    const currentShift = get().activeShift;
+    const data = currentShift || {};
+    const numCounted = parseFloat(countedCash) || 0;
+    const expected = data.expectedCash ?? data.startCash ?? 0;
+    const variance = numCounted - expected;
+    const closedAtDate = new Date();
+
+    const updates = {
+      status: 'closed',
+      closedAt: closedAtDate.toISOString(),
+      closedBy: staffName,
+      closedById: staffId,
+      actualCash: numCounted,
+      variance: Math.round(variance * 100) / 100
+    };
+
+    set({ activeShift: null });
+    saveShiftLocally(null);
+
+    const zReport = {
+      id: shiftId,
+      ...data,
+      ...updates,
+      closedAt: closedAtDate,
+    };
+
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return { ok: false, error: 'Shift not found' };
-      const data = snap.data();
-      
-      const numCounted = parseFloat(countedCash) || 0;
-      const expected = data.expectedCash ?? data.startCash;
-      const variance = numCounted - expected;
-      const closedAtDate = new Date();
-
-      const updates = {
-        status: 'closed',
-        closedAt: serverTimestamp(),
-        closedBy: staffName,
-        closedById: staffId,
-        actualCash: numCounted,
-        variance: Math.round(variance * 100) / 100
-      };
-      
-      await updateDoc(docRef, updates);
-      set({ activeShift: null });
-
-      return {
-        ok: true,
-        zReport: {
-          id: shiftId,
-          ...data,
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
+        await updateDoc(docRef, {
           ...updates,
-          closedAt: closedAtDate,
-        }
-      };
+          closedAt: serverTimestamp()
+        });
+      }
     } catch (e) {
-      return { ok: false, error: e.message };
+      console.warn('[useShiftStore] closeShift cloud sync deferred:', e?.message);
     }
+
+    return {
+      ok: true,
+      zReport
+    };
   },
 }));

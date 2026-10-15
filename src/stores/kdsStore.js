@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';
+import { useOrderStore } from './orderStore';
 
 export const useKdsStore = create(() => ({
   updateKDSItemStatus: async (restaurantId, order, itemIndex, newStatus) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
     const toDate = (ts) => {
       if (!ts) return new Date();
       if (typeof ts.toDate === 'function') return ts.toDate();
@@ -29,26 +29,43 @@ export const useKdsStore = create(() => ({
     if (newStatus === 'preparing' && order.status === 'pending') {
       overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = serverTimestamp();
+      updates.prepStartedAt = new Date().toISOString();
     }
 
     if (allReady) {
       updates.status = 'ready';
-      updates.prepCompletedAt = serverTimestamp();
+      updates.prepCompletedAt = new Date().toISOString();
       
       const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
       const durationSeconds = Math.floor((new Date() - startTime) / 1000);
       updates.prepDuration = Math.max(0, durationSeconds);
     } else if (hasPreparing && overallStatus === 'pending') {
       updates.status = 'preparing';
-      updates.prepStartedAt = serverTimestamp();
+      updates.prepStartedAt = new Date().toISOString();
     }
 
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), updates);
+    // 1. Optimistic local update in active orders
+    useOrderStore.getState().patchActiveOrder(order.id, {
+      ...updates,
+      status: overallStatus
+    });
+
+    // 2. Cloud sync if permitted and online
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const firestoreUpdates = { ...updates };
+        if (updates.prepStartedAt) firestoreUpdates.prepStartedAt = serverTimestamp();
+        if (updates.prepCompletedAt) firestoreUpdates.prepCompletedAt = serverTimestamp();
+        await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), firestoreUpdates);
+      }
+    } catch (e) {
+      console.warn('[useKdsStore] updateKDSItemStatus cloud sync deferred:', e?.message);
+    }
   },
 
   updateKDSStationStatus: async (restaurantId, order, stationName, newStatus) => {
-    await useAuthStore.getState().ensureAnonymousAuth();
     const toDate = (ts) => {
       if (!ts) return new Date();
       if (typeof ts.toDate === 'function') return ts.toDate();
@@ -72,21 +89,39 @@ export const useKdsStore = create(() => ({
     if (newStatus === 'preparing' && order.status === 'pending') {
       overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = serverTimestamp();
+      updates.prepStartedAt = new Date().toISOString();
     }
 
     if (allReady) {
       updates.status = 'ready';
-      updates.prepCompletedAt = serverTimestamp();
+      updates.prepCompletedAt = new Date().toISOString();
       
       const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
       const durationSeconds = Math.floor((new Date() - startTime) / 1000);
       updates.prepDuration = Math.max(0, durationSeconds);
     } else if (hasPreparing && overallStatus === 'pending') {
       updates.status = 'preparing';
-      updates.prepStartedAt = serverTimestamp();
+      updates.prepStartedAt = new Date().toISOString();
     }
 
-    await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), updates);
+    // 1. Optimistic local update in active orders
+    useOrderStore.getState().patchActiveOrder(order.id, {
+      ...updates,
+      status: overallStatus
+    });
+
+    // 2. Cloud sync if permitted and online
+    try {
+      const rest = useAuthStore.getState().restaurant;
+      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const firestoreUpdates = { ...updates };
+        if (updates.prepStartedAt) firestoreUpdates.prepStartedAt = serverTimestamp();
+        if (updates.prepCompletedAt) firestoreUpdates.prepCompletedAt = serverTimestamp();
+        await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), firestoreUpdates);
+      }
+    } catch (e) {
+      console.warn('[useKdsStore] updateKDSStationStatus cloud sync deferred:', e?.message);
+    }
   },
 }));
