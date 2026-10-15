@@ -127,26 +127,13 @@ export default function AdminSecuritySettings() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-              <ShieldCheck size={22} color="var(--color-accent)" />
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>
+              <ShieldCheck size={20} color="var(--color-accent)" />
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>
                 Admin Account & Security
               </h3>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                }}
-              >
-                100% Free • Firebase Spark
-              </span>
             </div>
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-label-secondary)' }}>
-              Manage your administrator credentials. All credentials use zero-cost Google Firebase bcrypt encryption.
+              Manage your administrator account credentials and password security.
             </p>
           </div>
 
