@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, Download } from 'lucide-react';
+import { Eye, EyeOff, Download, ArrowLeft } from 'lucide-react';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, collection, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -230,6 +230,13 @@ export default function Login() {
       {/* ── Right form panel ── */}
       <div className="login-form-panel">
         <div className="login-form-card">
+          <div className="login-top-bar">
+            <Link to="/" className="login-back-home-btn" id="btn-back-home" title="Back to Home Page">
+              <ArrowLeft size={14} />
+              <span>Back to Home</span>
+            </Link>
+          </div>
+
           <div className="login-card-header">
             <div className="login-logo-wrap mobile-only">
               <img src="/logorupos.svg" alt="Logo" />
