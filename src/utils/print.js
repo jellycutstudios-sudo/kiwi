@@ -273,6 +273,12 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   if (order.upiRef) {
     writeTextLine(`UPI Ref: ${order.upiRef}`);
   }
+  if (order.rrn) {
+    writeTextLine(`RRN: ${order.rrn}`);
+  }
+  if (order.authCode) {
+    writeTextLine(`Auth Code: ${order.authCode}`);
+  }
   writeTextLine('Thank you for dining with us!');
   writeTextLine(`Order ID: ${order.id?.slice(-8) ?? ''}`);
   
@@ -900,6 +906,8 @@ ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 <div class="divider"></div>
 <div>Payment: ${(order.paymentMethod ?? 'cash').toUpperCase()}</div>
 ${order.upiRef ? `<div style="font-size:10px">UPI Ref: ${order.upiRef}</div>` : ''}
+${order.rrn ? `<div style="font-size:10px">RRN / Txn: ${order.rrn}</div>` : ''}
+${order.authCode ? `<div style="font-size:10px">Auth Code: ${order.authCode}</div>` : ''}
 <div class="footer">Thank you for dining with us!<br/>Order ID: ${order.id?.slice(-8) ?? ''}</div>
 </body>
 </html>
@@ -1233,8 +1241,68 @@ export function printTokenTicket({ token, orderType, customerName, restaurant, i
   const bodyWidth = is58mm ? '52mm' : '72mm';
   const tokenFontSize = is58mm ? '42px' : '58px';
 
+  // If a hardware ESC/POS receipt printer is configured, send directly via ESC/POS
+  if (receiptPrinter && receiptPrinter.mode && receiptPrinter.mode !== 'browser') {
+    const ESC = 27;
+    const GS = 29;
+    const LF = 10;
+    const INIT = [ESC, 64];
+    const ALIGN_CENTER = [ESC, 97, 1];
+    const BOLD_ON = [ESC, 69, 1];
+    const BOLD_OFF = [ESC, 69, 0];
+    const CUT = [GS, 86, 65, 0];
+    const DOUBLE_ON = [ESC, 33, 48]; // double width + double height
+    const DOUBLE_OFF = [ESC, 33, 0];
+    const lineWidth = is58mm ? 32 : 48;
+    const divider = '-'.repeat(lineWidth);
+
+    const buffer = [];
+    const writeBytes = (b) => buffer.push(...b);
+    const writeTextLine = (t) => {
+      writeBytes(unicodeToEscPosBytes(t));
+      writeBytes([LF]);
+    };
+
+    writeBytes(INIT);
+    writeBytes(ALIGN_CENTER);
+    writeBytes(BOLD_ON);
+    writeTextLine(restaurant?.name ?? 'DineOS');
+    writeBytes(BOLD_OFF);
+    writeTextLine(divider);
+    writeTextLine('YOUR TOKEN NUMBER');
+    writeBytes([LF]);
+    writeBytes(DOUBLE_ON);
+    writeTextLine(String(token).padStart(3, '0'));
+    writeBytes(DOUBLE_OFF);
+    writeBytes([LF]);
+    if (isOffline) {
+      writeTextLine('*** OFFLINE TICKET ***');
+    }
+    writeTextLine(divider);
+    writeTextLine(orderType === 'dine-in' ? 'DINE IN' : 'TAKEAWAY / PICKUP');
+    if (customerName) {
+      writeTextLine(customerName);
+    }
+    writeTextLine(new Date().toLocaleTimeString());
+    writeBytes([LF, LF]);
+    writeBytes(CUT);
+
+    const bytes = new Uint8Array(buffer);
+    if (receiptPrinter.mode === 'bluetooth') {
+      sendToBluetoothPrinter(bytes);
+    } else if (receiptPrinter.mode === 'serial') {
+      sendToSerialPrinter(bytes);
+    } else if (receiptPrinter.mode === 'network') {
+      sendToNetworkPrinter(receiptPrinter.ipAddress, bytes);
+    }
+    return;
+  }
+
   const win = window.open('', '_blank', 'width=280,height=300');
-  if (!win) return;
+  if (!win) {
+    toast.error('Token print popup blocked. Please allow popups or connect a thermal printer.', { id: 'token-popup-blocked' });
+    return;
+  }
   win.document.write(`
 <!DOCTYPE html>
 <html>

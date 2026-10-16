@@ -44,62 +44,108 @@ export default function StaffManager() {
       return;
     }
 
+    if (!restaurant?.id) {
+      toast.error('Restaurant session not found. Please log in or refresh.');
+      return;
+    }
+
+    const cleanPin = form.pin ? String(form.pin).trim() : '';
+
     if (!editId) {
-      if (!form.pin) {
+      if (!cleanPin) {
         toast.error('4-digit PIN is required for staff login');
         return;
       }
-      if (!/^\d{4}$/.test(form.pin)) {
+      if (!/^\d{4}$/.test(cleanPin)) {
         toast.error('PIN must be exactly 4 digits (e.g. 1234)');
         return;
       }
-    } else if (form.pin) {
-      if (!/^\d{4}$/.test(form.pin)) {
+    } else if (cleanPin) {
+      if (!/^\d{4}$/.test(cleanPin)) {
         toast.error('New PIN must be exactly 4 digits');
         return;
       }
     }
 
     try {
+      await useAuthStore.getState().ensureAnonymousAuth();
+
       if (editId) {
-        if (form.pin) {
-          const isPinInUse = staff.some(s => s.id !== editId && s.pin === form.pin && s.active !== false);
+        if (cleanPin) {
+          const isPinInUse = staff.some(s => s.id !== editId && s.pin === cleanPin && s.active !== false);
           if (isPinInUse) {
             toast.error('PIN already in use — choose a different PIN');
             return;
           }
         }
 
-        const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
-        await updateDoc(staffRef, {
+        const updatedMember = {
+          id: editId,
           name: form.name.trim(),
           role: form.role,
+          email: form.email?.trim() || null,
           salaryType: form.salaryType,
           salaryRate: Number(form.salaryRate) || 0,
           overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-          ...(form.pin ? { pin: form.pin } : {}),
-        });
+          ...(cleanPin ? { pin: cleanPin } : {}),
+          updatedAt: new Date().toISOString()
+        };
+
+        const updatedList = staff.map(s => s.id === editId ? { ...s, ...updatedMember } : s);
+        useStaffStore.getState().setStaffList(updatedList);
+
+        if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+          try {
+            const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
+            await updateDoc(staffRef, {
+              ...updatedMember,
+              updatedAt: new Date()
+            });
+          } catch (cloudErr) {
+            console.warn('[StaffManager] Update cloud sync deferred:', cloudErr?.message);
+          }
+        }
 
         toast.success('Staff updated!');
       } else {
-        const isPinInUse = staff.some(s => s.pin === form.pin && s.active !== false);
+        const isPinInUse = staff.some(s => s.pin === cleanPin && s.active !== false);
         if (isPinInUse) {
           toast.error('PIN already in use — choose a different PIN');
           return;
         }
 
-        const staffColRef = collection(db, 'restaurants', restaurant.id, 'staff');
-        await addDoc(staffColRef, {
+        const newStaffId = `staff_${Date.now()}`;
+        const newMember = {
+          id: newStaffId,
           name: form.name.trim(),
-          pin: form.pin,
+          pin: cleanPin,
           role: form.role,
           active: true,
-          email: form.email.trim() || null,
+          email: form.email?.trim() || null,
           salaryType: form.salaryType,
           salaryRate: Number(form.salaryRate) || 0,
           overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-          createdAt: new Date(),
-        });
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const updatedList = [...staff, newMember];
+        useStaffStore.getState().setStaffList(updatedList);
+
+        if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+          try {
+            const staffColRef = collection(db, 'restaurants', restaurant.id, 'staff');
+            const ref = await addDoc(staffColRef, {
+              ...newMember,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            const finalList = updatedList.map(s => s.id === newStaffId ? { ...s, id: ref.id } : s);
+            useStaffStore.getState().setStaffList(finalList);
+          } catch (cloudErr) {
+            console.warn('[StaffManager] Add cloud sync deferred:', cloudErr?.message);
+          }
+        }
 
         toast.success('Staff member added!');
       }
@@ -124,6 +170,7 @@ export default function StaffManager() {
 
   const toggleActive = async (id, current) => {
     try {
+      if (!restaurant?.id) return;
       const nextActive = !current;
       if (nextActive) {
         const target = staff.find(s => s.id === id);
@@ -136,8 +183,18 @@ export default function StaffManager() {
         }
       }
 
-      const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
-      await updateDoc(staffRef, { active: nextActive });
+      const updatedList = staff.map(s => s.id === id ? { ...s, active: nextActive, updatedAt: new Date().toISOString() } : s);
+      useStaffStore.getState().setStaffList(updatedList);
+
+      if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await useAuthStore.getState().ensureAnonymousAuth();
+          const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
+          await updateDoc(staffRef, { active: nextActive, updatedAt: new Date() });
+        } catch (cloudErr) {
+          console.warn('[StaffManager] Toggle active cloud sync deferred:', cloudErr?.message);
+        }
+      }
       toast(nextActive ? 'Staff activated' : 'Staff deactivated', { icon: nextActive ? '✅' : '🔒' });
     } catch (err) {
       console.error(err);
@@ -148,8 +205,19 @@ export default function StaffManager() {
   const deleteStaff = async (id) => {
     if (!confirm('Remove this staff member?')) return;
     try {
-      const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
-      await deleteDoc(staffRef);
+      if (!restaurant?.id) return;
+      const updatedList = staff.filter(s => s.id !== id);
+      useStaffStore.getState().setStaffList(updatedList);
+
+      if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await useAuthStore.getState().ensureAnonymousAuth();
+          const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
+          await deleteDoc(staffRef);
+        } catch (cloudErr) {
+          console.warn('[StaffManager] Delete cloud sync deferred:', cloudErr?.message);
+        }
+      }
       toast.success('Removed');
     } catch (err) {
       console.error(err);

@@ -6,6 +6,7 @@ import {
 import { db } from '../firebase';
 import { getTodayKey } from '../utils/timezoneUtils';
 import { useAuthStore } from './authStore';
+import { localSyncChannel } from '../utils/localSyncChannel';
 
 const todayKey = () => {
   const restaurant = useAuthStore.getState().restaurant;
@@ -78,15 +79,37 @@ export const useTokenStore = create((set, get) => ({
 
   // Call a specific token number directly (cashier/KDS action)
   callSpecificToken: async (restaurantId, tokenNumber) => {
-    const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(tokenRef);
-      tx.set(tokenRef, {
-        current: Number(tokenNumber),
-        latest: snap.exists() ? (snap.data().latest ?? Number(tokenNumber)) : Number(tokenNumber),
-        lastCalledAt: serverTimestamp()
-      }, { merge: true });
-    });
+    const cleanNum = Number(tokenNumber) || tokenNumber;
+    const callTime = Date.now();
+    set(s => ({
+      currentServing: cleanNum,
+      lastCalledAt: callTime,
+      queue: (s.queue || []).filter(t => t !== cleanNum)
+    }));
+
+    try {
+      localSyncChannel.broadcast('TOKEN_CALLED', {
+        tokenNumber: cleanNum,
+        callTime,
+        restaurantId
+      });
+    } catch {}
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const tokenRef = doc(db, 'restaurants', restaurantId, 'tokens', todayKey());
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(tokenRef);
+          tx.set(tokenRef, {
+            current: Number(cleanNum) || cleanNum,
+            latest: snap.exists() ? (snap.data().latest ?? (Number(cleanNum) || 0)) : (Number(cleanNum) || 0),
+            lastCalledAt: serverTimestamp()
+          }, { merge: true });
+        });
+      }
+    } catch (err) {
+      console.warn('callSpecificToken cloud transaction deferred:', err);
+    }
   },
 
   // Subscribe to real-time token state (for TV display and cashier)
@@ -131,3 +154,17 @@ export const useTokenStore = create((set, get) => ({
     };
   },
 }));
+
+// Cross-Tab BroadcastChannel listener: ensures multi-screen Token TV Displays update in real time
+localSyncChannel.subscribe((msg) => {
+  const { type, payload } = msg || {};
+  if (type === 'TOKEN_CALLED' && payload) {
+    const currentRestId = useAuthStore.getState().restaurant?.id;
+    if (payload.restaurantId && currentRestId && payload.restaurantId !== currentRestId) return;
+    useTokenStore.setState(s => ({
+      currentServing: payload.tokenNumber,
+      lastCalledAt: payload.callTime || Date.now(),
+      queue: (s.queue || []).filter(t => t !== payload.tokenNumber)
+    }));
+  }
+});

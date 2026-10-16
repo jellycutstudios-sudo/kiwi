@@ -3,7 +3,7 @@
  * Ensures offline/local-only data is eviction-proof, redundant, and exportable.
  */
 
-const LOCAL_STORAGE_KEYS = [
+export const LOCAL_STORAGE_KEYS = [
   'dineos_offline_order_queue',
   'dineos_settings_tab',
   'dineos_last_active_shift',

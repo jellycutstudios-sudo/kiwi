@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useOrderStore } from './orderStore';
 import { useGiftCardStore } from './giftCardStore';
+import { useShiftStore } from './shiftStore';
 
 // Mock Firestore operations
 vi.mock('firebase/firestore', () => ({
@@ -239,9 +240,10 @@ describe('orderStore', () => {
 
     const res = await store.submitOrder({ id: 'rest-1', currency: 'INR' });
     expect(res.ok).toBe(true);
-    expect(batchMock.update).toHaveBeenCalledWith(
+    expect(batchMock.set).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ status: 'free', currentOrderId: null })
+      expect.objectContaining({ status: 'free', currentOrderId: null }),
+      { merge: true }
     );
   });
 
@@ -263,9 +265,10 @@ describe('orderStore', () => {
 
     const res = await store.submitOrder({ id: 'rest-1', currency: 'INR' });
     expect(res.ok).toBe(true);
-    expect(batchMock.update).toHaveBeenCalledWith(
+    expect(batchMock.set).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ status: 'occupied', currentOrderId: 'order-456' })
+      expect.objectContaining({ status: 'occupied', currentOrderId: 'order-456' }),
+      { merge: true }
     );
   });
 
@@ -283,5 +286,64 @@ describe('orderStore', () => {
     store.addItem({ id: 'item-1', name: 'Burger', price: 100, selectedModifiers: [{ id: 'm1', name: 'Extra Cheese' }] });
     expect(useOrderStore.getState().items).toHaveLength(2);
     expect(useOrderStore.getState().items[0].qty).toBe(2);
+  });
+
+  it('should update active shift float and breakdown with applySaleToActiveShift', () => {
+    useShiftStore.setState({
+      activeShift: {
+        id: 'shift-1',
+        startCash: 100,
+        expectedCash: 100,
+        cashSalesCount: 0,
+        cashSalesAmount: 0,
+        cardSalesCount: 0,
+        cardSalesAmount: 0,
+        upiSalesCount: 0,
+        upiSalesAmount: 0,
+        totalSalesAmount: 0
+      }
+    });
+
+    // 1. Cash sale of 50
+    useShiftStore.getState().applySaleToActiveShift({
+      total: 50,
+      method: 'cash'
+    });
+
+    let shift = useShiftStore.getState().activeShift;
+    expect(shift.cashSalesAmount).toBe(50);
+    expect(shift.cashSalesCount).toBe(1);
+    expect(shift.expectedCash).toBe(150);
+    expect(shift.totalSalesAmount).toBe(50);
+
+    // 2. Card sale of 75
+    useShiftStore.getState().applySaleToActiveShift({
+      total: 75,
+      method: 'card'
+    });
+
+    shift = useShiftStore.getState().activeShift;
+    expect(shift.cardSalesAmount).toBe(75);
+    expect(shift.cardSalesCount).toBe(1);
+    expect(shift.expectedCash).toBe(150); // Unchanged cash float
+    expect(shift.totalSalesAmount).toBe(125);
+
+    // 3. Split sale: 30 cash + 20 UPI
+    useShiftStore.getState().applySaleToActiveShift({
+      total: 50,
+      method: 'split',
+      splitPayments: [
+        { method: 'cash', amount: 30 },
+        { method: 'upi', amount: 20 }
+      ]
+    });
+
+    shift = useShiftStore.getState().activeShift;
+    expect(shift.cashSalesAmount).toBe(80);
+    expect(shift.cashSalesCount).toBe(2);
+    expect(shift.expectedCash).toBe(180);
+    expect(shift.upiSalesAmount).toBe(20);
+    expect(shift.upiSalesCount).toBe(1);
+    expect(shift.totalSalesAmount).toBe(175);
   });
 });

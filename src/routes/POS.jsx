@@ -2527,7 +2527,7 @@ export default function POS() {
         )}
 
         {/* Actions */}
-        {(orderType === 'dine-in' && isKitchenActive) ? (
+        {isKitchenActive ? (
           <div className="cart-action-buttons">
             <button
               className="cart-action-btn-kitchen"

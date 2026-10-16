@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import {
-  collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, where, limit, increment, arrayUnion
+  collection, addDoc, updateDoc, doc, getDocs, serverTimestamp, onSnapshot, query, where, limit, increment, arrayUnion
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';
@@ -173,6 +173,64 @@ export const useShiftStore = create((set, get) => ({
     }
 
     return { ok: true };
+  },
+
+  applySaleToActiveShift: (saleData) => {
+    const currentShift = get().activeShift;
+    if (!currentShift) return;
+
+    const { total = 0, method = 'cash', splitPayments = [] } = saleData;
+    const numTotal = Number(total) || 0;
+    if (numTotal <= 0 && method !== 'unpaid') return;
+
+    let deltaCashAmt = 0;
+    let deltaCashCount = 0;
+    let deltaCardAmt = 0;
+    let deltaCardCount = 0;
+    let deltaUpiAmt = 0;
+    let deltaUpiCount = 0;
+
+    if (method === 'cash') {
+      deltaCashAmt = numTotal;
+      deltaCashCount = 1;
+    } else if (method === 'card' || method === 'terminal') {
+      deltaCardAmt = numTotal;
+      deltaCardCount = 1;
+    } else if (method === 'upi') {
+      deltaUpiAmt = numTotal;
+      deltaUpiCount = 1;
+    } else if (method === 'split' && Array.isArray(splitPayments)) {
+      splitPayments.forEach(p => {
+        const m = p.method ?? 'cash';
+        const amt = Number(p.amount) || 0;
+        if (m === 'cash') {
+          deltaCashAmt += amt;
+          deltaCashCount += 1;
+        } else if (m === 'card' || m === 'terminal') {
+          deltaCardAmt += amt;
+          deltaCardCount += 1;
+        } else if (m === 'upi') {
+          deltaUpiAmt += amt;
+          deltaUpiCount += 1;
+        }
+      });
+    }
+
+    const currentExpected = currentShift.expectedCash ?? currentShift.startCash ?? 0;
+    const updatedShift = {
+      ...currentShift,
+      totalSalesAmount: Math.round(((Number(currentShift.totalSalesAmount) || 0) + numTotal) * 100) / 100,
+      cashSalesCount: (Number(currentShift.cashSalesCount) || 0) + deltaCashCount,
+      cashSalesAmount: Math.round(((Number(currentShift.cashSalesAmount) || 0) + deltaCashAmt) * 100) / 100,
+      expectedCash: Math.round((currentExpected + deltaCashAmt) * 100) / 100,
+      cardSalesCount: (Number(currentShift.cardSalesCount) || 0) + deltaCardCount,
+      cardSalesAmount: Math.round(((Number(currentShift.cardSalesAmount) || 0) + deltaCardAmt) * 100) / 100,
+      upiSalesCount: (Number(currentShift.upiSalesCount) || 0) + deltaUpiCount,
+      upiSalesAmount: Math.round(((Number(currentShift.upiSalesAmount) || 0) + deltaUpiAmt) * 100) / 100,
+    };
+
+    set({ activeShift: updatedShift });
+    saveShiftLocally(updatedShift);
   },
 
   closeShift: async (restaurantId, shiftId, countedCash, staffId, staffName) => {

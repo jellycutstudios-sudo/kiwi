@@ -6,6 +6,16 @@ import { Plus, Edit2, Trash2, X, Search, Users, Award, DollarSign, Calendar, Tic
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
+const getInitialCustomers = () => {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('dineos_cached_customers');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Customers() {
   const { restaurant, staffDoc } = useAuthStore();
   const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'giftcards'
@@ -23,11 +33,11 @@ export default function Customers() {
   };
   
   // CRM States
-  const [customers, setCustomers] = useState([]);
+  const [customers, setCustomers] = useState(getInitialCustomers);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editPhone, setEditPhone] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   const [form, setForm] = useState({
     name: '',
@@ -59,16 +69,37 @@ export default function Customers() {
   const fetchCustomers = useCallback(async () => {
     if (!restaurant?.id) return;
     setLoading(true);
+
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isNetworkOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    if (isLocalOnly || isNetworkOffline) {
+      const cached = getInitialCustomers();
+      const term = search.trim().toLowerCase();
+      if (!term) {
+        setCustomers(cached);
+      } else {
+        setCustomers(cached.filter(c =>
+          (c.name && c.name.toLowerCase().includes(term)) ||
+          (c.phone && c.phone.includes(term.replace(/\D/g, ''))) ||
+          (c.notes && c.notes.toLowerCase().includes(term))
+        ));
+      }
+      setLoading(false);
+      return;
+    }
+
     try {
       const cleanSearch = search.trim();
+      let resultDocs = [];
       if (!cleanSearch) {
         const q = query(
           collection(db, 'restaurants', restaurant.id, 'customers'),
           orderBy('name'),
-          limit(50)
+          limit(100)
         );
         const snap = await getDocs(q);
-        setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        resultDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } else {
         const isPhone = /^\d+$/.test(cleanSearch.replace(/\D/g, ''));
         if (isPhone) {
@@ -76,31 +107,43 @@ export default function Customers() {
           const docRef = doc(db, 'restaurants', restaurant.id, 'customers', cleanPhone);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            setCustomers([{ id: docSnap.id, ...docSnap.data() }]);
+            resultDocs = [{ id: docSnap.id, ...docSnap.data() }];
           } else {
             const q = query(
               collection(db, 'restaurants', restaurant.id, 'customers'),
               where('phone', '>=', cleanPhone),
               where('phone', '<=', cleanPhone + '\uf8ff'),
-              limit(50)
+              limit(100)
             );
             const snap = await getDocs(q);
-            setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            resultDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           }
         } else {
+          // Fetch up to 100 customers and do case-insensitive substring search
           const q = query(
             collection(db, 'restaurants', restaurant.id, 'customers'),
-            where('name', '>=', cleanSearch),
-            where('name', '<=', cleanSearch + '\uf8ff'),
-            limit(50)
+            orderBy('name'),
+            limit(100)
           );
           const snap = await getDocs(q);
-          setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const term = cleanSearch.toLowerCase();
+          resultDocs = all.filter(c =>
+            (c.name && c.name.toLowerCase().includes(term)) ||
+            (c.notes && c.notes.toLowerCase().includes(term))
+          );
         }
       }
+      setCustomers(resultDocs);
+      if (!cleanSearch && resultDocs.length > 0) {
+        try {
+          localStorage.setItem('dineos_cached_customers', JSON.stringify(resultDocs));
+        } catch {}
+      }
     } catch (e) {
-      console.error('Error fetching customers:', e);
-      toast.error('Failed to load customers');
+      console.warn('Error fetching customers, loading cache:', e?.message);
+      const cached = getInitialCustomers();
+      setCustomers(cached);
     } finally {
       setLoading(false);
     }
@@ -181,6 +224,19 @@ export default function Customers() {
         await setDoc(docRef, payload);
         toast.success('Customer profile created!');
       }
+      setCustomers(prev => {
+        let next;
+        if (editPhone) {
+          next = prev.map(c => (c.phone === editPhone || c.id === editPhone) ? { id: cleanPhone, ...payload } : c);
+        } else {
+          next = [{ id: cleanPhone, ...payload }, ...prev];
+        }
+        try {
+          localStorage.setItem('dineos_cached_customers', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
       setShowForm(false);
       setEditPhone(null);
       setForm({ name: '', phone: '', birthday: '', notes: '', points: '0', visitCount: '0', lifetimeSpend: '0' });
@@ -193,7 +249,20 @@ export default function Customers() {
   const deleteCustomer = async (phone) => {
     if (!confirm('Are you sure you want to delete this customer profile? Points history and spend logs will be lost.')) return;
     try {
-      await deleteDoc(doc(db, 'restaurants', restaurant.id, 'customers', phone));
+      const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+      const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
+      setCustomers(prev => {
+        const next = prev.filter(c => c.phone !== phone && c.id !== phone);
+        try {
+          localStorage.setItem('dineos_cached_customers', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      if (!isLocalOnly && isOnline) {
+        await deleteDoc(doc(db, 'restaurants', restaurant.id, 'customers', phone));
+      }
       toast.success('Customer removed from directory');
       fetchCustomers();
     } catch (e) {

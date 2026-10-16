@@ -3,6 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useMenuStore } from '../stores/menuStore';
+import { useOfflineQueueStore } from '../stores/offlineQueueStore';
+import { useShiftStore } from '../stores/shiftStore';
+import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -32,14 +35,11 @@ export default function Dashboard() {
   const staffDoc = useAuthStore(s => s.staffDoc);
   const user = useAuthStore(s => s.user);
 
-  // Cashier access control: Cashiers land directly on /pos and cannot view management turnover
+  // Role access control: Only admin/super_admin and explicitly permitted cashiers may access turnover analytics
   const staffRole = staffDoc?.role ?? (user ? 'admin' : 'cashier');
-  const isCashier = staffRole === 'cashier';
-  const canAccessDashboard = !isCashier || Boolean(restaurant?.allowCashierDashboard);
+  const canAccessDashboard = ['admin', 'super_admin'].includes(staffRole) || 
+    (staffRole === 'cashier' && Boolean(restaurant?.allowCashierDashboard));
 
-  if (!canAccessDashboard) {
-    return <Navigate to="/pos" replace />;
-  }
   const activeOrders = useOrderStore(s => s.activeOrders);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const categories = useMenuStore(s => s.categories);
@@ -76,10 +76,11 @@ export default function Dashboard() {
     if (!order?.id || !restaurant?.id) return;
     try {
       setSettling(true);
-      await settleOrder(restaurant.id, order.id, method, order.total);
+      // Close modal immediately for instant, zero-delay UX
+      setSettleOrderModal(null);
       const label = order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : `#${order.id.slice(-6).toUpperCase()}`);
       toast.success(`${label} settled for ${formatCurrency(order.total, currency)} via ${method.toUpperCase()}!`, { icon: '💰' });
-      setSettleOrderModal(null);
+      await settleOrder(restaurant.id, order.id, method, order.total);
     } catch (err) {
       toast.error('Failed to settle order: ' + err.message);
     } finally {
@@ -358,16 +359,50 @@ export default function Dashboard() {
       setTablesCount(snap.size || 0);
     }).catch(e => console.error(e));
 
-    const unsub = onSnapshot(q, snap => {
-      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const todayBilled = docs.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
-      const todayOpen = docs.filter(d => d.status !== 'billed' && (!d.paymentMethod || d.paymentMethod === 'unpaid') && d.status !== 'cancelled');
+    const computeTodayStats = (rawDocs) => {
+      // Merge local offline orders & active orders so local-only mode and offline sales are fully reflected
+      const offlineOrders = (useOfflineQueueStore.getState().queue || []).filter(o => {
+        const orderTime = getOrderTimestampMs(o);
+        return (!orderTime || orderTime >= today.getTime()) && (o.restaurantId === restaurant.id || !o.restaurantId);
+      });
+      // All active in-memory orders currently open in dining/kitchen are live orders regardless of midnight date boundaries
+      const activeMemOrders = (useOrderStore.getState().activeOrders || []).filter(o => {
+        return o.status !== 'cancelled';
+      });
 
-      const billedSales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
+      const existingIds = new Set(rawDocs.map(d => d.id));
+      const combined = [
+        ...rawDocs,
+        ...offlineOrders.filter(o => !existingIds.has(o.id)),
+        ...activeMemOrders.filter(o => !existingIds.has(o.id))
+      ];
+
+      // Settle timestamp check: order counts as today's sale if paidAt/updatedAt/createdAt is today
+      const todayBilled = combined.filter(d => {
+        if (d.status === 'cancelled') return false;
+        const isBilled = d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid');
+        if (!isBilled) return false;
+        const settleTime = getOrderTimestampMs(d.paidAt) || getOrderTimestampMs(d.updatedAt) || getOrderTimestampMs(d.createdAt);
+        return !settleTime || settleTime >= today.getTime();
+      });
+
+      // Open dining/kitchen orders: active in restaurant right now
+      const todayOpen = combined.filter(d => {
+        if (d.status === 'cancelled' || d.status === 'billed') return false;
+        if (d.paymentMethod && d.paymentMethod !== 'unpaid') return false;
+        return true;
+      });
+
+      // Synchronize with active cash shift total so shift sales are never missed
+      const activeShift = useShiftStore.getState().activeShift;
+      const shiftSales = activeShift?.totalSalesAmount || 0;
+      const shiftOrders = (activeShift?.cashSalesCount || 0) + (activeShift?.cardSalesCount || 0) + (activeShift?.upiSalesCount || 0);
+      const rawBilledSales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
+      const billedSales = Math.max(rawBilledSales, shiftSales);
+      const billedOrders = Math.max(todayBilled.length, shiftOrders);
       const openSales = todayOpen.reduce((s, d) => s + (d.total ?? 0), 0);
       const totalSales = billedSales + openSales;
 
-      const billedOrders = todayBilled.length;
       const openOrders = todayOpen.length;
       const totalOrders = billedOrders + openOrders;
       
@@ -378,16 +413,22 @@ export default function Dashboard() {
         : 0;
 
       // Calculate Payment Split
-      const paymentSplit = { cash: 0, card: 0, upi: 0, split: 0 };
+      const paymentSplit = { 
+        cash: activeShift?.cashSalesCount || 0, 
+        card: activeShift?.cardSalesCount || 0, 
+        upi: activeShift?.upiSalesCount || 0, 
+        split: 0 
+      };
       todayBilled.forEach(d => {
         if (d.paymentMethod) {
-          paymentSplit[d.paymentMethod] = (paymentSplit[d.paymentMethod] || 0) + 1;
+          const methodKey = d.paymentMethod === 'terminal' ? 'card' : d.paymentMethod;
+          paymentSplit[methodKey] = (paymentSplit[methodKey] || 0) + 1;
         }
       });
 
       // Top Item Today (across all orders today, billed and open)
       const itemCounts = {};
-      docs.filter(d => d.status !== 'cancelled').forEach(o => {
+      combined.filter(d => d.status !== 'cancelled').forEach(o => {
         (o.items || []).forEach(i => {
           if (!itemCounts[i.name]) itemCounts[i.name] = { name: i.name, qty: 0, emoji: i.emoji || '🍽️' };
           itemCounts[i.name].qty += (i.qty || 1);
@@ -396,7 +437,7 @@ export default function Dashboard() {
       const topItem = Object.values(itemCounts).sort((a,b) => b.qty - a.qty)[0] || null;
 
       // Track today's cancellations
-      setCancellations(docs.filter(d => d.status === 'cancelled').length);
+      setCancellations(combined.filter(d => d.status === 'cancelled').length);
 
       setTodayStats({ 
         settledSales: billedSales,
@@ -407,15 +448,21 @@ export default function Dashboard() {
         settledOrders: billedOrders,
         openOrders,
         totalOrders,
-        avg: totalOrders ? totalSales / totalOrders : 0,
+        avg: billedOrders ? billedSales / billedOrders : (totalOrders ? totalSales / totalOrders : 0),
         avgCookTime,
         paymentSplit,
         topItem,
         tableTurnover: 0
       });
+    };
+
+    const unsub = onSnapshot(q, snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      computeTodayStats(docs);
       setLoading(false);
     }, err => {
-      console.error("Dashboard stats subscription failed:", err);
+      console.warn("Dashboard real-time stream deferred, computing from local memory:", err);
+      computeTodayStats([]);
       setLoading(false);
     });
 
@@ -457,7 +504,7 @@ export default function Dashboard() {
       desc: todayStats.openSales > 0
         ? (salesViewMode === 'pipeline'
             ? `₹${todayStats.settledSales.toFixed(0)} billed · ₹${todayStats.openSales.toFixed(0)} live dining`
-            : `+ ₹${todayStats.openSales.toFixed(0)} open in kitchen`)
+            : `₹${todayStats.settledSales.toFixed(0)} billed (+ ₹${todayStats.openSales.toFixed(0)} live dining)`)
         : 'Gross revenue today', 
       highlight: true,
       hasToggle: todayStats.openSales > 0
@@ -483,7 +530,7 @@ export default function Dashboard() {
     },
     { 
       label: 'Orders Cooking',   
-      value: activeOrders.length, 
+      value: activeOrders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status)).length, 
       icon: Clock, 
       color: '#8b5cf6', 
       bg: 'rgba(139, 92, 246, 0.1)', 
@@ -528,6 +575,11 @@ export default function Dashboard() {
     }
     return null;
   };
+
+  if (!canAccessDashboard) {
+    const targetRoute = staffRole === 'kitchen' ? '/kds' : (['waiter', 'server'].includes(staffRole) ? '/tables' : '/pos');
+    return <Navigate to={targetRoute} replace />;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

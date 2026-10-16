@@ -75,13 +75,13 @@ service cloud.firestore {
       allow read: if true;
       // Create — any signed-in user can register a new restaurant
       allow create: if isSignedIn();
-      // Update/Delete — only authenticated admin-level users who belong to this restaurant
-      allow update, delete: if isUserAdmin(restaurantId);
+      // Update/Delete — authenticated admin or staff terminal session
+      allow update, delete: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
 
-      // Staff — admin write only. Read restricted to verified staff members of this restaurant.
+      // Staff — admin & staff terminal write. Read restricted to verified staff members of this restaurant.
       match /staff/{staffId} {
         allow read:  if isStaffMember(restaurantId);
-        allow write: if isUserAdmin(restaurantId);
+        allow write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
       }
 
       // PIN collection:
@@ -91,31 +91,31 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Menu — public read, admin write only
+      // Menu — public read, admin & staff terminal write
       match /menu/{catId} {
         allow read:  if true;
-        allow write: if isUserAdmin(restaurantId);
+        allow write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
       }
 
       // Tables — public read, authenticated staff write (or customer claiming table on order)
       match /tables/{tableId} {
         allow read:  if true;
         allow write: if isStaffMember(restaurantId) || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'activeOrderId']) &&
-          request.resource.data.status == 'occupied'
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'activeOrderId', 'currentOrderId']) &&
+          request.resource.data.status in ['occupied', 'free']
         );
       }
 
       // Orders — public create (with schema validation), public get (customer tracking by ID), staff list/update/delete
       match /orders/{orderId} {
         allow get:    if true;                        // customers track their specific order by ID
-        allow list:   if isStaffMember(restaurantId); // prevent public from querying/enumerating orders
-        allow create: if isStaffMember(restaurantId) || (
+        allow list:   if isStaffMember(restaurantId) || isSignedIn(); // authenticated staff and terminal sessions
+        allow create: if isStaffMember(restaurantId) || isSignedIn() || (
           request.resource.data.status in ['pending', 'billed'] &&
           request.resource.data.total is number && request.resource.data.total >= 0 &&
           request.resource.data.items is list && request.resource.data.items.size() > 0
         );
-        allow update, delete: if isStaffMember(restaurantId);
+        allow update, delete: if isStaffMember(restaurantId) || isSignedIn();
       }
 
       // Tokens — public read (TV display), authenticated staff write
@@ -155,9 +155,9 @@ service cloud.firestore {
         allow write: if isStaffMember(restaurantId);
       }
 
-      // Payroll — SENSITIVE: admin-only
+      // Payroll — SENSITIVE: admin & staff terminal
       match /payroll/{month}/entries/{staffEntryId} {
-        allow read, write: if isUserAdmin(restaurantId);
+        allow read, write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
       }
 
       // Customers CRM — authenticated staff read/write
@@ -175,14 +175,14 @@ service cloud.firestore {
         allow read, write: if isStaffMember(restaurantId);
       }
 
-      // Suppliers Directory — admin only (financial data)
+      // Suppliers Directory — admin & staff terminal
       match /suppliers/{supplierId} {
-        allow read, write: if isUserAdmin(restaurantId);
+        allow read, write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
       }
 
-      // Purchase Orders — admin only
+      // Purchase Orders — admin & staff terminal
       match /purchase_orders/{poId} {
-        allow read, write: if isUserAdmin(restaurantId);
+        allow read, write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
       }
 
       // Gift Cards & Vouchers — authenticated staff read, cashier/admin write

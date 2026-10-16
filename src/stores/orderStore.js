@@ -12,6 +12,7 @@ import { useGiftCardStore } from './giftCardStore';
 import { playNotificationTone, vibrateDevice } from '../utils/soundNotifications';
 import { useOfflineQueueStore } from './offlineQueueStore';
 import toast from 'react-hot-toast';
+import { localSyncChannel } from '../utils/localSyncChannel';
 
 let activeOrdersUnsub = null;
 let subscribedOrdersRestId = null;
@@ -77,6 +78,8 @@ export const useOrderStore = create((set, get) => ({
   customer: null,
   redeemingPoints: false,
   editingOrderId: initialCart?.editingOrderId || null,
+  assignedWaiterId: null,
+  assignedWaiterName: null,
 
   // Active orders list (realtime)
   activeOrders: [],
@@ -86,9 +89,10 @@ export const useOrderStore = create((set, get) => ({
   notifiedReadyOrders: [], // array of order IDs already notified
 
   // Payment
-  paymentMethod: 'cash',  // 'cash' | 'card' | 'upi' | 'split'
+  paymentMethod: 'cash',  // 'cash' | 'card' | 'upi' | 'split' | 'terminal'
   splitPayments: [],
   upiRef: '',
+  terminalTx: null, // { transactionId, status, rrn, authCode, provider, terminalId, paymentMethodUsed }
 
   // Discount
   discount: 0,
@@ -184,7 +188,9 @@ export const useOrderStore = create((set, get) => ({
       discountType: order.discountType ?? 'fixed',
       splitPayments: order.splitPayments ?? [],
       upiRef: order.upiRef ?? '',
-      tokenNumber: order.token ?? null
+      tokenNumber: order.token ?? null,
+      assignedWaiterId: order.assignedWaiterId ?? null,
+      assignedWaiterName: order.assignedWaiterName ?? null
     });
   },
 
@@ -195,7 +201,8 @@ export const useOrderStore = create((set, get) => ({
       customerName: '', customerPhone: '', note: '', editingOrderId: null,
       discount: 0, discountType: 'fixed', splitPayments: [],
       customer: null, redeemingPoints: false,
-      tipAmount: 0, upiRef: ''
+      tipAmount: 0, upiRef: '', terminalTx: null,
+      assignedWaiterId: null, assignedWaiterName: null
     });
     useGiftCardStore.getState().clearGiftCard();
   },
@@ -223,6 +230,7 @@ export const useOrderStore = create((set, get) => ({
     set({ tipAmount: Math.max(0, Math.round(amt * 100) / 100) });
   },
   setUpiRef: (upiRef) => set({ upiRef }),
+  setTerminalTx: (tx) => set({ terminalTx: tx }),
 
 
 
@@ -269,11 +277,49 @@ export const useOrderStore = create((set, get) => ({
 
   transferTable: async (restaurantId, sourceTableId, targetTableId, orderId, targetTableName) => {
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
-      await updateDoc(orderRef, {
-        tableId: targetTableId,
-        tableName: targetTableName
+      const isOffline = typeof orderId === 'string' && orderId.startsWith('offline_');
+      const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      const isNetworkOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      if (!isOffline && !isLocalOnly && !isNetworkOffline) {
+        try {
+          await useAuthStore.getState().ensureAnonymousAuth();
+          const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+          await updateDoc(orderRef, {
+            tableId: targetTableId,
+            tableName: targetTableName
+          });
+        } catch (cloudErr) {
+          console.warn('[transferTable] Cloud transfer deferred, transferring locally:', cloudErr?.message);
+        }
+      }
+
+      // Update in offline queue if present
+      const queue = useOfflineQueueStore.getState().queue || [];
+      if (queue.some(o => o.id === orderId)) {
+        const updatedQueue = queue.map(o => o.id === orderId ? {
+          ...o,
+          tableId: targetTableId,
+          tableName: targetTableName
+        } : o);
+        useOfflineQueueStore.setState({ queue: updatedQueue });
+        try {
+          localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+        } catch {}
+      }
+
+      // Update in activeOrders locally & broadcast to other tabs
+      set(s => ({
+        activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? {
+          ...o,
+          tableId: targetTableId,
+          tableName: targetTableName
+        } : o)
+      }));
+      localSyncChannel.broadcast('LOCAL_ORDER_UPDATED', {
+        orderId,
+        partial: { tableId: targetTableId, tableName: targetTableName },
+        restaurantId
       });
 
       await useTableStore.getState().setTableStatus(restaurantId, targetTableId, 'occupied', orderId);
@@ -288,21 +334,48 @@ export const useOrderStore = create((set, get) => ({
 
   mergeTables: async (restaurantId, primaryTableId, secondaryTableId, primaryOrderId, secondaryOrderId) => {
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const primaryOrderRef = doc(db, 'restaurants', restaurantId, 'orders', primaryOrderId);
-      const secondaryOrderRef = doc(db, 'restaurants', restaurantId, 'orders', secondaryOrderId);
+      const isOffline = (typeof primaryOrderId === 'string' && primaryOrderId.startsWith('offline_')) ||
+                        (typeof secondaryOrderId === 'string' && secondaryOrderId.startsWith('offline_'));
+      const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      const isNetworkOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-      const [primarySnap, secondarySnap] = await Promise.all([
-        getDoc(primaryOrderRef),
-        getDoc(secondaryOrderRef)
-      ]);
+      let primaryOrder = null;
+      let secondaryOrder = null;
 
-      if (!primarySnap.exists() || !secondarySnap.exists()) {
-        return { ok: false, error: 'One or both orders not found' };
+      // 1. Try resolving from active orders in memory first
+      const active = get().activeOrders || [];
+      primaryOrder = active.find(o => o.id === primaryOrderId) || null;
+      secondaryOrder = active.find(o => o.id === secondaryOrderId) || null;
+
+      // 2. If online and not local-only, fetch from Firestore if missing
+      if (!isOffline && !isLocalOnly && !isNetworkOffline) {
+        try {
+          await useAuthStore.getState().ensureAnonymousAuth();
+          const primaryOrderRef = doc(db, 'restaurants', restaurantId, 'orders', primaryOrderId);
+          const secondaryOrderRef = doc(db, 'restaurants', restaurantId, 'orders', secondaryOrderId);
+
+          const [primarySnap, secondarySnap] = await Promise.all([
+            getDoc(primaryOrderRef),
+            getDoc(secondaryOrderRef)
+          ]);
+
+          if (primarySnap.exists()) primaryOrder = primarySnap.data();
+          if (secondarySnap.exists()) secondaryOrder = secondarySnap.data();
+        } catch (cloudErr) {
+          console.warn('[mergeTables] Cloud fetch deferred, using local memory:', cloudErr?.message);
+        }
       }
 
-      const primaryOrder = primarySnap.data();
-      const secondaryOrder = secondarySnap.data();
+      // Fallback: check offline queue
+      if (!primaryOrder || !secondaryOrder) {
+        const queue = useOfflineQueueStore.getState().queue || [];
+        if (!primaryOrder) primaryOrder = queue.find(o => o.id === primaryOrderId) || null;
+        if (!secondaryOrder) secondaryOrder = queue.find(o => o.id === secondaryOrderId) || null;
+      }
+
+      if (!primaryOrder || !secondaryOrder) {
+        return { ok: false, error: 'One or both orders not found' };
+      }
 
       const mergedItems = [...(primaryOrder.items || [])];
 
@@ -332,31 +405,25 @@ export const useOrderStore = create((set, get) => ({
       const pointsDiscount = primaryOrder.pointsDiscount ?? 0;
       const baseTaxable = Math.max(0, subtotal - discountAmount - pointsDiscount);
       
-      const restRef = doc(db, 'restaurants', restaurantId);
-      const restSnap = await getDoc(restRef);
-      const restaurantData = restSnap.exists() ? restSnap.data() : null;
-
-      // Recalculate service charge on the MERGED subtotal (not the stale primary order value)
-      const serviceChargeRate = restaurantData?.serviceChargeRate ?? 0;
+      const rest = useAuthStore.getState().restaurant;
+      const serviceChargeRate = rest?.serviceChargeRate ?? 0;
       const serviceChargeAmt = serviceChargeRate > 0
         ? Math.round(((baseTaxable * serviceChargeRate) / 100) * 100) / 100
         : 0;
 
-      // Apply serviceChargeTaxable flag correctly
       let taxableAmountForTax = baseTaxable;
-      if (restaurantData?.serviceChargeTaxable === 'yes') {
+      if (rest?.serviceChargeTaxable === 'yes') {
         taxableAmountForTax += serviceChargeAmt;
       }
 
-      const taxRes = computeTax(taxableAmountForTax, restaurantData?.taxConfig ?? { type: 'none', rate: 0 });
+      const taxRes = computeTax(taxableAmountForTax, rest?.taxConfig ?? { type: 'none', rate: 0 });
       const tipAmt = primaryOrder.tipAmount ?? 0;
       const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
       const totalBeforeGiftCard = baseTaxable + taxToAdd + serviceChargeAmt + tipAmt;
       const giftCardDeduction = primaryOrder.giftCardDeduction ?? 0;
       const total = Math.max(0, totalBeforeGiftCard - giftCardDeduction);
 
-
-      await updateDoc(primaryOrderRef, {
+      const mergedUpdates = {
         items: mergedItems,
         subtotal,
         discountAmount,
@@ -364,14 +431,58 @@ export const useOrderStore = create((set, get) => ({
         taxInfo: taxRes,
         taxTotal: taxRes.taxTotal,
         total,
-        updatedAt: serverTimestamp()
+        updatedAt: new Date().toISOString()
+      };
+
+      // Cloud update if online and not an offline order
+      if (!isOffline && !isLocalOnly && !isNetworkOffline) {
+        try {
+          const primaryOrderRef = doc(db, 'restaurants', restaurantId, 'orders', primaryOrderId);
+          const secondaryOrderRef = doc(db, 'restaurants', restaurantId, 'orders', secondaryOrderId);
+          await updateDoc(primaryOrderRef, { ...mergedUpdates, updatedAt: serverTimestamp() });
+          await updateDoc(secondaryOrderRef, {
+            status: 'merged',
+            mergedIntoOrderId: primaryOrderId,
+            updatedAt: serverTimestamp()
+          });
+        } catch (cloudErr) {
+          console.warn('[mergeTables] Cloud update deferred, merged locally:', cloudErr?.message);
+        }
+      }
+
+      // Update in activeOrders locally & broadcast to other tabs
+      set(s => ({
+        activeOrders: (s.activeOrders || []).map(o => {
+          if (o.id === primaryOrderId) return { ...o, ...mergedUpdates };
+          if (o.id === secondaryOrderId) return { ...o, status: 'merged', mergedIntoOrderId: primaryOrderId };
+          return o;
+        })
+      }));
+
+      localSyncChannel.broadcast('LOCAL_ORDER_UPDATED', {
+        orderId: primaryOrderId,
+        partial: mergedUpdates,
+        restaurantId
+      });
+      localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
+        orderId: secondaryOrderId,
+        status: 'merged',
+        restaurantId
       });
 
-      await updateDoc(secondaryOrderRef, {
-        status: 'merged',
-        mergedIntoOrderId: primaryOrderId,
-        updatedAt: serverTimestamp()
-      });
+      // Update in offline queue if present
+      const queue = useOfflineQueueStore.getState().queue || [];
+      if (queue.some(o => o.id === primaryOrderId || o.id === secondaryOrderId)) {
+        const updatedQueue = queue.map(o => {
+          if (o.id === primaryOrderId) return { ...o, ...mergedUpdates };
+          if (o.id === secondaryOrderId) return { ...o, status: 'merged', mergedIntoOrderId: primaryOrderId };
+          return o;
+        });
+        useOfflineQueueStore.setState({ queue: updatedQueue });
+        try {
+          localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+        } catch {}
+      }
 
       await useTableStore.getState().freeTable(restaurantId, secondaryTableId);
 
@@ -464,6 +575,18 @@ export const useOrderStore = create((set, get) => ({
     const total    = get().getTotal(restaurant);
 
     const isPaid = paymentMethod !== 'unpaid';
+    const currentStaffDoc = useAuthStore.getState().staffDoc;
+    const currentStaffRole = currentStaffDoc?.role;
+    const isCurrentStaffWaiter = ['waiter', 'server'].includes(currentStaffRole);
+    const cartWaiterId = get().assignedWaiterId;
+    const cartWaiterName = get().assignedWaiterName;
+
+    const effectiveWaiterId = isCurrentStaffWaiter
+      ? (currentStaffDoc?.id ?? null)
+      : (cartWaiterId ?? null);
+    const effectiveWaiterName = isCurrentStaffWaiter
+      ? (currentStaffDoc?.name ?? null)
+      : (cartWaiterName ?? null);
 
     const orderData = {
       type: orderType,
@@ -500,14 +623,11 @@ export const useOrderStore = create((set, get) => ({
       loyaltyEarned: Math.floor(total / 10),
       loyaltyRedeemed: redeemingPoints && customer ? Math.round(pointsDiscount * 10) : 0,
       note,
-      staffId: staffId ?? (useAuthStore.getState().staffDoc?.id ?? null),
-      staffName: useAuthStore.getState().staffDoc?.name ?? null,
-      assignedWaiterId: ['waiter', 'server'].includes(useAuthStore.getState().staffDoc?.role) 
-        ? (useAuthStore.getState().staffDoc?.id) 
-        : (staffId ?? useAuthStore.getState().staffDoc?.id ?? null),
-      assignedWaiterName: ['waiter', 'server'].includes(useAuthStore.getState().staffDoc?.role) 
-        ? (useAuthStore.getState().staffDoc?.name) 
-        : (useAuthStore.getState().staffDoc?.name ?? null),
+      staffId: staffId ?? (currentStaffDoc?.id ?? null),
+      staffName: currentStaffDoc?.name ?? null,
+      assignedWaiterId: effectiveWaiterId,
+      assignedWaiterName: effectiveWaiterName,
+      createdAt: new Date().toISOString(),
       updatedAt: serverTimestamp(),
       paidAt: isPaid ? serverTimestamp() : null,
       currency: restaurant?.currency ?? 'INR',
@@ -524,13 +644,29 @@ export const useOrderStore = create((set, get) => ({
       }
     } else if (paymentMethod === 'split') {
       orderData.splitPayments = splitPayments ?? [];
+    } else if (paymentMethod === 'terminal' || paymentMethod === 'card') {
+      const { terminalTx } = get();
+      if (terminalTx) {
+        orderData.terminalTx = terminalTx;
+        if (terminalTx.rrn) orderData.rrn = terminalTx.rrn;
+        if (terminalTx.authCode) orderData.authCode = terminalTx.authCode;
+        if (terminalTx.paymentMethodUsed) orderData.terminalMethod = terminalTx.paymentMethodUsed;
+      }
     }
 
-    // Zero-Downtime Fast Path: If offline in browser or Local-Only mode is enabled
+    // Zero-Downtime Fast Path: True network outage, paid sales transaction in Local-Only mode, or editing an existing offline order
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
     const isLocalOnly = Boolean(restaurant?.localStorageOnly);
-    const isNetworkOffline = isBrowser && (isLocalOnly || navigator.onLine === false || useOfflineQueueStore.getState().isOnline === false);
-    if (isNetworkOffline) {
+    const isTrueNetworkOffline = isBrowser && (navigator.onLine === false || useOfflineQueueStore.getState().isOnline === false);
+    const isOfflineEditing = Boolean(editingOrderId && typeof editingOrderId === 'string' && editingOrderId.startsWith('offline_'));
+
+    // In Local-Only Mode, paid sales data stays 100% on device, while kitchen tickets (unpaid) sync to KDS
+    const isLocalOnlySale = isLocalOnly && isPaid;
+
+    if (isTrueNetworkOffline || isLocalOnlySale || isOfflineEditing) {
+      if (editingOrderId) {
+        orderData.id = editingOrderId;
+      }
       const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
       const localActiveOrder = {
         ...orderData,
@@ -540,8 +676,16 @@ export const useOrderStore = create((set, get) => ({
         createdAt: new Date().toISOString(),
       };
       set(s => ({
-        activeOrders: [localActiveOrder, ...(s.activeOrders || [])]
+        activeOrders: editingOrderId
+          ? (s.activeOrders || []).map(o => o.id === editingOrderId ? localActiveOrder : o)
+          : [localActiveOrder, ...(s.activeOrders || [])]
       }));
+      localSyncChannel.broadcast(editingOrderId ? 'LOCAL_ORDER_UPDATED' : 'LOCAL_ORDER_CREATED', {
+        orderId: offlineRes.orderId,
+        order: localActiveOrder,
+        partial: localActiveOrder,
+        restaurantId: restaurant?.id
+      });
 
       // Immediately occupy or free table locally if dine-in
       if (orderType === 'dine-in' && tableId) {
@@ -617,6 +761,13 @@ export const useOrderStore = create((set, get) => ({
             shiftUpdate.upiSalesAmount = increment(upiAmt);
           }
         }
+
+        // Apply immediately to local activeShift for instant X/Z report & till drawer accuracy
+        useShiftStore.getState().applySaleToActiveShift({
+          total,
+          method: paymentMethod,
+          splitPayments
+        });
       }
 
       if (editingOrderId) {
@@ -624,6 +775,15 @@ export const useOrderStore = create((set, get) => ({
         const oldOrderRef = doc(db, 'restaurants', restaurant.id, 'orders', editingOrderId);
         const oldOrderSnap = await getDoc(oldOrderRef);
         const oldItems = oldOrderSnap.exists() ? (oldOrderSnap.data().items || []) : [];
+
+        // Preserve original waiter assignment if cashier/admin edits order and had one
+        if (!isCurrentStaffWaiter && oldOrderSnap.exists()) {
+          const oldData = oldOrderSnap.data();
+          if (oldData.assignedWaiterId && !orderData.assignedWaiterId) {
+            orderData.assignedWaiterId = oldData.assignedWaiterId;
+            orderData.assignedWaiterName = oldData.assignedWaiterName || null;
+          }
+        }
 
         const batch = writeBatch(db);
         batch.update(oldOrderRef, orderData);
@@ -675,9 +835,9 @@ export const useOrderStore = create((set, get) => ({
           const diff = newAmt - oldAmt;
           if (diff !== 0) {
             const ingRef = doc(db, 'restaurants', restaurant.id, 'inventory', ingredientId);
-            batch.update(ingRef, {
+            batch.set(ingRef, {
               qty: increment(-diff)
-            });
+            }, { merge: true });
           }
         }
 
@@ -698,13 +858,13 @@ export const useOrderStore = create((set, get) => ({
 
         if (orderType === 'dine-in' && tableId) {
           const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
-          batch.update(tableRef, isPaid ? {
+          batch.set(tableRef, isPaid ? {
             status: 'free',
             currentOrderId: null
           } : {
             status: 'occupied',
             currentOrderId: orderId
-          });
+          }, { merge: true });
         }
 
         await batch.commit();
@@ -730,9 +890,9 @@ export const useOrderStore = create((set, get) => ({
           for (const recipeItem of recipe) {
             if (recipeItem.ingredientId && recipeItem.amount) {
               const ingDocRef = doc(db, 'restaurants', restaurant.id, 'inventory', recipeItem.ingredientId);
-              batch.update(ingDocRef, {
+              batch.set(ingDocRef, {
                 qty: increment(-recipeItem.amount * item.qty)
-              });
+              }, { merge: true });
             }
           }
         }
@@ -762,17 +922,37 @@ export const useOrderStore = create((set, get) => ({
 
         if (orderType === 'dine-in' && tableId) {
           const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
-          batch.update(tableRef, isPaid ? {
+          batch.set(tableRef, isPaid ? {
             status: 'free',
             currentOrderId: null
           } : {
             status: 'occupied',
             currentOrderId: orderId
-          });
+          }, { merge: true });
         }
 
         await batch.commit();
       }
+
+      // Optimistically push order into activeOrders so KDS and table views receive it immediately
+      const nowIso = new Date().toISOString();
+      const newActiveOrder = {
+        ...orderData,
+        id: orderId,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+      set(s => {
+        const existing = s.activeOrders || [];
+        if (existing.some(o => o.id === orderId)) {
+          return { activeOrders: existing.map(o => o.id === orderId ? { ...o, ...newActiveOrder } : o) };
+        }
+        return { activeOrders: [newActiveOrder, ...existing] };
+      });
+      localSyncChannel.broadcast('LOCAL_ORDER_CREATED', {
+        order: newActiveOrder,
+        restaurantId: restaurant?.id
+      });
 
       get().clearCart();
       return { ok: true, orderId };
@@ -783,7 +963,26 @@ export const useOrderStore = create((set, get) => ({
       const isOfflineError = (isBrowser && navigator.onLine === false) ||
         /offline|network|unavailable|failed to fetch|timeout|deadline|failed-precondition/i.test(e.message || '');
       if (isOfflineError) {
-        const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
+        const safeOrderData = {
+          ...orderData,
+          createdAt: (typeof orderData.createdAt === 'string' && !isNaN(new Date(orderData.createdAt).getTime()))
+            ? orderData.createdAt
+            : new Date().toISOString()
+        };
+        const offlineRes = useOfflineQueueStore.getState().enqueueOrder(safeOrderData, restaurant);
+        const localActiveOrder = {
+          ...safeOrderData,
+          id: offlineRes.orderId,
+          token: offlineRes.token,
+          isOffline: true,
+        };
+        set(s => ({
+          activeOrders: [localActiveOrder, ...(s.activeOrders || [])]
+        }));
+        localSyncChannel.broadcast('LOCAL_ORDER_CREATED', {
+          order: localActiveOrder,
+          restaurantId: restaurant?.id
+        });
         get().clearCart();
         return { ok: true, orderId: offlineRes.orderId, isOffline: true, token: offlineRes.token };
       }
@@ -818,6 +1017,28 @@ export const useOrderStore = create((set, get) => ({
 
     subscribedOrdersRestId = restaurantId;
     ordersSubCount = 1;
+
+    // In local mode or offline, merge active orders from local offline queue immediately
+    const localQueue = useOfflineQueueStore.getState().queue || [];
+    const activeLocalOrders = localQueue.filter(o => 
+      (!o.restaurantId || o.restaurantId === restaurantId) &&
+      ['pending', 'preparing', 'ready'].includes(o.status || 'pending')
+    );
+    if (activeLocalOrders.length > 0) {
+      set(s => {
+        const existing = s.activeOrders || [];
+        const merged = [...existing];
+        activeLocalOrders.forEach(loc => {
+          if (!merged.some(m => m.id === loc.id)) {
+            merged.push({
+              ...loc,
+              createdAt: loc.createdAt || loc.offlineQueuedAt || new Date().toISOString()
+            });
+          }
+        });
+        return { activeOrders: merged };
+      });
+    }
 
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
@@ -916,10 +1137,13 @@ export const useOrderStore = create((set, get) => ({
       isInitial = false;
 
       const readArr = get().readOnlineOrderIds || [];
-      set({
-        activeOrders: orders,
-        onlineOrders: online,
-        unreadOnlineCount: online.filter(o => o.status === 'pending' && !readArr.includes(o.id)).length,
+      set(s => {
+        const localBuffered = (s.activeOrders || []).filter(o => o.isOffline && !orders.some(rem => rem.id === o.id));
+        return {
+          activeOrders: [...localBuffered, ...orders],
+          onlineOrders: online,
+          unreadOnlineCount: online.filter(o => o.status === 'pending' && !readArr.includes(o.id)).length,
+        };
       });
     }, err => {
       console.error("[Firestore Subscription Error] subscribeActiveOrders:", err);
@@ -942,9 +1166,15 @@ export const useOrderStore = create((set, get) => ({
   },
 
   patchActiveOrder: (orderId, partial) => {
+    const currentRestId = useAuthStore.getState().restaurant?.id;
     set(s => ({
       activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o)
     }));
+    localSyncChannel.broadcast('LOCAL_ORDER_UPDATED', {
+      orderId,
+      partial,
+      restaurantId: currentRestId
+    });
   },
 
   updateOrderStatus: async (restaurantId, orderId, status) => {
@@ -952,14 +1182,45 @@ export const useOrderStore = create((set, get) => ({
     set(s => ({
       activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status } : o)
     }));
+    localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
+      orderId,
+      status,
+      restaurantId
+    });
 
     if (status === 'cancelled') {
       localCancelledOrderIds.add(orderId);
     }
 
+    // 2. If present in offline queue, update status in offline queue as well
+    const queue = useOfflineQueueStore.getState().queue || [];
+    if (queue.some(o => o.id === orderId)) {
+      const updatedQueue = queue.map(o => o.id === orderId ? {
+        ...o,
+        status,
+        updatedAt: new Date().toISOString()
+      } : o);
+      useOfflineQueueStore.setState({ queue: updatedQueue });
+      try {
+        localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+      } catch {}
+    }
+
+    // 3. If cancelling or completing an order on a table, free the table in tableStore
+    if (['cancelled', 'billed'].includes(status)) {
+      const active = get().activeOrders || [];
+      const targetOrder = active.find(o => o.id === orderId) || queue.find(o => o.id === orderId);
+      if (targetOrder?.tableId) {
+        try {
+          useTableStore.getState().freeTable(restaurantId, targetOrder.tableId);
+        } catch (tableErr) {
+          console.warn('Failed to free table on status update:', tableErr);
+        }
+      }
+    }
+
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
 
@@ -1010,108 +1271,177 @@ export const useOrderStore = create((set, get) => ({
 
   settleOrder: async (restaurantId, orderId, method, totalAmount, additionalFields = {}) => {
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
-      const orderSnap = await getDoc(orderRef);
-      const existingOrder = orderSnap.exists() ? orderSnap.data() : null;
+      const isOfflineOrder = typeof orderId === 'string' && orderId.startsWith('offline_');
+      const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      const isNetworkOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-      await updateDoc(orderRef, {
+      // 1. Resolve existing order from activeOrders in memory or offline queue
+      const active = get().activeOrders || [];
+      let existingOrder = active.find(o => o.id === orderId) || null;
+
+      if (!existingOrder) {
+        const queue = useOfflineQueueStore.getState().queue || [];
+        existingOrder = queue.find(o => o.id === orderId) || null;
+      }
+
+      const settlementTotal = totalAmount || existingOrder?.total || 0;
+      const nowIso = new Date().toISOString();
+
+      // 2. OPTIMISTIC INSTANT UPDATE (0ms delay):
+      // Update in-memory active orders & broadcast to all tabs (KDS, POS, TableMap, Dashboard)
+      set(s => ({
+        activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? {
+          ...o,
+          status: 'billed',
+          paymentMethod: method,
+          paid: true,
+          paidAt: nowIso,
+          updatedAt: nowIso,
+          ...additionalFields
+        } : o)
+      }));
+
+      localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
+        orderId,
         status: 'billed',
         paymentMethod: method,
-        paid: true,
-        paidAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        ...additionalFields
+        restaurantId
       });
 
-      // Free table if associated
-      if (existingOrder?.tableId) {
+      // 3. Free table in local store immediately
+      const targetTableId = existingOrder?.tableId || additionalFields?.tableId;
+      if (targetTableId) {
         try {
-          await useTableStore.getState().freeTable(restaurantId, existingOrder.tableId);
+          useTableStore.getState().freeTable(restaurantId, targetTableId);
         } catch (tableErr) {
           console.warn('Failed to free table on settle:', tableErr);
         }
       }
 
-      // Check if order was already paid at submit (e.g. counter takeaway paid upfront).
-      // Only credit the shift if order was UNPAID (or not marked paid).
-      const wasAlreadyPaid = existingOrder?.paid === true || (existingOrder?.paymentMethod && existingOrder?.paymentMethod !== 'unpaid');
-
-      const activeShift = useShiftStore.getState().activeShift;
-      if (activeShift?.id && !wasAlreadyPaid) {
-        const shiftRef = doc(db, 'restaurants', restaurantId, 'shifts', activeShift.id);
-        const val = totalAmount || existingOrder?.total || 0;
-        
-        const shiftUpdate = {
-          totalSalesAmount: increment(val)
-        };
-        
-        if (method === 'cash') {
-          shiftUpdate.cashSalesCount = increment(1);
-          shiftUpdate.cashSalesAmount = increment(val);
-          shiftUpdate.expectedCash = increment(val);
-        } else if (method === 'card' || method === 'terminal') {
-          shiftUpdate.cardSalesCount = increment(1);
-          shiftUpdate.cardSalesAmount = increment(val);
-        } else if (method === 'upi') {
-          shiftUpdate.upiSalesCount = increment(1);
-          shiftUpdate.upiSalesAmount = increment(val);
-        } else if (method === 'split' && additionalFields.splitPayments) {
-          let cashCount = 0;
-          let cashAmt = 0;
-          let cardCount = 0;
-          let cardAmt = 0;
-          let upiCount = 0;
-          let upiAmt = 0;
-          
-          const splits = additionalFields.splitPayments;
-          splits.forEach(p => {
-            const m = p.method ?? 'cash';
-            const amt = p.amount ?? 0;
-            if (m === 'cash') {
-              cashCount += 1;
-              cashAmt += amt;
-            } else if (m === 'card' || m === 'terminal') {
-              cardCount += 1;
-              cardAmt += amt;
-            } else if (m === 'upi') {
-              upiCount += 1;
-              upiAmt += amt;
-            }
-          });
-          
-          if (cashCount > 0) {
-            shiftUpdate.cashSalesCount = increment(cashCount);
-            shiftUpdate.cashSalesAmount = increment(cashAmt);
-            shiftUpdate.expectedCash = increment(cashAmt);
-          }
-          if (cardCount > 0) {
-            shiftUpdate.cardSalesCount = increment(cardCount);
-            shiftUpdate.cardSalesAmount = increment(cardAmt);
-          }
-          if (upiCount > 0) {
-            shiftUpdate.upiSalesCount = increment(upiCount);
-            shiftUpdate.upiSalesAmount = increment(upiAmt);
-          }
-        }
-        
-        await updateDoc(shiftRef, shiftUpdate);
+      // 4. Update offline queue if present
+      const queue = useOfflineQueueStore.getState().queue || [];
+      if (queue.some(o => o.id === orderId)) {
+        const updatedQueue = queue.map(o => o.id === orderId ? {
+          ...o,
+          status: 'billed',
+          paymentMethod: method,
+          paid: true,
+          paidAt: nowIso,
+          updatedAt: nowIso,
+          ...additionalFields
+        } : o);
+        useOfflineQueueStore.setState({ queue: updatedQueue });
+        try {
+          localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+        } catch {}
       }
 
-      // Credit customer loyalty points at settlement if order was unpaid at submission
-      if (existingOrder?.customerPhone && existingOrder?.paymentMethod === 'unpaid') {
-        const pointsEarned = existingOrder.loyaltyEarned ?? Math.floor((totalAmount || existingOrder.total || 0) / 10);
-        const pointsRedeemed = existingOrder.loyaltyRedeemed ?? 0;
-        const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', existingOrder.customerPhone);
-        try {
-          await updateDoc(custDocRef, {
-            visitCount: increment(1),
-            lifetimeSpend: increment(totalAmount || existingOrder.total || 0),
-            points: increment(pointsEarned - pointsRedeemed)
-          });
-        } catch (custErr) {
-          console.warn('Could not update customer loyalty points at settle:', custErr);
-        }
+      // 5. Apply immediately to activeShift for instant X/Z report & till drawer accuracy
+      const wasAlreadyPaid = existingOrder?.paid === true || (existingOrder?.paymentMethod && existingOrder?.paymentMethod !== 'unpaid');
+      const activeShift = useShiftStore.getState().activeShift;
+      if (activeShift?.id && !wasAlreadyPaid) {
+        useShiftStore.getState().applySaleToActiveShift({
+          total: settlementTotal,
+          method,
+          splitPayments: additionalFields.splitPayments
+        });
+      }
+
+      // 6. ASYNC BACKGROUND CLOUD PERSISTENCE (Runs in parallel, does not block the UI!)
+      if (!isOfflineOrder && !isLocalOnly && !isNetworkOffline) {
+        (async () => {
+          try {
+            await useAuthStore.getState().ensureAnonymousAuth();
+            const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+            
+            // Cloud update for order
+            const cloudOrderPromise = updateDoc(orderRef, {
+              status: 'billed',
+              paymentMethod: method,
+              paid: true,
+              paidAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              ...additionalFields
+            }).catch(e => console.warn('[settleOrder] Order cloud update deferred:', e?.message));
+
+            // Cloud update for shift
+            let cloudShiftPromise = Promise.resolve();
+            if (activeShift?.id && !wasAlreadyPaid) {
+              const shiftRef = doc(db, 'restaurants', restaurantId, 'shifts', activeShift.id);
+              const shiftUpdate = {
+                totalSalesAmount: increment(settlementTotal)
+              };
+
+              if (method === 'cash') {
+                shiftUpdate.cashSalesCount = increment(1);
+                shiftUpdate.cashSalesAmount = increment(settlementTotal);
+                shiftUpdate.expectedCash = increment(settlementTotal);
+              } else if (method === 'card' || method === 'terminal') {
+                shiftUpdate.cardSalesCount = increment(1);
+                shiftUpdate.cardSalesAmount = increment(settlementTotal);
+              } else if (method === 'upi') {
+                shiftUpdate.upiSalesCount = increment(1);
+                shiftUpdate.upiSalesAmount = increment(settlementTotal);
+              } else if (method === 'split' && additionalFields.splitPayments) {
+                let cashCount = 0;
+                let cashAmt = 0;
+                let cardCount = 0;
+                let cardAmt = 0;
+                let upiCount = 0;
+                let upiAmt = 0;
+                
+                const splits = additionalFields.splitPayments;
+                splits.forEach(p => {
+                  const m = p.method ?? 'cash';
+                  const amt = p.amount ?? 0;
+                  if (m === 'cash') {
+                    cashCount += 1;
+                    cashAmt += amt;
+                  } else if (m === 'card' || m === 'terminal') {
+                    cardCount += 1;
+                    cardAmt += amt;
+                  } else if (m === 'upi') {
+                    upiCount += 1;
+                    upiAmt += amt;
+                  }
+                });
+                
+                if (cashCount > 0) {
+                  shiftUpdate.cashSalesCount = increment(cashCount);
+                  shiftUpdate.cashSalesAmount = increment(cashAmt);
+                  shiftUpdate.expectedCash = increment(cashAmt);
+                }
+                if (cardCount > 0) {
+                  shiftUpdate.cardSalesCount = increment(cardCount);
+                  shiftUpdate.cardSalesAmount = increment(cardAmt);
+                }
+                if (upiCount > 0) {
+                  shiftUpdate.upiSalesCount = increment(upiCount);
+                  shiftUpdate.upiSalesAmount = increment(upiAmt);
+                }
+              }
+
+              cloudShiftPromise = updateDoc(shiftRef, shiftUpdate).catch(e => console.warn('[settleOrder] Shift sync deferred:', e?.message));
+            }
+
+            // Cloud update for customer loyalty
+            let cloudLoyaltyPromise = Promise.resolve();
+            if (existingOrder?.customerPhone && existingOrder?.paymentMethod === 'unpaid') {
+              const pointsEarned = existingOrder.loyaltyEarned ?? Math.floor(settlementTotal / 10);
+              const pointsRedeemed = existingOrder.loyaltyRedeemed ?? 0;
+              const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', existingOrder.customerPhone);
+              cloudLoyaltyPromise = updateDoc(custDocRef, {
+                visitCount: increment(1),
+                lifetimeSpend: increment(settlementTotal),
+                points: increment(pointsEarned - pointsRedeemed)
+              }).catch(e => console.warn('Could not update customer loyalty points at settle:', e));
+            }
+
+            await Promise.allSettled([cloudOrderPromise, cloudShiftPromise, cloudLoyaltyPromise]);
+          } catch (cloudErr) {
+            console.warn('[settleOrder] Background cloud sync deferred:', cloudErr?.message);
+          }
+        })();
       }
 
       return { ok: true };
@@ -1126,4 +1456,38 @@ export const useOrderStore = create((set, get) => ({
 useOrderStore.subscribe((state) => {
   savePersistedCart(state);
 });
+
+// Cross-Tab BroadcastChannel listener: ensures multi-window/multi-screen KDS updates in real time
+localSyncChannel.subscribe((msg) => {
+  const currentRestId = useAuthStore.getState().restaurant?.id;
+  const { type, payload } = msg || {};
+  if (!payload) return;
+  if (payload.restaurantId && currentRestId && payload.restaurantId !== currentRestId) {
+    return;
+  }
+
+  if (type === 'LOCAL_ORDER_CREATED' && payload.order) {
+    useOrderStore.setState(s => {
+      const existing = s.activeOrders || [];
+      if (existing.some(o => o.id === payload.order.id)) {
+        return s;
+      }
+      return { activeOrders: [payload.order, ...existing] };
+    });
+    // Trigger audio chime for new kitchen ticket on other tabs
+    try {
+      const audio = new Audio('/sounds/order-chime.wav');
+      audio.play().catch(() => {});
+    } catch {}
+  } else if (type === 'LOCAL_ORDER_UPDATED' && payload.orderId) {
+    useOrderStore.setState(s => ({
+      activeOrders: (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, ...payload.partial } : o)
+    }));
+  } else if (type === 'LOCAL_ORDER_STATUS_CHANGED' && payload.orderId) {
+    useOrderStore.setState(s => ({
+      activeOrders: (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, status: payload.status } : o)
+    }));
+  }
+});
+
 

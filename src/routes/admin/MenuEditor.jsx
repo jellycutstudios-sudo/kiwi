@@ -284,18 +284,59 @@ export default function MenuEditor() {
 
   const saveCategory = async () => {
     if (!catForm.name.trim()) return;
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
     if (editingCat) {
-      await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', editingCat.id), {
+      const updatedCats = categories.map(c => c.id === editingCat.id ? {
+        ...c,
         name: catForm.name.trim(),
-        emoji: catForm.emoji.trim() || '🍽️',
-      });
+        emoji: catForm.emoji.trim() || '🍽️'
+      } : c);
+      useMenuStore.getState().setCategories(updatedCats);
+      try {
+        localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+      } catch {}
+
+      if (!isLocalOnly && isOnline) {
+        try {
+          await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', editingCat.id), {
+            name: catForm.name.trim(),
+            emoji: catForm.emoji.trim() || '🍽️',
+          });
+        } catch (e) {
+          console.warn('[MenuEditor] Category cloud sync deferred:', e?.message);
+        }
+      }
       toast.success('Category updated!');
     } else {
-      await addDoc(collection(db, 'restaurants', restaurant.id, 'menu'), {
+      const newCatId = `cat_${Date.now()}`;
+      const newCat = {
+        id: newCatId,
         name: catForm.name.trim(),
         emoji: catForm.emoji.trim() || '🍽️',
         items: [],
-      });
+      };
+      const updatedCats = [...categories, newCat];
+      useMenuStore.getState().setCategories(updatedCats);
+      try {
+        localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+      } catch {}
+
+      if (!isLocalOnly && isOnline) {
+        try {
+          const docRef = await addDoc(collection(db, 'restaurants', restaurant.id, 'menu'), {
+            name: catForm.name.trim(),
+            emoji: catForm.emoji.trim() || '🍽️',
+            items: [],
+          });
+          // Update id with cloud id if available
+          const finalCats = updatedCats.map(c => c.id === newCatId ? { ...c, id: docRef.id } : c);
+          useMenuStore.getState().setCategories(finalCats);
+        } catch (e) {
+          console.warn('[MenuEditor] Add category cloud sync deferred:', e?.message);
+        }
+      }
       toast.success('Category added!');
     }
     setCatForm({ name: '', emoji: '' });
@@ -305,8 +346,24 @@ export default function MenuEditor() {
 
   const deleteCategory = async (catId) => {
     if (!confirm('Delete this category and all its items?')) return;
-    await deleteDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId));
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
+    const updatedCats = categories.filter(c => c.id !== catId);
+    useMenuStore.getState().setCategories(updatedCats);
+    try {
+      localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+    } catch {}
+
     if (activeCatId === catId) setActiveCat(null);
+
+    if (!isLocalOnly && isOnline) {
+      try {
+        await deleteDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId));
+      } catch (e) {
+        console.warn('[MenuEditor] Delete category cloud sync deferred:', e?.message);
+      }
+    }
     toast.success('Category deleted');
   };
 
@@ -318,6 +375,9 @@ export default function MenuEditor() {
     }
     const cat = categories.find(c => c.id === activeCatId);
     if (!cat) return;
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
     const newItem = {
       id: editItem?.id ?? generateId(),
       name: itemForm.name.trim(),
@@ -337,7 +397,21 @@ export default function MenuEditor() {
     const items = editItem
       ? cat.items.map(i => i.id === editItem.id ? newItem : i)
       : [...(cat.items ?? []), newItem];
-    await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCatId), { items });
+
+    const updatedCats = categories.map(c => c.id === activeCatId ? { ...c, items } : c);
+    useMenuStore.getState().setCategories(updatedCats);
+    try {
+      localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+    } catch {}
+
+    if (!isLocalOnly && isOnline) {
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCatId), { items });
+      } catch (e) {
+        console.warn('[MenuEditor] Item cloud sync deferred:', e?.message);
+      }
+    }
+
     setShowItemForm(false);
     setEditItem(null);
     setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs' });
@@ -346,17 +420,49 @@ export default function MenuEditor() {
 
   const deleteItem = async (catId, itemId) => {
     const cat = categories.find(c => c.id === catId);
+    if (!cat) return;
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
     const items = cat.items.filter(i => i.id !== itemId);
-    await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items });
+    const updatedCats = categories.map(c => c.id === catId ? { ...c, items } : c);
+    useMenuStore.getState().setCategories(updatedCats);
+    try {
+      localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+    } catch {}
+
+    if (!isLocalOnly && isOnline) {
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items });
+      } catch (e) {
+        console.warn('[MenuEditor] Delete item cloud sync deferred:', e?.message);
+      }
+    }
     toast.success('Item removed');
   };
 
   const toggleAvailable = async (catId, item) => {
     const cat = categories.find(c => c.id === catId);
     if (!cat) return;
-    const items = cat.items.map(i => i.id === item.id ? { ...i, available: i.available === false } : i);
-    await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items });
-    toast.success('Availability updated');
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
+    const nextAvailable = item.available === false;
+    const items = cat.items.map(i => i.id === item.id ? { ...i, available: nextAvailable } : i);
+    const updatedCats = categories.map(c => c.id === catId ? { ...c, items } : c);
+    useMenuStore.getState().setCategories(updatedCats);
+    try {
+      localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+    } catch {}
+
+    if (!isLocalOnly && isOnline) {
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items });
+      } catch (e) {
+        console.warn('[MenuEditor] Toggle availability cloud sync deferred:', e?.message);
+      }
+    }
+    toast.success(nextAvailable ? `${item.name} is now Available` : `${item.name} marked Out of Stock`);
   };
 
   const handleImageChange = async (e) => {

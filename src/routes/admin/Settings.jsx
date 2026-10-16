@@ -9,8 +9,9 @@ import {
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, Coins,
   Download, ShieldCheck, FileSpreadsheet, Bot,
-  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard
+  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown
 } from 'lucide-react';
+import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
 import { pairBluetoothPrinter, printReceiptSingle, printSingleKitchenTicket, detectPrinterPaperSize } from '../../utils/print';
 import { convertLogoForThermal } from '../../utils/thermalLogo';
@@ -24,6 +25,7 @@ import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
 import AdminSecuritySettings from '../../components/settings/AdminSecuritySettings';
 import { useUpdateStore } from '../../stores/updateStore';
 import { saveLocalGroqApiKey } from '../../services/groqService';
+import { TERMINAL_PROVIDERS, getTerminalAdapter } from '../../services/terminal';
 
 const MODES = [
   // 1. Core POS & Service Formats
@@ -154,11 +156,11 @@ const TABS = [
   { id: 'workflows',     label: 'Workflows & Operations',  shortLabel: 'Workflows',    icon: SlidersHorizontal, keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
   { id: 'features',      label: 'Modules & Features',      shortLabel: 'Modules',      icon: LayoutGrid, keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
   { id: 'kitchen',       label: 'Kitchen & KDS',           shortLabel: 'Kitchen',      icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
-  { id: 'tax-pay',       label: 'Taxes, Gratuity & Cash',  shortLabel: 'Taxes & Cash', icon: CreditCard, keywords: ['tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'stripe', 'upi', 'tally'] },
+  { id: 'tax-pay',       label: 'Payments, Card Machines & Taxes', shortLabel: 'Payment Machines & Taxes', icon: CreditCard, keywords: ['payment machine', 'card machine', 'edc', 'terminal', 'pos machine', 'swipe machine', 'paytm', 'pinelabs', 'razorpay', 'stripe', 'tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'upi', 'tally'] },
   { id: 'receipts',      label: 'Receipt Designer',        shortLabel: 'Receipts',     icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
   { id: 'displays',      label: 'Digital Displays & TV',   shortLabel: 'Displays',     icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
   { id: 'online-del',    label: 'Online Store & Delivery', shortLabel: 'Online Store', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
-  { id: 'hardware',      label: 'Peripherals & Hardware',  shortLabel: 'Hardware',     icon: Printer, keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
+  { id: 'hardware',      label: 'Peripherals & Printers',  shortLabel: 'Printers & Hardware', icon: Printer, keywords: ['printer', 'hardware', 'payment machine', 'edc', 'terminal', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
   { id: 'notifications', label: 'Alerts & Reports',        shortLabel: 'Alerts',       icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
 ];
 
@@ -217,6 +219,54 @@ export default function Settings() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [storageStatus, setStorageStatus] = useState(null);
   const { hasUpdate, isUpdating, applyUpdate, checkForUpdates } = useUpdateStore();
+
+  // Diagnostics & System Health state (collapsed under Advanced Support)
+  const [showDiagnosticsDrawer, setShowDiagnosticsDrawer] = useState(false);
+  const [diagRunning, setDiagRunning] = useState(false);
+  const [diagResults, setDiagResults] = useState(null);
+  const [showDiagLogs, setShowDiagLogs] = useState(false);
+  const [recentLogs, setRecentLogs] = useState([]);
+
+  const handleRunDiagnostics = async () => {
+    setDiagRunning(true);
+    try {
+      const results = await runSystemDiagnostics();
+      setDiagResults(results);
+      const logs = getRecentLogs();
+      setRecentLogs(logs);
+      toast.success('System diagnostics complete!', { icon: '🩺' });
+    } catch {
+      toast.error('Diagnostics failed');
+    } finally {
+      setDiagRunning(false);
+    }
+  };
+
+  const handleCopyDiagnosticReport = () => {
+    try {
+      const report = generateDiagnosticReport();
+      navigator.clipboard.writeText(report);
+      toast.success('Diagnostic report copied to clipboard!', { icon: '📋' });
+    } catch (err) {
+      toast.error('Failed to copy report: ' + err.message);
+    }
+  };
+
+  const handleDownloadDiagnosticReport = () => {
+    try {
+      const report = generateDiagnosticReport();
+      const blob = new Blob([report], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dineos_diagnostics_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Diagnostic report downloaded');
+    } catch {
+      toast.error('Download failed');
+    }
+  };
 
   // Query device storage protection and usage footprint
   useEffect(() => {
@@ -1018,6 +1068,8 @@ export default function Settings() {
                 </div>
               </div>
 
+
+
               {/* Security & Password Quick Link Card */}
               <div 
                 className="card card-padded"
@@ -1063,6 +1115,197 @@ export default function Settings() {
                   <span>Manage Password</span>
                   <ArrowRight size={13} />
                 </button>
+              </div>
+
+              {/* Advanced Troubleshooting & Support Drawer (Collapsed by default) */}
+              <div
+                className="card card-padded"
+                style={{
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-separator)',
+                  borderRadius: 'var(--radius-lg)',
+                  transition: 'all 0.2s ease',
+                  overflow: 'hidden'
+                }}
+              >
+                <div
+                  onClick={() => setShowDiagnosticsDrawer(!showDiagnosticsDrawer)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: 'rgba(59, 130, 246, 0.12)',
+                      color: 'var(--color-accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Activity size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--color-label)' }}>
+                        Advanced Support &amp; Device Diagnostics
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                        Technical device checks, storage engine health, and debug telemetry for support.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ height: '32px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+                  >
+                    <span>{showDiagnosticsDrawer ? 'Hide Diagnostics' : 'Show Diagnostics'}</span>
+                    <ChevronDown size={14} style={{ transform: showDiagnosticsDrawer ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                  </button>
+                </div>
+
+                {showDiagnosticsDrawer && (
+                  <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-separator)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 'var(--space-3)' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                        Run quick self-checks or export technical logs when contacting developer support.
+                      </span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleRunDiagnostics}
+                          disabled={diagRunning}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <RefreshCw size={13} className={diagRunning ? 'animate-spin' : ''} />
+                          {diagRunning ? 'Running Tests...' : 'Run Diagnostics'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleCopyDiagnosticReport}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <Copy size={13} /> Copy Report
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleDownloadDiagnosticReport}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <Download size={13} /> Export JSON
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Diagnostics Results Grid */}
+                    {diagResults && (
+                      <div style={{
+                        marginTop: 12,
+                        padding: 12,
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--color-bg)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        fontSize: 13
+                      }}>
+                        <div style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+                          Self-Test Results
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
+                          {diagResults.map((res, i) => (
+                            <div key={i} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '6px 10px',
+                              borderRadius: 8,
+                              background: 'var(--color-bg-secondary)',
+                              border: '1px solid var(--color-separator)'
+                            }}>
+                              <span style={{ fontWeight: 500 }}>{res.name}</span>
+                              <span style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                background: res.status === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                color: res.status === 'ok' ? '#10b981' : '#f59e0b'
+                              }}>
+                                {res.status === 'ok' ? 'PASS ✅' : 'NOTICE ⚠️'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Toggle Error Log Inspection */}
+                    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecentLogs(getRecentLogs());
+                          setShowDiagLogs(!showDiagLogs);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-accent)',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontWeight: 600,
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        {showDiagLogs ? 'Hide Recent System Logs' : 'View Recent Error & Telemetry Logs'}
+                      </button>
+                      <span style={{ color: 'var(--color-label-tertiary)' }}>
+                        Safe for support: contains no customer card numbers
+                      </span>
+                    </div>
+
+                    {showDiagLogs && (
+                      <div style={{
+                        marginTop: 8,
+                        maxHeight: 180,
+                        overflowY: 'auto',
+                        padding: 10,
+                        background: '#090d16',
+                        borderRadius: 8,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: '#94a3b8',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6
+                      }}>
+                        {recentLogs.length === 0 ? (
+                          <div style={{ color: '#10b981' }}>No errors logged. All systems operating cleanly.</div>
+                        ) : (
+                          recentLogs.map((log, idx) => (
+                            <div key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 4 }}>
+                              <span style={{ color: log.level === 'error' ? '#ef4444' : '#38bdf8' }}>[{log.timestamp.slice(11, 19)}] {log.level.toUpperCase()}: </span>
+                              <span>{log.message}</span>
+                              {log.route && <span style={{ color: '#64748b' }}> ({log.route})</span>}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -1194,11 +1437,25 @@ export default function Settings() {
                       type="checkbox"
                       id="toggle-local-storage-only"
                       checked={Boolean(settings.localStorageOnly)}
-                      onChange={e => {
+                      onChange={async e => {
                         const enable = e.target.checked;
                         updateField('localStorageOnly', enable);
+                        
+                        const updatedRest = { ...(restaurant || {}), localStorageOnly: enable };
+                        useAuthStore.setState({ restaurant: updatedRest });
+                        try {
+                          if (typeof localStorage !== 'undefined' && restaurant?.id) {
+                            localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
+                          }
+                          if (typeof navigator !== 'undefined' && navigator.onLine && restaurant?.id) {
+                            await updateDoc(doc(db, 'restaurants', restaurant.id), { localStorageOnly: enable });
+                          }
+                        } catch (err) {
+                          console.warn('[Settings] Failed to save localStorageOnly directly:', err);
+                        }
+
                         if (enable) {
-                          toast.success('Local-Only Storage Mode activated! Cloud sync is paused.', { icon: '💾' });
+                          toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.', { icon: '💾' });
                         } else {
                           toast('Cloud sync mode re-enabled.', { icon: '🌐' });
                         }
@@ -2137,68 +2394,235 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Stripe Payment Terminal */}
+              {/* Multi-Provider Smart Payment Terminal & EDC Hardware */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>💳 Stripe Payment Terminal</h3>
-                <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Configure credentials to pair a physical Stripe Reader card terminal via Cloud API.
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                  <h3 className="text-title3" style={{ margin: 0 }}>💳 Smart Payment Terminal &amp; EDC Hardware</h3>
+                  <span className={`badge ${settings.terminalConfig?.enabled ? 'badge-success' : 'badge-neutral'}`}>
+                    {settings.terminalConfig?.enabled ? 'Hardware Active' : 'Manual Mode'}
+                  </span>
+                </div>
+                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
+                  Connect physical card swipe machines and Android EDC smart terminals to collect Debit/Credit cards and dynamic UPI QR payments with automatic POS reconciliation.
                 </p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
-                  <div className="form-group">
-                    <label className="form-label">Stripe Publishable Key</label>
-                    <input
-                      id="settings-stripe-publishable-key"
-                      className="form-input"
-                      type="password"
-                      placeholder="pk_test_..."
-                      value={settings.stripePublishableKey ?? ''}
-                      onChange={e => updateField('stripePublishableKey', e.target.value)}
-                    />
-                  </div>
-                  
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
-                    <div className="form-group">
-                      <label className="form-label">Stripe Location ID</label>
-                      <input
-                        id="settings-stripe-location-id"
-                        className="form-input"
-                        placeholder="tmpl_..."
-                        value={settings.stripeLocationId ?? ''}
-                        onChange={e => updateField('stripeLocationId', e.target.value)}
-                      />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  {/* Enable Hardware Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-3)', background: 'var(--color-bg-secondary, rgba(255,255,255,0.03))', borderRadius: 'var(--radius-md, 8px)' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>Enable Smart Terminal Integration</div>
+                      <div className="text-secondary text-caption2">Auto-push bill amount to physical card reader and sync payment status</div>
                     </div>
-                    
-                    <div className="form-group">
-                      <label className="form-label">Stripe Reader ID</label>
+                    <label className="switch" style={{ margin: 0 }}>
                       <input
-                        id="settings-stripe-reader-id"
-                        className="form-input"
-                        placeholder="e.g. reader_..."
-                        value={settings.stripeReaderId ?? ''}
-                        onChange={e => updateField('stripeReaderId', e.target.value)}
+                        type="checkbox"
+                        checked={Boolean(settings.terminalConfig?.enabled)}
+                        onChange={e => updateField('terminalConfig.enabled', e.target.checked)}
                       />
-                    </div>
+                      <span className="slider round"></span>
+                    </label>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                  {/* Provider Selector */}
+                  <div className="form-group">
+                    <label className="form-label">Payment Terminal Provider</label>
+                    <select
+                      id="settings-terminal-provider"
+                      className="form-select"
+                      value={settings.terminalConfig?.provider || 'manual'}
+                      onChange={e => {
+                        const prov = e.target.value;
+                        updateField('terminalConfig.provider', prov);
+                        if (prov !== 'manual') {
+                          updateField('terminalConfig.enabled', true);
+                        }
+                      }}
+                    >
+                      {TERMINAL_PROVIDERS.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
+                      {TERMINAL_PROVIDERS.find(p => p.id === (settings.terminalConfig?.provider || 'manual'))?.description}
+                    </span>
+                  </div>
+
+                  {/* Provider Specific Configuration Fields */}
+                  {settings.terminalConfig?.provider === 'paytm' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                      <div className="form-group">
+                        <label className="form-label">Paytm Merchant ID (MID)</label>
+                        <input
+                          id="settings-paytm-mid"
+                          className="form-input"
+                          placeholder="e.g. 2168200000000000"
+                          value={settings.terminalConfig?.merchantId ?? ''}
+                          onChange={e => updateField('terminalConfig.merchantId', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Terminal ID (TID / POS ID)</label>
+                        <input
+                          id="settings-paytm-tid"
+                          className="form-input"
+                          placeholder="e.g. 82910401"
+                          value={settings.terminalConfig?.terminalId ?? ''}
+                          onChange={e => updateField('terminalConfig.terminalId', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                        <label className="form-label">Paytm Merchant Key / Auth Token (Optional)</label>
+                        <input
+                          id="settings-paytm-key"
+                          type="password"
+                          className="form-input"
+                          placeholder="••••••••••••••••"
+                          value={settings.terminalConfig?.apiKey ?? ''}
+                          onChange={e => updateField('terminalConfig.apiKey', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.terminalConfig?.provider === 'pinelabs' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                      <div className="form-group">
+                        <label className="form-label">Pine Labs Merchant ID</label>
+                        <input
+                          id="settings-pinelabs-mid"
+                          className="form-input"
+                          placeholder="e.g. 109283"
+                          value={settings.terminalConfig?.merchantId ?? ''}
+                          onChange={e => updateField('terminalConfig.merchantId', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">POS Device ID</label>
+                        <input
+                          id="settings-pinelabs-posid"
+                          className="form-input"
+                          placeholder="e.g. POS-COUNTER-1"
+                          value={settings.terminalConfig?.terminalId ?? ''}
+                          onChange={e => updateField('terminalConfig.terminalId', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.terminalConfig?.provider === 'razorpay_pos' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                      <div className="form-group">
+                        <label className="form-label">Razorpay Key ID</label>
+                        <input
+                          id="settings-rzp-key"
+                          className="form-input"
+                          placeholder="rzp_live_..."
+                          value={settings.terminalConfig?.keyId ?? ''}
+                          onChange={e => updateField('terminalConfig.keyId', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Device Serial Number</label>
+                        <input
+                          id="settings-rzp-serial"
+                          className="form-input"
+                          placeholder="e.g. RZP-EDC-9012"
+                          value={settings.terminalConfig?.terminalId ?? ''}
+                          onChange={e => updateField('terminalConfig.terminalId', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.terminalConfig?.provider === 'stripe' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                      <div className="form-group">
+                        <label className="form-label">Stripe Publishable Key</label>
+                        <input
+                          id="settings-stripe-publishable-key"
+                          className="form-input"
+                          type="password"
+                          placeholder="pk_test_..."
+                          value={settings.terminalConfig?.publishableKey || settings.stripePublishableKey || ''}
+                          onChange={e => {
+                            updateField('terminalConfig.publishableKey', e.target.value);
+                            updateField('stripePublishableKey', e.target.value);
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                        <div className="form-group">
+                          <label className="form-label">Stripe Location ID</label>
+                          <input
+                            id="settings-stripe-location-id"
+                            className="form-input"
+                            placeholder="tmpl_..."
+                            value={settings.terminalConfig?.locationId || settings.stripeLocationId || ''}
+                            onChange={e => {
+                              updateField('terminalConfig.locationId', e.target.value);
+                              updateField('stripeLocationId', e.target.value);
+                            }}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Stripe Reader ID</label>
+                          <input
+                            id="settings-stripe-reader-id"
+                            className="form-input"
+                            placeholder="e.g. reader_..."
+                            value={settings.terminalConfig?.readerId || settings.terminalConfig?.terminalId || settings.stripeReaderId || ''}
+                            onChange={e => {
+                              updateField('terminalConfig.readerId', e.target.value);
+                              updateField('terminalConfig.terminalId', e.target.value);
+                              updateField('stripeReaderId', e.target.value);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.terminalConfig?.provider === 'manual' && (
+                    <div style={{ padding: 'var(--space-3)', background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                      <div style={{ fontSize: 13, color: '#93c5fd', fontWeight: 600 }}>💡 Standalone Bank Machine Mode Active</div>
+                      <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
+                        No hardware API required. Cashier enters amount directly on their bank swipe machine. DineOS records card and UPI sales with manual authorization numbers.
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.terminalConfig?.provider === 'simulator' && (
+                    <div style={{ padding: 'var(--space-3)', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                      <div style={{ fontSize: 13, color: '#6ee7b7', fontWeight: 600 }}>🧪 Terminal Simulator Active</div>
+                      <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
+                        Enables realistic interactive testing in POS checkout. Staff can simulate card tap, chip insert, UPI scan, and decline without any real payment charges.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions & Diagnostic Connection Test */}
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        if (!settings.stripePublishableKey || !settings.stripeReaderId) {
-                          toast.error('Please configure Stripe Publishable Key and Reader ID first!');
-                          return;
+                      onClick={async () => {
+                        const config = settings.terminalConfig || { provider: 'manual' };
+                        const adapter = getTerminalAdapter(config);
+                        try {
+                          const res = await adapter.testConnection();
+                          if (res.success) {
+                            toast.success(`[${adapter.provider.toUpperCase()}] ${res.message}`);
+                          } else {
+                            toast.error(`[${adapter.provider.toUpperCase()}] ${res.message}`);
+                          }
+                        } catch (err) {
+                          toast.error(`Connection check failed: ${err.message}`);
                         }
-                        toast.success(`Registering Stripe reader ${settings.stripeReaderId}... Check console!`);
-                        console.log('%c[Stripe Terminal Connection Handshake]', 'color:#3b82f6;font-weight:bold;', {
-                          publishableKey: settings.stripePublishableKey.slice(0, 10) + '...',
-                          locationId: settings.stripeLocationId || 'N/A',
-                          readerId: settings.stripeReaderId,
-                          status: 'READER_CONNECTED'
-                        });
                       }}
                     >
-                      🔌 Test Stripe Reader Connection
+                      🔌 Test Terminal Connection / Diagnostics
                     </button>
                   </div>
                 </div>
@@ -2937,6 +3361,67 @@ export default function Settings() {
                   style={{ height: '32px', fontSize: '12px' }}
                 >
                   Configure Kitchen Routing
+                </button>
+              </div>
+
+              {/* Payment Terminal & EDC Machine Overview Banner */}
+              <div style={{
+                padding: 'var(--space-4)',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-separator)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 'var(--space-4)',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'rgba(6, 182, 212, 0.15)',
+                    color: '#06b6d4',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem'
+                  }}>
+                    💳
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 'var(--weight-bold)', fontSize: '13.5px', color: 'var(--color-label-primary)' }}>
+                        Payment Terminal &amp; EDC Machine:
+                      </span>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 'var(--weight-bold)',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        background: settings.terminalConfig?.enabled ? 'rgba(16, 185, 129, 0.15)' : 'var(--color-bg-tertiary)',
+                        color: settings.terminalConfig?.enabled ? 'var(--color-green)' : 'var(--color-label-tertiary)'
+                      }}>
+                        {settings.terminalConfig?.enabled
+                          ? `🟢 Active: ${(TERMINAL_PROVIDERS.find(p => p.id === (settings.terminalConfig?.provider || 'simulator'))?.name) || 'Smart EDC'}`
+                          : '⚪ Standalone / Manual Mode'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                      {settings.terminalConfig?.terminalId ? `Terminal ID (TID): ${settings.terminalConfig.terminalId} · ` : ''}
+                      Accepts Tap/Chip/PIN Debit &amp; Credit Cards and Dynamic UPI QR
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setActiveTab('tax-pay')}
+                  style={{ height: '32px', fontSize: '12px' }}
+                >
+                  ⚙️ Manage Payment Machines
                 </button>
               </div>
 

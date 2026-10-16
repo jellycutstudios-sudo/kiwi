@@ -10,6 +10,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
+import { getTerminalAdapter, TERMINAL_PROVIDERS } from '../../services/terminal';
 
 const METHODS = [
   { key: 'cash',     label: 'Cash',     icon: Banknote,    color: 'var(--color-label)' },
@@ -28,7 +29,8 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
     paymentMethod, setPaymentMethod, getSubtotal, getDiscountAmount, 
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
     getPointsDiscountAmount, tipAmount, setTip,
-    tableName, tokenNumber, upiRef, setUpiRef
+    tableName, tokenNumber, upiRef, setUpiRef,
+    setTerminalTx
   } = useOrderStore();
 
   const {
@@ -190,11 +192,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
       const splitAmt = Math.round((total / numGuests) * 100) / 100;
       const splits = Array.from({ length: numGuests }).map((_, idx) => {
         const amt = idx === numGuests - 1 ? total - splitAmt * (numGuests - 1) : splitAmt;
+        const existing = guestSplits[idx];
         return {
           id: idx + 1,
           amount: Math.round(amt * 100) / 100,
-          method: 'cash',
-          paid: false
+          method: existing?.method || 'cash',
+          paid: existing?.paid || false
         };
       });
       setGuestSplits(splits);
@@ -352,8 +355,19 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
       return;
     }
 
+    const adapter = getTerminalAdapter(restaurant?.terminalConfig);
     const delay = terminalInstantMode ? 200 : 1200;
-    setTimeout(() => {
+    setTimeout(async () => {
+      try {
+        await adapter.initiatePayment({
+          amount: total,
+          currency,
+          orderId: `pos_${Date.now()}`,
+          tokenNumber
+        });
+      } catch (err) {
+        console.warn('[Terminal Push Notice]', err?.message);
+      }
       setTerminalStatus('waiting');
       if (terminalInstantMode) {
         setTimeout(() => {
@@ -363,17 +377,32 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
     }, delay);
   };
 
-  const processTerminalTap = () => {
+  const processTerminalPayment = (methodUsed = 'card') => {
     setTerminalStatus('processing');
-    const delay = terminalInstantMode ? 300 : 1800;
+    const delay = terminalInstantMode ? 300 : 1500;
     
     setTimeout(() => {
       if (terminalSimDecline) {
         setTerminalStatus('declined');
         toast.error(`Terminal Payment Declined: ${terminalDeclineReason}`);
       } else {
+        const rrn = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+        const authCode = `A${Math.floor(100000 + Math.random() * 900000)}`;
+        const providerName = restaurant?.terminalConfig?.provider || (restaurant?.stripePublishableKey ? 'stripe' : 'simulator');
+        const termId = restaurant?.terminalConfig?.terminalId || 'COUNTER-01';
+
+        setTerminalTx({
+          provider: providerName,
+          terminalId: termId,
+          rrn,
+          authCode,
+          paymentMethodUsed: methodUsed,
+          status: 'APPROVED',
+          timestamp: new Date().toISOString()
+        });
+
         setTerminalStatus('success');
-        toast.success('Terminal Payment Approved!');
+        toast.success(`Terminal ${methodUsed === 'upi' ? 'UPI' : 'Card'} Payment Approved!`);
         setTimeout(async () => {
           setSplitPayments([]);
           setTerminalStatus(null);
@@ -382,6 +411,8 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
       }
     }, delay);
   };
+
+  const processTerminalTap = () => processTerminalPayment('card');
 
   const handleConfirm = async () => {
     if (!canConfirm) {
@@ -444,7 +475,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
             {/* Terminal Top Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-2)' }}>
               <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)', fontWeight: 'var(--weight-bold)', letterSpacing: '1px' }}>
-                📟 TERMINAL SIMULATOR
+                📟 {((TERMINAL_PROVIDERS.find(p => p.id === (restaurant?.terminalConfig?.provider || 'simulator'))?.name) || 'TERMINAL').toUpperCase()}
               </div>
               <button 
                 type="button" 
@@ -483,15 +514,23 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               {terminalStatus === 'waiting' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
                   <div style={{ color: '#38BDF8', fontSize: 13, fontWeight: 'bold' }}>AMOUNT: {formatCurrency(total, currency)}</div>
-                  <div className="blink" style={{ color: '#34D399', margin: '8px 0', fontSize: 14, fontWeight: 'bold' }}>📡 TAP / INSERT CARD</div>
-                  <button 
-                    type="button" 
-                    className="btn btn-success btn-sm"
-                    onClick={processTerminalTap}
-                    style={{ marginTop: 8 }}
-                  >
-                    💳 Simulate Card Tap
-                  </button>
+                  <div className="blink" style={{ color: '#34D399', margin: '8px 0', fontSize: 14, fontWeight: 'bold' }}>📡 TAP / INSERT CARD OR SCAN UPI</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button 
+                      type="button" 
+                      className="btn btn-success btn-sm"
+                      onClick={() => processTerminalPayment('card')}
+                    >
+                      💳 Simulate Card Tap
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary btn-sm"
+                      onClick={() => processTerminalPayment('upi')}
+                    >
+                      📱 Simulate UPI Scan
+                    </button>
+                  </div>
                 </div>
               )}
               {terminalStatus === 'processing' && (
@@ -1027,6 +1066,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                             >
                               <option value="cash">Cash</option>
                               <option value="card">Card</option>
+                              <option value="terminal">Terminal</option>
                               <option value="upi">UPI</option>
                             </select>
                           )}
@@ -1064,10 +1104,11 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
                       className="form-select"
                       value={nextMethod}
                       onChange={e => setNextMethod(e.target.value)}
-                      style={{ width: 80, height: 32, padding: '4px var(--space-2)', fontSize: 'var(--text-footnote)' }}
+                      style={{ width: 85, height: 32, padding: '4px var(--space-2)', fontSize: 'var(--text-footnote)' }}
                     >
                       <option value="cash">Cash</option>
                       <option value="card">Card</option>
+                      <option value="terminal">Terminal</option>
                       <option value="upi">UPI</option>
                     </select>
                     <button

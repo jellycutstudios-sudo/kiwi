@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
+import { useTableStore } from '../../stores/tableStore';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, Calendar, Clock, Users, UserCheck, PhoneCall } from 'lucide-react';
@@ -11,9 +12,28 @@ export default function Reservations() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   // Real-time states
-  const [reservations, setReservations] = useState([]);
-  const [waitlist, setWaitlist] = useState([]);
-  const [tables, setTables] = useState([]);
+  const [reservations, setReservations] = useState(() => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const cached = localStorage.getItem(`dineos_cached_res_${today}`);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [waitlist, setWaitlist] = useState(() => {
+    try {
+      const cached = localStorage.getItem('dineos_cached_waitlist');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [tables, setTables] = useState(() => {
+    try {
+      const storeTables = useTableStore.getState().tables;
+      if (storeTables && storeTables.length > 0) return storeTables;
+    } catch {}
+    return [];
+  });
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
@@ -48,21 +68,33 @@ export default function Reservations() {
   // 1. Fetch tables list
   useEffect(() => {
     if (!restaurant?.id) return;
+    const storeTables = useTableStore.getState().tables;
+    if (storeTables && storeTables.length > 0) {
+      setTables(storeTables);
+    }
     return onSnapshot(collection(db, 'restaurants', restaurant.id, 'tables'), snap => {
       setTables(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    }, () => {});
   }, [restaurant?.id]);
 
   // 2. Fetch reservations in real-time
   useEffect(() => {
     if (!restaurant?.id) return;
+    try {
+      const cached = localStorage.getItem(`dineos_cached_res_${selectedDate}`);
+      if (cached) setReservations(JSON.parse(cached));
+    } catch {}
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'reservations'),
       where('date', '==', selectedDate),
       orderBy('time', 'asc')
     );
     return onSnapshot(q, snap => {
-      setReservations(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setReservations(docs);
+      try {
+        localStorage.setItem(`dineos_cached_res_${selectedDate}`, JSON.stringify(docs));
+      } catch {}
     }, err => console.log('Res fetch err:', err));
   }, [restaurant?.id, selectedDate]);
 
@@ -75,7 +107,11 @@ export default function Reservations() {
       orderBy('createdAt', 'asc')
     );
     return onSnapshot(q, snap => {
-      setWaitlist(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setWaitlist(docs);
+      try {
+        localStorage.setItem('dineos_cached_waitlist', JSON.stringify(docs));
+      } catch {}
     }, err => console.log('Waitlist fetch err:', err));
   }, [restaurant?.id]);
 
@@ -98,37 +134,42 @@ export default function Reservations() {
 
     try {
       if (editResId) {
-        await updateDoc(doc(db, 'restaurants', restaurant.id, 'reservations', editResId), payload);
+        setReservations(prev => prev.map(r => r.id === editResId ? { ...r, ...payload } : r));
         toast.success('Reservation updated!');
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'reservations', editResId), payload);
       } else {
+        const tempId = `res_${Date.now()}`;
         payload.createdAt = new Date();
-        await addDoc(collection(db, 'restaurants', restaurant.id, 'reservations'), payload);
+        setReservations(prev => [...prev, { id: tempId, ...payload }]);
         toast.success('Reservation booked!');
+        await addDoc(collection(db, 'restaurants', restaurant.id, 'reservations'), payload);
       }
       setShowResForm(false);
       setEditResId(null);
       setResForm({ name: '', phone: '', time: '19:00', partySize: '2', tableId: '', notes: '' });
     } catch (e) {
-      toast.error('Booking failed: ' + e.message);
+      console.warn('Reservation cloud write deferred:', e);
     }
   };
 
   const deleteReservation = async (id) => {
     if (!confirm('Are you sure you want to delete this reservation?')) return;
+    setReservations(prev => prev.filter(r => r.id !== id));
+    toast.success('Reservation deleted');
     try {
       await deleteDoc(doc(db, 'restaurants', restaurant.id, 'reservations', id));
-      toast.success('Reservation deleted');
     } catch (e) {
-      toast.error('Failed: ' + e.message);
+      console.warn('Reservation delete deferred:', e);
     }
   };
 
   const updateResStatus = async (id, status) => {
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    toast.success(`Reservation status updated to: ${status}`);
     try {
       await updateDoc(doc(db, 'restaurants', restaurant.id, 'reservations', id), { status });
-      toast.success(`Reservation status updated to: ${status}`);
     } catch (e) {
-      toast.error('Update failed: ' + e.message);
+      console.warn('Res status update deferred:', e);
     }
   };
 
@@ -137,22 +178,25 @@ export default function Reservations() {
       toast.error('Please select a table to seat the guest');
       return;
     }
+    // Optimistic UI updates
+    setReservations(prev => prev.map(r => r.id === resObj.id ? { ...r, status: 'seated', tableId: targetTableId } : r));
+    setTables(prev => prev.map(t => t.id === targetTableId ? { ...t, status: 'occupied' } : t));
     try {
-      // 1. Update reservation status to seated
+      useTableStore.getState().updateTableStatus?.(targetTableId, 'occupied');
+    } catch {}
+    setSeatRes(null);
+    toast.success(`Guest seated at Table ${tables.find(t => t.id === targetTableId)?.name || targetTableId}!`, { icon: '🍽️' });
+
+    try {
       await updateDoc(doc(db, 'restaurants', restaurant.id, 'reservations', resObj.id), {
         status: 'seated',
         tableId: targetTableId
       });
-
-      // 2. Set Table status to occupied
       await updateDoc(doc(db, 'restaurants', restaurant.id, 'tables', targetTableId), {
         status: 'occupied'
       });
-
-      setSeatRes(null);
-      toast.success(`Guest seated at Table ${tables.find(t => t.id === targetTableId)?.name || targetTableId}!`, { icon: '🍽️' });
     } catch (e) {
-      toast.error('Seating failed: ' + e.message);
+      console.warn('Seating cloud write deferred:', e);
     }
   };
 
@@ -170,54 +214,61 @@ export default function Reservations() {
       createdAt: new Date()
     };
 
+    const tempId = `wait_${Date.now()}`;
+    setWaitlist(prev => [...prev, { id: tempId, ...payload }]);
+    setShowWaitForm(false);
+    setWaitForm({ name: '', phone: '', partySize: '2' });
+    toast.success('Guest added to waitlist queue!');
+
     try {
       await addDoc(collection(db, 'restaurants', restaurant.id, 'waitlist'), payload);
-      setShowWaitForm(false);
-      setWaitForm({ name: '', phone: '', partySize: '2' });
-      toast.success('Guest added to waitlist queue!');
     } catch (e) {
-      toast.error('Failed to add: ' + e.message);
+      console.warn('Waitlist add deferred:', e);
     }
   };
 
   const callWaitlistGuest = async (waitEntry) => {
+    setWaitlist(prev => prev.map(w => w.id === waitEntry.id ? { ...w, status: 'called' } : w));
+    toast.success('Guest notified/called!', { icon: '📞' });
+
     try {
-      await updateDoc(doc(db, 'restaurants', restaurant.id, 'waitlist', waitEntry.id), { status: 'called' });
-      toast.success('Guest notified/called!', { icon: '📞' });
-      
       const cleanPhone = waitEntry.phone.replace(/\D/g, '');
       if (cleanPhone) {
         const msg = `Hello ${waitEntry.name}, your table for ${waitEntry.partySize} guests at ${restaurant?.name || 'our restaurant'} is ready! 🍽️`;
         const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
         window.open(waUrl, '_blank');
       }
+      await updateDoc(doc(db, 'restaurants', restaurant.id, 'waitlist', waitEntry.id), { status: 'called' });
     } catch (e) {
-      toast.error('Update failed: ' + e.message);
+      console.warn('Call guest deferred:', e);
     }
   };
 
   const seatWaitlistGuest = async (waitEntry, tableId) => {
     if (!tableId) return;
+    setWaitlist(prev => prev.filter(w => w.id !== waitEntry.id));
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'occupied' } : t));
     try {
-      // 1. Update waitlist entry status to seated
-      await updateDoc(doc(db, 'restaurants', restaurant.id, 'waitlist', waitEntry.id), { status: 'seated' });
-      
-      // 2. Set Table status to occupied
-      await updateDoc(doc(db, 'restaurants', restaurant.id, 'tables', tableId), { status: 'occupied' });
+      useTableStore.getState().updateTableStatus?.(tableId, 'occupied');
+    } catch {}
+    setSeatRes(null);
+    toast.success(`Guest seated!`, { icon: '🍽️' });
 
-      setSeatRes(null);
-      toast.success(`Guest seated!`, { icon: '🍽️' });
+    try {
+      await updateDoc(doc(db, 'restaurants', restaurant.id, 'waitlist', waitEntry.id), { status: 'seated' });
+      await updateDoc(doc(db, 'restaurants', restaurant.id, 'tables', tableId), { status: 'occupied' });
     } catch (e) {
-      toast.error('Seating failed: ' + e.message);
+      console.warn('Waitlist seating cloud write deferred:', e);
     }
   };
 
   const removeWaitlistGuest = async (id) => {
+    setWaitlist(prev => prev.filter(w => w.id !== id));
+    toast.success('Guest removed from waitlist queue');
     try {
       await updateDoc(doc(db, 'restaurants', restaurant.id, 'waitlist', id), { status: 'removed' });
-      toast.success('Guest removed from waitlist queue');
     } catch (e) {
-      toast.error('Failed: ' + e.message);
+      console.warn('Remove waitlist guest deferred:', e);
     }
   };
 

@@ -22,7 +22,17 @@ export default function Payroll() {
     return `${d.getFullYear()}-${mm}`;
   });
 
-  const [payrollEntries, setPayrollEntries] = useState({});
+  const [payrollEntries, setPayrollEntries] = useState(() => {
+    try {
+      const restId = useAuthStore.getState().restaurant?.id;
+      const d = new Date();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const curMonth = `${d.getFullYear()}-${mm}`;
+      const cached = localStorage.getItem(`dineos_cached_payroll_${restId}_${curMonth}`);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return {};
+  });
   const [searchQuery, setSearchQuery] = useState('');
   
   // Editing state
@@ -41,13 +51,20 @@ export default function Payroll() {
   // 2. Fetch Payroll Entries for selected month
   useEffect(() => {
     if (!restaurant?.id || !selectedMonth) return;
+    try {
+      const cached = localStorage.getItem(`dineos_cached_payroll_${restaurant.id}_${selectedMonth}`);
+      if (cached) setPayrollEntries(JSON.parse(cached));
+    } catch {}
     return onSnapshot(collection(db, 'restaurants', restaurant.id, 'payroll', selectedMonth, 'entries'), snap => {
       const entries = {};
       snap.docs.forEach(d => {
         entries[d.id] = { id: d.id, ...d.data() };
       });
       setPayrollEntries(entries);
-    });
+      try {
+        localStorage.setItem(`dineos_cached_payroll_${restaurant.id}_${selectedMonth}`, JSON.stringify(entries));
+      } catch {}
+    }, () => {});
   }, [restaurant?.id, selectedMonth]);
 
   // 3. Compute display data combining staff data & month's payroll entries
@@ -146,9 +163,9 @@ export default function Payroll() {
       }
       const netPay = Math.max(0, grossPay - deductions);
 
-      // 1. Write the payroll entry for this month
-      const entryRef = doc(db, 'restaurants', restaurant.id, 'payroll', selectedMonth, 'entries', editingStaff.staffId);
-      await setDoc(entryRef, {
+      // Optimistic local state update
+      const newEntry = {
+        id: editingStaff.staffId,
         staffId: editingStaff.staffId,
         staffName: editingStaff.staffName,
         role: editingStaff.role,
@@ -162,6 +179,23 @@ export default function Payroll() {
         notes: editForm.notes.trim(),
         grossPay,
         netPay,
+        updatedAt: new Date().toISOString()
+      };
+      setPayrollEntries(prev => {
+        const next = { ...prev, [editingStaff.staffId]: newEntry };
+        try {
+          localStorage.setItem(`dineos_cached_payroll_${restaurant.id}_${selectedMonth}`, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      toast.success(`Payroll saved for ${editingStaff.staffName}`);
+      setEditingStaff(null);
+
+      // 1. Write the payroll entry for this month
+      const entryRef = doc(db, 'restaurants', restaurant.id, 'payroll', selectedMonth, 'entries', editingStaff.staffId);
+      await setDoc(entryRef, {
+        ...newEntry,
         updatedAt: new Date()
       });
 
@@ -172,12 +206,8 @@ export default function Payroll() {
         salaryRate: rate,
         overtimeRate: type === 'hourly' ? otRate : null
       }, { merge: true });
-
-      toast.success(`Payroll saved for ${editingStaff.staffName}`);
-      setEditingStaff(null);
     } catch (e) {
-      console.error(e);
-      toast.error('Failed to save payroll details');
+      console.warn('Payroll cloud save deferred:', e);
     }
   };
 

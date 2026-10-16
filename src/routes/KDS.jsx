@@ -18,11 +18,16 @@ import {
   Timer,
   Printer,
   Sun,
-  CheckCircle2
+  CheckCircle2,
+  ArrowUpDown,
+  Zap,
+  Keyboard,
+  X
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getKitchenStations } from '../utils/stations';
+import { getOrderTimestampMs, getOrderElapsedSeconds, formatOrderStopwatch } from '../utils/timezoneUtils';
 
 // Pleasant Web Audio synthesizer for kitchen notifications
 function playKitchenChime() {
@@ -48,7 +53,7 @@ function playKitchenChime() {
 
 export default function KDS() {
   const restaurant = useAuthStore(s => s.restaurant);
-  const modes = restaurant?.modes || [];
+  const modes = useMemo(() => restaurant?.modes || [], [restaurant?.modes]);
   const activeOrders = useOrderStore(s => s.activeOrders);
   const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
   const { callSpecificToken } = useTokenStore();
@@ -57,7 +62,24 @@ export default function KDS() {
   const [viewTab, setViewTab] = useState('active'); // 'active' | 'recent'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showBumpBarHelp, setShowBumpBarHelp] = useState(false);
   const { isLocked: isWakeLocked, isSupported: isWakeSupported } = useWakeLock(true);
+  
+  // Kitchen display card sort order: 'oldest' (FIFO standard) | 'newest' (LIFO) | 'urgency' (Rush)
+  const [kdsSortOrder, setKdsSortOrder] = useState(() => {
+    try {
+      return localStorage.getItem('dineos_kds_sort_order') || 'oldest';
+    } catch {
+      return 'oldest';
+    }
+  });
+
+  const handleSortOrderChange = useCallback((order) => {
+    setKdsSortOrder(order);
+    try {
+      localStorage.setItem('dineos_kds_sort_order', order);
+    } catch {}
+  }, []);
   
   const prevCountRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -104,7 +126,7 @@ export default function KDS() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     } else {
@@ -112,7 +134,7 @@ export default function KDS() {
         document.exitFullscreen().catch(() => {});
       }
     }
-  };
+  }, []);
 
   const handleCallToken = async (tokenNumber) => {
     if (!restaurant?.id) return;
@@ -125,7 +147,7 @@ export default function KDS() {
   };
 
   const kdsOrders = useMemo(() => {
-    return activeOrders
+    const list = activeOrders
       .filter(o => ['pending', 'preparing'].includes(o.status))
       .filter(o => {
         if (activeStation === 'All') {
@@ -133,24 +155,60 @@ export default function KDS() {
         }
         return o.items?.some(i => i.station === activeStation && i.status !== 'ready' && i.prepState !== 'hold');
       });
-  }, [activeOrders, activeStation]);
+
+    return list.slice().sort((a, b) => {
+      const timeA = getOrderTimestampMs(a) || 0;
+      const timeB = getOrderTimestampMs(b) || 0;
+
+      if (kdsSortOrder === 'newest') {
+        // Most recent ticket first (LIFO)
+        return timeB - timeA;
+      }
+
+      if (kdsSortOrder === 'urgency') {
+        // 1. Manually flagged Rush tickets first
+        const isRushA = a.priority === 'rush' || a.isRush || a.rush ? 1 : 0;
+        const isRushB = b.priority === 'rush' || b.isRush || b.rush ? 1 : 0;
+        if (isRushB !== isRushA) return isRushB - isRushA;
+
+        // 2. Highest elapsed wait time next
+        const elapsedA = getOrderElapsedSeconds(a, currentTime);
+        const elapsedB = getOrderElapsedSeconds(b, currentTime);
+        if (elapsedB !== elapsedA) {
+          return elapsedB - elapsedA;
+        }
+        return timeA - timeB;
+      }
+
+      // Default: 'oldest' (FIFO standard kitchen queue - oldest orders at top-left)
+      return timeA - timeB;
+    });
+  }, [activeOrders, activeStation, kdsSortOrder, currentTime]);
 
   const recentReadyOrders = useMemo(() => {
-    return activeOrders.filter(o => {
-      if (o.status !== 'ready') return false;
-      const createdAtMs = o.createdAt?.toDate ? o.createdAt.toDate().getTime() : (o.createdAt ? new Date(o.createdAt).getTime() : 0);
-      return (currentTime - createdAtMs) <= 30 * 60 * 1000;
-    });
+    return activeOrders
+      .filter(o => {
+        if (o.status !== 'ready') return false;
+        const createdAtMs = getOrderTimestampMs(o);
+        if (!createdAtMs) return true;
+        return (currentTime - createdAtMs) <= 30 * 60 * 1000;
+      })
+      .slice()
+      .sort((a, b) => {
+        const timeA = getOrderTimestampMs(a) || 0;
+        const timeB = getOrderTimestampMs(b) || 0;
+        return timeB - timeA;
+      });
   }, [activeOrders, currentTime]);
 
-  const handleRecallOrder = async (order) => {
+  const handleRecallOrder = useCallback(async (order) => {
     try {
       await updateKDSStationStatus(restaurant.id, order, 'All', 'preparing');
       toast.success(`Recalled order to kitchen!`, { icon: '↩️' });
     } catch (err) {
       toast.error('Failed to recall order: ' + err.message);
     }
-  };
+  }, [restaurant?.id, updateKDSStationStatus]);
 
   const orderCount = kdsOrders.length;
 
@@ -181,7 +239,7 @@ export default function KDS() {
     toast('Station preparation started...', { icon: '🍳' });
   };
 
-  const handleMarkReady = async (order, station) => {
+  const handleMarkReady = useCallback(async (order, station) => {
     await updateKDSStationStatus(restaurant.id, order, station, 'ready');
     toast.success('Station items marked as ready!', { icon: '✅' });
 
@@ -193,7 +251,102 @@ export default function KDS() {
         console.error("Auto-call failed", err);
       }
     }
-  };
+  }, [restaurant?.id, modes, updateKDSStationStatus, callSpecificToken]);
+
+  // ── Commercial Hardware Bump Bar & Keyboard Shortcuts ──
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if typing in text inputs or dialogs
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+        return;
+      }
+
+      // Keys '1' to '9': Bump ticket at position 1..9
+      if (e.key >= '1' && e.key <= '9') {
+        const index = parseInt(e.key, 10) - 1;
+        const targetOrder = kdsOrders[index];
+        if (targetOrder) {
+          e.preventDefault();
+          handleMarkReady(targetOrder, activeStation);
+          toast.success(`Bumped Ticket #${targetOrder.token || targetOrder.id.slice(-4)} via Bump Bar [${e.key}]!`, { icon: '⚡' });
+        }
+        return;
+      }
+
+      // Spacebar or Enter: Bump oldest/first ticket (FIFO)
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (kdsOrders.length > 0) {
+          e.preventDefault();
+          const oldestOrder = kdsOrders[0];
+          handleMarkReady(oldestOrder, activeStation);
+          toast.success(`Bumped Ticket #${oldestOrder.token || oldestOrder.id.slice(-4)} Ready!`, { icon: '⚡' });
+        }
+        return;
+      }
+
+      // 'R' or 'r': Recall the last plated order back to kitchen
+      if (e.key === 'r' || e.key === 'R') {
+        if (recentReadyOrders.length > 0) {
+          e.preventDefault();
+          const lastReady = recentReadyOrders[0];
+          handleRecallOrder(lastReady);
+        }
+        return;
+      }
+
+      // 'F' or 'f': Fullscreen toggle
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
+      // 'M' or 'm': Mute / Unmute audio chime
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        setSoundEnabled(prev => !prev);
+        return;
+      }
+
+      // 'S' or 's': Cycle Sort Mode
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        const nextSort = kdsSortOrder === 'oldest' ? 'newest' : (kdsSortOrder === 'newest' ? 'urgency' : 'oldest');
+        handleSortOrderChange(nextSort);
+        toast(`Sort: ${nextSort.toUpperCase()}`, { icon: '🔀' });
+        return;
+      }
+
+      // ArrowLeft / ArrowRight: Switch Station Filter
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const currentIdx = stationsList.indexOf(activeStation);
+        if (currentIdx >= 0) {
+          const nextIdx = e.key === 'ArrowRight'
+            ? (currentIdx + 1) % stationsList.length
+            : (currentIdx - 1 + stationsList.length) % stationsList.length;
+          setActiveStation(stationsList[nextIdx]);
+        }
+        return;
+      }
+
+      // '?' or 'h' / 'H': Toggle bump bar shortcuts help modal
+      if (e.key === '?' || e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        setShowBumpBarHelp(prev => !prev);
+        return;
+      }
+
+      // Escape: Close help modal if open
+      if (e.key === 'Escape') {
+        setShowBumpBarHelp(false);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [kdsOrders, recentReadyOrders, activeStation, stationsList, kdsSortOrder, handleSortOrderChange, toggleFullscreen, handleMarkReady, handleRecallOrder]);
 
   const cycleItemStatus = async (order, itemIndex, currentStatus) => {
     let nextStatus = 'pending';
@@ -205,22 +358,16 @@ export default function KDS() {
   };
 
   // Helper for live stopwatch and urgency levels
-  const getElapsedSeconds = useCallback((createdAt) => {
-    if (!createdAt) return 0;
-    const timeMs = createdAt.toDate ? createdAt.toDate().getTime() : new Date(createdAt).getTime();
-    if (isNaN(timeMs) || timeMs === 0) return 0;
-    return Math.max(0, Math.floor((currentTime - timeMs) / 1000));
+  const getElapsedSeconds = useCallback((orderOrCreatedAt) => {
+    return getOrderElapsedSeconds(orderOrCreatedAt, currentTime);
   }, [currentTime]);
 
-  const getStopwatch = (createdAt) => {
-    const totalSecs = getElapsedSeconds(createdAt);
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+  const getStopwatch = useCallback((orderOrCreatedAt) => {
+    return formatOrderStopwatch(orderOrCreatedAt, currentTime);
+  }, [currentTime]);
 
-  const getUrgency = (createdAt) => {
-    const mins = Math.floor(getElapsedSeconds(createdAt) / 60);
+  const getUrgency = useCallback((orderOrCreatedAt) => {
+    const mins = Math.floor(getElapsedSeconds(orderOrCreatedAt) / 60);
     if (mins < 10) {
       return {
         type: 'normal',
@@ -252,7 +399,7 @@ export default function KDS() {
       badgeColor: '#f87171',
       borderClass: 'status-late'
     };
-  };
+  }, [getElapsedSeconds]);
 
   // Kitchen performance metrics
   const kitchenMetrics = useMemo(() => {
@@ -260,7 +407,7 @@ export default function KDS() {
     let totalMins = 0;
     let maxMins = 0;
     kdsOrders.forEach(o => {
-      const mins = Math.floor(getElapsedSeconds(o.createdAt) / 60);
+      const mins = Math.floor(getElapsedSeconds(o) / 60);
       totalMins += mins;
       if (mins > maxMins) maxMins = mins;
     });
@@ -391,7 +538,7 @@ export default function KDS() {
             <button
               type="button"
               onClick={toggleFullscreen}
-              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              title={isFullscreen ? 'Exit Fullscreen (F)' : 'Enter Fullscreen (F)'}
               style={{
                 width: 36,
                 height: 36,
@@ -407,6 +554,31 @@ export default function KDS() {
               }}
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            {/* Bump Bar / Keyboard Shortcuts Guide */}
+            <button
+              type="button"
+              onClick={() => setShowBumpBarHelp(prev => !prev)}
+              title="Bump Bar & Kitchen Keyboard Shortcuts (?)"
+              style={{
+                height: 36,
+                padding: '0 10px',
+                borderRadius: 'var(--radius-md)',
+                background: showBumpBarHelp ? 'var(--color-accent)' : 'var(--color-bg)',
+                border: showBumpBarHelp ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
+                color: showBumpBarHelp ? '#ffffff' : 'var(--color-label)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Keyboard size={15} />
+              <span className="desktop-only">Bump Bar</span>
             </button>
 
             {/* Digital Clock */}
@@ -439,87 +611,187 @@ export default function KDS() {
           borderTop: '1px solid var(--color-separator-opaque)',
           paddingTop: '10px'
         }}>
-          {/* Active vs Ready Tabs */}
-          <div style={{
-            display: 'inline-flex',
-            background: 'var(--color-bg)',
-            padding: '3px',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--color-separator-opaque)'
-          }}>
-            <button
-              type="button"
-              onClick={() => setViewTab('active')}
-              style={{
-                background: viewTab === 'active' ? 'var(--color-bg-elevated)' : 'transparent',
-                color: viewTab === 'active' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                padding: '6px 14px',
-                fontSize: '12.5px',
-                fontWeight: viewTab === 'active' ? 700 : 500,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: viewTab === 'active' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <span>Active Queue</span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 18,
-                height: 18,
-                padding: '0 5px',
-                borderRadius: '9999px',
-                fontSize: '10.5px',
-                fontWeight: 700,
-                background: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-fill)',
-                color: kdsOrders.length > 0 ? '#000000' : 'var(--color-label-secondary)'
-              }}>
-                {kdsOrders.length}
-              </span>
-            </button>
+          {/* Left Controls Cluster: Active vs Ready Tabs + Sort Order Control */}
+          <div className="kds-tier2-left">
+            {/* Active vs Ready Tabs */}
+            <div style={{
+              display: 'inline-flex',
+              background: 'var(--color-bg)',
+              padding: '3px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-separator-opaque)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setViewTab('active')}
+                style={{
+                  background: viewTab === 'active' ? 'var(--color-bg-elevated)' : 'transparent',
+                  color: viewTab === 'active' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 14px',
+                  fontSize: '12.5px',
+                  fontWeight: viewTab === 'active' ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: viewTab === 'active' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>Active Queue</span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  borderRadius: '9999px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-fill)',
+                  color: kdsOrders.length > 0 ? '#000000' : 'var(--color-label-secondary)'
+                }}>
+                  {kdsOrders.length}
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setViewTab('recent')}
-              style={{
-                background: viewTab === 'recent' ? 'var(--color-bg-elevated)' : 'transparent',
-                color: viewTab === 'recent' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                padding: '6px 14px',
-                fontSize: '12.5px',
-                fontWeight: viewTab === 'recent' ? 700 : 500,
-                cursor: 'pointer',
+              <button
+                type="button"
+                onClick={() => setViewTab('recent')}
+                style={{
+                  background: viewTab === 'recent' ? 'var(--color-bg-elevated)' : 'transparent',
+                  color: viewTab === 'recent' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 14px',
+                  fontSize: '12.5px',
+                  fontWeight: viewTab === 'recent' ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: viewTab === 'recent' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>Plated & Ready</span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  borderRadius: '9999px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: 'var(--color-fill)',
+                  color: 'var(--color-label-secondary)'
+                }}>
+                  {recentReadyOrders.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Sort Order Selector (Oldest FIFO / Newest LIFO / Urgency Rush) */}
+            {viewTab === 'active' && (
+              <div className="kds-sort-control" style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                boxShadow: viewTab === 'recent' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <span>Plated & Ready</span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 18,
-                height: 18,
-                padding: '0 5px',
-                borderRadius: '9999px',
-                fontSize: '10.5px',
-                fontWeight: 700,
-                background: 'var(--color-fill)',
-                color: 'var(--color-label-secondary)'
+                background: 'var(--color-bg)',
+                padding: '3px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-separator-opaque)'
               }}>
-                {recentReadyOrders.length}
-              </span>
-            </button>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--color-label-tertiary)',
+                  padding: '0 4px 0 7px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3
+                }}>
+                  <ArrowUpDown size={12} />
+                  <span className="desktop-only">Sort:</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handleSortOrderChange('oldest')}
+                  title="Oldest First (FIFO) - Kitchen standard: tickets waiting longest appear first"
+                  style={{
+                    background: kdsSortOrder === 'oldest' ? 'var(--color-bg-elevated)' : 'transparent',
+                    color: kdsSortOrder === 'oldest' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '5px 9px',
+                    fontSize: '11.5px',
+                    fontWeight: kdsSortOrder === 'oldest' ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    boxShadow: kdsSortOrder === 'oldest' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Clock size={12} />
+                  <span>Oldest <span className="desktop-only">(FIFO)</span></span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSortOrderChange('newest')}
+                  title="Newest First (LIFO) - Recent tickets appear first"
+                  style={{
+                    background: kdsSortOrder === 'newest' ? 'var(--color-bg-elevated)' : 'transparent',
+                    color: kdsSortOrder === 'newest' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '5px 9px',
+                    fontSize: '11.5px',
+                    fontWeight: kdsSortOrder === 'newest' ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    boxShadow: kdsSortOrder === 'newest' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Zap size={12} />
+                  <span>Newest</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSortOrderChange('urgency')}
+                  title="Urgency / Rush - Highest elapsed wait and rush orders first"
+                  style={{
+                    background: kdsSortOrder === 'urgency' ? 'var(--color-bg-elevated)' : 'transparent',
+                    color: kdsSortOrder === 'urgency' ? 'var(--color-red)' : 'var(--color-label-secondary)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '5px 9px',
+                    fontSize: '11.5px',
+                    fontWeight: kdsSortOrder === 'urgency' ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    boxShadow: kdsSortOrder === 'urgency' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Flame size={12} color={kdsSortOrder === 'urgency' ? 'var(--color-red)' : 'inherit'} />
+                  <span>Urgency</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Mobile Sound Chime Quick Toggle */}
@@ -871,12 +1143,12 @@ export default function KDS() {
           </div>
         ) : (
           <div className="kds-grid">
-            {kdsOrders.map(order => {
+            {kdsOrders.map((order, orderIdx) => {
               const stationItems = (order.items ?? []).filter(i => (activeStation === 'All' || i.station === activeStation) && i.prepState !== 'hold');
               const anyStationPending = stationItems.some(i => !i.status || i.status === 'pending');
               const allStationReady = stationItems.every(i => i.status === 'ready');
-              const urgency = getUrgency(order.createdAt);
-              const stopwatch = getStopwatch(order.createdAt);
+              const urgency = getUrgency(order);
+              const stopwatch = getStopwatch(order);
 
               return (
                 <div
@@ -897,6 +1169,19 @@ export default function KDS() {
                     letterSpacing: '0.04em'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {orderIdx < 9 && (
+                        <span style={{
+                          fontSize: 10.5,
+                          fontWeight: 900,
+                          padding: '1px 5px',
+                          borderRadius: 4,
+                          background: 'rgba(255,255,255,0.22)',
+                          color: '#ffffff',
+                          fontFamily: 'monospace'
+                        }} title={`Bump bar hotkey: Press [${orderIdx + 1}]`}>
+                          #{orderIdx + 1}
+                        </span>
+                      )}
                       {urgency.type === 'late' && <Flame size={15} color="#ffffff" />}
                       {urgency.type === 'delayed' && <AlertTriangle size={15} color="#ffffff" />}
                       {urgency.type === 'normal' && <Clock size={15} color="#ffffff" />}
@@ -1215,6 +1500,177 @@ export default function KDS() {
             })}
           </div>
         )
+      )}
+
+      {/* ── Bump Bar & Keyboard Shortcuts Modal ── */}
+      {showBumpBarHelp && (
+        <div 
+          onClick={() => setShowBumpBarHelp(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-separator-opaque)',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: 520,
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--color-separator-opaque)',
+              background: 'var(--color-bg)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Keyboard size={20} color="var(--color-accent)" />
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--color-label)' }}>
+                  Kitchen Bump Bar & Hotkeys
+                </h3>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: 'var(--color-accent)'
+                }}>
+                  HARDWARE COMPATIBLE
+                </span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowBumpBarHelp(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-label-tertiary)',
+                  cursor: 'pointer',
+                  padding: 4,
+                  display: 'flex'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: 'var(--color-label-secondary)' }}>
+                Supports standard kitchen bump bars (Logic Controls, MicroTouch, Bematech) and mechanical USB/wireless keyboards.
+              </p>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto 1fr',
+                gap: '8px 16px',
+                marginTop: 6,
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <kbd className="kds-kbd">1</kbd>
+                  <span style={{ color: 'var(--color-label-tertiary)' }}>…</span>
+                  <kbd className="kds-kbd">9</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Bump ticket #1 to #9</strong> directly by card order
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">Space</kbd> or <kbd className="kds-kbd">Enter</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Bump oldest pending ticket</strong> (FIFO priority)
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">R</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Recall last plated order</strong> back to active kitchen
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">S</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Cycle sort mode</strong> (Oldest FIFO ↔ Newest LIFO ↔ Urgency)
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">←</kbd> <kbd className="kds-kbd">→</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Switch station filter</strong> (All, Grill, Fryer, etc.)
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">F</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Toggle Fullscreen</strong> display mode
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">M</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Mute / Unmute</strong> kitchen chime alert
+                </div>
+
+                <div>
+                  <kbd className="kds-kbd">?</kbd>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-label)' }}>
+                  <strong>Open / close this guide</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '12px 20px',
+              borderTop: '1px solid var(--color-separator-opaque)',
+              background: 'var(--color-bg)',
+              display: 'flex',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowBumpBarHelp(false)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-accent)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 600,
+                  fontSize: 12.5,
+                  cursor: 'pointer'
+                }}
+              >
+                Got It (Esc)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

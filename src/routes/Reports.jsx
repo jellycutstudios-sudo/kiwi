@@ -4,6 +4,8 @@ import { useMenuStore } from '../stores/menuStore';
 import { useStaffStore } from '../stores/staffStore';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useOfflineQueueStore } from '../stores/offlineQueueStore';
+import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
 import { downloadTallyXML } from '../utils/tallyExport';
 import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, X, HeartHandshake, Receipt, FileText, FileSpreadsheet, FileCode, Bot } from 'lucide-react';
@@ -84,13 +86,27 @@ export default function Reports() {
     );
     getDocs(q).then(snap => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const salesDocs = docs.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
+
+      // Merge local buffered sales (essential in Local-Only mode and offline scenarios)
+      const offlineOrders = (useOfflineQueueStore.getState().queue || []).filter(o => {
+        const orderTime = getOrderTimestampMs(o);
+        return orderTime && orderTime >= start.getTime() && o.restaurantId === restaurant.id;
+      });
+
+      const existingIds = new Set(docs.map(d => d.id));
+      const combined = [...docs, ...offlineOrders.filter(o => !existingIds.has(o.id))];
+      const salesDocs = combined.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
 
       setData(salesDocs);
       setLoading(false);
     }).catch(err => {
-      console.error("Reports stats query failed:", err);
-      setData([]);
+      console.warn("Reports cloud query deferred, loading from local buffer:", err);
+      const offlineOrders = (useOfflineQueueStore.getState().queue || []).filter(o => {
+        const orderTime = getOrderTimestampMs(o);
+        return orderTime && orderTime >= start.getTime() && o.restaurantId === restaurant.id;
+      });
+      const salesDocs = offlineOrders.filter(d => (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && d.status !== 'cancelled');
+      setData(salesDocs);
       setLoading(false);
     });
   }, [restaurant?.id, period]);
@@ -720,7 +736,7 @@ export default function Reports() {
               {Object.entries(byPayment).map(([method, amt]) => (
                 <div key={method} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'var(--space-3) 0', borderBottom:'1px solid var(--color-separator)' }}>
                   <span style={{ textTransform:'capitalize', fontSize:'var(--text-subhead)', fontWeight: 'var(--weight-medium)' }}>
-                    {method === 'cash' ? '💵 Cash' : method === 'card' ? '💳 Card' : method === 'upi' ? '📱 UPI' : '🔄 Split'}
+                    {method === 'cash' ? '💵 Cash' : method === 'card' ? '💳 Card' : method === 'terminal' ? '📟 Terminal / EDC' : method === 'upi' ? '📱 UPI' : method === 'split' ? '🔄 Split' : method}
                   </span>
                   <span style={{ fontWeight:'var(--weight-bold)', color: 'var(--color-label)' }}>{formatCurrency(amt, currency)}</span>
                 </div>
@@ -768,7 +784,7 @@ export default function Reports() {
                   {data.slice(0, 50).map(o => (
                     <tr key={o.id} style={{ borderBottom:'1px solid var(--color-separator)' }}>
                       <td style={{ padding:'var(--space-3) var(--space-4)', fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', whiteSpace:'nowrap' }}>
-                        {o.createdAt?.toDate?.()?.toLocaleTimeString() ?? '—'}
+                        {getOrderTimestampMs(o) ? new Date(getOrderTimestampMs(o)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                       <td style={{ padding:'var(--space-3) var(--space-4)' }}>
                         <span className={`badge ${o.type==='online'?'badge-purple':o.type==='dine-in'?'badge-blue':'badge-orange'}`}>{o.type}</span>

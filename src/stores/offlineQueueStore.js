@@ -11,7 +11,11 @@ const loadPersistedQueue = () => {
   if (typeof localStorage === 'undefined') return [];
   try {
     const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return parsed.map(o => ({
+      ...o,
+      createdAt: o.createdAt || o.offlineQueuedAt || new Date().toISOString()
+    }));
   } catch (err) {
     console.error('Failed to parse offline order queue:', err);
     return [];
@@ -46,6 +50,13 @@ export const useOfflineQueueStore = create((set, get) => {
       const queue = get().queue;
       const clientOrderId = orderPayload.id || `offline_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const tokenNumber = orderPayload.token || `OFF-${Math.floor(100 + Math.random() * 900)}`;
+      const nowIso = new Date().toISOString();
+
+      // Ensure createdAt is a valid ISO string, never undefined or Firestore sentinel
+      const rawCreatedAt = orderPayload.createdAt || orderPayload.offlineQueuedAt;
+      const validCreatedAt = (typeof rawCreatedAt === 'string' && !isNaN(new Date(rawCreatedAt).getTime()))
+        ? rawCreatedAt
+        : (typeof rawCreatedAt === 'number' && rawCreatedAt > 0 ? new Date(rawCreatedAt).toISOString() : nowIso);
 
       const queuedOrder = {
         ...orderPayload,
@@ -53,14 +64,28 @@ export const useOfflineQueueStore = create((set, get) => {
         token: tokenNumber,
         isOffline: true,
         restaurantId: restaurant?.id || useAuthStore.getState().restaurant?.id,
-        offlineQueuedAt: new Date().toISOString(),
+        createdAt: validCreatedAt,
+        offlineQueuedAt: orderPayload.offlineQueuedAt || nowIso,
         syncAttempts: 0,
         lastError: null,
       };
 
-      const updatedQueue = [...queue, queuedOrder];
+      const existingIndex = queue.findIndex(o => o.id === clientOrderId);
+      const updatedQueue = existingIndex >= 0
+        ? queue.map((o, idx) => idx === existingIndex ? { ...o, ...queuedOrder } : o)
+        : [...queue, queuedOrder];
+
       set({ queue: updatedQueue });
       savePersistedQueue(updatedQueue);
+
+      // Record offline paid order to active shift float immediately
+      if (existingIndex < 0 && orderPayload.paymentMethod !== 'unpaid' && (orderPayload.total ?? 0) > 0) {
+        useShiftStore.getState().applySaleToActiveShift({
+          total: orderPayload.total,
+          method: orderPayload.paymentMethod,
+          splitPayments: orderPayload.splitPayments
+        });
+      }
 
       if (typeof toast?.success === 'function') {
         toast.success(`⚡ Order buffered in Offline Queue (#${tokenNumber})`, { icon: '📦', duration: 4000 });
@@ -218,11 +243,13 @@ export const useOfflineQueueStore = create((set, get) => {
             const pointsEarned = order.loyaltyEarned ?? 0;
             const pointsRedeemed = order.loyaltyRedeemed ?? 0;
             const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', order.customerPhone);
-            batch.update(custDocRef, {
+            batch.set(custDocRef, {
+              phone: order.customerPhone,
+              name: order.customerName || '',
               visitCount: increment(1),
               lifetimeSpend: increment(order.total || 0),
               points: increment(pointsEarned - pointsRedeemed)
-            });
+            }, { merge: true });
           }
 
           // Commit individual order batch

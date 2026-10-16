@@ -4,15 +4,26 @@ import { useStaffStore } from '../../stores/staffStore';
 import { collection, query, where, getDocs, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Search, Download, ChevronDown, ChevronUp, Receipt, Clock, Tag, User, Flag } from 'lucide-react';
+import { Search, Download, ChevronDown, ChevronUp, Receipt, Clock, Tag, User, Flag, Printer } from 'lucide-react';
 import InfoTooltip from '../../components/shared/InfoTooltip';
 import toast from 'react-hot-toast';
+import { printReceipt } from '../../utils/print';
+import { useOrderStore } from '../../stores/orderStore';
 
 export default function Transactions() {
   const { restaurant } = useAuthStore();
   const { staff } = useStaffStore();
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(() => {
+    try {
+      const restId = useAuthStore.getState().restaurant?.id;
+      if (restId) {
+        const cached = localStorage.getItem(`dineos_cached_transactions_${restId}`);
+        if (cached) return JSON.parse(cached);
+      }
+    } catch {}
+    return [];
+  });
   
   // Filters
   const [dateRange, setDateRange] = useState('today'); // today, week, month, all
@@ -63,9 +74,27 @@ export default function Transactions() {
         );
         
         setOrders(completedOrders);
+        try {
+          localStorage.setItem(`dineos_cached_transactions_${restaurant.id}`, JSON.stringify(completedOrders.slice(0, 150)));
+        } catch {}
       } catch (error) {
         console.error("Error fetching transactions:", error);
-        toast.error("Failed to load transactions");
+        try {
+          const cached = localStorage.getItem(`dineos_cached_transactions_${restaurant.id}`);
+          if (cached) {
+            setOrders(JSON.parse(cached));
+            return;
+          }
+        } catch {}
+        const inMemOrders = useOrderStore.getState().orders.filter(d => 
+          (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && 
+          d.status !== 'cancelled'
+        );
+        if (inMemOrders.length > 0) {
+          setOrders(inMemOrders);
+        } else {
+          toast.error("Failed to load transactions (Offline)");
+        }
       } finally {
         setLoading(false);
       }
@@ -118,6 +147,23 @@ export default function Transactions() {
     } catch (error) {
       console.error('Error flagging transaction:', error);
       toast.error('Failed to update flag status');
+    }
+  };
+
+  const handleReprint = (order) => {
+    try {
+      const staffName = staffMap[order.staffId] || (order.staffId ? `Staff` : 'Cashier');
+      printReceipt({
+        restaurant,
+        order,
+        items: order.items || [],
+        taxInfo: order.taxInfo || null,
+        staffName
+      });
+      toast.success('Reprint dispatched to printer', { icon: '🖨️' });
+    } catch (err) {
+      console.error('Reprint error:', err);
+      toast.error('Failed to reprint: ' + err.message);
     }
   };
 
@@ -280,6 +326,7 @@ export default function Transactions() {
                     let paymentColor = '#10b981';
                     let paymentBg = 'rgba(16, 185, 129, 0.12)';
                     if (order.paymentMethod === 'card') { paymentColor = '#3b82f6'; paymentBg = 'rgba(59, 130, 246, 0.12)'; }
+                    if (order.paymentMethod === 'terminal') { paymentColor = '#06b6d4'; paymentBg = 'rgba(6, 182, 212, 0.12)'; }
                     if (order.paymentMethod === 'upi') { paymentColor = '#8b5cf6'; paymentBg = 'rgba(139, 92, 246, 0.12)'; }
                     if (order.paymentMethod === 'split') { paymentColor = '#f59e0b'; paymentBg = 'rgba(245, 158, 11, 0.12)'; }
 
@@ -324,7 +371,7 @@ export default function Transactions() {
                               background: paymentBg,
                               border: `1px solid ${paymentColor}30`
                             }}>
-                              {order.paymentMethod === 'cash' ? '💵 Cash' : order.paymentMethod === 'card' ? '💳 Card' : order.paymentMethod === 'upi' ? '📱 UPI' : order.paymentMethod || 'N/A'}
+                              {order.paymentMethod === 'cash' ? '💵 Cash' : order.paymentMethod === 'card' ? '💳 Card' : order.paymentMethod === 'terminal' ? '📟 Terminal' : order.paymentMethod === 'upi' ? '📱 UPI' : order.paymentMethod || 'N/A'}
                             </span>
                           </td>
                           <td style={{ padding: '12px 16px', fontWeight: 700 }}>
@@ -383,6 +430,18 @@ export default function Transactions() {
                                       <span>{formatCurrency(order.tipAmount, currency)}</span>
                                     </div>
                                   )}
+                                  {order.rrn && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-label-secondary)' }}>
+                                      <span>Terminal RRN</span>
+                                      <span style={{ fontFamily: 'var(--font-mono)' }}>{order.rrn}</span>
+                                    </div>
+                                  )}
+                                  {order.authCode && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-label-secondary)' }}>
+                                      <span>Auth Code</span>
+                                      <span style={{ fontFamily: 'var(--font-mono)' }}>{order.authCode}</span>
+                                    </div>
+                                  )}
                                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, marginTop: 4, paddingTop: 8, borderTop: '1px dashed var(--color-separator)' }}>
                                     <span>Total</span>
                                     <span>{formatCurrency(order.total || 0, currency)}</span>
@@ -410,14 +469,26 @@ export default function Transactions() {
                                       <span>{Math.round(order.prepDuration / 60)} mins</span>
                                     </div>
                                   )}
-                                  <button 
-                                    className={`btn btn-sm ${order.flagged ? 'btn-danger' : 'btn-secondary'}`}
-                                    onClick={(e) => handleFlag(e, order.id, order.flagged)} 
-                                    style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}
-                                  >
-                                    <Flag size={14} fill={order.flagged ? 'currentColor' : 'none'} /> 
-                                    {order.flagged ? 'Remove Flag' : 'Flag for Review'}
-                                  </button>
+                                  <div style={{ marginTop: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                    <button 
+                                      className="btn btn-sm btn-secondary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleReprint(order);
+                                      }}
+                                      style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center' }}
+                                    >
+                                      <Printer size={13} /> Reprint
+                                    </button>
+                                    <button 
+                                      className={`btn btn-sm ${order.flagged ? 'btn-danger' : 'btn-secondary'}`}
+                                      onClick={(e) => handleFlag(e, order.id, order.flagged)} 
+                                      style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center' }}
+                                    >
+                                      <Flag size={13} fill={order.flagged ? 'currentColor' : 'none'} /> 
+                                      {order.flagged ? 'Unflag' : 'Flag'}
+                                    </button>
+                                  </div>
                                 </div>
                                 
                               </div>
@@ -442,6 +513,7 @@ export default function Transactions() {
                   let paymentColor = '#10b981';
                   let paymentBg = 'rgba(16, 185, 129, 0.12)';
                   if (order.paymentMethod === 'card') { paymentColor = '#3b82f6'; paymentBg = 'rgba(59, 130, 246, 0.12)'; }
+                  if (order.paymentMethod === 'terminal') { paymentColor = '#06b6d4'; paymentBg = 'rgba(6, 182, 212, 0.12)'; }
                   if (order.paymentMethod === 'upi') { paymentColor = '#8b5cf6'; paymentBg = 'rgba(139, 92, 246, 0.12)'; }
                   if (order.paymentMethod === 'split') { paymentColor = '#f59e0b'; paymentBg = 'rgba(245, 158, 11, 0.12)'; }
 
@@ -482,7 +554,7 @@ export default function Transactions() {
                           background: paymentBg,
                           border: `1px solid ${paymentColor}30`
                         }}>
-                          {order.paymentMethod === 'cash' ? '💵 Cash' : order.paymentMethod === 'card' ? '💳 Card' : order.paymentMethod === 'upi' ? '📱 UPI' : order.paymentMethod || 'N/A'}
+                          {order.paymentMethod === 'cash' ? '💵 Cash' : order.paymentMethod === 'card' ? '💳 Card' : order.paymentMethod === 'terminal' ? '📟 Terminal' : order.paymentMethod === 'upi' ? '📱 UPI' : order.paymentMethod || 'N/A'}
                         </span>
                       </div>
 
@@ -559,19 +631,31 @@ export default function Transactions() {
                           </div>
 
                           {/* Info & Flag */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 2 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 2, flexWrap: 'wrap', gap: 6 }}>
                             <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>
                               {order.customerName && <div>Customer: <strong style={{ color: 'var(--color-label)' }}>{order.customerName}</strong></div>}
                               {order.prepDuration > 0 && <div>Kitchen: {Math.round(order.prepDuration / 60)} mins</div>}
                             </div>
-                            <button 
-                              className={`btn btn-sm ${order.flagged ? 'btn-danger' : 'btn-secondary'}`}
-                              onClick={(e) => handleFlag(e, order.id, order.flagged)}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 36, padding: '0 12px' }}
-                            >
-                              <Flag size={13} fill={order.flagged ? 'currentColor' : 'none'} />
-                              {order.flagged ? 'Remove Flag' : 'Flag'}
-                            </button>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReprint(order);
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 36, padding: '0 10px' }}
+                              >
+                                <Printer size={13} /> Reprint
+                              </button>
+                              <button 
+                                className={`btn btn-sm ${order.flagged ? 'btn-danger' : 'btn-secondary'}`}
+                                onClick={(e) => handleFlag(e, order.id, order.flagged)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 36, padding: '0 10px' }}
+                              >
+                                <Flag size={13} fill={order.flagged ? 'currentColor' : 'none'} />
+                                {order.flagged ? 'Unflag' : 'Flag'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}

@@ -111,8 +111,7 @@ export const useTableStore = create((set, get) => {
     });
 
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         const docRef = await addDoc(collection(db, 'restaurants', restaurantId, 'tables'), {
           ...newTable,
@@ -146,8 +145,7 @@ export const useTableStore = create((set, get) => {
     });
 
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         await updateDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId), data);
       }
@@ -168,8 +166,7 @@ export const useTableStore = create((set, get) => {
     });
 
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         await deleteDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId));
       }
@@ -190,8 +187,7 @@ export const useTableStore = create((set, get) => {
     });
 
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         await updateDoc(doc(db, 'restaurants', restaurantId, 'tables', tableId), {
           status,
@@ -205,6 +201,10 @@ export const useTableStore = create((set, get) => {
 
   freeTable: async (restaurantId, tableId) => {
     await get().setTableStatus(restaurantId, tableId, 'free', null);
+  },
+
+  updateTableStatus: async (restaurantId, tableId, status, orderId = null) => {
+    await get().setTableStatus(restaurantId, tableId, status, orderId);
   },
   };
 });

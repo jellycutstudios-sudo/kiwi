@@ -26,10 +26,10 @@ export const useKdsStore = create(() => ({
     let overallStatus = order.status;
     const updates = { items: updatedItems };
 
-    if (newStatus === 'preparing' && order.status === 'pending') {
+    if (newStatus === 'preparing' && (order.status === 'pending' || order.status === 'ready')) {
       overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = new Date().toISOString();
+      updates.prepStartedAt = order.prepStartedAt || new Date().toISOString();
     }
 
     if (allReady) {
@@ -39,9 +39,10 @@ export const useKdsStore = create(() => ({
       const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
       const durationSeconds = Math.floor((new Date() - startTime) / 1000);
       updates.prepDuration = Math.max(0, durationSeconds);
-    } else if (hasPreparing && overallStatus === 'pending') {
+    } else if (hasPreparing && (overallStatus === 'pending' || overallStatus === 'ready')) {
+      overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = new Date().toISOString();
+      updates.prepStartedAt = order.prepStartedAt || new Date().toISOString();
     }
 
     // 1. Optimistic local update in active orders
@@ -50,12 +51,13 @@ export const useKdsStore = create(() => ({
       status: overallStatus
     });
 
-    // 2. Cloud sync if permitted and online
+    // 2. Cloud sync if permitted, online, and not an offline order
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      const isOfflineOrder = typeof order.id === 'string' && order.id.startsWith('offline_');
+      const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      if (!isOfflineOrder && !isLocalOnly && typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
-        const firestoreUpdates = { ...updates };
+        const firestoreUpdates = { ...updates, status: overallStatus };
         if (updates.prepStartedAt) firestoreUpdates.prepStartedAt = serverTimestamp();
         if (updates.prepCompletedAt) firestoreUpdates.prepCompletedAt = serverTimestamp();
         await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), firestoreUpdates);
@@ -86,10 +88,10 @@ export const useKdsStore = create(() => ({
     let overallStatus = order.status;
     const updates = { items: updatedItems };
 
-    if (newStatus === 'preparing' && order.status === 'pending') {
+    if (newStatus === 'preparing' && (order.status === 'pending' || order.status === 'ready')) {
       overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = new Date().toISOString();
+      updates.prepStartedAt = order.prepStartedAt || new Date().toISOString();
     }
 
     if (allReady) {
@@ -99,9 +101,10 @@ export const useKdsStore = create(() => ({
       const startTime = order.prepStartedAt ? toDate(order.prepStartedAt) : (order.createdAt ? toDate(order.createdAt) : new Date());
       const durationSeconds = Math.floor((new Date() - startTime) / 1000);
       updates.prepDuration = Math.max(0, durationSeconds);
-    } else if (hasPreparing && overallStatus === 'pending') {
+    } else if (hasPreparing && (overallStatus === 'pending' || overallStatus === 'ready')) {
+      overallStatus = 'preparing';
       updates.status = 'preparing';
-      updates.prepStartedAt = new Date().toISOString();
+      updates.prepStartedAt = order.prepStartedAt || new Date().toISOString();
     }
 
     // 1. Optimistic local update in active orders
@@ -110,12 +113,13 @@ export const useKdsStore = create(() => ({
       status: overallStatus
     });
 
-    // 2. Cloud sync if permitted and online
+    // 2. Cloud sync if permitted, online, and not an offline order
     try {
-      const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      const isOfflineOrder = typeof order.id === 'string' && order.id.startsWith('offline_');
+      const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      if (!isOfflineOrder && !isLocalOnly && typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
-        const firestoreUpdates = { ...updates };
+        const firestoreUpdates = { ...updates, status: overallStatus };
         if (updates.prepStartedAt) firestoreUpdates.prepStartedAt = serverTimestamp();
         if (updates.prepCompletedAt) firestoreUpdates.prepCompletedAt = serverTimestamp();
         await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), firestoreUpdates);

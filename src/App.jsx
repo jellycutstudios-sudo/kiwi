@@ -128,10 +128,10 @@ export default function App() {
               <Route path="/orders"          element={<ActiveOrders />} />
               <Route path="/online-orders"   element={<OnlineOrders />} />
               <Route path="/kds"             element={<KDS />} />
-              <Route path="/reports"         element={<Reports />} />
 
               {/* Admin-only routes — require 'admin' or 'super_admin' role */}
               <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin']} userRole={userRole} />}>
+                <Route path="/reports"            element={<Reports />} />
                 <Route path="/admin/staff"        element={<StaffManager />} />
                 <Route path="/admin/payroll"      element={<Payroll />} />
                 <Route path="/admin/menu"         element={<MenuEditor />} />

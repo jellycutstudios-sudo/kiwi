@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTokenStore } from '../stores/tokenStore';
+import { useAuthStore } from '../stores/authStore';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -24,6 +25,19 @@ export default function TokenDisplay() {
     let active = true;
 
     const resolve = async () => {
+      // 0. Fast local-first check (resilient to offline / local server mode)
+      try {
+        const localRest = useAuthStore.getState().restaurant || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('dineos_restaurant') || 'null') : null);
+        if (localRest && (localRest.id === restaurantId || localRest.slug === restaurantId || localRest.customId === restaurantId)) {
+          if (!active) return;
+          setResolvedId(localRest.id);
+          const lang = localRest.primaryLanguage || 'en';
+          setPrimaryLanguage(lang);
+          langRef.current = lang;
+          return;
+        }
+      } catch {}
+
       try {
         // Fast path: direct doc ID check first
         const docSnap = await getDoc(doc(db, 'restaurants', restaurantId));

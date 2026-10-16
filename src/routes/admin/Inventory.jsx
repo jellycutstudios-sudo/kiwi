@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch, serverTimestamp, increment, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch, serverTimestamp, increment, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { 
   Plus, Edit2, Trash2, X, AlertTriangle, Boxes, 
@@ -77,25 +77,11 @@ export default function Inventory() {
   // 1. Fetch raw ingredients in real-time (with pagination and search)
   useEffect(() => {
     if (!restaurant?.id) return;
-    
-    let q;
-    const cleanSearch = debouncedSearch.trim();
-    
-    if (cleanSearch) {
-      q = query(
-        collection(db, 'restaurants', restaurant.id, 'inventory'),
-        where('name', '>=', cleanSearch),
-        where('name', '<=', cleanSearch + '\uf8ff'),
-        orderBy('name'),
-        limit(pageSize)
-      );
-    } else {
-      q = query(
-        collection(db, 'restaurants', restaurant.id, 'inventory'),
-        orderBy('name'),
-        limit(pageSize)
-      );
-    }
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'inventory'),
+      orderBy('name'),
+      limit(pageSize)
+    );
     
     const unsub = onSnapshot(q, snap => {
       setIngredients(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -105,7 +91,17 @@ export default function Inventory() {
       setLoading(false);
     });
     return unsub;
-  }, [restaurant?.id, pageSize, debouncedSearch]);
+  }, [restaurant?.id, pageSize]);
+
+  // Case-insensitive, substring-capable instant search across ingredient name & unit
+  const filteredIngredients = useMemo(() => {
+    const term = debouncedSearch.trim().toLowerCase();
+    if (!term) return ingredients;
+    return ingredients.filter(ing => 
+      (ing.name && ing.name.toLowerCase().includes(term)) ||
+      (ing.unit && ing.unit.toLowerCase().includes(term))
+    );
+  }, [ingredients, debouncedSearch]);
 
   // 2. Fetch suppliers list in real-time
   useEffect(() => {
@@ -438,7 +434,9 @@ export default function Inventory() {
             <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
               <div>
                 <span className="card-title">Active Ingredient Stock</span>
-                <span className="badge badge-gray">{ingredients.length} items loaded</span>
+                <span className="badge badge-gray" style={{ marginLeft: 6 }}>
+                  {filteredIngredients.length}{filteredIngredients.length !== ingredients.length ? ` of ${ingredients.length}` : ''} items
+                </span>
               </div>
               <input
                 type="text"
@@ -452,7 +450,7 @@ export default function Inventory() {
 
             {/* Mobile Touch Cards View (visible on mobile <= 768px) */}
             <div className="mobile-only" style={{ padding: 'var(--space-3)' }}>
-              {ingredients.map(ing => {
+              {filteredIngredients.map(ing => {
                 const isLow = ing.qty <= ing.minQty;
                 const totalCostVal = ing.cost * ing.qty;
                 return (
@@ -515,9 +513,9 @@ export default function Inventory() {
                   </div>
                 );
               })}
-              {ingredients.length === 0 && !loading && (
+              {filteredIngredients.length === 0 && !loading && (
                 <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
-                  No ingredients found. Tap "+ Add Ingredient" above.
+                  {debouncedSearch.trim() ? `No ingredients matching "${debouncedSearch.trim()}".` : 'No ingredients found. Tap "+ Add Ingredient" above.'}
                 </div>
               )}
             </div>
@@ -541,7 +539,7 @@ export default function Inventory() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ingredients.map(ing => {
+                  {filteredIngredients.map(ing => {
                     const isLow = ing.qty <= ing.minQty;
                     const totalCostVal = ing.cost * ing.qty;
 

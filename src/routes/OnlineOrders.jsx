@@ -7,6 +7,7 @@ import { useTokenStore } from '../stores/tokenStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
 import { printReceipt, printSingleKitchenTicket, printKitchenTickets } from '../utils/print';
+import { getOrderElapsedSeconds } from '../utils/timezoneUtils';
 import { auth } from '../firebase';
 import {
   Globe, Truck, Clock, Check, X, Printer, ChefHat, Bell, AlertTriangle,
@@ -95,11 +96,8 @@ export default function OnlineOrders() {
     return () => clearInterval(interval);
   }, []);
 
-  const getElapsedMinutes = (createdAt) => {
-    if (!createdAt) return 0;
-    const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-    const diffMs = new Date() - date;
-    return Math.max(0, Math.floor(diffMs / 60000));
+  const getElapsedMinutes = (orderOrCreatedAt) => {
+    return Math.floor(getOrderElapsedSeconds(orderOrCreatedAt) / 60);
   };
 
   const getElapsedTimeText = (createdAt) => {

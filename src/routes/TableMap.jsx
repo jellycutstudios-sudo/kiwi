@@ -12,10 +12,10 @@ import QRCode from 'qrcode';
 import {
   ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
-  Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download, BarChart3,
-  LayoutList, Grid, Zap
+  Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download, BarChart3
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { getOrderElapsedSeconds } from '../utils/timezoneUtils';
 import './admin/FloorPlanEditor.css';
 
 /* ─── Elapsed time badge helper ─────────────────────────────── */
@@ -56,12 +56,28 @@ export default function TableMap() {
   const clearCart = useOrderStore(s => s.clearCart);
   const setTable = useOrderStore(s => s.setTable);
   const setOrderType = useOrderStore(s => s.setOrderType);
+  const activeOrders = useOrderStore(s => s.activeOrders);
 
   useWakeLock(true);
 
   const [selected, setSelected] = useState(null);
-  const [tableOrders, setTableOrders] = useState({});
+  const [firestoreTableOrders, setFirestoreTableOrders] = useState({});
   const [reservations, setReservations] = useState([]);
+
+  // Merge Firestore table orders with local & offline active orders for seamless resilience
+  const tableOrders = useMemo(() => {
+    const map = { ...firestoreTableOrders };
+    (activeOrders || []).forEach(o => {
+      if (o.type === 'dine-in' && o.tableId) {
+        if (['billed', 'cancelled'].includes(o.status)) {
+          delete map[o.tableId];
+        } else {
+          map[o.tableId] = o;
+        }
+      }
+    });
+    return map;
+  }, [firestoreTableOrders, activeOrders]);
 
   // Modals
   const [showTransfer, setShowTransfer] = useState(false);
@@ -89,16 +105,6 @@ export default function TableMap() {
 
   // View mode: 'grid' (clean, organized Petpooja-style table cards) or 'map' (2D layout)
   const [viewMode, setViewMode] = useState(() => (searchParams.get('edit') === 'true' ? 'map' : 'grid'));
-
-  // Grid density: 'compact' (2-in-a-row touch tiles) vs 'detailed' (single-col cards)
-  const [gridDensity, setGridDensity] = useState(() => {
-    return localStorage.getItem('dineos_table_density') || 'compact';
-  });
-
-  const handleDensityChange = (density) => {
-    setGridDensity(density);
-    localStorage.setItem('dineos_table_density', density);
-  };
 
   // Ensure map mode when edit parameter is present
   useEffect(() => {
@@ -594,7 +600,7 @@ export default function TableMap() {
       snap => {
         const map = {};
         snap.docs.forEach(d => { const data = d.data(); if (data.tableId) map[data.tableId] = { id: d.id, ...data }; });
-        setTableOrders(map);
+        setFirestoreTableOrders(map);
       }, err => console.warn('TableMap orders err:', err));
   }, [restaurant?.id]);
 
@@ -743,8 +749,8 @@ export default function TableMap() {
 
   /* ─── Derived: order status for popover ─────────────────────── */
   const selOrder = selected ? tableOrders[selected] : null;
-  const selElapsedMins = selOrder?.createdAt
-    ? Math.max(0, Math.floor((nowTime - (selOrder.createdAt.toDate ? selOrder.createdAt.toDate() : new Date(selOrder.createdAt)).getTime()) / 60000))
+  const selElapsedMins = selOrder
+    ? Math.floor(getOrderElapsedSeconds(selOrder, nowTime) / 60)
     : 0;
 
   return (
@@ -792,33 +798,8 @@ export default function TableMap() {
             )}
           </div>
 
-          {/* Header Actions: Density Toggle + View Switcher (Grid/Map) + Edit Layout Button */}
+          {/* Header Actions: View Switcher (Grid/Map) + Edit Layout Button */}
           <div className="tm-header-actions-right">
-            {viewMode === 'grid' && (
-              <div className="tm-segmented-control" title="Table card density">
-                <button
-                  type="button"
-                  className={`tm-segmented-btn ${gridDensity === 'detailed' ? 'tm-segmented-btn--active' : ''}`}
-                  onClick={() => handleDensityChange('detailed')}
-                  title="Detailed view: live timers, order totals & quick actions"
-                  aria-label="Detailed card view"
-                >
-                  <LayoutList size={13} />
-                  <span className="tm-switcher-label">Detailed</span>
-                </button>
-                <button
-                  type="button"
-                  className={`tm-segmented-btn ${gridDensity === 'compact' ? 'tm-segmented-btn--active' : ''}`}
-                  onClick={() => handleDensityChange('compact')}
-                  title="Compact view: high density overview"
-                  aria-label="Compact tile view"
-                >
-                  <Grid size={13} />
-                  <span className="tm-switcher-label">Compact</span>
-                </button>
-              </div>
-            )}
-
             <div className="tm-segmented-control">
               <button
                 type="button"
@@ -1022,7 +1003,7 @@ export default function TableMap() {
 
       {/* ═══ VIEW MODE: QUICK GRID (TOUCH & SMALL DEVICE OPTIMIZED) ═══ */}
       {viewMode === 'grid' ? (
-        <div className={`tm-grid ${gridDensity === 'detailed' ? 'tm-grid--detailed' : 'tm-grid--compact'}`}>
+        <div className="tm-grid">
           {sortedFloorTables
             .filter(t => {
               const order = tableOrders[t.id];
@@ -1052,93 +1033,10 @@ export default function TableMap() {
               const resForTable = reservations.find(r => r.tableId === t.id);
 
               let elapsedMins = 0;
-              if (hasOrder && order.createdAt) {
-                const d = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
-                elapsedMins = Math.max(0, Math.floor((nowTime - d.getTime()) / 60000));
+              if (hasOrder && order) {
+                elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
               }
 
-              /* ─── COMPACT TILE MODE ─── */
-              if (gridDensity === 'compact') {
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => {
-                      if (effectiveStatus === 'free') {
-                        clearCart();
-                        setTable(t.id, t.name);
-                        setOrderType('dine-in');
-                        toast.success(`Order started for ${t.name}`);
-                        navigate('/pos');
-                      } else {
-                        setSelected(t.id);
-                      }
-                    }}
-                    className={`tm-card ${
-                      isFoodReady
-                        ? 'tm-card--ready'
-                        : effectiveStatus === 'occupied'
-                        ? 'tm-card--occupied'
-                        : isReserved
-                        ? 'tm-card--reserved'
-                        : 'tm-card--free'
-                    } ${selected === t.id ? 'tm-card--selected' : ''}`}
-                  >
-                    {/* Top Row: Table Name + Capacity + Status Badge */}
-                    <div className="tm-card-header">
-                      <div className="tm-card-title-group">
-                        <span className="tm-card-name">{t.name}</span>
-                        <span className="tm-card-cap">👥{t.capacity}</span>
-                      </div>
-
-                      {isFoodReady ? (
-                        <span className="tm-badge tm-badge--ready">🔔 READY</span>
-                      ) : effectiveStatus === 'occupied' ? (
-                        <span className="tm-badge tm-badge--occupied">
-                          <span className="tm-badge-dot" />
-                          {elapsedMins > 0 ? formatElapsed(elapsedMins).replace(' seated', '') : 'BUSY'}
-                        </span>
-                      ) : isReserved ? (
-                        <span className="tm-badge tm-badge--reserved">RES</span>
-                      ) : (
-                        <span className="tm-badge tm-badge--free">FREE</span>
-                      )}
-                    </div>
-
-                    {/* Bottom Row: Financial / Active Status info */}
-                    <div className="tm-card-footer">
-                      {effectiveStatus === 'occupied' && order ? (
-                        <>
-                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                            <span className="tm-card-total">
-                              {formatCurrency(order.total ?? 0, currency)}
-                            </span>
-                            {(order.assignedWaiterName || order.staffName) && (
-                              <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
-                                👤 {order.assignedWaiterName || order.staffName}
-                              </span>
-                            )}
-                          </div>
-                          <span className="tm-card-meta">
-                            {(order.items ?? []).length} itm
-                          </span>
-                        </>
-                      ) : isReserved ? (
-                        <span className="tm-card-reserved-info">
-                          {resForTable?.name || 'Reserved'}
-                        </span>
-                      ) : (
-                        <div className="tm-card-vacant-indicator">
-                          <span className="tm-vacant-dot" />
-                          <span>Available</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              /* ─── DETAILED CARD MODE ─── */
-              const eCol = elapsedColor(elapsedMins);
               return (
                 <div
                   key={t.id}
@@ -1153,7 +1051,7 @@ export default function TableMap() {
                       setSelected(t.id);
                     }
                   }}
-                  className={`tm-card--detailed-view ${
+                  className={`tm-card ${
                     isFoodReady
                       ? 'tm-card--ready'
                       : effectiveStatus === 'occupied'
@@ -1163,143 +1061,57 @@ export default function TableMap() {
                       : 'tm-card--free'
                   } ${selected === t.id ? 'tm-card--selected' : ''}`}
                 >
-                  {/* Top Bar: Table Name + Capacity + Elapsed Seated Badge + Status */}
-                  <div className="tm-detailed-header">
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <span className="tm-card-name">{t.name}</span>
-                        <span className="tm-card-cap" style={{ fontSize: 12 }}>👥 {t.capacity}</span>
-                      </div>
-                      <div className="tm-detailed-meta-row">
-                        {hasOrder && elapsedMins > 0 ? (
-                          <span
-                            className="tm-detailed-timer"
-                            style={{ background: eCol.bg, color: eCol.color }}
-                          >
-                            <Clock size={11} /> {formatElapsed(elapsedMins)}
-                          </span>
-                        ) : isReserved ? (
-                          <span style={{ color: '#f59e0b', fontWeight: 600 }}>
-                            {resForTable?.time ? `🕒 At ${resForTable.time}` : 'Reserved Today'}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-label-tertiary)' }}>
-                            Vacant Table
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div>
-                      {isFoodReady ? (
-                        <span className="tm-badge tm-badge--ready" style={{ fontSize: 10, padding: '3px 8px' }}>
-                          🔔 READY
-                        </span>
-                      ) : effectiveStatus === 'occupied' ? (
-                        <span className="tm-badge tm-badge--occupied" style={{ fontSize: 10, padding: '3px 8px' }}>
-                          <span className="tm-badge-dot" />
-                          OCCUPIED
-                        </span>
-                      ) : isReserved ? (
-                        <span className="tm-badge tm-badge--reserved" style={{ fontSize: 10, padding: '3px 8px' }}>
-                          RESERVED
-                        </span>
-                      ) : (
-                        <span className="tm-badge tm-badge--free" style={{ fontSize: 10, padding: '3px 8px' }}>
-                          <span className="tm-vacant-dot" style={{ display: 'inline-block', marginRight: 4 }} />
-                          FREE
-                        </span>
+                  {/* Top Row: Table Name + Capacity + Status Badge */}
+                  <div className="tm-card-header">
+                    <div className="tm-card-title-group" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span className="tm-card-name">{t.name}</span>
+                      {order && (order.isOffline || order.id?.startsWith('offline_')) && (
+                        <span title="Local offline order on device" style={{ fontSize: 10, color: '#38bdf8', fontWeight: 800 }}>⚡</span>
                       )}
+                      <span className="tm-card-cap">👥{t.capacity}</span>
                     </div>
-                  </div>
 
-                  {/* Middle Content */}
-                  <div className="tm-detailed-body">
-                    {effectiveStatus === 'occupied' && order ? (
-                      <div>
-                        <div className="tm-detailed-total">
-                          {formatCurrency(order.total ?? 0, currency)}
-                        </div>
-                        <div className="tm-detailed-subtext">
-                          <span>👤 {order.assignedWaiterName || order.staffName || 'Waiter'}</span>
-                          <span>{(order.items ?? []).length} {(order.items ?? []).length === 1 ? 'item' : 'items'}</span>
-                        </div>
-                      </div>
+                    {isFoodReady ? (
+                      <span className="tm-badge tm-badge--ready">🔔 READY</span>
+                    ) : effectiveStatus === 'occupied' ? (
+                      <span className="tm-badge tm-badge--occupied">
+                        <span className="tm-badge-dot" />
+                        {elapsedMins > 0 ? formatElapsed(elapsedMins).replace(' seated', '') : 'BUSY'}
+                      </span>
                     ) : isReserved ? (
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
-                        <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: 14 }}>
-                          {resForTable?.name || 'Guest'}
-                        </div>
-                        <div style={{ marginTop: 2 }}>
-                          {resForTable?.guests ? `${resForTable.guests} guests` : `${t.capacity} guests capacity`}
-                        </div>
-                      </div>
+                      <span className="tm-badge tm-badge--reserved">RES</span>
                     ) : (
-                      <div className="tm-detailed-vacant-text">
-                        <Utensils size={18} style={{ color: '#10b981', flexShrink: 0 }} />
-                        <span>Ready for guests · Tap to take order</span>
-                      </div>
+                      <span className="tm-badge tm-badge--free">FREE</span>
                     )}
                   </div>
 
-                  {/* Footer Quick Action Buttons */}
-                  <div className="tm-detailed-actions" onClick={e => e.stopPropagation()}>
+                  {/* Bottom Row: Financial / Active Status info */}
+                  <div className="tm-card-footer">
                     {effectiveStatus === 'occupied' && order ? (
                       <>
-                        <button
-                          type="button"
-                          className="tm-card-btn tm-card-btn--primary"
-                          onClick={() => {
-                            loadOrderToCart(order);
-                            navigate('/pos');
-                          }}
-                          title="Add items to this table"
-                        >
-                          <Plus size={13} /> Add
-                        </button>
-                        <button
-                          type="button"
-                          className="tm-card-btn tm-card-btn--secondary"
-                          onClick={() => {
-                            printReceipt({ restaurant, order, items: order.items, taxInfo: order.taxInfo, staffName: order.assignedWaiterName || order.staffName || 'Waiter' });
-                            toast.success('Bill printed!');
-                          }}
-                          title="Print customer bill"
-                        >
-                          <Printer size={13} /> Bill
-                        </button>
-                        <button
-                          type="button"
-                          className="tm-card-btn tm-card-btn--settle"
-                          onClick={() => setSelected(t.id)}
-                          title="Settle bill payment"
-                        >
-                          Settle
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span className="tm-card-total">
+                            {formatCurrency(order.total ?? 0, currency)}
+                          </span>
+                          {(order.assignedWaiterName || order.staffName) && (
+                            <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                              👤 {order.assignedWaiterName || order.staffName}
+                            </span>
+                          )}
+                        </div>
+                        <span className="tm-card-meta">
+                          {(order.items ?? []).length} itm
+                        </span>
                       </>
                     ) : isReserved ? (
-                      <button
-                        type="button"
-                        className="tm-card-btn tm-card-btn--reserved"
-                        onClick={() => setSelected(t.id)}
-                      >
-                        🪑 View / Seat Guest
-                      </button>
+                      <span className="tm-card-reserved-info">
+                        {resForTable?.name || 'Reserved'}
+                      </span>
                     ) : (
-                      <button
-                        type="button"
-                        className="tm-card-btn tm-card-btn--vacant"
-                        onClick={() => {
-                          clearCart();
-                          setTable(t.id, t.name);
-                          setOrderType('dine-in');
-                          toast.success(`Order started for ${t.name}`);
-                          navigate('/pos');
-                        }}
-                      >
-                        <Zap size={14} /> Start Order
-                      </button>
+                      <div className="tm-card-vacant-indicator">
+                        <span className="tm-vacant-dot" />
+                        <span>Available</span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1385,9 +1197,8 @@ export default function TableMap() {
                   const isMatch = !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()) || String(t.capacity).includes(searchQuery);
 
                   let elapsedMins = 0;
-                  if (hasOrder && order.createdAt) {
-                    const d = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
-                    elapsedMins = Math.max(0, Math.floor((nowTime - d.getTime()) / 60000));
+                  if (hasOrder && order) {
+                    elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
                   }
                   const ec = elapsedColor(elapsedMins);
 
@@ -1459,7 +1270,12 @@ export default function TableMap() {
                         </span>
                       )}
 
-                      <span className="table-label">{t.name}</span>
+                      <span className="table-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        {t.name}
+                        {order && (order.isOffline || order.id?.startsWith('offline_')) && (
+                          <span title="Local offline order on device" style={{ fontSize: 10, color: '#38bdf8', fontWeight: 800 }}>⚡</span>
+                        )}
+                      </span>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                         <span className="table-capacity">👥 {t.capacity}p</span>

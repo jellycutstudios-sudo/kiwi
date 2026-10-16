@@ -10,6 +10,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, functions } from '../firebase';
+import { useOrderStore } from './orderStore';
 
 let isLoggingIn = false;
 
@@ -236,6 +237,27 @@ export const useAuthStore = create(
           return { ok: true, role: staffData.role };
 
         } catch (e) {
+          // If offline or network query fails, attempt offline staff PIN matching
+          try {
+            const cachedStaff = JSON.parse(safeStorage.getItem('dineos_cached_staff') || '[]');
+            const cleanPin = String(pin || '').trim();
+            const matched = cachedStaff.find(s => String(s.pin).trim() === cleanPin && s.active !== false);
+            if (matched) {
+              const currentRest = get().restaurant || getInitialPersistedAuth().restaurant;
+              const staffData = { id: matched.id, ...matched, isPinLogin: true, restaurantId: currentRest?.id || restaurantId };
+              set({
+                user: { uid: staffData.id, isPinLogin: true },
+                staffDoc: staffData,
+                restaurant: currentRest,
+                loading: false,
+                error: null
+              });
+              return { ok: true, role: staffData.role, isOffline: true };
+            }
+          } catch (offlineErr) {
+            console.warn('[loginWithPin] Offline fallback error:', offlineErr);
+          }
+
           set({ loading: false, error: e.message });
           return { ok: false, error: e.message };
         } finally {
@@ -296,7 +318,6 @@ export const useAuthStore = create(
         set({ user: null, staffDoc: null, restaurant: null, loading: false });
         
         try {
-          const { useOrderStore } = await import('./orderStore');
           useOrderStore.getState().clearCart();
         } catch (e) {
           console.error('Failed to clear order cart on sign out', e);
