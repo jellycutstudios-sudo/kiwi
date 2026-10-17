@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { collection, doc, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp, increment, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useShiftStore } from './shiftStore';
 import { useAuthStore } from './authStore';
@@ -149,12 +149,15 @@ export const useOfflineQueueStore = create((set, get) => {
             : order.id;
 
           const isPaid = order.paid === true || (order.paymentMethod && order.paymentMethod !== 'unpaid');
+          const validCreatedAt = (typeof order.createdAt === 'string' && !isNaN(new Date(order.createdAt).getTime()))
+            ? Timestamp.fromDate(new Date(order.createdAt))
+            : (order.createdAt || serverTimestamp());
           const firestoreOrder = {
             ...order,
             id: targetOrderId,
             syncedFromOffline: true,
             syncedAt: serverTimestamp(),
-            createdAt: order.createdAt || serverTimestamp(),
+            createdAt: validCreatedAt,
             updatedAt: serverTimestamp(),
             paidAt: isPaid ? serverTimestamp() : null,
           };

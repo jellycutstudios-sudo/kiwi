@@ -7,7 +7,7 @@ import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { useShiftStore } from '../stores/shiftStore';
 import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
-import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
@@ -59,7 +59,7 @@ export default function Dashboard() {
     topItem: null, 
     paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 } 
   });
-  const [salesViewMode, setSalesViewMode] = useState('pipeline'); // 'pipeline' | 'settled'
+  const [salesViewMode, setSalesViewMode] = useState('settled'); // 'settled' | 'pipeline'
   const [settleOrderModal, setSettleOrderModal] = useState(null);
   const [settling, setSettling] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -226,24 +226,27 @@ export default function Dashboard() {
       const nextD = new Date(d);
       nextD.setDate(nextD.getDate() + 1);
       const label = i === 0 ? 'Today' : d.toLocaleDateString('en', { weekday: 'short' });
-      const dayRevenue = analyticsOrders
-        .filter(o => {
-          const date = typeof o.createdAt?.toDate === 'function' ? o.createdAt.toDate() : new Date(o.createdAt);
-          return date >= d && date < nextD;
-        })
-        .reduce((s, o) => s + (o.total ?? 0), 0);
+      const dayRevenue = i === 0
+        ? (salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales)
+        : analyticsOrders
+            .filter(o => {
+              const date = typeof o.createdAt?.toDate === 'function' ? o.createdAt.toDate() : new Date(o.createdAt);
+              return date >= d && date < nextD;
+            })
+            .reduce((s, o) => s + (o.total ?? 0), 0);
       days.push({ label, rev: dayRevenue, isToday: i === 0 });
     }
     return days;
-  }, [analyticsOrders]);
+  }, [analyticsOrders, salesViewMode, todayStats.totalSales, todayStats.settledSales]);
 
   // End-of-day revenue projection based on current hourly pace
   const eodProjection = useMemo(() => {
     const now = new Date();
     const hoursElapsed = Math.max(0.5, now.getHours() - 9 + now.getMinutes() / 60);
-    if (todayStats.totalSales === 0 || hoursElapsed >= 14) return null;
-    return Math.round((todayStats.totalSales / hoursElapsed) * 14);
-  }, [todayStats.totalSales]);
+    const targetSales = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
+    if (targetSales === 0 || hoursElapsed >= 14) return null;
+    return Math.round((targetSales / hoursElapsed) * 14);
+  }, [salesViewMode, todayStats.totalSales, todayStats.settledSales]);
 
   // Dynamic Growth Insights / Tips
   const growthTips = useMemo(() => {
@@ -346,11 +349,18 @@ export default function Dashboard() {
     if (!restaurant?.id) return;
     const today = new Date();
     today.setHours(0,0,0,0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // Look back to start of yesterday to include any orders created yesterday before midnight but settled today (e.g. late night tables)
+    const queryStart = new Date(today);
+    queryStart.setDate(queryStart.getDate() - 1);
     
-    // Subscribe to today's orders in real-time, capped to prevent OOM on busy restaurants
+    // Subscribe to recent orders in real-time, ordered by most recent first
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', today),
+      where('createdAt', '>=', queryStart),
+      orderBy('createdAt', 'desc'),
       limit(500)
     );
     
@@ -363,11 +373,13 @@ export default function Dashboard() {
       // Merge local offline orders & active orders so local-only mode and offline sales are fully reflected
       const offlineOrders = (useOfflineQueueStore.getState().queue || []).filter(o => {
         const orderTime = getOrderTimestampMs(o);
-        return (!orderTime || orderTime >= today.getTime()) && (o.restaurantId === restaurant.id || !o.restaurantId);
+        const matchesRest = o.restaurantId === restaurant.id || !o.restaurantId;
+        return matchesRest && (!orderTime || (orderTime >= today.getTime() && orderTime <= endOfToday.getTime()));
       });
       // All active in-memory orders currently open in dining/kitchen are live orders regardless of midnight date boundaries
       const activeMemOrders = (useOrderStore.getState().activeOrders || []).filter(o => {
-        return o.status !== 'cancelled';
+        const matchesRest = o.restaurantId === restaurant.id || !o.restaurantId;
+        return matchesRest && o.status !== 'cancelled' && o.status !== 'void';
       });
 
       const existingIds = new Set(rawDocs.map(d => d.id));
@@ -377,31 +389,28 @@ export default function Dashboard() {
         ...activeMemOrders.filter(o => !existingIds.has(o.id))
       ];
 
-      // Settle timestamp check: order counts as today's sale if paidAt/updatedAt/createdAt is today
+      // Settle timestamp check: order counts as today's sale if paidAt/updatedAt/createdAt is within today
       const todayBilled = combined.filter(d => {
-        if (d.status === 'cancelled') return false;
-        const isBilled = d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid');
+        if (d.status === 'cancelled' || d.status === 'void') return false;
+        const isBilled = d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid') || d.paid === true;
         if (!isBilled) return false;
         const settleTime = getOrderTimestampMs(d.paidAt) || getOrderTimestampMs(d.updatedAt) || getOrderTimestampMs(d.createdAt);
-        return !settleTime || settleTime >= today.getTime();
+        return settleTime && settleTime >= today.getTime() && settleTime <= endOfToday.getTime();
       });
 
-      // Open dining/kitchen orders: active in restaurant right now
+      // Open dining/kitchen orders: active in restaurant right now (unpaid and not cancelled/void)
       const todayOpen = combined.filter(d => {
-        if (d.status === 'cancelled' || d.status === 'billed') return false;
-        if (d.paymentMethod && d.paymentMethod !== 'unpaid') return false;
-        return true;
+        if (d.status === 'cancelled' || d.status === 'void' || d.status === 'billed') return false;
+        if (d.paid === true || (d.paymentMethod && d.paymentMethod !== 'unpaid')) return false;
+        const orderTime = getOrderTimestampMs(d);
+        // Count if created today or currently in active in-memory orders
+        return !orderTime || (orderTime >= today.getTime() && orderTime <= endOfToday.getTime()) || activeMemOrders.some(m => m.id === d.id);
       });
 
-      // Synchronize with active cash shift total so shift sales are never missed
-      const activeShift = useShiftStore.getState().activeShift;
-      const shiftSales = activeShift?.totalSalesAmount || 0;
-      const shiftOrders = (activeShift?.cashSalesCount || 0) + (activeShift?.cardSalesCount || 0) + (activeShift?.upiSalesCount || 0);
-      const rawBilledSales = todayBilled.reduce((s, d) => s + (d.total ?? 0), 0);
-      const billedSales = Math.max(rawBilledSales, shiftSales);
-      const billedOrders = Math.max(todayBilled.length, shiftOrders);
-      const openSales = todayOpen.reduce((s, d) => s + (d.total ?? 0), 0);
-      const totalSales = billedSales + openSales;
+      const billedSales = Math.round(todayBilled.reduce((s, d) => s + (Number(d.total) || 0), 0) * 100) / 100;
+      const billedOrders = todayBilled.length;
+      const openSales = Math.round(todayOpen.reduce((s, d) => s + (Number(d.total) || 0), 0) * 100) / 100;
+      const totalSales = Math.round((billedSales + openSales) * 100) / 100;
 
       const openOrders = todayOpen.length;
       const totalOrders = billedOrders + openOrders;
@@ -412,15 +421,15 @@ export default function Dashboard() {
         ? Math.round(ordersWithPrep.reduce((s, d) => s + d.prepDuration, 0) / ordersWithPrep.length / 60) 
         : 0;
 
-      // Calculate Payment Split
-      const paymentSplit = { 
-        cash: activeShift?.cashSalesCount || 0, 
-        card: activeShift?.cardSalesCount || 0, 
-        upi: activeShift?.upiSalesCount || 0, 
-        split: 0 
-      };
+      // Calculate Payment Split directly from today's billed orders without double-counting
+      const paymentSplit = { cash: 0, card: 0, upi: 0, split: 0 };
       todayBilled.forEach(d => {
-        if (d.paymentMethod) {
+        if (d.paymentMethod === 'split' && Array.isArray(d.splitPayments)) {
+          d.splitPayments.forEach(p => {
+            const m = (p.method === 'terminal') ? 'card' : (p.method || 'cash');
+            paymentSplit[m] = (paymentSplit[m] || 0) + 1;
+          });
+        } else if (d.paymentMethod) {
           const methodKey = d.paymentMethod === 'terminal' ? 'card' : d.paymentMethod;
           paymentSplit[methodKey] = (paymentSplit[methodKey] || 0) + 1;
         }
@@ -428,16 +437,16 @@ export default function Dashboard() {
 
       // Top Item Today (across all orders today, billed and open)
       const itemCounts = {};
-      combined.filter(d => d.status !== 'cancelled').forEach(o => {
+      combined.filter(d => d.status !== 'cancelled' && d.status !== 'void').forEach(o => {
         (o.items || []).forEach(i => {
           if (!itemCounts[i.name]) itemCounts[i.name] = { name: i.name, qty: 0, emoji: i.emoji || '🍽️' };
-          itemCounts[i.name].qty += (i.qty || 1);
+          itemCounts[i.name].qty += (Number(i.qty) || 1);
         });
       });
       const topItem = Object.values(itemCounts).sort((a,b) => b.qty - a.qty)[0] || null;
 
       // Track today's cancellations
-      setCancellations(combined.filter(d => d.status === 'cancelled').length);
+      setCancellations(combined.filter(d => d.status === 'cancelled' || d.status === 'void').length);
 
       setTodayStats({ 
         settledSales: billedSales,
@@ -503,8 +512,8 @@ export default function Dashboard() {
       bg: 'rgba(16, 185, 129, 0.1)', 
       desc: todayStats.openSales > 0
         ? (salesViewMode === 'pipeline'
-            ? `₹${todayStats.settledSales.toFixed(0)} billed · ₹${todayStats.openSales.toFixed(0)} live dining`
-            : `₹${todayStats.settledSales.toFixed(0)} billed (+ ₹${todayStats.openSales.toFixed(0)} live dining)`)
+            ? `${formatCurrency(todayStats.settledSales, currency)} billed · ${formatCurrency(todayStats.openSales, currency)} live dining`
+            : `${formatCurrency(todayStats.settledSales, currency)} billed (+ ${formatCurrency(todayStats.openSales, currency)} live dining)`)
         : 'Gross revenue today', 
       highlight: true,
       hasToggle: todayStats.openSales > 0
@@ -693,6 +702,7 @@ export default function Dashboard() {
               {s.hasToggle && (
                 <button
                   type="button"
+                  title={salesViewMode === 'pipeline' ? 'Showing live pipeline. Click to view settled sales only.' : 'Showing settled sales. Click to include live open orders.'}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSalesViewMode(v => v === 'pipeline' ? 'settled' : 'pipeline');
