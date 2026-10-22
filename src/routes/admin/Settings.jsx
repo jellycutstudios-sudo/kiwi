@@ -29,7 +29,6 @@ import ToggleSwitch from '../../components/shared/ToggleSwitch';
 
 const MODES = [
   // 1. Core POS & Service Formats
-  { key: 'ai_advisor',       label: 'Business Advisor (AI)',     desc: 'AI business insights & performance advisor', tab: 'workflows', tabName: 'Setup & Features' },
   { key: 'pos',              label: '🧾 Quick Counter Billing',   desc: 'Fast 1-tap cashier sales & receipts', tab: 'workflows', tabName: 'Workflows' },
   { key: 'table',            label: '🗺️ Table Management',       desc: 'Floor plan, visual tables & dining timers', tab: 'workflows', tabName: 'Workflows' },
   { key: 'token',            label: '🎫 QSR Token Queue',        desc: 'Token issuance & live TV queue screen', tab: 'displays', tabName: 'Displays' },
@@ -89,7 +88,7 @@ const MODULE_PRESETS = [
     name: 'Full Restaurant & Dine-In',
     emoji: '🍽️',
     desc: 'Floor plan table maps, reservations, KDS, staff payroll, phone masking & tax audit',
-    modes: ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile']
+    modes: ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile']
   },
   {
     id: 'cafe',
@@ -175,8 +174,15 @@ export default function Settings() {
   const [copiedSlideshowId, setCopiedSlideshowId] = useState(null);
   const [slideshowList, setSlideshowList] = useState([]);
 
-  // Remember active settings tab across sessions
+  // Remember active settings tab across sessions, prioritizing query param
   const [activeTab, setActiveTabState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryTab = urlParams.get('tab');
+        if (queryTab) return queryTab === 'features' ? 'workflows' : queryTab;
+      } catch {}
+    }
     if (typeof localStorage === 'undefined') return 'general';
     try {
       const saved = localStorage.getItem('dineos_settings_tab') || 'general';
@@ -185,6 +191,18 @@ export default function Settings() {
       return 'general';
     }
   });
+
+  // Watch for direct URL changes with ?tab=
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryTab = urlParams.get('tab');
+      if (queryTab && queryTab !== activeTab) {
+        setActiveTabState(queryTab === 'features' ? 'workflows' : queryTab);
+      }
+    } catch {}
+  }, []);
 
   const setActiveTab = (tabId) => {
     setActiveTabState(tabId);
@@ -291,9 +309,22 @@ export default function Settings() {
     let list = TABS;
     const isBillOnly = settings.businessType === 'bill_only';
     const isKitchenDisabled = !settings.modes?.includes('kds') && (settings.kitchenConfig?.mode === 'disabled' || !settings.kitchenConfig?.mode);
-    if ((isBillOnly || isKitchenDisabled) && !searchQuery.trim()) {
-      list = list.filter(t => t.id !== 'kitchen');
+    const activeModes = settings.modes ?? [];
+    const isDisplaysDisabled = !activeModes.includes('posters') && !activeModes.includes('token');
+    const isOnlineDisabled = !activeModes.includes('online') && !activeModes.includes('delivery_hub');
+
+    if (!searchQuery.trim()) {
+      if (isBillOnly || isKitchenDisabled) {
+        list = list.filter(t => t.id !== 'kitchen');
+      }
+      if (isDisplaysDisabled) {
+        list = list.filter(t => t.id !== 'displays');
+      }
+      if (isOnlineDisabled) {
+        list = list.filter(t => t.id !== 'online-del');
+      }
     }
+
     const q = searchQuery.trim().toLowerCase();
     if (!q) return list;
     return TABS.filter(t => 
@@ -718,12 +749,12 @@ export default function Settings() {
             </button>
             <button
               type="button"
-              className="btn btn-primary btn-sm"
-              onClick={save}
-              disabled={saving}
-              style={{ height: 32, fontSize: 'var(--text-caption1)' }}
+              onClick={() => setHasRestoredDraft(false)}
+              className="btn btn-ghost btn-sm"
+              style={{ height: 32, width: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-label-tertiary)' }}
+              title="Dismiss notice"
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -739,7 +770,7 @@ export default function Settings() {
               if (!currentTab) return null;
               const ActiveIcon = currentTab.icon;
               return (
-                <span className="settings-header-badge" style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span className="settings-header-badge" style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <ActiveIcon size={14} strokeWidth={2.2} />
                   <span>{currentTab.label}</span>
                 </span>
@@ -751,31 +782,16 @@ export default function Settings() {
           </p>
         </div>
         <div className="settings-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {hasUnsavedChanges && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={handleDiscard}
-              disabled={saving}
-              style={{ height: '34px' }}
-            >
-              Discard
-            </button>
+          {hasUnsavedChanges ? (
+            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(56, 189, 248, 0.1)', padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
+              Unsaved changes pending
+            </span>
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Check size={14} color="#10b981" /> All changes saved
+            </span>
           )}
-          <button
-            className="btn btn-primary"
-            id="save-settings-btn"
-            onClick={save}
-            disabled={saving || !hasUnsavedChanges}
-            style={{
-              height: '34px',
-              padding: '0 14px',
-              opacity: !hasUnsavedChanges ? 0.75 : 1,
-              boxShadow: hasUnsavedChanges ? '0 0 0 2px var(--color-accent-light)' : 'none'
-            }}
-          >
-            <Save size={14}/> {saving ? 'Saving...' : (hasUnsavedChanges ? 'Save Changes' : 'Saved')}
-          </button>
         </div>
       </div>
 
@@ -1318,7 +1334,7 @@ export default function Settings() {
                         fontSize: '11px', 
                         fontWeight: 700, 
                         padding: '2px 8px', 
-                        borderRadius: 999, 
+                        borderRadius: 6, 
                         background: settings.allowCashierDashboard ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)', 
                         color: settings.allowCashierDashboard ? '#10b981' : '#94a3b8', 
                         border: settings.allowCashierDashboard ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(100, 116, 139, 0.3)' 
@@ -1985,7 +2001,7 @@ export default function Settings() {
                         Local-Only Storage Mode (Air-Gapped)
                       </h3>
                       {settings.localStorageOnly && (
-                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
                           Active On Device
                         </span>
                       )}
@@ -2108,54 +2124,57 @@ export default function Settings() {
           {/* Displays & TV Hub Tab */}
           {activeTab === 'displays' && (
             <>
-              {/* QSR TV Token Display */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <Tv size={18} color="var(--color-accent)" />
-                    <h3 className="text-title3" style={{ margin: 0 }}>QSR Live Token TV Display</h3>
-                  </div>
-                  <p className="text-secondary text-footnote">
-                    Open this URL on a TV or monitor in your waiting lounge or collection counter to show live preparing and ready tokens.
-                  </p>
-                </div>
-                <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
-                  <input
-                    className="form-input"
-                    readOnly
-                    value={`${window.location.origin}/display/tokens/${restaurant?.id}`}
-                    style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
-                  />
-                  <button className="btn btn-primary" id="copy-token-link-btn" onClick={copyTokenDisplayLink} type="button">
-                    {copiedToken ? <Check size={16}/> : <Copy size={16}/>}
-                    {copiedToken ? 'Copied!' : 'Copy Link'}
-                  </button>
-                  <a 
-                    href={`/display/tokens/${restaurant?.id}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="btn btn-secondary"
-                    title="Open on screen"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                  >
-                    <ExternalLink size={14} /> Open Screen
-                  </a>
-                </div>
-              </div>
-
-              {/* TV Poster Boards */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+              {/* QSR TV Token Display (Only when token mode is active) */}
+              {(settings.modes ?? []).includes('token') && (
+                <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   <div>
-                    <h3 className="text-title3" style={{ margin: 0, marginBottom: 4 }}>TV Digital Poster &amp; Menu Boards</h3>
-                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                      Broadcast marketing offers, animated combo deals, and live menu boards onto smart TVs.
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Tv size={18} color="var(--color-accent)" />
+                      <h3 className="text-title3" style={{ margin: 0 }}>QSR Live Token TV Display</h3>
+                    </div>
+                    <p className="text-secondary text-footnote">
+                      Open this URL on a TV or monitor in your waiting lounge or collection counter to show live preparing and ready tokens.
                     </p>
                   </div>
-                  <a href="/admin/posters" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Manage Screens in Poster Studio →
-                  </a>
+                  <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+                    <input
+                      className="form-input"
+                      readOnly
+                      value={`${window.location.origin}/display/tokens/${restaurant?.id}`}
+                      style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
+                    />
+                    <button className="btn btn-primary" id="copy-token-link-btn" onClick={copyTokenDisplayLink} type="button">
+                      {copiedToken ? <Check size={16}/> : <Copy size={16}/>}
+                      {copiedToken ? 'Copied!' : 'Copy Link'}
+                    </button>
+                    <a 
+                      href={`/display/tokens/${restaurant?.id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary"
+                      title="Open on screen"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <ExternalLink size={14} /> Open Screen
+                    </a>
+                  </div>
                 </div>
+              )}
+
+              {/* TV Poster Boards (Only when posters mode is active) */}
+              {(settings.modes ?? []).includes('posters') && (
+                <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <h3 className="text-title3" style={{ margin: 0, marginBottom: 4 }}>TV Digital Poster &amp; Menu Boards</h3>
+                      <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                        Broadcast marketing offers, animated combo deals, and live menu boards onto smart TVs.
+                      </p>
+                    </div>
+                    <a href="/admin/posters" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      Manage Screens in Poster Studio →
+                    </a>
+                  </div>
 
                 {slideshowList.length === 0 ? (
                   <div style={{ padding: 'var(--space-4)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
@@ -2200,8 +2219,9 @@ export default function Settings() {
                   </div>
                 )}
               </div>
-            </>
-          )}
+            )}
+          </>
+        )}
 
           {/* Kitchen & KOT Settings Tab */}
           {activeTab === 'kitchen' && (
@@ -2708,14 +2728,14 @@ export default function Settings() {
                   <div style={{ fontSize: '48px' }}>📱</div>
                   <h3 className="text-title3">Online Ordering is Disabled</h3>
                   <p className="text-secondary text-footnote" style={{ maxWidth: '400px', lineHeight: '1.5' }}>
-                    To configure your online store link, custom URL slug, description, and storefront branding, please enable the <strong>Online Orders</strong> mode in General settings first.
+                    To configure your online store link, custom URL slug, description, and storefront branding, please enable the <strong>Online Orders</strong> mode in Setup & Features first.
                   </p>
                   <button 
                     className="btn btn-secondary btn-sm" 
-                    onClick={() => setActiveTab('general')}
+                    onClick={() => setActiveTab('workflows')}
                     style={{ marginTop: '8px' }}
                   >
-                    Go to General Settings
+                    Go to Setup & Features
                   </button>
                 </div>
               )}
@@ -3777,6 +3797,7 @@ export default function Settings() {
             </button>
             <button
               type="button"
+              id="save-settings-btn"
               className="btn btn-primary btn-sm"
               onClick={save}
               disabled={saving}

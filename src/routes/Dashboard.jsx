@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
+import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const user = useAuthStore(s => s.user);
+  const { hasMode, isBillOnly, isRetail, isService } = useBusinessConfig();
 
   // Role access control: Only admin/super_admin and explicitly permitted cashiers may access turnover analytics
   const staffRole = staffDoc?.role ?? (user ? 'admin' : 'cashier');
@@ -538,7 +540,7 @@ export default function Dashboard() {
       desc: 'Order ticket average', 
       tooltip: 'The typical amount a customer spends per order' 
     },
-    { 
+    ...((!isBillOnly && !isRetail && !isService && hasMode('kds') && restaurant?.kitchenConfig?.mode !== 'disabled') ? [{
       label: 'Orders Cooking',   
       value: activeOrders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status)).length, 
       icon: Clock, 
@@ -546,8 +548,8 @@ export default function Dashboard() {
       bg: 'rgba(139, 92, 246, 0.1)', 
       desc: 'POS orders in progress', 
       tooltip: 'Orders currently being prepared in the kitchen' 
-    },
-    { 
+    }] : []),
+    ...((hasMode('online') || hasMode('delivery_hub')) ? [{
       label: 'Waiting Online Orders', 
       value: unreadOnlineCount, 
       icon: Globe, 
@@ -555,7 +557,7 @@ export default function Dashboard() {
       bg: 'rgba(6, 182, 212, 0.1)', 
       desc: 'Unread online orders', 
       tooltip: 'Orders from Zomato/Swiggy waiting to be accepted' 
-    },
+    }] : []),
   ];
 
   const orderStatusColors = {
@@ -944,18 +946,20 @@ export default function Dashboard() {
             <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Based on today's kitchen workflow</div>
           </div>
 
-          {/* Times per Table */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <TrendingUp size={13} /> Times per Table
-              <InfoTooltip text="How many groups of customers sat at each table today on average" />
+          {/* Times per Table (only for businesses with table mode active) */}
+          {hasMode('table') && !isRetail && !isBillOnly && !isService && (
+            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+                <TrendingUp size={13} /> Times per Table
+                <InfoTooltip text="How many groups of customers sat at each table today on average" />
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-label)' }}>
+                {tablesCount > 0 ? (todayStats.orders / tablesCount).toFixed(1) : '0'} 
+                <span style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontWeight: 600, marginLeft: 4 }}>orders/table</span>
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Average turns per table today</div>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-label)' }}>
-              {tablesCount > 0 ? (todayStats.orders / tablesCount).toFixed(1) : '0'} 
-              <span style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontWeight: 600, marginLeft: 4 }}>orders/table</span>
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Average turns per table today</div>
-          </div>
+          )}
 
           {/* How Customers Paid */}
           <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>

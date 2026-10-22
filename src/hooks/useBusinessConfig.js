@@ -159,6 +159,15 @@ export const BUSINESS_PRESETS = [
   }
 ];
 
+export function getActiveModes(restaurant) {
+  if (Array.isArray(restaurant?.modes) && restaurant.modes.length > 0) {
+    return restaurant.modes;
+  }
+  const bType = restaurant?.businessType || 'restaurant';
+  const preset = BUSINESS_PRESETS.find(p => p.id === bType) || BUSINESS_PRESETS.find(p => p.id === 'restaurant');
+  return preset?.recommendedModes || ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile'];
+}
+
 export function useBusinessConfig() {
   const restaurant = useAuthStore(s => s.restaurant);
   const businessType = restaurant?.businessType || 'restaurant';
@@ -178,11 +187,15 @@ export function useBusinessConfig() {
   const isService = businessType === 'service';
   const isRestaurant = businessType === 'restaurant';
 
+  const activeModes = getActiveModes(restaurant);
+
   return {
     businessType,
     preset,
     presets: BUSINESS_PRESETS,
     terms,
+    modes: activeModes,
+    hasMode: (key) => activeModes.includes(key),
     isBillOnly,
     isRetail,
     isQSR,
@@ -190,7 +203,7 @@ export function useBusinessConfig() {
     isService,
     isRestaurant,
     enableQuickPay: restaurant?.quickPayEnabled ?? preset.features.enableQuickPay,
-    enableBarcode: isRetail || Boolean(restaurant?.barcodeEnabled) || Boolean(restaurant?.modes?.includes('barcode')),
+    enableBarcode: isRetail || Boolean(restaurant?.barcodeEnabled) || Boolean(activeModes.includes('barcode')),
     enableSpeedDial: restaurant?.speedDialEnabled ?? preset.features.enableSpeedDial,
   };
 }

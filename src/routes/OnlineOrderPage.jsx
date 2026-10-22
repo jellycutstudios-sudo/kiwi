@@ -4,11 +4,25 @@ import { collection, onSnapshot, serverTimestamp, getDoc, doc, writeBatch, query
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
-import { Plus, Minus, Check, Clock, ChefHat, CheckSquare } from 'lucide-react';
+import { 
+  Plus, Minus, Check, Clock, ChefHat, CheckSquare, Search, X, Tag, AlertCircle, 
+  Sparkles, Star, ChevronDown, ChevronUp, MapPin, Utensils, Share2 
+} from 'lucide-react';
 import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
 import LoadingScreen from '../components/shared/LoadingScreen';
 import { triggerHaptic, triggerHapticSuccess } from '../utils/haptics';
+
+// Helper to determine dietary category (Veg vs Non-Veg)
+const isVegetarianItem = (item) => {
+  if (item.isVeg === true || item.veg === true || item.dietary === 'veg') return true;
+  if (item.isVeg === false || item.veg === false || item.dietary === 'non-veg') return false;
+  const text = `${item.name || ''} ${item.description || ''} ${item.category || ''}`.toLowerCase();
+  if (/\b(chicken|mutton|beef|pork|fish|prawn|shrimp|crab|egg|meat|bacon|ham|duck|shawarma|keema|tikka|kabab|kebab)\b/.test(text) && !/\b(paneer|veg|soya|mushroom)\b/.test(text)) {
+    return false;
+  }
+  return true;
+};
 
 export default function OnlineOrderPage() {
   const { restaurantId } = useParams();
@@ -22,7 +36,7 @@ export default function OnlineOrderPage() {
   const [activeCat, setActiveCat] = useState(null);
   const [cart, setCart] = useState([]);
   const [orderType, setOrderType] = useState(() => {
-    return tableId ? 'dine-in' : 'takeaway';
+    return tableId ? 'dine-in' : 'delivery';
   });
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,6 +46,13 @@ export default function OnlineOrderPage() {
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   const [loading, setLoading] = useState(false);
   const [sevenDayAvg, setSevenDayAvg] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [vegOnly, setVegOnly] = useState(false);
+  const [nonVegOnly, setNonVegOnly] = useState(false);
+  const [bestsellerOnly, setBestsellerOnly] = useState(false);
+  const [collapsedCats, setCollapsedCats] = useState({});
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const [showMenuDrawer, setShowMenuDrawer] = useState(false);
 
   // Active order tracking states
   const [activeOrderId, setActiveOrderId] = useState(() => {
@@ -152,15 +173,83 @@ export default function OnlineOrderPage() {
   }, [restaurant?.id, activeOrderId, restaurantId]);
 
   const currency = restaurant?.currency ?? 'INR';
+  const groupedCategories = useMemo(() => {
+    const excludedIds = Array.isArray(restaurant?.onlineExcludedItemIds) ? restaurant.onlineExcludedItemIds : [];
+    const q = searchQuery.toLowerCase().trim();
+
+    return categories.map(cat => {
+      const filteredItems = (cat.items || []).filter(item => {
+        if (item.available === false) return false;
+        if (excludedIds.includes(item.id)) return false;
+        
+        if (q) {
+          const match = item.name?.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q);
+          if (!match) return false;
+        }
+
+        const isVeg = isVegetarianItem(item);
+        if (vegOnly && !isVeg) return false;
+        if (nonVegOnly && isVeg) return false;
+
+        if (bestsellerOnly) {
+          const isBestseller = item.isBestseller || 
+            item.bestseller || 
+            item.featured || 
+            item.recommended || 
+            item.isSpecial ||
+            (Array.isArray(restaurant?.manualBestsellerItemIds) && restaurant.manualBestsellerItemIds.includes(item.id)) ||
+            (restaurant?.autoDetectBestsellers !== false && Array.isArray(restaurant?.autoBestsellerItemIds) && restaurant.autoBestsellerItemIds.includes(item.id));
+          if (!isBestseller) return false;
+        }
+
+        return true;
+      });
+
+      return {
+        ...cat,
+        items: filteredItems,
+      };
+    }).filter(cat => cat.items.length > 0);
+  }, [categories, searchQuery, vegOnly, nonVegOnly, bestsellerOnly, restaurant?.onlineExcludedItemIds]);
+
+  const totalFilteredCount = useMemo(() => {
+    return groupedCategories.reduce((sum, c) => sum + c.items.length, 0);
+  }, [groupedCategories]);
+
   const items = useMemo(() => {
-    return (categories.find(c => c.id === activeCat)?.items ?? []).filter(i => i.available !== false);
-  }, [categories, activeCat]);
+    return groupedCategories.flatMap(c => c.items);
+  }, [groupedCategories]);
+
+  const scrollToCategory = (catId) => {
+    setShowMenuDrawer(false);
+    const el = document.getElementById(`swiggy-cat-section-${catId}`);
+    if (el) {
+      const yOffset = -70; // offset for sticky app bar
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  const handleShareStore = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: restaurant?.name || 'Order Food Online',
+        text: `Order fresh food from ${restaurant?.name || 'our restaurant'}!`,
+        url: url
+      }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url);
+      toast.success('Restaurant link copied to clipboard!');
+    }
+  };
 
   const heroStyle = {
     background: restaurant?.onlineCover 
-      ? `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7)), url(${restaurant.onlineCover}) center/cover no-repeat` 
-      : 'var(--color-label)',
-    color: 'var(--color-on-dark)',
+      ? `linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75)), url(${restaurant.onlineCover}) center/cover no-repeat` 
+      : 'var(--color-bg-elevated)',
+    borderBottom: restaurant?.onlineCover ? 'none' : '1px solid var(--color-separator-opaque)',
+    color: restaurant?.onlineCover ? 'var(--color-on-dark)' : 'var(--color-label)',
     padding: 'var(--space-8) var(--space-6)',
     display: 'flex',
     flexDirection: 'column',
@@ -170,9 +259,10 @@ export default function OnlineOrderPage() {
 
   const trackerHeroStyle = {
     background: restaurant?.onlineCover 
-      ? `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7)), url(${restaurant.onlineCover}) center/cover no-repeat` 
-      : 'var(--color-label)',
-    color: 'var(--color-on-dark)',
+      ? `linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75)), url(${restaurant.onlineCover}) center/cover no-repeat` 
+      : 'var(--color-bg-elevated)',
+    borderBottom: restaurant?.onlineCover ? 'none' : '1px solid var(--color-separator-opaque)',
+    color: restaurant?.onlineCover ? 'var(--color-on-dark)' : 'var(--color-label)',
     padding: 'var(--space-6) var(--space-4)',
     display: 'flex',
     flexDirection: 'column',
@@ -237,11 +327,21 @@ export default function OnlineOrderPage() {
     return cart.reduce((s, i) => s + i.price * i.qty, 0);
   }, [cart]);
 
+  const deliveryFee = useMemo(() => {
+    if (orderType !== 'delivery') return 0;
+    const baseFee = parseFloat(restaurant?.deliveryFee) || 0;
+    const freeThreshold = parseFloat(restaurant?.freeDeliveryAbove) || 0;
+    if (freeThreshold > 0 && subtotal >= freeThreshold) return 0;
+    return baseFee;
+  }, [orderType, restaurant?.deliveryFee, restaurant?.freeDeliveryAbove, subtotal]);
+
   const taxResult = useMemo(() => {
     return computeTax(subtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
   }, [subtotal, restaurant?.taxConfig]);
 
-  const total = taxResult.total;
+  const total = useMemo(() => {
+    return taxResult.total + deliveryFee;
+  }, [taxResult.total, deliveryFee]);
 
   const cartCount = useMemo(() => {
     return cart.reduce((sum, i) => sum + i.qty, 0);
@@ -256,6 +356,11 @@ export default function OnlineOrderPage() {
   };
 
   const submitOrder = async () => {
+    if (restaurant?.onlineOrderingPaused) {
+      toast.error('Online ordering is temporarily paused. Please check back shortly.');
+      return;
+    }
+
     const cleanName = sanitizeInput(name, 100);
     const cleanPhone = phone.trim().replace(/[^\d+]/g, '').slice(0, 20);
     const cleanAddress = sanitizeInput(address, 300);
@@ -269,9 +374,16 @@ export default function OnlineOrderPage() {
       toast.error('Please enter a valid mobile number');
       return;
     }
-    if (orderType === 'delivery' && !cleanAddress) {
-      toast.error('Please enter your delivery address');
-      return;
+    if (orderType === 'delivery') {
+      if (!cleanAddress) {
+        toast.error('Please enter your delivery address');
+        return;
+      }
+      const minOrder = parseFloat(restaurant?.minDeliveryOrder) || 0;
+      if (minOrder > 0 && subtotal < minOrder) {
+        toast.error(`Minimum order amount for delivery is ${formatCurrency(minOrder, currency)}`);
+        return;
+      }
     }
     if (!cart || cart.length === 0) {
       toast.error('Your cart is empty');
@@ -306,6 +418,7 @@ export default function OnlineOrderPage() {
           status: 'pending'
         })),
         subtotal: Math.max(0, Number(subtotal) || 0),
+        deliveryFee: Math.max(0, Number(deliveryFee) || 0),
         taxAmount: Math.max(0, Number(taxResult.taxTotal) || 0),
         taxTotal: Math.max(0, Number(taxResult.taxTotal) || 0),
         taxLines: taxResult.lines,
@@ -561,10 +674,10 @@ export default function OnlineOrderPage() {
               }}
             />
           )}
-          <h1 style={{ fontSize: 'var(--text-title2)', margin: 0, fontWeight: 'var(--weight-bold)' }}>
+          <h1 style={{ fontSize: 'var(--text-title2)', margin: 0, fontWeight: 'var(--weight-bold)', color: restaurant?.onlineCover ? 'var(--color-on-dark)' : 'var(--color-label)' }}>
             {activeOrder.orderType === 'delivery' ? '🚚 Delivery Order' : (activeOrder.orderType === 'takeaway' ? '🛍️ Takeaway Pickup' : `Table ${activeOrder.tableName || 'Service'}`)}
           </h1>
-          <p style={{ opacity: 0.9, fontSize: 'var(--text-footnote)', margin: '4px 0 0 0' }}>
+          <p style={{ color: restaurant?.onlineCover ? 'rgba(255,255,255,0.85)' : 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)', margin: '4px 0 0 0' }}>
             {restaurant?.name} · Live Order Tracking · #{activeOrder.id.slice(-6).toUpperCase()}
           </p>
         </div>
@@ -689,8 +802,8 @@ export default function OnlineOrderPage() {
           />
         )}
         <div style={{ fontSize: 48, marginBottom: 'var(--space-2)' }}>🎉</div>
-        <h1 style={{ fontSize: 'var(--text-title1)', margin: 0, fontWeight: 'var(--weight-bold)' }}>Order Placed!</h1>
-        <p style={{ opacity: 0.9, fontSize: 'var(--text-subhead)', margin: 'var(--space-2) 0 0 0' }}>
+        <h1 style={{ fontSize: 'var(--text-title1)', margin: 0, fontWeight: 'var(--weight-bold)', color: restaurant?.onlineCover ? 'var(--color-on-dark)' : 'var(--color-label)' }}>Order Placed!</h1>
+        <p style={{ color: restaurant?.onlineCover ? 'rgba(255,255,255,0.85)' : 'var(--color-label-secondary)', fontSize: 'var(--text-subhead)', margin: 'var(--space-2) 0 0 0' }}>
           We'll have it ready for you. Thank you, {name}!
         </p>
       </div>
@@ -734,8 +847,8 @@ export default function OnlineOrderPage() {
               }}
             />
           )}
-          <h1 style={{ fontSize: 'var(--text-title2)', margin: 0, fontWeight: 'var(--weight-bold)' }}>Checkout</h1>
-          <p style={{ opacity: 0.9, fontSize: 'var(--text-footnote)', margin: '4px 0 0 0' }}>{restaurant?.name}</p>
+          <h1 style={{ fontSize: 'var(--text-title2)', margin: 0, fontWeight: 'var(--weight-bold)', color: restaurant?.onlineCover ? 'var(--color-on-dark)' : 'var(--color-label)' }}>Checkout</h1>
+          <p style={{ color: restaurant?.onlineCover ? 'rgba(255,255,255,0.85)' : 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)', margin: '4px 0 0 0' }}>{restaurant?.name}</p>
         </div>
 
         <div className="online-order-content" style={{ maxWidth: 600, margin: '0 auto', padding: 'var(--space-4)' }}>
@@ -812,23 +925,28 @@ export default function OnlineOrderPage() {
               {!tableId && (
                 <div style={{ marginBottom: 'var(--space-4)' }}>
                   <label className="form-label" style={{ marginBottom: 'var(--space-2)' }}>Order Mode</label>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
-                    {[['takeaway','🛍️ Pickup'],['delivery','🚚 Delivery']].map(([k,l]) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {[['delivery', '🚚 Delivery'], ['takeaway', '🛍️ Pickup']].map(([k, l]) => (
                       <button
                         key={k}
                         type="button"
                         onClick={() => setOrderType(k)}
                         style={{
-                          padding:'var(--space-3)',
-                          borderRadius:'var(--radius-lg)',
-                          border: `2px solid ${orderType === k ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                          background: orderType === k ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                          color: orderType === k ? 'var(--color-accent)' : 'var(--color-label)',
-                          fontWeight:'var(--weight-semibold)',
-                          fontSize:'var(--text-footnote)',
-                          cursor:'pointer',
-                          transition:'all var(--duration-fast)',
-                          fontFamily:'var(--font-family)',
+                          padding: '9px 12px',
+                          borderRadius: 'var(--radius-lg)',
+                          border: orderType === k ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
+                          background: orderType === k ? 'var(--color-accent)' : 'var(--color-bg-elevated)',
+                          color: orderType === k ? '#ffffff' : 'var(--color-label-secondary)',
+                          fontWeight: orderType === k ? 700 : 500,
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          boxShadow: orderType === k ? '0 2px 8px rgba(16, 185, 129, 0.25)' : 'none',
+                          transition: 'all 0.15s ease',
+                          outline: 'none'
                         }}
                       >{l}</button>
                     ))}
@@ -901,6 +1019,18 @@ export default function OnlineOrderPage() {
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal, currency)}</span>
                 </div>
+                {orderType === 'delivery' && (parseFloat(restaurant?.deliveryFee) > 0 || parseFloat(restaurant?.freeDeliveryAbove) > 0) && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)', color: 'var(--color-label-secondary)' }}>
+                    <span>Delivery Fee</span>
+                    <span>
+                      {deliveryFee === 0 ? (
+                        <span style={{ color: 'var(--color-accent)', fontWeight: 700 }}>FREE</span>
+                      ) : (
+                        formatCurrency(deliveryFee, currency)
+                      )}
+                    </span>
+                  </div>
+                )}
                 {taxResult.lines.map((line, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)', color: 'var(--color-label-secondary)' }}>
                     <span>{line.label} {taxResult.mode === 'inclusive' ? '(incl.)' : ''}</span>
@@ -913,14 +1043,53 @@ export default function OnlineOrderPage() {
                 </div>
               </div>
 
+              {/* Delivery Incentive Tip or Minimum Warning */}
+              {orderType === 'delivery' && parseFloat(restaurant?.freeDeliveryAbove) > 0 && subtotal < parseFloat(restaurant.freeDeliveryAbove) && (
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--color-accent)',
+                  background: 'var(--color-accent-light)',
+                  border: '1px solid var(--color-accent)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 12px',
+                  marginBottom: 'var(--space-3)',
+                  textAlign: 'center',
+                  fontWeight: 600
+                }}>
+                  🎉 Add {formatCurrency(parseFloat(restaurant.freeDeliveryAbove) - subtotal, currency)} more for FREE Delivery!
+                </div>
+              )}
+
+              {orderType === 'delivery' && parseFloat(restaurant?.minDeliveryOrder) > 0 && subtotal < parseFloat(restaurant.minDeliveryOrder) && (
+                <div style={{
+                  fontSize: '12px',
+                  color: '#ef4444',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 12px',
+                  marginBottom: 'var(--space-3)',
+                  textAlign: 'center',
+                  fontWeight: 600
+                }}>
+                  ⚠️ Minimum order for delivery is {formatCurrency(parseFloat(restaurant.minDeliveryOrder), currency)}. Please add {formatCurrency(parseFloat(restaurant.minDeliveryOrder) - subtotal, currency)} more to proceed.
+                </div>
+              )}
+
               <button
                 id="online-place-order-btn"
                 className="btn btn-primary btn-lg"
                 style={{ width:'100%' }}
                 onClick={submitOrder}
-                disabled={loading || !name.trim() || !phone.trim() || (orderType === 'delivery' && !address.trim())}
+                disabled={
+                  loading || 
+                  restaurant?.onlineOrderingPaused ||
+                  !name.trim() || 
+                  !phone.trim() || 
+                  (orderType === 'delivery' && (!address.trim() || (parseFloat(restaurant?.minDeliveryOrder) > 0 && subtotal < parseFloat(restaurant.minDeliveryOrder))))
+                }
               >
-                {loading ? '...' : `Place Order · ${formatCurrency(total, currency)}`}
+                {loading ? '...' : (restaurant?.onlineOrderingPaused ? 'Online Ordering Paused' : `Place Order · ${formatCurrency(total, currency)}`)}
               </button>
               
               <div style={{ textAlign:'center', fontSize:'var(--text-caption1)', color:'var(--color-label-tertiary)', marginTop:'var(--space-2)' }}>
@@ -934,7 +1103,7 @@ export default function OnlineOrderPage() {
   }
 
   return (
-    <div className="online-order-page" style={{ paddingBottom: 'var(--space-8)' }}>
+    <div className="online-order-page" style={{ paddingBottom: cart.length > 0 ? 100 : 'var(--space-8)' }}>
       {/* Dynamic pulse-glow keyframe registration */}
       <style>{`
         @keyframes pulse-glow {
@@ -942,205 +1111,949 @@ export default function OnlineOrderPage() {
           70% { box-shadow: 0 0 0 10px rgba(0, 122, 255, 0); }
           100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); }
         }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
 
-      <div className="online-order-hero" style={heroStyle}>
-        {restaurant?.onlineLogo ? (
-          <img 
-            src={restaurant.onlineLogo} 
-            alt={`${restaurant.name} Logo`} 
+      {/* ── Sticky Top App Bar (Swiggy / Zomato Style) ── */}
+      <div className="swiggy-app-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          {restaurant?.onlineLogo ? (
+            <img 
+              src={restaurant.onlineLogo} 
+              alt={restaurant.name} 
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'cover',
+                border: '1px solid var(--color-separator-opaque)',
+                flexShrink: 0
+              }}
+            />
+          ) : (
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(59, 130, 246, 0.12))',
+              border: '1px solid var(--color-separator-opaque)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              flexShrink: 0
+            }}>
+              {restaurant?.emoji || '🍽️'}
+            </div>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontSize: '15px',
+              fontWeight: 800,
+              color: 'var(--color-label)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {restaurant?.name || 'Restaurant Menu'}
+            </div>
+            <div style={{
+              fontSize: '11.5px',
+              color: 'var(--color-label-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>⚡ {restaurant?.estimatedDeliveryTime || '30-40 mins'}</span>
+              <span>•</span>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{restaurant?.address || 'Main Outlet'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={handleShareStore}
+            aria-label="Share Store"
             style={{
-              width: 80,
-              height: 80,
+              width: 36,
+              height: 36,
               borderRadius: '50%',
-              objectFit: 'cover',
-              border: '3px solid var(--color-bg)',
-              boxShadow: 'var(--shadow-lg)',
-              backgroundColor: 'var(--color-bg-secondary)',
-              marginBottom: 'var(--space-2)'
+              border: '1px solid var(--color-separator-opaque)',
+              background: 'var(--color-bg-elevated)',
+              color: 'var(--color-label)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
             }}
-          />
-        ) : (
-          <div style={{ fontSize: 40, marginBottom: 'var(--space-2)' }}>{restaurant?.emoji ?? '🍽️'}</div>
-        )}
-        <h1 style={{ fontSize:'var(--text-title1)', margin: 0, fontWeight: 'var(--weight-bold)' }}>{restaurant.name}</h1>
-        {restaurant?.onlineDescription && (
-          <p style={{ 
-            opacity: 0.9, 
-            fontSize: 'var(--text-subhead)', 
-            maxWidth: 500, 
-            margin: 'var(--space-2) auto 0 auto', 
-            lineHeight: 1.4,
-            fontWeight: 'var(--weight-regular)'
-          }}>
-            {restaurant.onlineDescription}
-          </p>
-        )}
-        <p style={{ opacity: 0.8, fontSize: 'var(--text-footnote)', marginTop: 'var(--space-3)', marginBottom: 0 }}>
-          Order online — pay at {orderType === 'dine-in' ? 'table' : 'counter'}
-        </p>
+          >
+            <Share2 size={16} />
+          </button>
+        </div>
       </div>
 
-      <div className="online-order-content">
-        {/* Table lock banner */}
-        {tableId && (
+      {/* ── Full-Bleed Restaurant Cover Banner ── */}
+      <div style={{
+        height: 150,
+        width: '100%',
+        position: 'relative',
+        background: restaurant?.onlineCover
+          ? `linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.65)), url(${restaurant.onlineCover}) center/cover no-repeat`
+          : 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        padding: '16px'
+      }}>
+        {/* Subtle decorative culinary watermark when no cover */}
+        {!restaurant?.onlineCover && (
           <div style={{
-            background: 'var(--color-green-light)',
-            color: 'var(--color-green)',
-            padding: 'var(--space-3) var(--space-4)',
-            borderRadius: 'var(--radius-lg)',
-            marginBottom: 'var(--space-4)',
+            position: 'absolute',
+            right: 20,
+            bottom: 12,
+            opacity: 0.15,
+            fontSize: 72,
+            userSelect: 'none',
+            pointerEvents: 'none'
+          }}>
+            🍕
+          </div>
+        )}
+      </div>
+
+      {/* ── Main Container ── */}
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 16px' }}>
+
+        {/* ── Overlapping Restaurant Information Card ── */}
+        <div className="swiggy-rest-card" style={{ marginTop: -48, marginBottom: 16 }}>
+          {/* Top Line: Name & Rating */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h1 style={{
+                  fontSize: '19px',
+                  fontWeight: 800,
+                  color: 'var(--color-label)',
+                  margin: 0,
+                  lineHeight: 1.2
+                }}>
+                  {restaurant?.name || 'Restaurant'}
+                </h1>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  background: 'rgba(22, 163, 74, 0.14)',
+                  color: '#16a34a',
+                  border: '1px solid rgba(22, 163, 74, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }} />
+                  Open
+                </span>
+              </div>
+
+              {/* Cuisines & Cost For Two */}
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--color-label-secondary)',
+                marginTop: 4,
+                lineHeight: 1.4
+              }}>
+                {restaurant?.onlineDescription || 'Delicious Meals, Snacks & Refreshments'}
+                {restaurant?.costForTwo && ` • ₹${restaurant.costForTwo} for two`}
+              </div>
+            </div>
+
+            {/* Optional restaurant rating if explicitly configured */}
+            {restaurant?.rating && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 10px',
+                borderRadius: '12px',
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-separator-opaque)',
+                boxShadow: 'var(--shadow-xs)',
+                flexShrink: 0
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: '#15803d'
+                }}>
+                  <Star size={13} fill="#15803d" stroke="#15803d" />
+                  <span>{restaurant.rating}</span>
+                </div>
+                {restaurant?.ratingCount && (
+                  <div style={{
+                    fontSize: '10px',
+                    color: 'var(--color-label-tertiary)',
+                    fontWeight: 600,
+                    marginTop: 2
+                  }}>
+                    {restaurant.ratingCount}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Stepper / Timeline: Outlet & Delivery Timeline */}
+          <div style={{
+            marginTop: 14,
+            paddingTop: 12,
+            borderTop: '1px dashed var(--color-separator-opaque)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            fontSize: '12.5px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: 'var(--color-accent)',
+                flexShrink: 0
+              }} />
+              <div style={{ color: 'var(--color-label)', fontWeight: 600 }}>
+                Outlet <span style={{ fontWeight: 400, color: 'var(--color-label-secondary)' }}>• {restaurant?.address || 'Main Branch'}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#f59e0b',
+                flexShrink: 0
+              }} />
+              <div style={{ color: 'var(--color-label)', fontWeight: 600 }}>
+                {restaurant?.estimatedDeliveryTime || '30-40 mins'}
+                <span style={{ fontWeight: 400, color: 'var(--color-label-secondary)' }}>
+                  {' '}• {orderType === 'delivery' 
+                    ? (parseFloat(deliveryFee) === 0 ? 'Free Delivery' : `${formatCurrency(deliveryFee, currency)} delivery fee`) 
+                    : 'Self Pickup ready in 15-20 mins'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Table lock badge if scanned via table QR */}
+          {tableId ? (
+            <div style={{
+              marginTop: 14,
+              background: 'var(--color-green-light)',
+              color: 'var(--color-green)',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-md)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              fontWeight: 700,
+              fontSize: '13px',
+              border: '1px solid var(--color-green-opaque)'
+            }}>
+              🍽️ Table {tableName || tableId} · Dine-In Service
+            </div>
+          ) : (
+            /* Clear Delivery / Pickup Switcher */
+            <div style={{
+              marginTop: 14,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 8,
+              background: 'var(--color-bg-secondary)',
+              padding: 4,
+              borderRadius: '12px',
+              border: '1px solid var(--color-separator-opaque)'
+            }}>
+              <button
+                type="button"
+                id="online-type-delivery"
+                onClick={() => setOrderType('delivery')}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  background: orderType === 'delivery' ? 'var(--color-bg-elevated)' : 'transparent',
+                  color: orderType === 'delivery' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  fontWeight: orderType === 'delivery' ? 800 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  boxShadow: orderType === 'delivery' ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                🛵 Delivery
+              </button>
+              <button
+                type="button"
+                id="online-type-takeaway"
+                onClick={() => setOrderType('takeaway')}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  background: orderType === 'takeaway' ? 'var(--color-bg-elevated)' : 'transparent',
+                  color: orderType === 'takeaway' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  fontWeight: orderType === 'takeaway' ? 800 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  boxShadow: orderType === 'takeaway' ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                🛍️ Takeaway
+              </button>
+            </div>
+          )}
+
+          {/* Promotional Offer Ribbon */}
+          {restaurant?.onlineOfferActive && restaurant?.onlineOfferText && (
+            <div style={{
+              marginTop: 12,
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.12))',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '10px',
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: 'var(--color-accent)',
+              fontSize: '12px',
+              fontWeight: 700
+            }}>
+              <Sparkles size={14} style={{ flexShrink: 0 }} />
+              <span>{restaurant.onlineOfferText}</span>
+            </div>
+          )}
+
+          {/* Paused Banner if restaurant paused online ordering */}
+          {restaurant?.onlineOrderingPaused && (
+            <div style={{
+              marginTop: 12,
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '10px',
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: '#ef4444',
+              fontSize: '12px',
+              fontWeight: 700
+            }}>
+              <AlertCircle size={15} style={{ flexShrink: 0 }} />
+              <span>Online ordering is currently paused by the restaurant. You can browse the menu.</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Search Bar & Dietary Filter Pills ── */}
+        <div style={{
+          position: 'sticky',
+          top: 56,
+          zIndex: 35,
+          background: 'var(--color-bg)',
+          padding: '8px 0',
+          marginBottom: 16
+        }}>
+          {/* Swiggy Rounded Pill Search Bar */}
+          <div className="swiggy-search-pill" style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+              <Search size={16} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search for dishes..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '13px',
+                  color: 'var(--color-label)',
+                  padding: 0
+                }}
+              />
+            </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-label-tertiary)',
+                  cursor: 'pointer',
+                  padding: 4
+                }}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Dietary Filter Switches Row: [🟢 Veg] [🔺 Non-Veg] [⭐ Bestseller] */}
+          <div style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
             gap: 8,
-            fontWeight: 'var(--weight-bold)',
-            fontSize: 'var(--text-subhead)',
-            border: '1px solid var(--color-green-opaque)',
-            textAlign: 'center'
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 4
           }}>
-            🍽️ Dine-In Table Service · Table {tableName || tableId}
-          </div>
-        )}
-
-        {/* Order type — hide if tableId is present */}
-        {!tableId && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)', marginBottom:'var(--space-5)' }}>
-            {[['takeaway','🛍️ Pickup'],['delivery','🚚 Delivery']].map(([k,l]) => (
-              <button
-                key={k}
-                id={`online-type-${k}`}
-                onClick={() => setOrderType(k)}
-                style={{
-                  padding:'var(--space-4)',
-                  borderRadius:'var(--radius-lg)',
-                  border: `2px solid ${orderType === k ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                  background: orderType === k ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                  color: orderType === k ? 'var(--color-accent)' : 'var(--color-label)',
-                  fontWeight:'var(--weight-semibold)',
-                  fontSize:'var(--text-subhead)',
-                  cursor:'pointer',
-                  transition:'all var(--duration-fast)',
-                  fontFamily:'var(--font-family)',
-                }}
-              >{l}</button>
-            ))}
-          </div>
-        )}
-
-        {/* Categories */}
-        <div className="category-scroll-container" style={{ display:'flex', gap:'var(--space-2)', overflowX:'auto', marginBottom:'var(--space-4)', scrollbarWidth:'none', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
-          {categories.map(c => (
+            {/* Veg Switch */}
             <button
-              key={c.id}
-              id={`online-cat-${c.id}`}
-              className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
-              style={{ scrollSnapAlign: 'start', flexShrink: 0, minHeight: 40, touchAction: 'manipulation' }}
-              onClick={() => setActiveCat(c.id)}
+              type="button"
+              className={`swiggy-filter-btn ${vegOnly ? 'active' : ''}`}
+              onClick={() => {
+                setVegOnly(v => !v);
+                if (!vegOnly) setNonVegOnly(false);
+              }}
             >
-              {c.emoji} {c.name}
+              <span className="food-badge-veg" style={{ width: 12, height: 12 }} />
+              <span>Veg</span>
             </button>
-          ))}
+
+            {/* Non-Veg Switch */}
+            <button
+              type="button"
+              className={`swiggy-filter-btn ${nonVegOnly ? 'active' : ''}`}
+              onClick={() => {
+                setNonVegOnly(v => !v);
+                if (!nonVegOnly) setVegOnly(false);
+              }}
+            >
+              <span className="food-badge-nonveg" style={{ width: 12, height: 12 }} />
+              <span>Non-Veg</span>
+            </button>
+
+            {/* Bestseller Filter */}
+            <button
+              type="button"
+              className={`swiggy-filter-btn ${bestsellerOnly ? 'active' : ''}`}
+              onClick={() => setBestsellerOnly(b => !b)}
+            >
+              <Star size={12} fill={bestsellerOnly ? 'currentColor' : '#f59e0b'} stroke="#f59e0b" />
+              <span>Bestseller</span>
+            </button>
+
+            {/* Clear All Filters button when any filter active */}
+            {(vegOnly || nonVegOnly || bestsellerOnly || searchQuery) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setVegOnly(false);
+                  setNonVegOnly(false);
+                  setBestsellerOnly(false);
+                  setSearchQuery('');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-accent)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          {/* Quick Category Jump Pills */}
+          {!searchQuery && categories.length > 1 && (
+            <div style={{
+              display: 'flex',
+              gap: 8,
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch',
+              paddingTop: 6,
+              paddingBottom: 2
+            }}>
+              {categories.map(c => {
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => scrollToCategory(c.id)}
+                    style={{
+                      flexShrink: 0,
+                      padding: '4px 10px',
+                      borderRadius: '16px',
+                      border: '1px solid var(--color-separator-opaque)',
+                      background: 'var(--color-bg-elevated)',
+                      color: 'var(--color-label-secondary)',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span>{c.emoji || '🍽️'}</span>
+                    <span>{c.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Menu */}
-        <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)', marginBottom:'var(--space-6)' }}>
-          {items.map(item => {
-            const cartItem = cart.find(c => c.menuItemId === item.id || c.id === item.id);
-            const handleItemTap = () => {
-              if (item.modifierGroups && item.modifierGroups.length > 0) {
-                setActiveModifierItem(item);
-              } else {
-                addToCart(item);
-              }
-            };
-
+        {/* ── Grouped Category Sections with Accordion ── */}
+        {groupedCategories.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '48px 16px',
+            background: 'var(--color-bg-elevated)',
+            borderRadius: '16px',
+            border: '1px solid var(--color-separator-opaque)'
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🔍</div>
+            <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-label)' }}>No dishes found</div>
+            <p style={{ fontSize: '13px', color: 'var(--color-label-secondary)', margin: '6px 0 16px 0' }}>
+              {searchQuery ? `No menu items match "${searchQuery}".` : 'Try relaxing the filters to see more dishes.'}
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setSearchQuery('');
+                setVegOnly(false);
+                setNonVegOnly(false);
+                setBestsellerOnly(false);
+              }}
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          groupedCategories.map(cat => {
+            const isCollapsed = Boolean(collapsedCats[cat.id]);
             return (
-              <div 
-                key={item.id} 
-                className="card" 
-                style={{ 
-                  display:'flex', 
-                  alignItems:'center', 
-                  padding:'var(--space-4)', 
-                  gap:'var(--space-4)',
-                  cursor: !cartItem ? 'pointer' : 'default',
-                  touchAction: 'manipulation'
+              <section 
+                key={cat.id} 
+                id={`swiggy-cat-section-${cat.id}`}
+                style={{
+                  background: 'var(--color-bg-elevated)',
+                  borderRadius: '18px',
+                  border: '1px solid var(--color-separator-opaque)',
+                  padding: '16px 18px',
+                  marginBottom: 16,
+                  boxShadow: 'var(--shadow-xs)',
+                  animation: 'fadeIn 0.2s ease-out'
                 }}
-                onClick={!cartItem ? handleItemTap : undefined}
               >
-                {item.imageUrl || item.image ? (
-                  <img 
-                    src={item.imageUrl || item.image} 
-                    alt={item.name} 
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      if (e.currentTarget.nextElementSibling) {
-                        e.currentTarget.nextElementSibling.style.display = 'flex';
-                      }
-                    }}
-                    style={{ width:68, height:68, objectFit:'cover', borderRadius:'var(--radius-md)', flexShrink:0 }} 
-                  />
-                ) : null}
+                {/* Category Header with Item Count & Chevron */}
                 <div 
-                  style={{ 
-                    width:68, 
-                    height:68, 
-                    background:'var(--color-bg-secondary)', 
-                    borderRadius:'var(--radius-md)', 
-                    display: (item.imageUrl || item.image) ? 'none' : 'flex', 
-                    alignItems:'center', 
-                    justifyContent:'center', 
-                    fontSize:28, 
-                    flexShrink:0 
+                  onClick={() => setCollapsedCats(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    paddingBottom: isCollapsed ? 0 : 12,
+                    borderBottom: isCollapsed ? 'none' : '1px solid var(--color-separator-opaque)'
                   }}
                 >
-                  {item.emoji ?? '🍽️'}
-                </div>
-                <div style={{ flex:1, minWidth: 0 }}>
-                  <div style={{ fontWeight:'var(--weight-semibold)', fontSize: 'var(--text-body)' }}>{item.name}</div>
-                  {item.description && <div style={{ fontSize:'var(--text-footnote)', color:'var(--color-label-secondary)', marginTop:2, lineHeight: 1.3 }}>{item.description}</div>}
-                  <div style={{ fontWeight:'var(--weight-bold)', color:'var(--color-accent)', marginTop:4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span>
-                      {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
-                        (() => {
-                          const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                          const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                          return `From ${formatCurrency(minPrice, currency)}`;
-                        })()
-                      ) : (
-                        formatCurrency(item.price, currency)
-                      )}
-                    </span>
-                    {item.modifierGroups?.length > 0 && (
-                      <span style={{ fontSize: '10.5px', background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px', color: 'var(--color-label-secondary)', fontWeight: 'normal' }}>
-                        Customizable
-                      </span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '18px' }}>{cat.emoji || '🍽️'}</span>
+                    <h2 style={{
+                      fontSize: '17px',
+                      fontWeight: 800,
+                      color: 'var(--color-label)',
+                      margin: 0
+                    }}>
+                      {cat.name} ({cat.items.length})
+                    </h2>
+                  </div>
+
+                  <div style={{ color: 'var(--color-label-secondary)', padding: 4 }}>
+                    {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                   </div>
                 </div>
-                <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
-                  {cartItem ? (
-                    <div style={{ display:'flex', alignItems:'center', gap:'var(--space-2)' }}>
-                      <button className="qty-btn" aria-label="Decrease quantity" onClick={() => updateQty(cartItem.id, cartItem.qty - 1)}><Minus size={14}/></button>
-                      <span style={{ fontWeight:'var(--weight-bold)', minWidth:24, textAlign:'center', fontSize: 'var(--text-body)' }}>{cartItem.qty}</span>
-                      <button className="qty-btn" aria-label="Increase quantity" onClick={() => updateQty(cartItem.id, cartItem.qty + 1)}><Plus size={14}/></button>
-                    </div>
-                  ) : (
-                    <button
-                      id={`online-add-${item.id}`}
-                      className="btn btn-primary"
-                      style={{ minHeight: 40, minWidth: 80, padding: '8px 14px', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)' }}
-                      onClick={handleItemTap}
-                    >
-                      <Plus size={15}/> Add
-                    </button>
-                  )}
-                </div>
-              </div>
+
+                {/* Dish Rows */}
+                {!isCollapsed && (
+                  <div>
+                    {cat.items.map(item => {
+                      const isVeg = isVegetarianItem(item);
+                      const isBestseller = Boolean(
+                        item.isBestseller || 
+                        item.bestseller || 
+                        item.featured || 
+                        item.recommended || 
+                        item.isSpecial ||
+                        (Array.isArray(restaurant?.manualBestsellerItemIds) && restaurant.manualBestsellerItemIds.includes(item.id)) ||
+                        (restaurant?.autoDetectBestsellers !== false && Array.isArray(restaurant?.autoBestsellerItemIds) && restaurant.autoBestsellerItemIds.includes(item.id))
+                      );
+                      const cartItem = cart.find(c => c.menuItemId === item.id || c.id === item.id);
+                      const isExpanded = Boolean(expandedDescriptions[item.id]);
+                      const hasDesc = Boolean(item.description?.trim());
+                      const isLongDesc = hasDesc && item.description.length > 75;
+
+                      const handleItemTap = () => {
+                        if (item.modifierGroups && item.modifierGroups.length > 0) {
+                          setActiveModifierItem(item);
+                        } else {
+                          addToCart(item);
+                        }
+                      };
+
+                      return (
+                        <div key={item.id} className="swiggy-dish-row">
+                          {/* Left Column: Details */}
+                          <div style={{ flex: 1, minWidth: 0, paddingRight: 6 }}>
+                            {/* FSSAI Badge & Bestseller Tag */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span className={isVeg ? 'food-badge-veg' : 'food-badge-nonveg'} />
+                              {isBestseller && (
+                                <span style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  color: '#d97706',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 2
+                                }}>
+                                  <Star size={10} fill="#d97706" stroke="#d97706" /> Bestseller
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Dish Title */}
+                            <div style={{
+                              fontWeight: 800,
+                              fontSize: '15px',
+                              color: 'var(--color-label)',
+                              lineHeight: 1.3
+                            }}>
+                              {item.name}
+                            </div>
+
+                            {/* Price */}
+                            <div style={{
+                              marginTop: 4,
+                              fontWeight: 800,
+                              fontSize: '14.5px',
+                              color: 'var(--color-label)'
+                            }}>
+                              {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
+                                (() => {
+                                  const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                                  const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                                  return `From ${formatCurrency(minPrice, currency)}`;
+                                })()
+                              ) : (
+                                formatCurrency(item.price, currency)
+                              )}
+                            </div>
+
+                            {/* Description with More/Less Toggle */}
+                            {hasDesc && (
+                              <div style={{
+                                fontSize: '12px',
+                                color: 'var(--color-label-secondary)',
+                                marginTop: 6,
+                                lineHeight: 1.4
+                              }}>
+                                <span>
+                                  {isLongDesc && !isExpanded 
+                                    ? `${item.description.slice(0, 75)}...` 
+                                    : item.description}
+                                </span>
+                                {isLongDesc && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedDescriptions(prev => ({ ...prev, [item.id]: !prev[item.id] }));
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: '0 0 0 4px',
+                                      color: 'var(--color-label)',
+                                      fontWeight: 700,
+                                      fontSize: '11.5px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {isExpanded ? 'less' : 'more'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right Column: Photo & Overlapping ADD button */}
+                          <div style={{
+                            width: 118,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            flexShrink: 0,
+                            position: 'relative',
+                            paddingBottom: 16
+                          }}>
+                            {/* Food Photo */}
+                            {(item.imageUrl || item.image) ? (
+                              <img
+                                src={item.imageUrl || item.image}
+                                alt={item.name}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.nextElementSibling) {
+                                    e.currentTarget.nextElementSibling.style.display = 'flex';
+                                  }
+                                }}
+                                style={{
+                                  width: 118,
+                                  height: 96,
+                                  objectFit: 'cover',
+                                  borderRadius: '14px',
+                                  border: '1px solid var(--color-separator-opaque)'
+                                }}
+                              />
+                            ) : null}
+
+                            {/* Fallback box if no photo */}
+                            <div
+                              style={{
+                                width: 118,
+                                height: 96,
+                                borderRadius: '14px',
+                                background: 'linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary))',
+                                border: '1px solid var(--color-separator-opaque)',
+                                display: (item.imageUrl || item.image) ? 'none' : 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 36
+                              }}
+                            >
+                              {item.emoji || '🍽️'}
+                            </div>
+
+                            {/* Overlapping Floating Button */}
+                            <div style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              zIndex: 10
+                            }}>
+                              {cartItem ? (
+                                <div className="swiggy-stepper">
+                                  <button
+                                    type="button"
+                                    aria-label="Decrease quantity"
+                                    onClick={() => updateQty(cartItem.id, cartItem.qty - 1)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#ffffff',
+                                      cursor: 'pointer',
+                                      padding: '4px 6px',
+                                      display: 'flex',
+                                      alignItems: 'center'
+                                    }}
+                                  >
+                                    <Minus size={13} strokeWidth={3} />
+                                  </button>
+                                  <span style={{ fontSize: '13px', fontWeight: 800, minWidth: 16, textAlign: 'center' }}>
+                                    {cartItem.qty}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    aria-label="Increase quantity"
+                                    onClick={() => updateQty(cartItem.id, cartItem.qty + 1)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#ffffff',
+                                      cursor: 'pointer',
+                                      padding: '4px 6px',
+                                      display: 'flex',
+                                      alignItems: 'center'
+                                    }}
+                                  >
+                                    <Plus size={13} strokeWidth={3} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  id={`online-add-${item.id}`}
+                                  className="swiggy-add-btn"
+                                  onClick={handleItemTap}
+                                >
+                                  ADD <Plus size={13} strokeWidth={3} style={{ marginLeft: 3 }} />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Customizable note */}
+                            {item.modifierGroups?.length > 0 && (
+                              <div style={{
+                                fontSize: '10px',
+                                color: 'var(--color-label-tertiary)',
+                                marginTop: 14,
+                                fontWeight: 600,
+                                textAlign: 'center'
+                              }}>
+                                Customisable
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
             );
-          })}
+          })
+        )}
+
+      </div>
+
+      {/* ── Floating Black [ 🍽️ MENU ] Quick-Jump Button ── */}
+      <button
+        type="button"
+        className="swiggy-floating-menu-btn"
+        style={{
+          bottom: cart.length > 0 ? 82 : 'max(20px, env(safe-area-inset-bottom, 20px))'
+        }}
+        onClick={() => setShowMenuDrawer(true)}
+      >
+        <Utensils size={15} />
+        <span>MENU</span>
+      </button>
+
+      {/* ── Category Quick-Sheet Drawer ── */}
+      {showMenuDrawer && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center'
+          }}
+          onClick={() => setShowMenuDrawer(false)}
+        >
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: 520,
+              background: 'var(--color-bg-elevated)',
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              padding: '20px',
+              maxHeight: '75vh',
+              overflowY: 'auto',
+              boxShadow: 'var(--shadow-xl)',
+              animation: 'slide-up 0.2s ease-out'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--color-label)' }}>
+                Menu Categories
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMenuDrawer(false)}
+                style={{
+                  background: 'var(--color-bg-secondary)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-label)',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {categories.map(c => {
+                const count = (c.items || []).filter(i => i.available !== false).length;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => scrollToCategory(c.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--color-separator-opaque)',
+                      background: 'var(--color-bg)',
+                      color: 'var(--color-label)',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>{c.emoji || '🍽️'}</span>
+                      <span>{c.name}</span>
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--color-label-tertiary)', fontWeight: 700 }}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
+      )}
 
       {/* Floating cart bar for menu browsing with Safe Area Inset */}
       {cart.length > 0 && step === 'menu' && (
@@ -1158,12 +2071,12 @@ export default function OnlineOrderPage() {
             padding: '16px 22px',
             minHeight: 52,
             borderRadius: 'var(--radius-xl)',
-            boxShadow: 'var(--shadow-lg)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             cursor: 'pointer',
-            zIndex: 1000,
+            zIndex: 990,
             fontWeight: 'var(--weight-bold)',
             fontSize: 'var(--text-subhead)',
             animation: 'slide-up 0.2s ease-out',
@@ -1171,14 +2084,13 @@ export default function OnlineOrderPage() {
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🛒 View Order ({cartCount} items)
+            🛒 View Order ({cartCount} {cartCount === 1 ? 'item' : 'items'})
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {formatCurrency(subtotal, currency)} →
           </span>
         </div>
       )}
-      </div>
 
       {/* Floating tracker banner when active order exists but in menu browsing mode */}
       {activeOrderId && activeOrder && viewMode === 'menu' && (

@@ -13,8 +13,9 @@ import {
   Globe, Truck, Clock, Check, X, Printer, ChefHat, Bell, AlertTriangle,
   User, Eye, Zap, Search, Copy, ExternalLink, Smartphone,
   ShoppingBag, LayoutList, Columns, MessageCircle, CheckCircle2,
-  MapPin, Filter, QrCode
+  MapPin, Filter, QrCode, Download, SlidersHorizontal
 } from 'lucide-react';
+import OnlineStoreSettingsModal from '../components/online/OnlineStoreSettingsModal';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 
@@ -56,6 +57,7 @@ export default function OnlineOrders() {
   const [settling, setSettling] = useState(false);
   const [crossedItems, setCrossedItems] = useState({});
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -959,6 +961,17 @@ export default function OnlineOrders() {
           <button
             type="button"
             className="btn btn-secondary btn-sm"
+            onClick={() => setShowSettingsModal(true)}
+            title="Configure delivery radius, delivery fee, offers & online menu exclusions"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+          >
+            <SlidersHorizontal size={14} color="var(--color-accent)" />
+            <span>Store Settings</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
             onClick={() => setShowQrModal(true)}
             title="Show Store QR Code to scan or download"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
@@ -1497,8 +1510,8 @@ export default function OnlineOrders() {
 
       {/* ── MODAL: Order Details ────────────────────────────────────── */}
       {selectedOrderDetails && (
-        <div className="modal-backdrop" onClick={() => setSelectedOrderDetails(null)}>
-          <div className="modal-box" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setSelectedOrderDetails(null)}>
+          <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 className="text-title3">Order Details</h3>
@@ -1597,8 +1610,8 @@ export default function OnlineOrders() {
 
       {/* ── MODAL: Live Customer Tracking Preview ───────────────────── */}
       {trackingPreviewOrder && (
-        <div className="modal-backdrop" onClick={() => setTrackingPreviewOrder(null)}>
-          <div className="modal-box" style={{ maxWidth: 440, padding: 'var(--space-5)' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setTrackingPreviewOrder(null)}>
+          <div className="modal" style={{ maxWidth: 440, padding: 'var(--space-5)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Smartphone size={18} color="var(--color-accent)" />
@@ -1712,8 +1725,8 @@ export default function OnlineOrders() {
 
       {/* ── MODAL: Quick Settle ─────────────────────────────────────── */}
       {quickSettleOrder && (
-        <div className="modal-backdrop" onClick={() => !settling && setQuickSettleOrder(null)}>
-          <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => !settling && setQuickSettleOrder(null)}>
+          <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 className="text-title3">Quick Settle Payment</h3>
@@ -1769,15 +1782,15 @@ export default function OnlineOrders() {
 
       {/* ── MODAL: Store Ordering QR Code ── */}
       {showQrModal && (
-        <div className="modal-backdrop" onClick={() => setShowQrModal(false)}>
-          <div className="modal-box" style={{ maxWidth: 380, textAlign: 'center', padding: '24px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
+          <div className="modal" style={{ maxWidth: 400, width: '100%', textAlign: 'center', padding: '24px' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <QrCode size={18} color="var(--color-accent)" />
                 <h3 className="text-title3" style={{ margin: 0 }}>Online Store QR</h3>
               </div>
-              <button className="btn btn-secondary btn-icon btn-xs" onClick={() => setShowQrModal(false)}>
-                <X size={14} />
+              <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setShowQrModal(false)}>
+                <X size={15} />
               </button>
             </div>
 
@@ -1786,7 +1799,7 @@ export default function OnlineOrders() {
               padding: '16px',
               borderRadius: 'var(--radius-lg)',
               display: 'inline-block',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
               margin: '0 auto 16px auto'
             }}>
               {qrCodeDataUrl ? (
@@ -1801,33 +1814,41 @@ export default function OnlineOrders() {
             <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 700, color: 'var(--color-label)' }}>
               {restaurant?.name || 'Your Restaurant'}
             </h4>
-            <p className="text-caption1 text-secondary" style={{ margin: '0 0 16px 0', lineHeight: 1.4 }}>
-              Customers scan this code with their smartphone camera to browse your digital menu, order food, and track kitchen status live.
+            <p className="text-caption1 text-secondary" style={{ margin: '0 0 20px 0', lineHeight: 1.4 }}>
+              Customers can scan this QR code with their smartphone camera to browse your menu, place orders, and track kitchen status.
             </p>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={handleCopyStoreLink}
-                style={{ flex: 1, minHeight: 36 }}
+                style={{ flex: 1, minHeight: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                <Copy size={13} /> Copy Link
+                <Copy size={14} /> Copy Link
               </button>
               {qrCodeDataUrl && (
                 <a
                   href={qrCodeDataUrl}
                   download={`${(restaurant?.name || 'store').replace(/\s+/g, '_')}_qr.png`}
                   className="btn btn-primary btn-sm"
-                  style={{ flex: 1, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+                  style={{ flex: 1, minHeight: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none' }}
                 >
-                  Download QR
+                  <Download size={14} /> Download QR
                 </a>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* ── MODAL: Online Storefront & Delivery Settings ── */}
+      <OnlineStoreSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        restaurant={restaurant}
+        currency={currency}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
 import toast from 'react-hot-toast';
+import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -24,6 +25,7 @@ import {
 
 export default function Reports() {
   const { restaurant } = useAuthStore();
+  const { hasMode, isRetail, isBillOnly } = useBusinessConfig();
   const [period, setPeriod] = useState('today');
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'menu' | 'staff' | 'tips' | 'till_shifts' | 'void_audits'
   const [showAiAdvisor, setShowAiAdvisor] = useState(false);
@@ -593,9 +595,11 @@ export default function Reports() {
             <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
               <FileSpreadsheet size={14} /> CSV
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportTally} title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML" style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
-              <FileCode size={14} /> Tally
-            </button>
+            {hasMode('tax_reconcile') && (
+              <button className="btn btn-secondary btn-sm" onClick={handleExportTally} title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML" style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
+                <FileCode size={14} /> Tally
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -603,13 +607,13 @@ export default function Reports() {
       {/* Dashboard Sub-navigation Tabs */}
       <div className="reports-tabs no-scrollbar touch-scroll-x">
         {[
-          { key: 'overview', label: 'Sales Overview', icon: Activity },
-          { key: 'menu', label: 'Menu Performance', icon: PieChart },
-          { key: 'staff', label: 'Staff Leaderboard', icon: Users },
-          { key: 'tips', label: 'Tips & Gratuities', icon: HeartHandshake },
-          { key: 'till_shifts', label: 'Cash Shift History', icon: Receipt },
-          { key: 'void_audits', label: 'Cancelled Items Log', icon: FileText }
-        ].map(t => (
+          { key: 'overview', label: 'Sales Overview', icon: Activity, enabled: true },
+          { key: 'menu', label: 'Menu Performance', icon: PieChart, enabled: true },
+          { key: 'staff', label: 'Staff Leaderboard', icon: Users, enabled: true },
+          { key: 'tips', label: 'Tips & Gratuities', icon: HeartHandshake, enabled: !isRetail && !isBillOnly },
+          { key: 'till_shifts', label: 'Cash Shift History', icon: Receipt, enabled: hasMode('till_shift') },
+          { key: 'void_audits', label: 'Cancelled Items Log', icon: FileText, enabled: hasMode('audit_shield') }
+        ].filter(t => t.enabled).map(t => (
           <button
             key={t.key}
             onClick={(e) => {

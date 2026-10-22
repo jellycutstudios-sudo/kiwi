@@ -602,10 +602,9 @@ export default function POS() {
   const [managerPin, setManagerPin] = useState('');
 
   const currency  = restaurant?.currency ?? 'INR';
-  const modes     = restaurant?.modes ?? ['pos'];
-  const { isRetail, isBillOnly, isService, enableQuickPay, enableBarcode } = useBusinessConfig();
+  const { isRetail, isBillOnly, isService, enableQuickPay, enableBarcode, modes, hasMode } = useBusinessConfig();
   const kitchenConfig = restaurant?.kitchenConfig;
-  const hasKdsMode = modes.includes('kds');
+  const hasKdsMode = hasMode('kds');
 
   // In Bill Only, Retail, or Service mode (or if kitchen is explicitly disabled), kitchen operations (KDS & KOT) are completely deactivated
   const hasNoKitchen = isBillOnly || isRetail || isService;
@@ -915,7 +914,7 @@ export default function POS() {
       JSON.stringify(oi.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
     );
       
-    if (originalItem && (item.qty - 1) < originalItem.qty) {
+    if (hasMode('audit_shield') && originalItem && (item.qty - 1) < originalItem.qty) {
       setVoidAction({
         type: 'decrement',
         item,
@@ -944,7 +943,7 @@ export default function POS() {
       JSON.stringify(oi.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
     );
 
-    if (originalItem) {
+    if (hasMode('audit_shield') && originalItem) {
       setVoidAction({
         type: 'remove',
         item,
@@ -1147,17 +1146,17 @@ export default function POS() {
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService && (modes.includes('table') || modes.includes('pos')) },
+    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly && hasMode('table') },
     { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (t('takeaway') || 'Takeaway')), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
-  // Auto-switch to takeaway/purchase if currently in dine-in for pure retail or service business
+  // Auto-switch to takeaway/purchase if currently in dine-in for pure retail, service, bill only, or when table mode is off
   useEffect(() => {
-    if ((isRetail || isService) && orderType === 'dine-in') {
+    if ((isRetail || isService || isBillOnly || !hasMode('table')) && orderType === 'dine-in') {
       setOrderType('takeaway');
     }
-  }, [isRetail, isService, orderType, setOrderType]);
+  }, [isRetail, isService, isBillOnly, hasMode, orderType, setOrderType]);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
 

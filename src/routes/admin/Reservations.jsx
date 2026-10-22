@@ -53,6 +53,7 @@ export default function Reservations() {
   const [resForm, setResForm] = useState({
     name: '',
     phone: '',
+    date: new Date().toISOString().split('T')[0],
     time: '19:00',
     partySize: '2',
     tableId: '',
@@ -121,10 +122,12 @@ export default function Reservations() {
       return;
     }
 
+    const bookingDate = resForm.date || selectedDate;
+
     const payload = {
       name: resForm.name.trim(),
       phone: resForm.phone.trim().replace(/\D/g, ''),
-      date: selectedDate,
+      date: bookingDate,
       time: resForm.time,
       partySize: parseInt(resForm.partySize) || 2,
       tableId: resForm.tableId || null,
@@ -140,13 +143,18 @@ export default function Reservations() {
       } else {
         const tempId = `res_${Date.now()}`;
         payload.createdAt = new Date();
-        setReservations(prev => [...prev, { id: tempId, ...payload }]);
+        if (bookingDate === selectedDate) {
+          setReservations(prev => [...prev, { id: tempId, ...payload }]);
+        }
         toast.success('Reservation booked!');
         await addDoc(collection(db, 'restaurants', restaurant.id, 'reservations'), payload);
       }
+      if (bookingDate !== selectedDate) {
+        setSelectedDate(bookingDate);
+      }
       setShowResForm(false);
       setEditResId(null);
-      setResForm({ name: '', phone: '', time: '19:00', partySize: '2', tableId: '', notes: '' });
+      setResForm({ name: '', phone: '', date: bookingDate, time: '19:00', partySize: '2', tableId: '', notes: '' });
     } catch (e) {
       console.warn('Reservation cloud write deferred:', e);
     }
@@ -295,7 +303,7 @@ export default function Reservations() {
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           {activeTab === 'bookings' ? (
-            <button className="btn btn-primary" id="new-res-btn" onClick={() => { setEditResId(null); setResForm({ name: '', phone: '', time: '19:00', partySize: '2', tableId: '', notes: '' }); setShowResForm(true); }}>
+            <button className="btn btn-primary" id="new-res-btn" onClick={() => { setEditResId(null); setResForm({ name: '', phone: '', date: selectedDate, time: '19:00', partySize: '2', tableId: '', notes: '' }); setShowResForm(true); }}>
               <Plus size={16} /> Book Reservation
             </button>
           ) : (
@@ -463,6 +471,7 @@ export default function Reservations() {
                             setResForm({
                               name: res.name,
                               phone: res.phone,
+                              date: res.date || selectedDate,
                               time: res.time,
                               partySize: String(res.partySize),
                               tableId: res.tableId ?? '',
@@ -583,6 +592,7 @@ export default function Reservations() {
                           setResForm({
                             name: res.name,
                             phone: res.phone,
+                            date: res.date || selectedDate,
                             time: res.time,
                             partySize: String(res.partySize),
                             tableId: res.tableId ?? '',
@@ -797,30 +807,36 @@ export default function Reservations() {
             <div className="modal-body">
               <div className="form-group">
                 <label className="form-label">Guest Name</label>
-                <input id="res-name-input" className="form-input" placeholder="e.g. Salman Malik" value={resForm.name} onChange={e => setResForm(f => ({ ...f, name: e.target.value }))} />
+                <input id="res-name-input" className="form-input" placeholder="Enter guest name" value={resForm.name} onChange={e => setResForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
-                <input id="res-phone-input" className="form-input" placeholder="e.g. 9876543210" value={resForm.phone} onChange={e => setResForm(f => ({ ...f, phone: e.target.value }))} />
+                <input id="res-phone-input" className="form-input" placeholder="Enter phone number" value={resForm.phone} onChange={e => setResForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                <div className="form-group">
+                  <label className="form-label">Reservation Date</label>
+                  <input id="res-date-input" className="form-input" type="date" value={resForm.date} onChange={e => setResForm(f => ({ ...f, date: e.target.value }))} />
+                </div>
                 <div className="form-group">
                   <label className="form-label">Reservation Time</label>
                   <input id="res-time-input" className="form-input" type="time" value={resForm.time} onChange={e => setResForm(f => ({ ...f, time: e.target.value }))} />
                 </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                 <div className="form-group">
                   <label className="form-label">Party Size</label>
                   <input id="res-size-input" className="form-input" type="number" min={1} value={resForm.partySize} onChange={e => setResForm(f => ({ ...f, partySize: e.target.value }))} />
                 </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assigned Table (Optional)</label>
-                <select id="res-table-select" className="form-select" value={resForm.tableId} onChange={e => setResForm(f => ({ ...f, tableId: e.target.value }))}>
-                  <option value="">Auto-Assign Later</option>
-                  {tables.map(t => (
-                    <option key={t.id} value={t.id}>Table {t.name} (Cap: {t.capacity ?? 4} - {t.status})</option>
-                  ))}
-                </select>
+                <div className="form-group">
+                  <label className="form-label">Assigned Table (Optional)</label>
+                  <select id="res-table-select" className="form-select" value={resForm.tableId} onChange={e => setResForm(f => ({ ...f, tableId: e.target.value }))}>
+                    <option value="">Auto-Assign Later</option>
+                    {tables.map(t => (
+                      <option key={t.id} value={t.id}>Table {t.name} (Cap: {t.capacity ?? 4})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Special Requests/Notes</label>
@@ -828,7 +844,7 @@ export default function Reservations() {
                   id="res-notes-input"
                   className="form-input"
                   rows={2}
-                  placeholder="e.g. Window seat, celebrating anniversary..."
+                  placeholder="Window seat, anniversary, dietary requirements..."
                   value={resForm.notes}
                   onChange={e => setResForm(f => ({ ...f, notes: e.target.value }))}
                   style={{ resize: 'none', fontFamily: 'var(--font-family)', fontSize: 'var(--text-footnote)' }}
@@ -854,12 +870,12 @@ export default function Reservations() {
             <div className="modal-body">
               <div className="form-group">
                 <label className="form-label">Guest Name</label>
-                <input id="wait-name-input" className="form-input" placeholder="e.g. David Miller" value={waitForm.name} onChange={e => setWaitForm(f => ({ ...f, name: e.target.value }))} />
+                <input id="wait-name-input" className="form-input" placeholder="Enter guest name" value={waitForm.name} onChange={e => setWaitForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--space-3)' }}>
                 <div className="form-group">
                   <label className="form-label">Phone Number</label>
-                  <input id="wait-phone-input" className="form-input" placeholder="e.g. 9876543210" value={waitForm.phone} onChange={e => setWaitForm(f => ({ ...f, phone: e.target.value }))} />
+                  <input id="wait-phone-input" className="form-input" placeholder="Enter phone number" value={waitForm.phone} onChange={e => setWaitForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Party Size</label>

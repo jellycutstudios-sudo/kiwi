@@ -105,23 +105,25 @@ export default function DigitalReceiptModal({
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleShareWhatsApp}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                borderColor: '#25D366',
-                color: '#15803d',
-                height: '36px'
-              }}
-            >
-              <MessageSquare size={16} color="#25D366" /> Share via WhatsApp
-            </button>
+            {(!restaurant?.modes || restaurant.modes.includes('retention_crm')) && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleShareWhatsApp}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  borderColor: '#25D366',
+                  color: '#15803d',
+                  height: '36px'
+                }}
+              >
+                <MessageSquare size={16} color="#25D366" /> Share via WhatsApp
+              </button>
+            )}
 
             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
               {onPrint && (

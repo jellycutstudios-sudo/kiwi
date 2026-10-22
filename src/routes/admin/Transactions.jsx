@@ -4,7 +4,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { collection, query, where, getDocs, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Search, Download, ChevronDown, ChevronUp, Receipt, Clock, Tag, User, Flag, Printer } from 'lucide-react';
+import { Search, Download, ChevronDown, ChevronUp, Receipt, Clock, Tag, User, Flag, Printer, X } from 'lucide-react';
 import InfoTooltip from '../../components/shared/InfoTooltip';
 import toast from 'react-hot-toast';
 import { printReceipt } from '../../utils/print';
@@ -223,36 +223,55 @@ export default function Transactions() {
 
       {/* Filters and Search */}
       <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-          <div style={{ flex: '1 1 220px', minWidth: '200px' }}>
-            <div className="search-bar" style={{ width: '100%' }}>
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder="Search ID, table, or customer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: '100%' }}
-              />
-            </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', alignItems: 'center' }}>
+          <div style={{ flex: '1 1 240px', minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search ID, table, or customer..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: '100%', paddingLeft: 36, paddingRight: searchQuery ? 32 : 12, height: 38, fontSize: '13px' }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-label-tertiary)',
+                  cursor: 'pointer',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
           
-          <div className="transactions-filter-grid">
-            <select className="form-input" value={dateRange} onChange={e => setDateRange(e.target.value)}>
+          <div className="transactions-filter-grid" style={{ flex: '1 1 auto', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+            <select className="form-select" value={dateRange} onChange={e => setDateRange(e.target.value)} style={{ height: 38, fontSize: '13px', minWidth: 130 }}>
               <option value="today">Today</option>
               <option value="week">Last 7 Days</option>
               <option value="month">Last 30 Days</option>
               <option value="all">All Time (Max 1000)</option>
             </select>
             
-            <select className="form-input" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <select className="form-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ height: 38, fontSize: '13px', minWidth: 120 }}>
               <option value="all">All Types</option>
               <option value="dine-in">Dine-in</option>
               <option value="takeaway">Takeaway</option>
               <option value="online">Online</option>
             </select>
             
-            <select className="form-input" value={paymentFilter} onChange={e => setPaymentFilter(e.target.value)}>
+            <select className="form-select" value={paymentFilter} onChange={e => setPaymentFilter(e.target.value)} style={{ height: 38, fontSize: '13px', minWidth: 130 }}>
               <option value="all">All Payments</option>
               <option value="cash">Cash</option>
               <option value="card">Card</option>
@@ -260,7 +279,7 @@ export default function Transactions() {
               <option value="split">Split</option>
             </select>
             
-            <select className="form-input" value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
+            <select className="form-select" value={staffFilter} onChange={e => setStaffFilter(e.target.value)} style={{ height: 38, fontSize: '13px', minWidth: 120 }}>
               <option value="all">All Staff</option>
               {staff.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>

@@ -399,6 +399,12 @@ export const useAuthStore = create(
 
       clearError: () => set({ error: null }),
 
+      updateRestaurantState: (updates) => {
+        set(state => ({
+          restaurant: state.restaurant ? { ...state.restaurant, ...updates } : updates
+        }));
+      },
+
       // Ensures a valid Firebase Auth session exists for Firestore writes.
       // Call before any authenticated Firestore write (openShift, submitOrder, etc.)
       ensureAnonymousAuth: async () => {

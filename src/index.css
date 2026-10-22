@@ -11,6 +11,7 @@
 
 /* --- CSS Custom Properties (Clay Design Tokens) --- */
 :root {
+  color-scheme: light;
   /* ===================================================
      CANVAS & SURFACE — Dribbble Modern Porcelain Slate
      =================================================== */
@@ -113,13 +114,13 @@
   /* ===================================================
      BORDER RADIUS — Generous rounded shapes from Dribbble
      =================================================== */
-  --radius-xs:  6px;
+  --radius-xs:  4px;
   --radius-sm:  8px;
-  --radius-md:  12px;   /* buttons, inputs */
-  --radius-lg:  16px;   /* content cards */
-  --radius-xl:  20px;   /* feature cards */
-  --radius-2xl: 28px;
-  --radius-full: 9999px;
+  --radius-md:  10px;   /* buttons, inputs */
+  --radius-lg:  12px;   /* content cards, floating bars */
+  --radius-xl:  16px;   /* feature cards, modals */
+  --radius-2xl: 20px;
+  --radius-full: 8px;   /* Unified with standard interactive radius — no pill shapes */
 
   /* ===================================================
      ELEVATION — Soft, floating, diffused shadows from Dribbble reference
@@ -136,8 +137,8 @@
   --clay-shadow-md:  0 4px 20px -2px rgba(50, 50, 93, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
   --clay-shadow-lg:  0 12px 32px -4px rgba(50, 50, 93, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
   --clay-press:      0 2px 4px rgba(50, 50, 93, 0.04), inset 0 2px 4px rgba(0, 0, 0, 0.04);
-  --clay-radius-chip: 9999px;
-  --clay-radius-card: 20px;
+  --clay-radius-chip: var(--radius-md, 10px);
+  --clay-radius-card: 14px;
 
   /* ===================================================
      TYPOGRAPHY
@@ -209,6 +210,7 @@
    ============================================================ */
 :root[data-theme="dark"],
 html.dark {
+  color-scheme: dark;
   /* CANVAS & SURFACE — Deep Obsidian base with luminous elevated surfaces */
   --color-bg:              #090a0f;   /* deep obsidian canvas base */
   --color-bg-secondary:    #131520;   /* header & bar surface */
@@ -1153,7 +1155,8 @@ html.dark .advisor-btn-icon {
 .badge-green  { background: var(--color-green-light);  color: var(--color-green); }
 .badge-red    { background: var(--color-red-light);    color: var(--color-red); }
 .badge-orange { background: var(--color-orange-light); color: var(--color-orange); }
-.badge-yellow { background: var(--color-yellow-light); color: var(--color-label-secondary); }
+.badge-yellow { background: var(--color-yellow-light); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.25); }
+[data-theme="dark"] .badge-yellow { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
 .badge-purple { background: var(--color-purple-light); color: var(--color-purple); }
 .badge-teal   { background: var(--color-teal-light);   color: var(--color-teal); }
 .badge-gray   { background: var(--color-fill-secondary); color: var(--color-label); }
@@ -1194,6 +1197,46 @@ html.dark .advisor-btn-icon {
 
 .form-input::placeholder { color: var(--color-label-tertiary); }
 
+/* Native Date & Time Picker Controls */
+.form-input[type="date"],
+.form-input[type="time"],
+.form-input[type="datetime-local"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] .form-input[type="date"],
+[data-theme="dark"] .form-input[type="time"],
+[data-theme="dark"] .form-input[type="datetime-local"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="time"],
+[data-theme="dark"] input[type="datetime-local"],
+html.dark .form-input[type="date"],
+html.dark .form-input[type="time"],
+html.dark .form-input[type="datetime-local"],
+html.dark input[type="date"],
+html.dark input[type="time"],
+html.dark input[type="datetime-local"] {
+  color-scheme: dark !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: var(--radius-xs, 4px);
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 .form-select {
   width: 100%;
   padding: 8px 36px 8px 12px;
@@ -1224,12 +1267,13 @@ html.dark .advisor-btn-icon {
 /* ============================================================
    Modal
    ============================================================ */
-.modal-overlay {
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1239,11 +1283,13 @@ html.dark .advisor-btn-icon {
 }
 
 @media (max-width: 640px) {
-  .modal-overlay {
+  .modal-overlay,
+  .modal-backdrop {
     padding: 0;
     align-items: flex-end;
   }
-  .modal {
+  .modal,
+  .modal-box {
     border-bottom-left-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
     border-top-left-radius: 24px !important;
@@ -1262,9 +1308,10 @@ html.dark .advisor-btn-icon {
   }
 }
 
-.modal {
+.modal,
+.modal-box {
   background: var(--color-bg-elevated);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 520px;
@@ -1272,6 +1319,7 @@ html.dark .advisor-btn-icon {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid var(--color-separator);
   animation: slideUp var(--duration-normal) var(--ease-spring);
 }
 
@@ -1611,7 +1659,7 @@ html.dark .advisor-btn-icon {
   font-weight: 700;
   opacity: 0.9;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #f1ede6;
   color: #475569;
   line-height: 1.2;
@@ -2028,6 +2076,11 @@ html.dark .advisor-btn-icon {
   border-bottom: 6px solid #dc2626;
 }
 
+[data-theme="dark"] .food-badge-veg,
+[data-theme="dark"] .food-badge-nonveg {
+  background: #1e293b;
+}
+
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
@@ -2132,7 +2185,7 @@ html.dark .advisor-btn-icon {
   font-size: 10px;
   font-weight: 650;
   padding: 1.5px 6px;
-  border-radius: 9999px;
+  border-radius: 6px;
   letter-spacing: 0.01em;
   display: inline-flex;
   align-items: center;
@@ -2157,7 +2210,7 @@ html.dark .advisor-btn-icon {
   background: #10b981;
   color: #ffffff;
   padding: 2px 7px;
-  border-radius: 9999px;
+  border-radius: 6px;
   letter-spacing: -0.01em;
   display: inline-flex;
   align-items: center;
@@ -2453,7 +2506,7 @@ html.dark .advisor-btn-icon {
   font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
-  border-radius: 9999px;
+  border-radius: 6px;
   background: var(--color-label);
   color: var(--color-bg);
   min-width: 18px;
@@ -7058,10 +7111,11 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 .online-order-hero {
-  background: var(--color-label);
+  background: var(--color-bg-elevated);
   padding: var(--space-8) var(--space-6);
   text-align: center;
-  color: var(--color-on-dark);
+  color: var(--color-label);
+  border-bottom: 1px solid var(--color-separator-opaque);
 }
 
 .online-order-hero h1 {
@@ -7073,7 +7127,158 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .online-order-content {
   max-width: 680px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-4) var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .online-order-content {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+/* Swiggy / Zomato Style Food Ordering Enhancements */
+.swiggy-app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--color-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-separator-opaque);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.swiggy-rest-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator-opaque);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  padding: 16px 18px;
+  position: relative;
+  z-index: 10;
+}
+
+.swiggy-search-pill {
+  height: 44px;
+  border-radius: 24px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator-opaque);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: border-color var(--duration-fast);
+}
+
+.swiggy-search-pill:focus-within {
+  border-color: var(--color-accent);
+}
+
+.swiggy-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--color-separator-opaque);
+  background: var(--color-bg-elevated);
+  color: var(--color-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.swiggy-filter-btn.active {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.swiggy-dish-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--color-separator-opaque);
+  gap: 14px;
+}
+
+.swiggy-dish-row:last-child {
+  border-bottom: none;
+}
+
+.swiggy-add-btn {
+  height: 36px;
+  min-width: 96px;
+  background: #ffffff;
+  color: #15803d;
+  border: 1.5px solid #dcfce7;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.swiggy-add-btn:active {
+  transform: scale(0.96);
+}
+
+[data-theme="dark"] .swiggy-add-btn {
+  background: #1e293b;
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.swiggy-stepper {
+  height: 36px;
+  min-width: 96px;
+  background: #16a34a;
+  color: #ffffff;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+  user-select: none;
+}
+
+.swiggy-floating-menu-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  z-index: 30;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.swiggy-floating-menu-btn:active {
+  transform: scale(0.95);
 }
 
 /* ============================================================
@@ -7263,7 +7468,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   color: #71717a;
   text-decoration: none;
   padding: 6px 12px;
-  border-radius: 9999px;
+  border-radius: var(--radius-sm, 8px);
   background: #f4f4f5;
   border: 1px solid #e4e4e7;
   transition: all 0.15s ease;
@@ -8698,7 +8903,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 .settings-nav-badge {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 9999px;
+  border-radius: 6px;
   background: var(--color-accent);
   color: #fff;
   font-weight: 700;
@@ -8773,7 +8978,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   padding: 10px 18px;
   background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 9999px;
+  border-radius: var(--radius-lg, 12px);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
   color: #fff;
   min-width: 380px;
@@ -10360,7 +10565,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   font-size: 9.5px;
   font-weight: 700;
   padding: 2px 7px;
-  border-radius: 9999px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -11688,6 +11893,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   background: #161722;
   border-color: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+  color-scheme: dark;
 }
 
 [data-theme="dark"] .form-input:focus,

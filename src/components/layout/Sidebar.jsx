@@ -44,14 +44,15 @@ const ADMIN_NAV = [
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const { t } = useTranslation();
   const location = useLocation();
+  const user = useAuthStore(s => s.user);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const signOut = useAuthStore(s => s.signOut);
   const restaurant = useAuthStore(s => s.restaurant);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount ?? 0);
   const onlineOrders = useOrderStore(s => s.onlineOrders ?? []);
   const activeOrdersCount = useOrderStore(s => s.activeOrders?.length ?? 0);
-  const role = staffDoc?.role ?? 'cashier';
-  const { terms } = useBusinessConfig();
+  const role = staffDoc?.role ?? (user ? 'admin' : 'cashier');
+  const { terms, hasMode } = useBusinessConfig();
   const hasUpdate = useUpdateStore(s => s.hasUpdate);
   const isUpdating = useUpdateStore(s => s.isUpdating);
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
@@ -168,8 +169,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     const hasRole = isSuperAdmin ? n.superAdmin : !n.superAdmin;
     if (!hasRole) return false;
     if (n.requiredMode) {
-      const modes = restaurant?.modes ?? ['pos'];
-      return modes.includes(n.requiredMode);
+      return hasMode(n.requiredMode);
     }
     return true;
   });
@@ -305,13 +305,15 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               if (n.key === 'dashboard' && role === 'cashier' && !restaurant?.allowCashierDashboard) {
                 return false;
               }
+              if (n.key === 'pos' && !hasMode('pos')) {
+                return false;
+              }
               if (n.requiredMode) {
-                const modes = restaurant?.modes ?? ['pos'];
                 const isBillOnly = restaurant?.businessType === 'bill_only';
 
                 if (n.key === 'kds') {
                   if (isBillOnly || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service') return false;
-                  if (!modes.includes('kds')) return false;
+                  if (!hasMode('kds')) return false;
                   const km = restaurant?.kitchenConfig?.mode;
                   if (km === 'disabled' || km === 'printer_only') return false;
                   return true;
@@ -320,9 +322,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   return false;
                 }
                 if (n.key === 'online_orders') {
-                  return modes.includes('online') || unreadOnlineCount > 0;
+                  return hasMode('online') || unreadOnlineCount > 0;
                 }
-                return modes.includes(n.requiredMode);
+                return hasMode(n.requiredMode);
               }
               return true;
             }).map(n => {
@@ -354,7 +356,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                         fontWeight: 700,
                         fontSize: '11px',
                         padding: '2px 7px',
-                        borderRadius: '999px',
+                        borderRadius: '6px',
                         minWidth: '20px'
                       }}
                     >
@@ -417,7 +419,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                     background: 'var(--color-fill-secondary)',
                     color: 'var(--color-label-secondary)',
                     padding: '1px 6px',
-                    borderRadius: '999px',
+                    borderRadius: '6px',
                     fontSize: '10px',
                     fontWeight: 600,
                     textTransform: 'none'

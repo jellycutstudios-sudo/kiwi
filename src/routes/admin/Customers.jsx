@@ -755,11 +755,11 @@ export default function Customers() {
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--space-3)' }}>
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
-                  <input id="cust-name-input" className="form-input" placeholder="e.g. Salman Malik" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                  <input id="cust-name-input" className="form-input" placeholder="Enter customer name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Phone Number</label>
-                  <input id="cust-phone-input" className="form-input" placeholder="e.g. 9876543210" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                  <input id="cust-phone-input" className="form-input" placeholder="Enter phone number" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>

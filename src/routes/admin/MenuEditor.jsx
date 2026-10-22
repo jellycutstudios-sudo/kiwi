@@ -4,10 +4,11 @@ import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getKitchenStations } from '../../utils/stations';
+import MenuCsvModal from '../../components/admin/MenuCsvModal';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -56,6 +57,7 @@ export default function MenuEditor() {
   }, [categories, activeCat]);
 
   const [showCatForm, setShowCatForm] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
   const [editingCat, setEditingCat] = useState(null);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -465,6 +467,30 @@ export default function MenuEditor() {
     toast.success(nextAvailable ? `${item.name} is now Available` : `${item.name} marked Out of Stock`);
   };
 
+  const toggleBestseller = async (catId, item) => {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return;
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
+    const nextBestseller = !(item.isBestseller || item.bestseller);
+    const items = cat.items.map(i => i.id === item.id ? { ...i, isBestseller: nextBestseller, bestseller: nextBestseller } : i);
+    const updatedCats = categories.map(c => c.id === catId ? { ...c, items } : c);
+    useMenuStore.getState().setCategories(updatedCats);
+    try {
+      localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+    } catch {}
+
+    if (!isLocalOnly && isOnline) {
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items });
+      } catch (e) {
+        console.warn('[MenuEditor] Toggle bestseller cloud sync deferred:', e?.message);
+      }
+    }
+    toast.success(nextBestseller ? `🔥 Marked ${item.name} as Bestseller` : `Removed Bestseller tag from ${item.name}`);
+  };
+
   const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -502,22 +528,13 @@ export default function MenuEditor() {
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={openAddCategory}
+            id="menu-bulk-csv-btn"
+            onClick={() => setShowCsvModal(true)}
             style={{ height: 36, padding: '0 12px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
+            title="Bulk Import / Export Menu via CSV"
           >
-            <Plus size={14} /> Category
+            <FileSpreadsheet size={14} /> Bulk CSV
           </button>
-          {activeCatId && (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              id="add-item-btn-top"
-              onClick={openAddItemModal}
-              style={{ height: 36, padding: '0 14px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-md)' }}
-            >
-              <Plus size={14} /> Item
-            </button>
-          )}
         </div>
       </div>
 
@@ -643,16 +660,6 @@ export default function MenuEditor() {
                 No categories yet
               </div>
             ) : null}
-
-            <button
-              type="button"
-              className="menu-editor-add-cat-btn"
-              onClick={openAddCategory}
-              title="Add New Category"
-            >
-              <Plus size={14} />
-              <span>Add New Category</span>
-            </button>
           </div>
         </div>
 
@@ -744,8 +751,8 @@ export default function MenuEditor() {
             </div>
           </div>
 
-          {/* Mobile & Tablet Clean Category Switcher Strip */}
-          <div className="no-scrollbar touch-scroll-x" style={{
+          {/* Mobile & Tablet Clean Category Switcher Strip (hidden on desktop where sidebar is present) */}
+          <div className="no-scrollbar touch-scroll-x mobile-only" style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
@@ -766,7 +773,7 @@ export default function MenuEditor() {
                     gap: '6px',
                     padding: '6px 14px',
                     minHeight: '36px',
-                    borderRadius: '999px',
+                    borderRadius: 'var(--radius-sm, 8px)',
                     fontSize: '12.5px',
                     fontWeight: isSelected ? 700 : 500,
                     border: isSelected ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
@@ -783,7 +790,7 @@ export default function MenuEditor() {
                   <span style={{
                     fontSize: '10px',
                     padding: '1px 6px',
-                    borderRadius: '999px',
+                    borderRadius: '4px',
                     background: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--color-fill)',
                     color: isSelected ? '#ffffff' : 'var(--color-label-tertiary)'
                   }}>
@@ -801,7 +808,7 @@ export default function MenuEditor() {
                 gap: '4px',
                 padding: '6px 12px',
                 minHeight: '36px',
-                borderRadius: '999px',
+                borderRadius: 'var(--radius-sm, 8px)',
                 fontSize: '12px',
                 fontWeight: 600,
                 border: '1px dashed var(--color-separator)',
@@ -976,6 +983,31 @@ export default function MenuEditor() {
                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.available !== false ? '#10b981' : '#94a3b8' }} />
                             {item.available !== false ? 'Available' : 'Out of stock'}
                           </button>
+
+                          <button
+                            type="button"
+                            className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
+                            style={{
+                              cursor: 'pointer',
+                              border: 'none',
+                              backdropFilter: 'blur(6px)',
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleBestseller(activeCatId, item);
+                            }}
+                            title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
+                          >
+                            <span>🔥</span>
+                            <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
+                          </button>
                         </div>
                       </div>
 
@@ -1084,6 +1116,16 @@ export default function MenuEditor() {
                             title="Toggle availability"
                           >
                             {item.available !== false ? 'Available' : 'Unavailable'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleBestseller(activeCatId, item)}
+                            className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
+                            style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font-family)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                            title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
+                          >
+                            <span>🔥</span>
+                            <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
                           </button>
                           <button className="btn btn-secondary btn-icon btn-sm" onClick={() => openEditItemModal(item)} id={`edit-item-${item.id}`}>
                             <Edit2 size={12}/>
@@ -2029,6 +2071,13 @@ export default function MenuEditor() {
           </div>
         </div>
       )}
+
+      {/* Bulk CSV Import/Export Modal */}
+      <MenuCsvModal
+        isOpen={showCsvModal}
+        onClose={() => setShowCsvModal(false)}
+        restaurant={restaurant}
+      />
     </div>
   );
 }
