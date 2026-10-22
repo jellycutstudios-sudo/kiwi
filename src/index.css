@@ -1196,15 +1196,23 @@ html.dark .advisor-btn-icon {
 
 .form-select {
   width: 100%;
-  padding: 12px var(--space-4);
+  padding: 8px 36px 8px 12px;
+  min-height: 38px;
   border: 1.5px solid var(--color-separator-opaque);
   border-radius: var(--radius-md);
   font-size: var(--text-body);
   color: var(--color-label);
   background: var(--color-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px 14px;
   outline: none;
   appearance: none;
+  -webkit-appearance: none;
   cursor: pointer;
+  line-height: 1.35;
+  box-sizing: border-box;
   transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
@@ -12767,4 +12775,133 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     grid-template-columns: 240px 1fr !important;
   }
 }
+
+/* ────────────────────────────────────────────────────────────
+   Modern iOS / Linear Style Toggle Switch Component
+   ──────────────────────────────────────────────────────────── */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+  margin: 0;
+  pointer-events: none;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-bg-tertiary, #e2e8f0);
+  border: 1.5px solid var(--color-separator-opaque, #cbd5e1);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 24px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2.5px;
+  background-color: #ffffff;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--color-accent, #3b82f6);
+  border-color: var(--color-accent, #3b82f6);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--color-accent, #3b82f6);
+  outline-offset: 2px;
+}
+
+.toggle-switch.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Small toggle variant */
+.toggle-switch.toggle-sm {
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch.toggle-sm .toggle-slider {
+  border-radius: 20px;
+}
+
+.toggle-switch.toggle-sm .toggle-slider:before {
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 1.5px;
+}
+
+.toggle-switch.toggle-sm input:checked + .toggle-slider:before {
+  transform: translateX(16px);
+}
+
+/* Large toggle variant */
+.toggle-switch.toggle-lg {
+  width: 52px;
+  height: 28px;
+}
+
+.toggle-switch.toggle-lg .toggle-slider {
+  border-radius: 28px;
+}
+
+.toggle-switch.toggle-lg .toggle-slider:before {
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 2.5px;
+}
+
+.toggle-switch.toggle-lg input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* Dark mode theme adjustments */
+[data-theme="dark"] .toggle-slider {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="dark"] .toggle-switch input:checked + .toggle-slider {
+  background-color: var(--color-accent, #3b82f6);
+  border-color: var(--color-accent, #3b82f6);
+}
+
+[data-theme="dark"] .toggle-slider:before {
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
 

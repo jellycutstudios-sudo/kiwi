@@ -4,7 +4,6 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useMenuStore } from '../stores/menuStore';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
-import { useShiftStore } from '../stores/shiftStore';
 import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
 import { collection, query, where, orderBy, onSnapshot, getDocs, limit } from 'firebase/firestore';
@@ -151,7 +150,9 @@ export default function Dashboard() {
     const allItems = [];
     categories.forEach(cat => {
       if (Array.isArray(cat.items)) {
-        allItems.push(...cat.items);
+        cat.items.forEach(item => {
+          allItems.push({ ...item, category: item.category || cat.name });
+        });
       }
     });
     return allItems;

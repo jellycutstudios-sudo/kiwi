@@ -666,9 +666,11 @@ export function printReceiptSingle({ restaurant, order, items, taxInfo, staffNam
 
 // Loop through all kitchen printers, filter items by category, and send ticket
 export function printKitchenTickets({ restaurant, order, items, staffName }) {
+  if (restaurant?.businessType === 'bill_only' || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service') return;
   const kitchenConfig = restaurant?.kitchenConfig;
   // If mode is explicitly set to display_only or disabled, do not physically print tickets
-  const kitchenMode = kitchenConfig?.mode || (restaurant?.modes?.includes('kds') ? 'both' : 'printer_only');
+  const hasKds = restaurant?.modes?.includes('kds');
+  const kitchenMode = kitchenConfig?.mode || (hasKds ? 'both' : (restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen') ? 'printer_only' : 'disabled'));
   if (kitchenMode === 'display_only' || kitchenMode === 'disabled') {
     return;
   }

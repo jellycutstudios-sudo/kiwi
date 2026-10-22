@@ -18,7 +18,7 @@ import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Flame, Clock, LayoutGrid,
-  Printer, Lock, Wallet, ArrowDownRight, Coins
+  Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
@@ -603,15 +603,25 @@ export default function POS() {
 
   const currency  = restaurant?.currency ?? 'INR';
   const modes     = restaurant?.modes ?? ['pos'];
+  const { isRetail, isBillOnly, isService, enableQuickPay, enableBarcode } = useBusinessConfig();
   const kitchenConfig = restaurant?.kitchenConfig;
-  const kitchenMode = kitchenConfig?.mode || (modes.includes('kds') ? 'both' : (restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen') ? 'printer_only' : 'disabled'));
-  const isKitchenActive = kitchenMode !== 'disabled';
+  const hasKdsMode = modes.includes('kds');
+
+  // In Bill Only, Retail, or Service mode (or if kitchen is explicitly disabled), kitchen operations (KDS & KOT) are completely deactivated
+  const hasNoKitchen = isBillOnly || isRetail || isService;
+  const isKitchenActive = !hasNoKitchen && (
+    kitchenConfig?.mode === 'disabled'
+      ? false
+      : (hasKdsMode || (restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen') && kitchenConfig?.mode === 'printer_only'))
+  );
+  const kitchenMode = isKitchenActive
+    ? (kitchenConfig?.mode || (hasKdsMode ? 'both' : 'printer_only'))
+    : 'disabled';
+
   const subtotal  = getSubtotal();
   const discountAmount = getDiscountAmount();
   const taxInfo   = getTaxInfo(restaurant);
   const total     = getTotal(restaurant);
-
-  const { isRetail, enableQuickPay, enableBarcode } = useBusinessConfig();
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
   const [isQuickPaying, setIsQuickPaying] = useState(false);
@@ -1137,10 +1147,17 @@ export default function POS() {
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: modes.includes('table') || modes.includes('pos') },
-    { key: 'takeaway', label: t('takeaway') || 'Takeaway', Icon: ShoppingBag,    enabled: true },
+    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService && (modes.includes('table') || modes.includes('pos')) },
+    { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (t('takeaway') || 'Takeaway')), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
+
+  // Auto-switch to takeaway/purchase if currently in dine-in for pure retail or service business
+  useEffect(() => {
+    if ((isRetail || isService) && orderType === 'dine-in') {
+      setOrderType('takeaway');
+    }
+  }, [isRetail, isService, orderType, setOrderType]);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
 
@@ -1905,7 +1922,7 @@ export default function POS() {
           >
             <div className="cart-header-summary-left">
               <span className="cart-header-summary-badge type-badge">
-                {orderType === 'dine-in' ? '🍽️ Dine In' : '🛍️ Takeaway'}
+                {isRetail ? '🛍️ Purchase' : (isService ? '🤝 Service' : (orderType === 'dine-in' ? '🍽️ Dine In' : '🛍️ Takeaway'))}
               </span>
               {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
                 <span className={`cart-header-summary-badge table-badge ${tableId ? 'has-table' : ''}`}>
@@ -1951,23 +1968,25 @@ export default function POS() {
               </div>
             )}
 
-            {/* Modern Segmented Order Type Control */}
-            <div className="cart-type-tabs">
-              {orderTypes.map(ot => {
-                const Icon = ot.Icon;
-                return (
-                  <button
-                    key={ot.key}
-                    id={`order-type-${ot.key}`}
-                    className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
-                    onClick={() => handleOrderTypeChange(ot.key)}
-                  >
-                    {Icon && <Icon size={14} />}
-                    <span>{ot.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Modern Segmented Order Type Control — only displayed when there are multiple service formats */}
+            {orderTypes.length > 1 && (
+              <div className="cart-type-tabs">
+                {orderTypes.map(ot => {
+                  const Icon = ot.Icon;
+                  return (
+                    <button
+                      key={ot.key}
+                      id={`order-type-${ot.key}`}
+                      className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
+                      onClick={() => handleOrderTypeChange(ot.key)}
+                    >
+                      {Icon && <Icon size={14} />}
+                      <span>{ot.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Service Details: Table and Customer/Loyalty (Unified Segmented Card) */}
             <div className={`cart-service-details ${orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>

@@ -7,9 +7,9 @@ import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
-  Sparkles, RefreshCw, Search, Sliders, Shield, Hash, ArrowRight, CheckCircle2, Tv, ExternalLink, Coins,
-  Download, ShieldCheck, FileSpreadsheet, Bot,
-  Store, SlidersHorizontal, LayoutGrid, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown
+  Sparkles, RefreshCw, Search, ArrowRight, Tv, ExternalLink,
+  Download, ShieldCheck, Bot, Zap,
+  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown
 } from 'lucide-react';
 import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
@@ -18,7 +18,6 @@ import { convertLogoForThermal } from '../../utils/thermalLogo';
 import { downloadTallyXML } from '../../utils/tallyExport';
 import { getStorageProtectionStatus, exportLocalStoreBackup, restoreLocalStoreBackup } from '../../utils/localPersistence';
 import toast from 'react-hot-toast';
-import BusinessPresetPicker from '../../components/settings/BusinessPresetPicker';
 import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
 import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
@@ -26,96 +25,68 @@ import AdminSecuritySettings from '../../components/settings/AdminSecuritySettin
 import { useUpdateStore } from '../../stores/updateStore';
 import { saveLocalGroqApiKey } from '../../services/groqService';
 import { TERMINAL_PROVIDERS, getTerminalAdapter } from '../../services/terminal';
+import ToggleSwitch from '../../components/shared/ToggleSwitch';
 
 const MODES = [
   // 1. Core POS & Service Formats
-  { key: 'ai_advisor',       label: 'Business Advisor (AI)',     desc: 'Hybrid local analytics & Groq Cloud instant natural language business advisor', tab: 'features', tabName: 'Modules' },
-  { key: 'pos',              label: '🧾 Bill Only / Express POS', desc: 'Simple cashier-only billing with fast 1-click checkout', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'table',            label: '🗺️ Table & Floor Management', desc: 'Floor plan with visual table assignment & timers', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'token',            label: '🎫 Token / QSR Numbering',   desc: 'Token issuance & live TV queue callouts', tab: 'displays', tabName: 'Displays' },
-  { key: 'barcode',          label: '🏷️ Barcode & Retail Scanner', desc: 'Active barcode input & scan-to-cart on POS terminal', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'ai_advisor',       label: 'Business Advisor (AI)',     desc: 'AI business insights & performance advisor', tab: 'workflows', tabName: 'Setup & Features' },
+  { key: 'pos',              label: '🧾 Quick Counter Billing',   desc: 'Fast 1-tap cashier sales & receipts', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'table',            label: '🗺️ Table Management',       desc: 'Floor plan, visual tables & dining timers', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'token',            label: '🎫 QSR Token Queue',        desc: 'Token issuance & live TV queue screen', tab: 'displays', tabName: 'Displays' },
+  { key: 'barcode',          label: '🏷️ Barcode Scanner',        desc: 'USB & Bluetooth barcode gun scan-to-cart', tab: 'workflows', tabName: 'Workflows' },
 
   // 2. Kitchen & Fulfillment
-  { key: 'kds',              label: '🍳 Kitchen Display & KOT',   desc: 'Paperless KDS screen, 3" thermal KOT printing, or both', tab: 'kitchen', tabName: 'Kitchen' },
+  { key: 'kds',              label: '🍳 Kitchen Display & KOT',   desc: 'Paperless KDS & thermal kitchen tickets', tab: 'kitchen', tabName: 'Kitchen' },
 
   // 3. Sales Channels & Ordering
-  { key: 'online',           label: '📱 Online Storefront',       desc: 'Commission-free customer-facing web ordering page', tab: 'online-del', tabName: 'Online Store' },
-  { key: 'delivery_hub',     label: '🛵 Delivery Hub',            desc: 'Manage in-house fleet & third-party aggregators (Swiggy, Zomato)', tab: 'online-del', tabName: 'Online Store' },
-  { key: 'reservations',     label: '📅 Table Reservations',      desc: 'Book and manage table reservations & guest waitlists', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'online',           label: '📱 Online Storefront',       desc: 'Direct commission-free web ordering', tab: 'online-del', tabName: 'Online Store' },
+  { key: 'delivery_hub',     label: '🛵 Delivery Hub',            desc: 'Driver dispatch & aggregator sync', tab: 'online-del', tabName: 'Online Store' },
+  { key: 'reservations',     label: '📅 Table Reservations',      desc: 'Guest table bookings & waitlist queue', tab: 'workflows', tabName: 'Workflows' },
 
   // 4. Digital Displays & Front of House
-  { key: 'posters',          label: '📺 Digital Signage & TV Posters', desc: 'Show menu promos & video slideshows on TVs', tab: 'displays', tabName: 'Displays' },
+  { key: 'posters',          label: '📺 TV Signage & Posters',   desc: 'Promo menu boards & video slideshows', tab: 'displays', tabName: 'Displays' },
 
-  // 5. Trust, Privacy & Tax Shield (PetPooja Antidote)
-  { key: 'customer_privacy', label: '🔒 Staff Phone Masking',     desc: 'Shield customer phone numbers (+91 98*** **420) from cashiers & servers', tab: 'security', tabName: 'Security' },
-  { key: 'audit_shield',     label: '📑 Tax Audit & Void Reasons', desc: 'Require mandatory reason logging for line-item voids & cancellations', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'data_vault',       label: '🗄️ 1-Click Complete Data Vault', desc: 'Zero data lock-in; download complete JSON/CSV database dump', isAction: 'vault' },
-  { key: 'tax_reconcile',    label: '📊 Tax Reconciliation & Tally', desc: 'Separate settled bills vs void drafts with TallyPrime XML export', tab: 'tax-pay', tabName: 'Taxes & Cash', isAction: 'tally' },
+  // 5. Trust, Privacy & Tax Shield
+  { key: 'customer_privacy', label: '🔒 Phone Privacy Shield',   desc: 'Mask guest phone numbers from staff', tab: 'security', tabName: 'Security' },
+  { key: 'audit_shield',     label: '📑 Void Audit Reasons',     desc: 'Mandatory reason logs for cancellations', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'data_vault',       label: '🗄️ 1-Click Data Dump',      desc: 'Export full database to JSON/CSV', isAction: 'vault' },
+  { key: 'tax_reconcile',    label: '📊 Tally & Tax Export',      desc: 'TallyPrime XML sync & tax reports', tab: 'tax-pay', tabName: 'Taxes & Cash', isAction: 'tally' },
 
   // 6. Back Office, People & Retention
-  { key: 'inventory',        label: '📦 Inventory Management',    desc: 'Track raw ingredients, stock levels, and supplier POs', tab: 'hardware', tabName: 'Hardware' },
-  { key: 'payroll',          label: '💸 Staff Payroll & Tip Pools', desc: 'Manage staff wages, shifts, overtime, tip pools & payouts', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'till_shift',       label: '💵 Cash Drawer & Till Shifts', desc: 'Register open float, mid-shift drops, drawer variance & Z-Reports', tab: 'tax-pay', tabName: 'Taxes & Cash' },
-  { key: 'customers',        label: '🤝 Customer Directory & CRM', desc: 'Manage customer profiles, visit history & VIP tags', tab: 'notifications', tabName: 'Alerts & Reports' },
-  { key: 'retention_crm',    label: '💬 WhatsApp e-Bills & Retention', desc: 'Automated paperless WhatsApp receipts & Google Review boost', tab: 'notifications', tabName: 'Alerts & Reports' },
+  { key: 'inventory',        label: '📦 Stock & Ingredients',    desc: 'Recipe margins, low-stock alerts & POs', tab: 'hardware', tabName: 'Hardware' },
+  { key: 'payroll',          label: '💸 Staff Payroll & Tips',   desc: 'Hourly wages, shifts & tip distributions', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'till_shift',       label: '💵 Cash Drawer & Till',     desc: 'Opening float, cash drops & Z-Reports', tab: 'tax-pay', tabName: 'Taxes & Cash' },
+  { key: 'customers',        label: '🤝 Customer Directory',     desc: 'Guest CRM, visit history & VIP tags', tab: 'notifications', tabName: 'Alerts & Reports' },
+  { key: 'retention_crm',    label: '💬 WhatsApp Receipts',      desc: 'Paperless WhatsApp e-bills & reviews', tab: 'notifications', tabName: 'Alerts & Reports' },
 ];
 
 const MODULE_PILLARS = [
-  {
-    id: 'core',
-    title: '⚡ Core Operations & Service Formats',
-    desc: 'Essential modules for service stations, cashier registers, and ordering format.',
-    badge: 'Core POS',
-    keys: ['pos', 'table', 'token', 'barcode']
-  },
-  {
-    id: 'kitchen',
-    title: '🍳 Kitchen & Fulfillment Stations',
-    desc: 'Paperless kitchen screens, station-routed tickets, and preparation speed.',
-    badge: 'Kitchen',
-    keys: ['kds']
-  },
-  {
-    id: 'channels',
-    title: '🌐 Sales Channels & Digital Ordering',
-    desc: 'Direct customer ordering, table bookings, and food delivery aggregators.',
-    badge: 'Ordering',
-    keys: ['online', 'delivery_hub', 'reservations']
-  },
-  {
-    id: 'displays',
-    title: '📺 Digital Displays & Front of House',
-    desc: 'Lounge TV queue displays, digital promotional slideshows, and menu boards.',
-    badge: 'Displays',
-    keys: ['posters']
-  },
-  {
-    id: 'privacy',
-    title: '🛡️ Trust, Privacy & Tax Shield (Owner Sovereignty)',
-    desc: 'The PetPooja Antidote: complete data sovereignty, customer phone privacy, and audit-safe tax reconciliation.',
-    badge: 'Sovereignty',
-    keys: ['customer_privacy', 'audit_shield', 'data_vault', 'tax_reconcile']
-  },
-  {
-    id: 'backoffice',
-    title: '💼 Back Office, People & Growth',
-    desc: 'Inventory control, shift cash drawer audits, restaurant payroll, and guest retention.',
-    badge: 'Operations',
-    keys: ['inventory', 'payroll', 'till_shift', 'customers', 'retention_crm']
-  }
+  { id: 'core',       title: '⚡ Core Operations & Formats', badge: 'Core POS', keys: ['pos', 'table', 'token', 'barcode'] },
+  { id: 'kitchen',    title: '🍳 Kitchen & Fulfillment',    badge: 'Kitchen',  keys: ['kds'] },
+  { id: 'channels',   title: '🌐 Sales Channels',            badge: 'Ordering', keys: ['online', 'delivery_hub', 'reservations'] },
+  { id: 'displays',   title: '📺 Digital Displays & TV',     badge: 'Displays', keys: ['posters'] },
+  { id: 'privacy',    title: '🛡️ Privacy & Tax Shield',      badge: 'Security', keys: ['customer_privacy', 'audit_shield', 'data_vault', 'tax_reconcile'] },
+  { id: 'backoffice', title: '💼 Back Office & Operations',  badge: 'Admin',    keys: ['inventory', 'payroll', 'till_shift', 'customers', 'retention_crm'] }
 ];
 
 const MODULE_PRESETS = [
   {
+    id: 'bill_only',
+    name: 'Bill Only / Express Counter',
+    emoji: '🧾',
+    desc: 'Simple cashier billing. Punch items and print bill. No tables, no KDS screens.',
+    modes: ['pos', 'till_shift']
+  },
+  {
     id: 'qsr',
     name: 'Quick Service / Fast Food',
-    emoji: '⚡',
-    desc: 'Counter ordering, token numbers, TV displays, fast cash/UPI & online store',
+    emoji: '🍔',
+    desc: 'Counter queues, token display, KDS kitchen screens, fast cash/UPI & online store',
     modes: ['pos', 'token', 'kds', 'online', 'posters', 'till_shift', 'retention_crm']
   },
   {
     id: 'dine_in',
-    name: 'Full-Service Restaurant & Bar',
+    name: 'Full Restaurant & Dine-In',
     emoji: '🍽️',
     desc: 'Floor plan table maps, reservations, KDS, staff payroll, phone masking & tax audit',
     modes: ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile']
@@ -125,7 +96,7 @@ const MODULE_PRESETS = [
     name: 'Cafe & Bakery',
     emoji: '☕',
     desc: 'Counter sales, barcode scanner, TV promos, customer loyalty & inventory',
-    modes: ['pos', 'barcode', 'posters', 'inventory', 'customers', 'till_shift', 'retention_crm']
+    modes: ['pos', 'token', 'barcode', 'posters', 'inventory', 'customers', 'till_shift', 'retention_crm']
   },
   {
     id: 'retail',
@@ -133,6 +104,13 @@ const MODULE_PRESETS = [
     emoji: '🛍️',
     desc: 'High-speed barcode checkout, inventory management, customer database & cash drawer',
     modes: ['pos', 'barcode', 'inventory', 'customers', 'till_shift', 'customer_privacy']
+  },
+  {
+    id: 'service',
+    name: 'Salon & Spa Services',
+    emoji: '💇',
+    desc: 'Stylist / staff commission attribution, customer records, tipping & payroll',
+    modes: ['pos', 'customers', 'payroll', 'till_shift']
   },
   {
     id: 'cloud',
@@ -153,8 +131,7 @@ const TAX_TYPES = [
 const TABS = [
   { id: 'general',       label: 'General & Identity',      shortLabel: 'General',      icon: Store, keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
   { id: 'security',      label: 'Security & Password',     shortLabel: 'Security',     icon: ShieldCheck, keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
-  { id: 'workflows',     label: 'Workflows & Operations',  shortLabel: 'Workflows',    icon: SlidersHorizontal, keywords: ['flow', 'preset', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void'] },
-  { id: 'features',      label: 'Modules & Features',      shortLabel: 'Modules',      icon: LayoutGrid, keywords: ['modes', 'pos', 'table', 'token', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'loyalty', 'posters', 'signage', 'barcode', 'privacy', 'vault', 'audit', 'tally', 'tax', 'crm', 'shift'] },
+  { id: 'workflows',     label: 'Business Setup & Features', shortLabel: 'Setup & Features', icon: SlidersHorizontal, keywords: ['flow', 'preset', 'bill only', 'express', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void', 'modes', 'features', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'shift'] },
   { id: 'kitchen',       label: 'Kitchen & KDS',           shortLabel: 'Kitchen',      icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
   { id: 'tax-pay',       label: 'Payments, Card Machines & Taxes', shortLabel: 'Payment Machines & Taxes', icon: CreditCard, keywords: ['payment machine', 'card machine', 'edc', 'terminal', 'pos machine', 'swipe machine', 'paytm', 'pinelabs', 'razorpay', 'stripe', 'tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'upi', 'tally'] },
   { id: 'receipts',      label: 'Receipt Designer',        shortLabel: 'Receipts',     icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
@@ -202,7 +179,8 @@ export default function Settings() {
   const [activeTab, setActiveTabState] = useState(() => {
     if (typeof localStorage === 'undefined') return 'general';
     try {
-      return localStorage.getItem('dineos_settings_tab') || 'general';
+      const saved = localStorage.getItem('dineos_settings_tab') || 'general';
+      return saved === 'features' ? 'workflows' : saved;
     } catch {
       return 'general';
     }
@@ -310,13 +288,19 @@ export default function Settings() {
   };
 
   const filteredTabs = useMemo(() => {
+    let list = TABS;
+    const isBillOnly = settings.businessType === 'bill_only';
+    const isKitchenDisabled = !settings.modes?.includes('kds') && (settings.kitchenConfig?.mode === 'disabled' || !settings.kitchenConfig?.mode);
+    if ((isBillOnly || isKitchenDisabled) && !searchQuery.trim()) {
+      list = list.filter(t => t.id !== 'kitchen');
+    }
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return TABS;
+    if (!q) return list;
     return TABS.filter(t => 
       t.label.toLowerCase().includes(q) ||
       t.keywords?.some(k => k.includes(q))
     );
-  }, [searchQuery]);
+  }, [searchQuery, settings.businessType, settings.modes, settings.kitchenConfig?.mode]);
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -809,7 +793,7 @@ export default function Settings() {
                 if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
               }}
             >
-              {TABS.map(tab => (
+              {filteredTabs.map(tab => (
                 <option key={tab.id} value={tab.id}>
                   {tab.label}
                 </option>
@@ -1385,471 +1369,9 @@ export default function Settings() {
           {/* Workflows & Operations Tab */}
           {activeTab === 'workflows' && (
             <>
-              {/* Business Type Preset Picker */}
-              <BusinessPresetPicker
-                currentBusinessType={settings.businessType}
-                currentModes={settings.modes}
-                onApplyPreset={(preset) => {
-                  setSettings(s => ({
-                    ...s,
-                    businessType: preset.id,
-                    modes: preset.recommendedModes,
-                    shiftMode: preset.recommendedShiftMode,
-                    quickPayEnabled: preset.features.enableQuickPay,
-                    barcodeEnabled: preset.features.enableBarcode,
-                    speedDialEnabled: preset.features.enableSpeedDial,
-                    workflowConfig: {
-                      ...(s.workflowConfig || {}),
-                      serviceFlow: preset.id === 'qsr' || preset.id === 'cafe' ? 'counter' : (preset.id === 'restaurant' ? 'table' : 'counter')
-                    }
-                  }));
-                }}
-              />
 
-              {/* Local-Only Storage Mode & Data Protection */}
-              <div 
-                className="card card-padded"
-                style={{ 
-                  borderLeft: settings.localStorageOnly ? '4px solid #38bdf8' : '1px solid var(--color-separator)',
-                  background: settings.localStorageOnly ? 'rgba(56, 189, 248, 0.03)' : 'var(--color-bg-elevated)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                  <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <HardDrive size={18} color={settings.localStorageOnly ? '#38bdf8' : 'var(--color-accent)'} />
-                      <h3 className="text-title3" style={{ margin: 0 }}>
-                        Local-Only Storage Mode (Zero-Cloud Air-Gapped)
-                      </h3>
-                      {settings.localStorageOnly && (
-                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                          Active On Device
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                      Process and store all orders, tickets, cash drawer shifts, and settings 100% on this local device. Never syncs to external cloud servers.
-                    </p>
-                  </div>
-                  <label className="toggle-switch" style={{ cursor: 'pointer', flexShrink: 0 }}>
-                    <input
-                      type="checkbox"
-                      id="toggle-local-storage-only"
-                      checked={Boolean(settings.localStorageOnly)}
-                      onChange={async e => {
-                        const enable = e.target.checked;
-                        updateField('localStorageOnly', enable);
-                        
-                        const updatedRest = { ...(restaurant || {}), localStorageOnly: enable };
-                        useAuthStore.setState({ restaurant: updatedRest });
-                        try {
-                          if (typeof localStorage !== 'undefined' && restaurant?.id) {
-                            localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
-                          }
-                          if (typeof navigator !== 'undefined' && navigator.onLine && restaurant?.id) {
-                            await updateDoc(doc(db, 'restaurants', restaurant.id), { localStorageOnly: enable });
-                          }
-                        } catch (err) {
-                          console.warn('[Settings] Failed to save localStorageOnly directly:', err);
-                        }
-
-                        if (enable) {
-                          toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.', { icon: '💾' });
-                        } else {
-                          toast('Cloud sync mode re-enabled.', { icon: '🌐' });
-                        }
-                      }}
-                    />
-                    <span className="toggle-slider" />
-                  </label>
-                </div>
-
-                {/* Storage Protection & Local Backup Utilities */}
-                <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-separator)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', flexWrap: 'wrap' }}>
-                      <span style={{ color: storageStatus?.persisted ? '#10b981' : '#f59e0b' }}>
-                        {storageStatus?.persisted ? '🛡️' : '⚠️'}
-                      </span>
-                      <strong style={{ color: 'var(--color-label)' }}>Storage Protection:</strong>
-                      <span style={{ color: storageStatus?.persisted ? '#10b981' : 'var(--color-label-secondary)', fontWeight: 600 }}>
-                        {storageStatus?.persisted ? 'Protected (Eviction-Proof)' : 'Standard'}
-                      </span>
-                      {storageStatus?.usageFormatted && (
-                        <span style={{ color: 'var(--color-label-tertiary)', fontSize: '11px' }}>
-                          • {storageStatus.usageFormatted} used
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => {
-                          const res = exportLocalStoreBackup(restaurant);
-                          if (res.ok) {
-                            toast.success(`Exported offline backup (${res.filename})`, { icon: '💾' });
-                          }
-                        }}
-                      >
-                        <Download size={13} /> Export Local Backup (.json)
-                      </button>
-                      <label className="btn btn-secondary btn-xs" style={{ cursor: 'pointer', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Upload size={13} /> Restore from Backup
-                        <input
-                          type="file"
-                          accept=".json"
-                          style={{ display: 'none' }}
-                          onChange={e => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              const res = restoreLocalStoreBackup(event.target.result);
-                              if (res.ok) {
-                                toast.success(`Restored ${res.restoredCount} records! Reloading...`, { icon: '✅' });
-                                setTimeout(() => window.location.reload(), 1200);
-                              } else {
-                                toast.error('Failed to restore backup: ' + res.error);
-                              }
-                            };
-                            reader.readAsText(file);
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Service Flow Style */}
-              <div className="card card-padded">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Sliders size={18} color="var(--color-accent)" />
-                  <h3 className="text-title3" style={{ margin: 0 }}>Restaurant Service &amp; Ordering Flow</h3>
-                </div>
-                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
-                  Tailor how orders are taken, routed, and paid based on your service model.
-                </p>
-
-                <div className="settings-flow-grid">
-                  {[
-                    {
-                      key: 'counter',
-                      icon: '⚡',
-                      title: 'Quick Counter / Pay-First',
-                      badge: 'Fast Casual / QSR / Cafe',
-                      desc: 'Customers pay immediately at the counter. Orders fire to kitchen or issue a token upon payment.'
-                    },
-                    {
-                      key: 'table',
-                      icon: '🍽️',
-                      title: 'Table Service / Pay-at-End',
-                      badge: 'Dine-In / Full Service',
-                      desc: 'Staff seat guests, send courses to kitchen, print bill at table, and settle payment upon departure.'
-                    },
-                    {
-                      key: 'tab',
-                      icon: '🍸',
-                      title: 'Open Bar & Lounge Tabs',
-                      badge: 'Bar / Nightclub / Lounge',
-                      desc: 'Keep open tabs under customer names or cards. Fast drink speed-dial and batch settlement.'
-                    }
-                  ].map(flow => {
-                    const currentFlow = settings.workflowConfig?.serviceFlow || (settings.businessType === 'restaurant' ? 'table' : 'counter');
-                    const isSelected = currentFlow === flow.key;
-                    return (
-                      <div
-                        key={flow.key}
-                        className={`settings-flow-card ${isSelected ? 'active' : ''}`}
-                        onClick={() => updateField('workflowConfig.serviceFlow', flow.key)}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 24 }}>{flow.icon}</span>
-                          {isSelected ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-accent)', fontWeight: 700, fontSize: 11 }}>
-                              <CheckCircle2 size={14} /> Selected
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', fontWeight: 600 }}>{flow.badge}</span>
-                          )}
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-label-primary)' }}>{flow.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>{flow.desc}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* POS Security & Checkout Rules */}
-              <div className="card card-padded">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Shield size={18} color="var(--color-accent)" />
-                  <h3 className="text-title3" style={{ margin: 0 }}>POS Security &amp; Checkout Rules</h3>
-                </div>
-                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
-                  Set cashier controls, PIN auto-lock, and customer information requirements.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                  {/* Auto-Lock POS on completion */}
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Auto-Lock POS to PIN Screen on Checkout</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Immediately returns to the Staff PIN screen after each completed or printed bill. Essential for shared terminals.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.workflowConfig?.autoLockOnComplete ?? false}
-                      onChange={e => updateField('workflowConfig.autoLockOnComplete', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-
-                  {/* Customer Phone Requirement */}
-                  <div style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 12
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Customer Phone Number at Checkout</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Choose whether cashiers must collect customer phone numbers before checkout.
-                      </div>
-                    </div>
-                    <select
-                      className="form-select"
-                      style={{ width: 'auto', minWidth: 200, height: 36, fontSize: 12.5 }}
-                      value={settings.workflowConfig?.phoneRequirement ?? 'optional'}
-                      onChange={e => updateField('workflowConfig.phoneRequirement', e.target.value)}
-                    >
-                      <option value="optional">Optional (Fastest checkout)</option>
-                      <option value="loyalty_only">Prompt for Loyalty / Points</option>
-                      <option value="mandatory">Mandatory for all bills</option>
-                    </select>
-                  </div>
-
-                  {/* Fast Checkout Speed Options */}
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>1-Tap Quick-Pay Bar in POS</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Displays instant cash tender, round amount, and UPI buttons directly in the cart drawer.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.quickPayEnabled ?? true}
-                      onChange={e => updateField('quickPayEnabled', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Favorites &amp; Speed-Dial Bar</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Shows a pinned strip of your top fast-selling items at the top of the menu grid.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.speedDialEnabled ?? true}
-                      onChange={e => updateField('speedDialEnabled', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    cursor: 'pointer'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Hardware Barcode Scanner &amp; SKU Lookup</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Enables USB &amp; Bluetooth HID barcode guns to automatically add scanned items to cart.
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.barcodeEnabled ?? false}
-                      onChange={e => updateField('barcodeEnabled', e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Order Numbering & Token Logic */}
-              <div className="card card-padded">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Hash size={18} color="var(--color-accent)" />
-                  <h3 className="text-title3" style={{ margin: 0 }}>Order &amp; Token Numbering</h3>
-                </div>
-                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
-                  Format ticket numbers and token queuing behavior for customer recognition.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
-                  <div className="form-group">
-                    <label className="form-label">Order Number Prefix</label>
-                    <input
-                      className="form-input"
-                      placeholder="e.g. ORD-, DINE-, #"
-                      value={settings.workflowConfig?.orderPrefix ?? 'ORD-'}
-                      onChange={e => updateField('workflowConfig.orderPrefix', e.target.value.toUpperCase())}
-                    />
-                    <span className="text-secondary text-caption2" style={{ marginTop: 4, display: 'block' }}>
-                      Preview: <strong>{settings.workflowConfig?.orderPrefix || 'ORD-'}1042</strong>
-                    </span>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">QSR Token Queue Cycle</label>
-                    <select
-                      className="form-select"
-                      value={settings.workflowConfig?.tokenResetCycle ?? 'daily'}
-                      onChange={e => updateField('workflowConfig.tokenResetCycle', e.target.value)}
-                    >
-                      <option value="daily">Daily Reset (Starts from #1 every morning)</option>
-                      <option value="loop99">Continuous Loop 1 to 99</option>
-                      <option value="loop999">Continuous Loop 1 to 999</option>
-                    </select>
-                  </div>
-                </div>
-
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-bg-secondary)',
-                  cursor: 'pointer',
-                  marginTop: 'var(--space-3)'
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>🔊 Voice Token Callout on Customer TV Screen</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                      Automatically announces token numbers via synthetic voice when marked ready on KDS or called by staff.
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.workflowConfig?.tokenVoiceCallout ?? true}
-                    onChange={e => updateField('workflowConfig.tokenVoiceCallout', e.target.checked)}
-                    style={{ width: 18, height: 18, cursor: 'pointer' }}
-                  />
-                </label>
-              </div>
-
-              {/* Billing, Rounding & Bill Splitting */}
-              <div className="card card-padded">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Coins size={18} color="var(--color-accent)" />
-                  <h3 className="text-title3" style={{ margin: 0 }}>Billing, Rounding &amp; Bill Splitting</h3>
-                </div>
-                <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
-                  Control currency rounding, split bill access, and gratuity suggestions.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
-                  <div className="form-group">
-                    <label className="form-label">Cash Total Rounding</label>
-                    <select
-                      className="form-select"
-                      value={settings.workflowConfig?.cashRounding ?? 'exact'}
-                      onChange={e => updateField('workflowConfig.cashRounding', e.target.value)}
-                    >
-                      <option value="exact">Exact (No rounding — e.g. 14.65)</option>
-                      <option value="nearest_integer">Round to Nearest Integer (e.g. 14.65 → 15.00)</option>
-                      <option value="nearest_half">Round to Nearest 0.50 (e.g. 14.65 → 14.50)</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Suggested Tip Percentages</label>
-                    <input
-                      className="form-input"
-                      placeholder="e.g. 5, 10, 15"
-                      value={settings.workflowConfig?.tipPresets ?? '5, 10, 15'}
-                      onChange={e => updateField('workflowConfig.tipPresets', e.target.value)}
-                    />
-                    <span className="text-secondary text-caption2" style={{ marginTop: 4, display: 'block' }}>
-                      Comma-separated quick tip chips shown on payment screen.
-                    </span>
-                  </div>
-                </div>
-
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-bg-secondary)',
-                  cursor: 'pointer',
-                  marginTop: 'var(--space-3)'
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>Enable Bill Splitting in POS</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                      Allows cashiers to divide a single check equally or item-by-item across multiple guests and payment methods.
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.workflowConfig?.splitBillEnabled ?? true}
-                    onChange={e => updateField('workflowConfig.splitBillEnabled', e.target.checked)}
-                    style={{ width: 18, height: 18, cursor: 'pointer' }}
-                  />
-                </label>
-              </div>
-            </>
-          )}
-
-          {/* Modules & Features Tab */}
-          {activeTab === 'features' && (
-            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+              {/* Active Modules & POS Capabilities Card */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
                 <div>
@@ -1910,11 +1432,27 @@ export default function Settings() {
                         title={preset.desc}
                         onClick={() => {
                           const newModes = Array.from(new Set([...preset.modes]));
+                          const mappedBusinessType = preset.id === 'dine_in' ? 'restaurant' : preset.id;
                           updateField('modes', newModes);
-                          if (newModes.includes('kds')) {
-                            updateField('kitchenConfig.mode', settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both'));
+                          updateField('businessType', mappedBusinessType);
+                          
+                          const isKds = newModes.includes('kds');
+                          updateField('kitchenConfig.mode', isKds ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                          
+                          const isBillOnly = preset.id === 'bill_only';
+                          const isRetail = preset.id === 'retail';
+                          const isService = preset.id === 'service';
+                          const isQSR = preset.id === 'qsr';
+                          const isCafe = preset.id === 'cafe';
+
+                          updateField('quickPayEnabled', isBillOnly || isQSR || isCafe || isRetail || isService);
+                          updateField('barcodeEnabled', isRetail || isCafe);
+                          updateField('speedDialEnabled', isBillOnly || isQSR || isCafe);
+
+                          if (isBillOnly && activeTab === 'kitchen') {
+                            setActiveTab('workflows');
                           }
-                          toast.success(`Applied ${preset.name} modules preset!`, { icon: preset.emoji });
+                          toast.success(`Configured for ${preset.name}!`, { icon: preset.emoji });
                         }}
                       >
                         <span>{preset.emoji}</span>
@@ -1929,47 +1467,42 @@ export default function Settings() {
               {/* The 6 Modular Pillars */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
                 {MODULE_PILLARS.map(pillar => (
-                  <div key={pillar.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  <div key={pillar.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                     {/* Pillar Title & Badge */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       borderBottom: '1px solid var(--color-separator)',
-                      paddingBottom: 'var(--space-2)',
+                      paddingBottom: '6px',
                       flexWrap: 'wrap',
                       gap: 8
                     }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <h4 style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', color: 'var(--color-label-primary)', margin: 0 }}>
-                            {pillar.title}
-                          </h4>
-                          <span style={{
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            letterSpacing: '0.04em',
-                            textTransform: 'uppercase',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            background: 'var(--color-bg-secondary)',
-                            border: '1px solid var(--color-separator)',
-                            color: 'var(--color-label-secondary)'
-                          }}>
-                            {pillar.badge}
-                          </span>
-                        </div>
-                        <p className="text-secondary text-caption1" style={{ marginTop: 2, margin: 0 }}>
-                          {pillar.desc}
-                        </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <h4 style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-label-primary)', margin: 0 }}>
+                          {pillar.title}
+                        </h4>
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: 'var(--color-bg-secondary)',
+                          border: '1px solid var(--color-separator)',
+                          color: 'var(--color-label-secondary)'
+                        }}>
+                          {pillar.badge}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '11.5px', color: 'var(--color-label-tertiary)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
                         {pillar.keys.filter(k => (settings.modes ?? []).includes(k)).length} / {pillar.keys.length} active
                       </div>
                     </div>
 
                     {/* Cards Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '8px' }}>
                       {pillar.keys.map(key => {
                         const m = MODES.find(x => x.key === key);
                         if (!m) return null;
@@ -1979,92 +1512,377 @@ export default function Settings() {
                             key={m.key}
                             style={{
                               display: 'flex',
-                              flexDirection: 'column',
+                              alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: 'var(--space-3) var(--space-4)',
+                              padding: '10px 14px',
                               border: `1.5px solid ${active ? 'var(--color-accent)' : 'var(--color-separator)'}`,
                               borderRadius: 'var(--radius-md)',
                               background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
                               transition: 'all var(--duration-fast)',
-                              minHeight: '105px'
+                              gap: '12px'
                             }}
                           >
-                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', cursor: 'pointer', margin: 0 }}>
-                              <input
-                                type="checkbox"
-                                id={`mode-${m.key}`}
-                                checked={active}
-                                style={{ marginTop: 3 }}
-                                onChange={e => {
-                                  const modes = settings.modes ?? [];
-                                  const checked = e.target.checked;
-                                  updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
-                                  if (m.key === 'kds') {
-                                    updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
-                                  }
-                                }}
-                              />
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-primary)' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-label-primary)' }}>
                                   {m.label}
-                                </div>
-                                <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.35 }}>
-                                  {m.desc}
-                                </div>
+                                </span>
+                                {active && (
+                                  <>
+                                    {m.isAction === 'vault' ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.preventDefault(); handleExportDataVault(); }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          padding: 0,
+                                          fontSize: '11px',
+                                          color: 'var(--color-accent)',
+                                          fontWeight: 600,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 2
+                                        }}
+                                      >
+                                        • Dump JSON →
+                                      </button>
+                                    ) : m.isAction === 'tally' ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.preventDefault(); handleExportTally(); }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          padding: 0,
+                                          fontSize: '11px',
+                                          color: 'var(--color-accent)',
+                                          fontWeight: 600,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 2
+                                        }}
+                                      >
+                                        • Export Tally →
+                                      </button>
+                                    ) : m.tab ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab(m.tab); }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          padding: 0,
+                                          fontSize: '11px',
+                                          color: 'var(--color-accent)',
+                                          fontWeight: 600,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 2
+                                        }}
+                                      >
+                                        • Setup →
+                                      </button>
+                                    ) : null}
+                                  </>
+                                )}
                               </div>
-                            </label>
-
-                            {/* Actions / Deep links */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                              {m.isAction === 'vault' && (
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  onClick={(e) => { e.preventDefault(); handleExportDataVault(); }}
-                                  style={{ fontSize: '11px', padding: '3px 8px', height: '26px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                >
-                                  <Download size={12} /> Download JSON Vault
-                                </button>
-                              )}
-
-                              {m.isAction === 'tally' && (
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  onClick={(e) => { e.preventDefault(); handleExportTally(); }}
-                                  style={{ fontSize: '11px', padding: '3px 8px', height: '26px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                >
-                                  <FileSpreadsheet size={12} /> Export Tally XML
-                                </button>
-                              )}
-
-                              {m.tab && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab(m.tab); }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    padding: '2px 4px',
-                                    fontSize: '11px',
-                                    color: 'var(--color-accent)',
-                                    fontWeight: 'var(--weight-bold)',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 3
-                                  }}
-                                >
-                                  ⚙️ Configure {m.tabName || 'Tab'} →
-                                </button>
-                              )}
+                              <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.3 }}>
+                                {m.desc}
+                              </div>
                             </div>
+                            <ToggleSwitch
+                              id={`mode-${m.key}`}
+                              checked={active}
+                              onChange={e => {
+                                const modes = settings.modes ?? [];
+                                const checked = e.target.checked;
+                                updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
+                                if (m.key === 'kds') {
+                                  updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                                }
+                              }}
+                            />
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+              {/* 2. Unified POS Terminal & Checkout Experience */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                  <Zap size={18} color="var(--color-accent)" />
+                  <h3 className="text-title3" style={{ margin: 0 }}>POS Terminal &amp; Checkout Experience</h3>
+                </div>
+                <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                  Customize speed controls, tender shortcuts, receipt numbering, and cashier flow.
+                </p>
+
+                {/* Sub-section: Cashier Speed Controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-label-tertiary)', marginTop: 4 }}>
+                    Cashier Speed &amp; Flow Controls
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>1-Tap Quick-Pay Bar in POS</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Instant cash, card, and UPI tender buttons directly in cart drawer.
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      id="toggle-quick-pay"
+                      checked={settings.quickPayEnabled ?? true}
+                      onChange={e => updateField('quickPayEnabled', e.target.checked)}
+                    />
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Favorites &amp; Speed-Dial Bar</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Pinned strip of top fast-selling items above menu grid.
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      id="toggle-speed-dial"
+                      checked={settings.speedDialEnabled ?? true}
+                      onChange={e => updateField('speedDialEnabled', e.target.checked)}
+                    />
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Auto-Lock to PIN on Checkout</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Require staff PIN after each completed bill (ideal for shared terminals).
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      id="toggle-auto-lock"
+                      checked={settings.workflowConfig?.autoLockOnComplete ?? false}
+                      onChange={e => updateField('workflowConfig.autoLockOnComplete', e.target.checked)}
+                    />
+                  </div>
+
+                  <div style={{
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Guest Phone Number at Checkout</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Prompt cashiers to capture guest mobile number before payment.
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'inline-flex',
+                      background: 'var(--color-bg)',
+                      border: '1px solid var(--color-separator)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '3px',
+                      gap: '3px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {[
+                        { id: 'optional', label: '⚡ Optional', desc: 'Fastest' },
+                        { id: 'loyalty_only', label: '🎁 Loyalty Prompt', desc: 'Points' },
+                        { id: 'mandatory', label: '🔒 Mandatory', desc: 'Required' }
+                      ].map(opt => {
+                        const isSelected = (settings.workflowConfig?.phoneRequirement ?? 'optional') === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => updateField('workflowConfig.phoneRequirement', opt.id)}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: 'calc(var(--radius-md) - 2px)',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: isSelected ? 600 : 500,
+                              background: isSelected ? 'var(--color-accent)' : 'transparent',
+                              color: isSelected ? '#ffffff' : 'var(--color-label-secondary)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-section: Billing, Rounding & Gratuity */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-label-tertiary)' }}>
+                    Billing, Rounding &amp; Identification
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-3)' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '12px' }}>Cash Total Rounding</label>
+                      <select
+                        className="form-select"
+                        value={settings.workflowConfig?.cashRounding ?? 'exact'}
+                        onChange={e => updateField('workflowConfig.cashRounding', e.target.value)}
+                      >
+                        <option value="exact">Exact (No rounding — e.g. 14.65)</option>
+                        <option value="nearest_integer">Round to Nearest Integer (e.g. 14.65 → 15.00)</option>
+                        <option value="nearest_half">Round to Nearest 0.50 (e.g. 14.65 → 14.50)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '12px' }}>Suggested Tip Percentages</label>
+                      <input
+                        className="form-input"
+                        placeholder="e.g. 5, 10, 15"
+                        value={settings.workflowConfig?.tipPresets ?? '5, 10, 15'}
+                        onChange={e => updateField('workflowConfig.tipPresets', e.target.value)}
+                      />
+                      <span className="text-secondary text-caption2" style={{ marginTop: 3, display: 'block' }}>
+                        Preset tip chips on payment screen.
+                      </span>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '12px' }}>Order Number Prefix</label>
+                      <input
+                        className="form-input"
+                        placeholder="e.g. ORD-, DINE-, #"
+                        value={settings.workflowConfig?.orderPrefix ?? 'ORD-'}
+                        onChange={e => updateField('workflowConfig.orderPrefix', e.target.value.toUpperCase())}
+                      />
+                      <span className="text-secondary text-caption2" style={{ marginTop: 3, display: 'block' }}>
+                        Preview: <strong>{settings.workflowConfig?.orderPrefix || 'ORD-'}1042</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>Bill Splitting in POS</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Split checks equally or item-by-item across multiple guests and payment methods.
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      id="toggle-split-bill"
+                      checked={settings.workflowConfig?.splitBillEnabled ?? true}
+                      onChange={e => updateField('workflowConfig.splitBillEnabled', e.target.checked)}
+                    />
+                  </div>
+                </div>
+
+                {/* Sub-section: Context-Aware Token & Live Queue (Visible ONLY if 'token' mode is active) */}
+                {(settings.modes ?? []).includes('token') && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-3)',
+                    marginTop: 'var(--space-2)',
+                    padding: 'var(--space-3)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px dashed var(--color-separator)',
+                    background: 'rgba(245, 158, 11, 0.03)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>🎫</span> QSR Token &amp; Live Queue Configuration
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>
+                        Active via Token Module
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-3)' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>QSR Token Queue Cycle</label>
+                        <select
+                          className="form-select"
+                          value={settings.workflowConfig?.tokenResetCycle ?? 'daily'}
+                          onChange={e => updateField('workflowConfig.tokenResetCycle', e.target.value)}
+                        >
+                          <option value="daily">Daily Reset (Starts from #1 every morning)</option>
+                          <option value="loop99">Continuous Loop 1 to 99</option>
+                          <option value="loop999">Continuous Loop 1 to 999</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-bg-secondary)',
+                      gap: 12
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>🔊 Voice Token Callout on Customer Display</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                          Synthetic audio announcement when order is marked ready or recalled.
+                        </div>
+                      </div>
+                      <ToggleSwitch
+                        id="toggle-token-voice"
+                        checked={settings.workflowConfig?.tokenVoiceCallout ?? true}
+                        onChange={e => updateField('workflowConfig.tokenVoiceCallout', e.target.checked)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Business Advisor (Groq Engine) Card */}
@@ -2110,12 +1928,12 @@ export default function Settings() {
                 </div>
 
                 <p style={{ margin: 0, fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
-                  Connect your free Groq API key to unlock natural language executive consulting in the Dashboard and Reports. DineOS sends compact, pre-calculated local metrics so your queries consume minimal tokens with zero rate limit stress.
+                  Natural language sales analysis and menu intelligence in Dashboard &amp; Reports with zero rate-limit stress.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
                   <div>
-                    <label className="form-label" style={{ fontSize: '12px' }}>Groq API Key</label>
+                    <label className="form-label" style={{ fontSize: '12px', marginBottom: '6px' }}>Groq API Key</label>
                     <input
                       type="password"
                       className="form-input"
@@ -2126,48 +1944,166 @@ export default function Settings() {
                         setSettings(s => ({ ...s, groqApiKey: val }));
                         saveLocalGroqApiKey(val);
                       }}
-                      style={{ fontSize: '13px', height: '36px' }}
+                      style={{ fontSize: '13px', padding: '9px 12px', minHeight: '40px', boxSizing: 'border-box' }}
                     />
                   </div>
 
                   <div>
-                    <label className="form-label" style={{ fontSize: '12px' }}>Advisor AI Model</label>
+                    <label className="form-label" style={{ fontSize: '12px', marginBottom: '6px' }}>Advisor AI Model</label>
                     <select
-                      className="form-input"
-                      value={settings.groqModel || 'llama-3.1-8b-instant'}
+                      className="form-select"
+                      value={settings.groqModel || 'openai/gpt-oss-20b'}
                       onChange={e => setSettings(s => ({ ...s, groqModel: e.target.value }))}
-                      style={{ fontSize: '13px', height: '36px' }}
+                      style={{ fontSize: '13px', padding: '9px 36px 9px 12px', minHeight: '40px', boxSizing: 'border-box' }}
                     >
-                      <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (14,400 req/day - Recommended)</option>
-                      <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Deep Reasoning)</option>
+                      <option value="openai/gpt-oss-20b">GPT OSS 20B (Recommended • Ultra Fast &amp; Free)</option>
+                      <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (High Precision • 128k context)</option>
+                      <option value="openai/gpt-oss-120b">GPT OSS 120B (Deep Reasoning • Complex Strategy)</option>
+                      <option value="plan-b-local">Plan B: Local Intelligence Engine (100% Offline)</option>
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* 🛡️ Sovereign Data Trust Banner (PetPooja Antidote) */}
-              <div style={{
-                marginTop: 'var(--space-3)',
-                padding: 'var(--space-4)',
-                borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 'var(--space-3)'
-              }}>
-                <ShieldCheck size={22} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
-                <div>
-                  <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 700, color: 'var(--color-label-primary)' }}>
-                    100% Data Sovereignty &amp; Owner Protection Guarantee
+              {/* 4. Local-Only Storage Mode & Data Vault (Zero-Cloud Air-Gapped) */}
+              <div 
+                className="card card-padded"
+                style={{ 
+                  borderLeft: settings.localStorageOnly ? '4px solid #38bdf8' : '1px solid var(--color-separator)',
+                  background: settings.localStorageOnly ? 'rgba(56, 189, 248, 0.03)' : 'var(--color-bg-elevated)',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-3)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <HardDrive size={18} color={settings.localStorageOnly ? '#38bdf8' : 'var(--color-accent)'} />
+                      <h3 className="text-title3" style={{ margin: 0 }}>
+                        Local-Only Storage Mode (Air-Gapped)
+                      </h3>
+                      {settings.localStorageOnly && (
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                          Active On Device
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                      100% offline storage. Orders, drawer shifts, and settings stay strictly on this device without cloud sync.
+                    </p>
                   </div>
-                  <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.4 }}>
-                    Your sales metrics, customer phone numbers, recipe margins, and inventory data belong strictly to your business. DineOS runs with isolated tenant boundaries and zero third-party telemetry, data resale, or uncoordinated tax surrender.
+                  <ToggleSwitch
+                    id="toggle-local-storage-only"
+                    checked={Boolean(settings.localStorageOnly)}
+                    onChange={async e => {
+                      const enable = e.target.checked;
+                      updateField('localStorageOnly', enable);
+                      
+                      const updatedRest = { ...(restaurant || {}), localStorageOnly: enable };
+                      useAuthStore.setState({ restaurant: updatedRest });
+                      try {
+                        if (typeof localStorage !== 'undefined' && restaurant?.id) {
+                          localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
+                        }
+                        if (typeof navigator !== 'undefined' && navigator.onLine && restaurant?.id) {
+                          await updateDoc(doc(db, 'restaurants', restaurant.id), { localStorageOnly: enable });
+                        }
+                      } catch (err) {
+                        console.warn('[Settings] Failed to save localStorageOnly directly:', err);
+                      }
+
+                      if (enable) {
+                        toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.', { icon: '💾' });
+                      } else {
+                        toast('Cloud sync mode re-enabled.', { icon: '🌐' });
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Storage Protection & Local Backup Utilities */}
+                <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-separator)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ color: storageStatus?.persisted ? '#10b981' : '#f59e0b' }}>
+                        {storageStatus?.persisted ? '🛡️' : '⚠️'}
+                      </span>
+                      <strong style={{ color: 'var(--color-label)' }}>Storage Protection:</strong>
+                      <span style={{ color: storageStatus?.persisted ? '#10b981' : 'var(--color-label-secondary)', fontWeight: 600 }}>
+                        {storageStatus?.persisted ? 'Protected (Eviction-Proof)' : 'Standard'}
+                      </span>
+                      {storageStatus?.usageFormatted && (
+                        <span style={{ color: 'var(--color-label-tertiary)', fontSize: '11px' }}>
+                          • {storageStatus.usageFormatted} used
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => {
+                          const res = exportLocalStoreBackup(restaurant);
+                          if (res.ok) {
+                            toast.success(`Exported offline backup (${res.filename})`, { icon: '💾' });
+                          }
+                        }}
+                      >
+                        <Download size={13} /> Export Local Backup (.json)
+                      </button>
+                      <label className="btn btn-secondary btn-xs" style={{ cursor: 'pointer', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Upload size={13} /> Restore from Backup
+                        <input
+                          type="file"
+                          accept=".json"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const res = restoreLocalStoreBackup(event.target.result);
+                              if (res.ok) {
+                                toast.success(`Restored ${res.restoredCount} records! Reloading...`, { icon: '✅' });
+                                setTimeout(() => window.location.reload(), 1200);
+                              } else {
+                                toast.error('Failed to restore backup: ' + res.error);
+                              }
+                            };
+                            reader.readAsText(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 🛡️ Sovereign Data Trust Banner (PetPooja Antidote) */}
+                <div style={{
+                  marginTop: 'var(--space-2)',
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--space-3)'
+                }}>
+                  <ShieldCheck size={20} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 700, color: 'var(--color-label-primary)' }}>
+                      100% Data Sovereignty Guarantee
+                    </div>
+                    <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.4 }}>
+                      Your sales, guest contacts, recipes, and margins belong strictly to your business — zero third-party telemetry or data resale.
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+          </>
+        )}
 
           {/* Displays & TV Hub Tab */}
           {activeTab === 'displays' && (

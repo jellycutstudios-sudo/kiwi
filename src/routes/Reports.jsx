@@ -37,7 +37,9 @@ export default function Reports() {
     const allItems = [];
     categories.forEach(cat => {
       if (Array.isArray(cat.items)) {
-        allItems.push(...cat.items);
+        cat.items.forEach(item => {
+          allItems.push({ ...item, category: item.category || cat.name });
+        });
       }
     });
     return allItems;

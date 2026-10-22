@@ -2,6 +2,32 @@ import { useAuthStore } from '../stores/authStore';
 
 export const BUSINESS_PRESETS = [
   {
+    id: 'bill_only',
+    name: 'Bill Only / Express Counter',
+    emoji: '🧾',
+    tagline: 'Quick cashiers, tea stalls, juice bars, bakeries & food counters',
+    desc: 'Customer orders or says what they ate → Cashier enters items & prints bill. No tables, no kitchen screens.',
+    recommendedModes: ['pos', 'till_shift'],
+    recommendedShiftMode: 'global',
+    terminology: {
+      catalog: 'Menu',
+      category: 'Category',
+      item: 'Item',
+      items: 'Items',
+      action: 'Print Bill',
+      staff: 'Cashier',
+      location: 'Cash Counter',
+      kitchen: 'Kitchen',
+    },
+    features: {
+      enableQuickPay: true,
+      enableBarcode: false,
+      enableTableMap: false,
+      enableKds: false,
+      enableSpeedDial: true,
+    }
+  },
+  {
     id: 'cafe',
     name: 'Cafe & Bakery',
     emoji: '☕',
@@ -137,13 +163,15 @@ export function useBusinessConfig() {
   const restaurant = useAuthStore(s => s.restaurant);
   const businessType = restaurant?.businessType || 'restaurant';
 
-  const preset = BUSINESS_PRESETS.find(p => p.id === businessType) || BUSINESS_PRESETS[2]; // default to restaurant
+  const defaultPreset = BUSINESS_PRESETS.find(p => p.id === 'restaurant') || BUSINESS_PRESETS[0];
+  const preset = BUSINESS_PRESETS.find(p => p.id === businessType) || defaultPreset;
 
   const terms = {
-    ...BUSINESS_PRESETS[2].terminology,
+    ...defaultPreset.terminology,
     ...(preset?.terminology || {})
   };
 
+  const isBillOnly = businessType === 'bill_only';
   const isRetail = businessType === 'retail';
   const isQSR = businessType === 'qsr';
   const isCafe = businessType === 'cafe';
@@ -155,6 +183,7 @@ export function useBusinessConfig() {
     preset,
     presets: BUSINESS_PRESETS,
     terms,
+    isBillOnly,
     isRetail,
     isQSR,
     isCafe,

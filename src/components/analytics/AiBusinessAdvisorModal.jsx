@@ -4,47 +4,126 @@ import {
   Sparkles, Send, Key, Check,
   Lightbulb, TrendingUp, Clock, Flame, Copy, CheckCheck,
   ChevronDown, ChevronUp, PanelLeftClose, PanelLeft, Plus,
-  ArrowLeft, UtensilsCrossed, Users, Percent, Zap
+  ArrowLeft, UtensilsCrossed, Users, Percent, Zap, ShieldCheck,
+  ArrowUpRight, ArrowRight, Bot, Trash2
 } from 'lucide-react';
 import { analyzeBusinessData, generateCompactDigest } from '../../utils/localBusinessAnalyzer';
 import {
   askGroqAdvisor,
   getEffectiveGroqApiKey,
   saveLocalGroqApiKey,
+  sanitizeGroqModel,
   GROQ_MODELS
 } from '../../services/groqService';
+import { generatePlanBAdvice } from '../../services/localAdvisorEngine';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { useMenuStore } from '../../stores/menuStore';
 import toast from 'react-hot-toast';
 import './AiBusinessAdvisorModal.css';
 
+const ALL_MODELS = [
+  ...GROQ_MODELS,
+  {
+    id: 'plan-b-local',
+    name: 'Plan B (Local AI)',
+    speed: 'Instant (0ms)',
+    badge: '100% Offline • Always Available',
+    provider: 'Client-Side Engine'
+  }
+];
+
+// Client-Side Zero-Cloud Chat History Persistence
+// Strict retention rules: auto-purge > 180 days (6 months) & cap to latest 50 messages (<40 KB)
+const AI_CHAT_STORAGE_KEY = 'dineos_ai_chat_history';
+const MAX_SAVED_MESSAGES = 50;
+const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
+
+export function loadStoredAiChat() {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(AI_CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    const now = Date.now();
+    // Auto-clean: drop messages older than 6 months (180 days)
+    const fresh = parsed.filter(m => {
+      const msgTime = m.time ? new Date(m.time).getTime() : now;
+      return (now - msgTime) < SIX_MONTHS_MS;
+    });
+
+    // Auto-cap: keep maximum latest 50 messages so device memory never exceeds ~40 KB
+    const capped = fresh.slice(-MAX_SAVED_MESSAGES);
+    if (capped.length !== parsed.length) {
+      localStorage.setItem(AI_CHAT_STORAGE_KEY, JSON.stringify(capped));
+    }
+    return capped;
+  } catch (err) {
+    console.warn('[DineOS AI] Failed to load chat history:', err);
+    return [];
+  }
+}
+
+export function saveStoredAiChat(messages) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    if (!messages || messages.length === 0) {
+      localStorage.removeItem(AI_CHAT_STORAGE_KEY);
+      return;
+    }
+    const capped = messages.slice(-MAX_SAVED_MESSAGES);
+    localStorage.setItem(AI_CHAT_STORAGE_KEY, JSON.stringify(capped));
+  } catch (err) {
+    console.warn('[DineOS AI] Failed to save chat history:', err);
+  }
+}
+
 const STRATEGY_TOPICS = [
   {
+    id: 'aov',
     icon: TrendingUp,
+    color: '#10b981',
     title: "Boost Order Value (AOV)",
     subtitle: "Identify high-margin pairings & upselling tactics",
+    getBadge: (m, curr) => `AOV: ${formatCurrency(m.aov, curr)} → Target: ${formatCurrency(Math.round(m.aov * 1.2), curr)}`,
     prompt: "How can I increase our Average Order Value (AOV) based on our recent sales? Give me 3 concrete strategies."
   },
   {
+    id: 'slow',
     icon: Flame,
+    color: '#f59e0b',
     title: "Fix Slow Movers",
     subtitle: "Combo bundling ideas for our lowest selling dishes",
+    getBadge: (m) => `Focus: ${m.slowMovers[0]?.name || 'Bottom item'} (${m.slowMovers[0]?.qty || 0} sold)`,
     prompt: "Suggest a profitable combo bundle and menu promotion for our slowest moving items to clear inventory."
   },
   {
+    id: 'rush',
     icon: Clock,
+    color: '#38bdf8',
     title: "Peak Rush Strategy",
     subtitle: "Staffing & kitchen prep checklist for peak hours",
+    getBadge: (m) => `Peak: ${m.peakWindow}`,
     prompt: "How should we prep, batch, and staff for our peak rush window to eliminate ticket delays?"
   },
   {
+    id: 'growth',
     icon: Lightbulb,
+    color: '#c084fc',
     title: "Weekly Growth Tactics",
     subtitle: "3 high-impact promotional ideas for this week",
+    getBadge: () => "Target: +15% repeat diners",
     prompt: "Give me 3 high-impact, actionable promotional ideas to drive restaurant sales and repeat footfall this week."
   }
 ];
 
 const SIDEBAR_TOPICS = [
+  {
+    icon: TrendingUp,
+    label: "Sales Pulse & Profit",
+    prompt: "How are our sales looking today? Give me an honest, witty executive breakdown of our revenue and health score."
+  },
   {
     icon: TrendingUp,
     label: "AOV & Upselling",
@@ -78,9 +157,10 @@ const SIDEBAR_TOPICS = [
 ];
 
 const QUICK_CHIPS = [
+  "How are our sales looking today?",
   "How can I increase AOV?",
-  "Suggest a combo bundle for slow dishes",
   "Waitstaff upselling script",
+  "Suggest a combo bundle for slow dishes",
   "Kitchen rush prep checklist",
   "How to lower discount costs?"
 ];
@@ -100,24 +180,15 @@ function parseInlineMarkdown(text) {
     }
     const token = match[0];
     if (token.startsWith('**') && token.endsWith('**')) {
-      parts.push(<strong key={key++} style={{ fontWeight: 700, color: 'inherit' }}>{token.slice(2, -2)}</strong>);
+      parts.push(<strong key={key++} className="ai-markdown-bold">{token.slice(2, -2)}</strong>);
     } else if (token.startsWith('`') && token.endsWith('`')) {
       parts.push(
-        <code 
-          key={key++} 
-          style={{ 
-            padding: '2px 6px', 
-            borderRadius: '4px', 
-            backgroundColor: 'var(--color-bg-tertiary, #e2e8f0)', 
-            fontSize: '12.5px',
-            fontFamily: 'monospace'
-          }}
-        >
+        <code key={key++} className="ai-inline-code">
           {token.slice(1, -1)}
         </code>
       );
     } else if (token.startsWith('*') && token.endsWith('*')) {
-      parts.push(<em key={key++}>{token.slice(1, -1)}</em>);
+      parts.push(<em key={key++} className="ai-markdown-italic">{token.slice(1, -1)}</em>);
     }
     lastIndex = regex.lastIndex;
   }
@@ -125,6 +196,19 @@ function parseInlineMarkdown(text) {
     parts.push(text.substring(lastIndex));
   }
   return parts.length > 0 ? parts : text;
+}
+
+// Extracts [SUGGESTIONS: "q1", "q2"] from response text
+function parseSuggestionsFromText(text) {
+  if (!text) return { cleanText: '', suggestions: [] };
+  const match = text.match(/\[SUGGESTIONS:\s*(.+?)\]\s*$/s);
+  if (!match) return { cleanText: text, suggestions: [] };
+
+  const cleanText = text.replace(match[0], '').trim();
+  const rawList = match[1];
+  const items = rawList.match(/"([^"]+)"|'([^']+)'/g);
+  const suggestions = items ? items.map(s => s.replace(/^["']|["']$/g, '').trim()) : [];
+  return { cleanText, suggestions };
 }
 
 // Full structured renderer for AI message responses (headings, bullet points, numbered lists, cards)
@@ -139,9 +223,9 @@ function FormattedAiResponse({ content }) {
   const flushList = () => {
     if (currentList) {
       elements.push(
-        <ul key={`ul-${listKey++}`} style={{ margin: '8px 0 12px 0', paddingLeft: '22px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <ul key={`ul-${listKey++}`} className="ai-response-list">
           {currentList.map((item, idx) => (
-            <li key={idx} style={{ lineHeight: 1.6 }}>
+            <li key={idx} className="ai-response-list-item">
               {parseInlineMarkdown(item)}
             </li>
           ))}
@@ -160,19 +244,11 @@ function FormattedAiResponse({ content }) {
     }
 
     // Heading 3 or 2
-    if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
+    if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('#### ')) {
       flushList();
-      const headingText = trimmed.replace(/^#{2,3}\s+/, '');
+      const headingText = trimmed.replace(/^#{2,4}\s+/, '');
       elements.push(
-        <h4 
-          key={`h-${idx}`} 
-          style={{ 
-            fontSize: '16px', 
-            fontWeight: 700, 
-            margin: '18px 0 8px 0', 
-            color: 'var(--color-label, #0f172a)'
-          }}
-        >
+        <h4 key={`h-${idx}`} className="ai-response-heading">
           {parseInlineMarkdown(headingText)}
         </h4>
       );
@@ -191,50 +267,23 @@ function FormattedAiResponse({ content }) {
     if (/^\d+\.\s+/.test(trimmed)) {
       flushList();
       const itemText = trimmed.replace(/^\d+\.\s+/, '');
+      const num = trimmed.match(/^(\d+)\./)[1];
       elements.push(
-        <div 
-          key={`num-${idx}`} 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'flex-start', 
-            gap: '10px', 
-            margin: '8px 0',
-            lineHeight: 1.6 
-          }}
-        >
-          <span 
-            style={{ 
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '22px',
-              height: '22px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--color-accent, #10b981)',
-              color: '#ffffff',
-              fontSize: '11px',
-              fontWeight: 700,
-              flexShrink: 0,
-              marginTop: '2px'
-            }}
-          >
-            {trimmed.match(/^(\d+)\./)[1]}
-          </span>
-          <div style={{ flex: 1 }}>{parseInlineMarkdown(itemText)}</div>
+        <div key={`num-${idx}`} className="ai-numbered-item">
+          <span className="ai-numbered-badge">{num}</span>
+          <div className="ai-numbered-content">{parseInlineMarkdown(itemText)}</div>
         </div>
       );
       return;
     }
 
     // Callout Box (Script, Snapshot, or Pro-Tip)
-    if (trimmed.startsWith('📊') || trimmed.startsWith('⚡') || trimmed.startsWith('💡') || trimmed.toLowerCase().includes('script:')) {
+    if (trimmed.startsWith('📊') || trimmed.startsWith('⚡') || trimmed.startsWith('💡') || trimmed.toLowerCase().includes('script:') || trimmed.startsWith('>')) {
       flushList();
+      const cleanText = trimmed.replace(/^>\s*/, '');
       elements.push(
-        <div 
-          key={`card-${idx}`} 
-          className="ai-callout-box"
-        >
-          {parseInlineMarkdown(trimmed)}
+        <div key={`card-${idx}`} className="ai-callout-box">
+          {parseInlineMarkdown(cleanText)}
         </div>
       );
       return;
@@ -243,7 +292,7 @@ function FormattedAiResponse({ content }) {
     // Normal paragraph
     flushList();
     elements.push(
-      <p key={`p-${idx}`} style={{ margin: '0 0 10px 0', lineHeight: 1.68 }}>
+      <p key={`p-${idx}`} className="ai-response-paragraph">
         {parseInlineMarkdown(trimmed)}
       </p>
     );
@@ -263,7 +312,11 @@ export default function AiBusinessAdvisorModal({
   periodLabel = 'Last 7 Days'
 }) {
   const [apiKey, setApiKey] = useState(() => getEffectiveGroqApiKey(restaurant));
-  const [selectedModel, setSelectedModel] = useState('openai/gpt-oss-20b');
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const raw = restaurant?.groqModel;
+    if (raw === 'plan-b-local') return 'plan-b-local';
+    return sanitizeGroqModel(raw);
+  });
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
@@ -271,28 +324,51 @@ export default function AiBusinessAdvisorModal({
   const [tempKeyInput, setTempKeyInput] = useState('');
   const [copiedMsgId, setCopiedMsgId] = useState(null);
 
+  // Ensure menu products are always available even if parent passed empty array
+  const effectiveMenuItems = useMemo(() => {
+    if (Array.isArray(menuItems) && menuItems.length > 0) return menuItems;
+    try {
+      const cats = useMenuStore.getState().categories || [];
+      const extracted = [];
+      cats.forEach(c => {
+        if (Array.isArray(c.items)) {
+          c.items.forEach(it => {
+            extracted.push({ ...it, category: it.category || c.name });
+          });
+        }
+      });
+      return extracted;
+    } catch {
+      return [];
+    }
+  }, [menuItems]);
+
   // Local analytics engine
   const metrics = useMemo(() => {
-    return analyzeBusinessData(orders, menuItems, restaurant);
-  }, [orders, menuItems, restaurant]);
+    return analyzeBusinessData(orders, effectiveMenuItems, restaurant);
+  }, [orders, effectiveMenuItems, restaurant]);
 
   const compactDigest = useMemo(() => {
     return generateCompactDigest(metrics, restaurant, periodLabel);
   }, [metrics, restaurant, periodLabel]);
 
-  // Chat conversation state
-  const [messages, setMessages] = useState([]);
+  // Chat conversation state (persisted locally with auto-purge)
+  const [messages, setMessages] = useState(() => loadStoredAiChat());
   const [inputQuestion, setInputQuestion] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Sync chat changes to localStorage with rolling cap (0 Firebase/Vercel usage)
+  useEffect(() => {
+    saveStoredAiChat(messages);
+  }, [messages]);
 
   // Synchronize API key when opened
   useEffect(() => {
     if (!isOpen) return;
     const initialKey = getEffectiveGroqApiKey(restaurant);
     setApiKey(initialKey);
-    // Focus prompt input
     setTimeout(() => inputRef.current?.focus(), 150);
   }, [isOpen, restaurant]);
 
@@ -314,10 +390,18 @@ export default function AiBusinessAdvisorModal({
 
   if (!isOpen) return null;
 
-  const handleStartNewChat = () => {
+  const handleClearChat = () => {
     setMessages([]);
     setInputQuestion('');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(AI_CHAT_STORAGE_KEY);
+    }
+    toast.success('Chat history cleared');
     setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleStartNewChat = () => {
+    handleClearChat();
   };
 
   const handleSendQuestion = async (customPrompt) => {
@@ -334,33 +418,27 @@ export default function AiBusinessAdvisorModal({
       setSidebarOpen(false);
     }
 
-    const activeKey = getEffectiveGroqApiKey(restaurant);
-
-    // Offline / Local Engine fallback if key unavailable
-    if (!activeKey) {
+    // Mode 1: User explicitly chose Plan B (Local AI)
+    if (selectedModel === 'plan-b-local') {
       setTimeout(() => {
-        let fallbackReply = `### Local Rule-Based Analysis\n\n`;
-        const q = queryText.toLowerCase();
-        if (q.includes('aov') || q.includes('order value') || q.includes('increase')) {
-          fallbackReply += `Your current Average Order Value is **${formatCurrency(metrics.aov, restaurant.currency || 'INR')}**.\n\n• **Upsell High-Margin Add-ons:** Train staff to recommend specialty drinks or appetizers.\n• **Minimum Order Incentives:** Introduce free delivery or complimentary chef side on orders exceeding ${formatCurrency(Math.round(metrics.aov * 1.3), restaurant.currency || 'INR')}.\n• **Item Pairing:** Bundle ${metrics.topSellers[0]?.name || 'popular dishes'} with higher-margin sides.`;
-        } else if (q.includes('combo') || q.includes('slow')) {
-          fallbackReply += `Your slowest moving item is **${metrics.slowMovers[0]?.name || 'N/A'}** (${metrics.slowMovers[0]?.qty || 0} sold).\n\n• **Power Pairing:** Create a 2-person combo bundling **${metrics.topSellers[0]?.name || 'Hero Dish'}** + **${metrics.slowMovers[0]?.name || 'Slow Item'}** with a 10% promotional bundle discount.\n• **Menu Highlight:** Add a "Chef Recommendation" badge on digital and printed menus.`;
-        } else if (q.includes('rush') || q.includes('staff') || q.includes('peak')) {
-          fallbackReply += `Your peak order concentration window is **${metrics.peakWindow}**.\n\n• **Pre-Prep Stations:** 45 minutes prior to ${metrics.peakWindow.split('–')[0]?.trim() || 'rush'}, ensure all sauces and garnishes for top 5 dishes are pre-portioned.\n• **Line Scheduling:** Station your fastest cook on the sauté/grill station and assign a dedicated food runner.`;
-        } else {
-          fallbackReply += `Here are the key operational insights for your question:\n\n• **Total Orders:** ${metrics.orderCount}\n• **Gross Revenue:** ${formatCurrency(metrics.totalSales, restaurant.currency || 'INR')}\n• **Peak Rush:** ${metrics.peakWindow}\n• **Hero Dish:** ${metrics.topSellers[0]?.name || 'N/A'} (${metrics.topSellers[0]?.qty || 0} sold)\n\n*Configure a free Groq Cloud API key above to unlock full natural language intelligence.*`;
-        }
-
+        const planBText = generatePlanBAdvice({ question: queryText, metrics, restaurant });
         setMessages(prev => [
           ...prev,
-          { id: 'ai-' + Date.now(), sender: 'ai', text: fallbackReply, time: new Date(), isLocal: true }
+          {
+            id: 'ai-' + Date.now(),
+            sender: 'ai',
+            text: planBText,
+            time: new Date(),
+            isPlanB: true,
+            model: 'Plan B: Local Intelligence'
+          }
         ]);
         setIsAiLoading(false);
-      }, 400);
+      }, 250);
       return;
     }
 
-    // Call Groq API
+    // Mode 2: Call Groq Cloud API with automatic Plan B fallback
     const result = await askGroqAdvisor({
       question: queryText,
       compactDigest,
@@ -372,20 +450,28 @@ export default function AiBusinessAdvisorModal({
     if (result.ok) {
       setMessages(prev => [
         ...prev,
-        { id: 'ai-' + Date.now(), sender: 'ai', text: result.answer, time: new Date(), model: result.modelUsed }
-      ]);
-    } else {
-      setMessages(prev => [
-        ...prev,
-        { 
-          id: 'ai-' + Date.now(), 
-          sender: 'ai', 
-          text: `⚠️ **AI Notice:** ${result.error}\n\nOperating in local mode. Verify your Groq API key in the top settings.`, 
-          time: new Date(), 
-          isError: true 
+        {
+          id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          sender: 'ai',
+          text: result.answer,
+          time: new Date(),
+          model: result.modelUsed || 'GPT OSS 20B (Groq)',
+          isPlanB: false
         }
       ]);
-      toast.error('AI query notice: ' + (result.error || 'Please check key'));
+    } else {
+      const planBText = generatePlanBAdvice({ question: queryText, metrics, restaurant });
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          sender: 'ai',
+          text: planBText,
+          time: new Date(),
+          isPlanB: true
+        }
+      ]);
     }
 
     setIsAiLoading(false);
@@ -406,7 +492,7 @@ export default function AiBusinessAdvisorModal({
   };
 
   const currency = restaurant.currency || 'INR';
-  const currentModelObj = GROQ_MODELS.find(m => m.id === selectedModel) || GROQ_MODELS[0];
+  const currentModelObj = ALL_MODELS.find(m => m.id === selectedModel) || ALL_MODELS[0];
   const isChatEmpty = messages.length === 0;
 
   return (
@@ -426,7 +512,7 @@ export default function AiBusinessAdvisorModal({
         />
       )}
 
-      {/* Collapsible Left Sidebar (Claude / ChatGPT style) */}
+      {/* Collapsible Left Sidebar */}
       <aside className={`ai-sidebar ${sidebarOpen ? '' : 'collapsed'}`}>
         <div className="ai-sidebar-header">
           <button 
@@ -441,7 +527,7 @@ export default function AiBusinessAdvisorModal({
         </div>
 
         <div className="ai-sidebar-scroll">
-          <span className="ai-sidebar-section-title">Strategic Deep-Dives</span>
+          <span className="ai-sidebar-section-title">Strategic Playbooks</span>
           {SIDEBAR_TOPICS.map((topic, idx) => {
             const IconCmp = topic.icon;
             return (
@@ -463,26 +549,22 @@ export default function AiBusinessAdvisorModal({
         <div className="ai-sidebar-footer">
           <div className="ai-sidebar-mini-pulse">
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary, #94a3b8)', fontWeight: 600 }}>
-                Health Score
-              </div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#10b981' }}>
+              <div className="ai-mini-pulse-label">Health Score</div>
+              <div className="ai-mini-pulse-val" style={{ color: metrics.healthScore >= 80 ? '#10b981' : '#f59e0b' }}>
                 {metrics.healthScore}/100
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary, #94a3b8)', fontWeight: 600 }}>
-                Avg Order (AOV)
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 700 }}>
+              <div className="ai-mini-pulse-label">Avg Order (AOV)</div>
+              <div className="ai-mini-pulse-val" style={{ color: '#ffffff' }}>
                 {formatCurrency(metrics.aov, currency)}
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-label-tertiary, #94a3b8)', padding: '0 4px' }}>
+          <div className="ai-sidebar-brand-status">
             <span>{restaurant.name || 'DineOS POS'}</span>
-            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span className="ai-status-active">
               <Zap size={11} /> Ready
             </span>
           </div>
@@ -504,64 +586,53 @@ export default function AiBusinessAdvisorModal({
             </button>
 
             <div className="ai-nav-title-group">
-              <h2 className="ai-nav-brand-title">DineOS Advisor</h2>
+              <div className="ai-brand-badge">
+                <Sparkles size={14} className="ai-sparkle-spin" />
+                <h2 className="ai-nav-brand-title">DineOS Advisor</h2>
+              </div>
               
               <div style={{ position: 'relative' }}>
                 <button 
                   type="button" 
-                  className="ai-model-pill"
+                  className={`ai-model-pill ${selectedModel === 'plan-b-local' ? 'plan-b-active' : ''}`}
                   onClick={() => setShowModelPicker(!showModelPicker)}
-                  title="Switch Groq AI Model"
+                  title="Switch AI Model or Plan B"
                 >
-                  <Sparkles size={12} color="#10b981" />
-                  <span>{currentModelObj.name.split(' ')[0]}</span>
-                  <ChevronDown size={11} />
+                  {selectedModel === 'plan-b-local' ? (
+                    <ShieldCheck size={13} color="#10b981" />
+                  ) : (
+                    <Bot size={13} color="#38bdf8" />
+                  )}
+                  <span className="ai-model-pill-text">{currentModelObj.name}</span>
+                  <ChevronDown size={12} />
                 </button>
 
                 {showModelPicker && (
-                  <div 
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      marginTop: '6px',
-                      width: '230px',
-                      backgroundColor: 'var(--color-bg-elevated, #ffffff)',
-                      border: '1px solid var(--color-separator, #e2e8f0)',
-                      borderRadius: '12px',
-                      boxShadow: '0 12px 30px rgba(0, 0, 0, 0.15)',
-                      padding: '6px',
-                      zIndex: 100,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
-                    }}
-                  >
-                    {GROQ_MODELS.map(m => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedModel(m.id);
-                          setShowModelPicker(false);
-                        }}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start',
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: selectedModel === m.id ? 'var(--color-bg-secondary, #f1f5f9)' : 'transparent',
-                          color: selectedModel === m.id ? 'var(--color-accent, #10b981)' : 'var(--color-label, #0f172a)',
-                          cursor: 'pointer',
-                          textAlign: 'left'
-                        }}
-                      >
-                        <span style={{ fontSize: '12.5px', fontWeight: 600 }}>{m.name}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary, #94a3b8)' }}>{m.badge}</span>
-                      </button>
-                    ))}
+                  <div className="ai-model-dropdown-menu">
+                    <div className="ai-dropdown-header">Select Intelligence Engine</div>
+                    {ALL_MODELS.map(m => {
+                      const isSelected = selectedModel === m.id;
+                      const isPlanB = m.id === 'plan-b-local';
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`ai-model-option-btn ${isSelected ? 'selected' : ''} ${isPlanB ? 'plan-b-option' : ''}`}
+                          onClick={() => {
+                            setSelectedModel(m.id);
+                            setShowModelPicker(false);
+                            toast.success(`Switched to ${m.name}`);
+                          }}
+                        >
+                          <div className="ai-model-option-top">
+                            <span className="ai-model-option-name">{m.name}</span>
+                            {isSelected && <Check size={14} color="#10b981" />}
+                          </div>
+                          <div className="ai-model-option-badge">{m.badge}</div>
+                          <div className="ai-model-option-speed">{m.speed} • {m.provider}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -569,6 +640,18 @@ export default function AiBusinessAdvisorModal({
           </div>
 
           <div className="ai-nav-right">
+            {messages.length > 0 && (
+              <button
+                type="button"
+                className="ai-clear-chat-btn"
+                onClick={handleClearChat}
+                title="Clear Chat Conversation"
+              >
+                <Trash2 size={13} />
+                <span>Clear Chat</span>
+              </button>
+            )}
+
             <button
               type="button"
               className={`ai-pulse-toggle-btn ${showPulse ? 'active' : ''}`}
@@ -587,7 +670,7 @@ export default function AiBusinessAdvisorModal({
                 setTempKeyInput(apiKey);
                 setShowKeyConfig(!showKeyConfig);
               }}
-              title="Configure Groq Key"
+              title="Configure Groq Cloud API Key"
             >
               <Key size={15} />
             </button>
@@ -606,40 +689,27 @@ export default function AiBusinessAdvisorModal({
 
         {/* Custom API Key Drawer */}
         {showKeyConfig && (
-          <div 
-            style={{
-              padding: '12px 24px',
-              backgroundColor: 'var(--color-bg-secondary, #f8fafc)',
-              borderBottom: '1px solid var(--color-separator, #e2e8f0)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '14px',
-              flexWrap: 'wrap'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 320px' }}>
+          <div className="ai-key-drawer">
+            <div className="ai-key-input-row">
               <input
                 type="password"
-                className="form-input"
+                className="ai-key-input"
                 placeholder="Custom Groq API Key (gsk_...)"
                 value={tempKeyInput}
                 onChange={e => setTempKeyInput(e.target.value)}
-                style={{ height: '36px', fontSize: '13px', flex: 1, borderRadius: '8px' }}
               />
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
+                className="ai-key-save-btn"
                 onClick={handleSaveKey}
-                style={{ height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
                 <Check size={14} />
-                <span>Save</span>
+                <span>Save Key</span>
               </button>
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--color-label-tertiary, #94a3b8)' }}>
-              Built-in key is automatically configured for all DineOS terminals.
-            </span>
+            <div className="ai-key-helper">
+              Built-in key is configured. If cloud models expire or rate limit, <strong>Plan B Local Engine</strong> automatically runs without delay.
+            </div>
           </div>
         )}
 
@@ -647,89 +717,108 @@ export default function AiBusinessAdvisorModal({
         {showPulse && (
           <div className="ai-top-pulse-strip">
             <div className="ai-pulse-metric-card">
-              <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-label-tertiary, #94a3b8)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Zap size={12} color="#10b981" /> Health Score
+              <span className="ai-pulse-card-label">
+                <Zap size={13} color="#10b981" /> Health Score
               </span>
-              <span style={{ fontSize: '17px', fontWeight: 700, color: metrics.healthScore >= 80 ? '#10b981' : '#f59e0b' }}>
+              <span className="ai-pulse-card-val" style={{ color: metrics.healthScore >= 80 ? '#10b981' : '#f59e0b' }}>
                 {metrics.healthScore}/100
               </span>
-              <span style={{ fontSize: '11.5px', color: 'var(--color-label-secondary, #64748b)' }}>
+              <span className="ai-pulse-card-sub">
                 {metrics.healthScore >= 80 ? 'Strong Operational Health' : 'Growth Opportunities Identified'}
               </span>
             </div>
 
             <div className="ai-pulse-metric-card">
-              <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-label-tertiary, #94a3b8)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <TrendingUp size={12} color="#3b82f6" /> Average Order (AOV)
+              <span className="ai-pulse-card-label">
+                <TrendingUp size={13} color="#38bdf8" /> Average Order (AOV)
               </span>
-              <span style={{ fontSize: '17px', fontWeight: 700 }}>
+              <span className="ai-pulse-card-val">
                 {formatCurrency(metrics.aov, currency)}
               </span>
-              <span style={{ fontSize: '11.5px', color: 'var(--color-label-secondary, #64748b)' }}>
-                Upsell Target: {formatCurrency(Math.round(metrics.aov * 1.2), currency)}
+              <span className="ai-pulse-card-sub">
+                Target: {formatCurrency(Math.round(metrics.aov * 1.2), currency)} (+20%)
               </span>
             </div>
 
             <div className="ai-pulse-metric-card">
-              <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-label-tertiary, #94a3b8)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Clock size={12} color="#f59e0b" /> Peak Rush Hours
+              <span className="ai-pulse-card-label">
+                <Clock size={13} color="#f59e0b" /> Peak Rush Hours
               </span>
-              <span style={{ fontSize: '15px', fontWeight: 700 }}>
+              <span className="ai-pulse-card-val">
                 {metrics.peakWindow}
               </span>
-              <span style={{ fontSize: '11.5px', color: 'var(--color-label-secondary, #64748b)' }}>
+              <span className="ai-pulse-card-sub">
                 Highest order volume window
               </span>
             </div>
 
             <div className="ai-pulse-metric-card">
-              <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-label-tertiary, #94a3b8)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Flame size={12} color="#ec4899" /> Hero Dish
+              <span className="ai-pulse-card-label">
+                <Flame size={13} color="#ec4899" /> Hero Dish
               </span>
-              <span 
-                style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                title={metrics.topSellers[0]?.name}
-              >
+              <span className="ai-pulse-card-val" title={metrics.topSellers[0]?.name}>
                 {metrics.topSellers[0]?.name || 'N/A'}
               </span>
-              <span style={{ fontSize: '11.5px', color: 'var(--color-label-secondary, #64748b)' }}>
+              <span className="ai-pulse-card-sub">
                 {metrics.topSellers[0]?.qty || 0} sold • {formatCurrency(metrics.topSellers[0]?.revenue || 0, currency)}
               </span>
             </div>
           </div>
         )}
 
-        {/* Reading Canvas (Claude & ChatGPT Style Centered Stream) */}
+        {/* Reading Canvas */}
         <div className="ai-chat-canvas">
           <div className="ai-reading-column">
-            {/* Claude-style Welcome Hero Screen if starting fresh */}
+            {/* High-Impact Hero Screen if chat is empty */}
             {isChatEmpty && (
               <div className="ai-hero-welcome">
-                <div className="ai-hero-icon">
-                  <Sparkles size={30} />
+                <div className="ai-hero-icon-wrap">
+                  <div className="ai-hero-icon">
+                    <Sparkles size={28} />
+                  </div>
+                  <div className="ai-hero-icon-glow" />
                 </div>
+
                 <h1 className="ai-hero-title">What would you like to optimize today?</h1>
-                <p className="ai-hero-sub">
-                  DineOS AI has digested your recent {metrics.orderCount} orders totaling {formatCurrency(metrics.totalSales, currency)}. Select an operational strategy or ask any business question.
-                </p>
+
+                {/* Telemetry pill showing real restaurant data */}
+                <div className="ai-hero-telemetry-capsule">
+                  <span className="ai-live-indicator-dot" />
+                  <span>Telemetry active: <strong>{metrics.orderCount} orders</strong> ({formatCurrency(metrics.totalSales, currency)})</span>
+                  <span className="ai-telemetry-sep">•</span>
+                  <span>Peak: <strong>{metrics.peakWindow}</strong></span>
+                  <span className="ai-telemetry-sep">•</span>
+                  <span>Health: <strong style={{ color: metrics.healthScore >= 80 ? '#10b981' : '#f59e0b' }}>{metrics.healthScore}/100</strong></span>
+                </div>
 
                 <div className="ai-hero-cards-grid">
-                  {STRATEGY_TOPICS.map((topic, idx) => {
+                  {STRATEGY_TOPICS.map((topic) => {
                     const IconComp = topic.icon;
                     return (
                       <div
-                        key={idx}
+                        key={topic.id}
                         className="ai-strategy-card"
                         onClick={() => handleSendQuestion(topic.prompt)}
                         role="button"
                         tabIndex={0}
                       >
-                        <div className="ai-strategy-card-icon">
-                          <IconComp size={18} />
+                        <div className="ai-strategy-card-top">
+                          <div 
+                            className="ai-strategy-card-icon"
+                            style={{ color: topic.color, borderColor: `${topic.color}33`, background: `${topic.color}15` }}
+                          >
+                            <IconComp size={18} />
+                          </div>
+                          <ArrowUpRight size={16} className="ai-strategy-card-arrow" />
                         </div>
-                        <div>
+
+                        <div className="ai-strategy-card-content">
                           <div className="ai-strategy-card-title">{topic.title}</div>
                           <div className="ai-strategy-card-desc">{topic.subtitle}</div>
+                        </div>
+
+                        <div className="ai-strategy-metric-badge">
+                          {topic.getBadge(metrics, currency)}
                         </div>
                       </div>
                     );
@@ -739,7 +828,7 @@ export default function AiBusinessAdvisorModal({
             )}
 
             {/* Conversation Messages */}
-            {messages.map((m) => {
+            {messages.map((m, mIdx) => {
               const isUser = m.sender === 'user';
               if (isUser) {
                 return (
@@ -751,6 +840,9 @@ export default function AiBusinessAdvisorModal({
                 );
               }
 
+              const isLatestAi = mIdx === messages.length - 1;
+              const { cleanText, suggestions } = parseSuggestionsFromText(m.text);
+
               return (
                 <div key={m.id} className="ai-assistant-row">
                   <div className="ai-assistant-avatar">
@@ -758,18 +850,34 @@ export default function AiBusinessAdvisorModal({
                   </div>
                   <div className="ai-assistant-body">
                     <div className="ai-assistant-meta">
-                      <span>DineOS AI</span>
-                      <span>•</span>
-                      <span>{m.model || (m.isLocal ? 'Local Analytics Engine' : 'Groq Fast Tier')}</span>
+                      <span className="ai-assistant-name">DineOS AI</span>
                     </div>
 
-                    <FormattedAiResponse content={m.text} />
+                    <FormattedAiResponse content={cleanText} />
+
+                    {/* Interactive Follow-Up Chips */}
+                    {suggestions.length > 0 && isLatestAi && (
+                      <div className="ai-suggestions-chips">
+                        {suggestions.map((sug, sIdx) => (
+                          <button
+                            key={sIdx}
+                            type="button"
+                            className="ai-suggestion-chip-btn"
+                            onClick={() => handleSendQuestion(sug)}
+                            disabled={isAiLoading}
+                          >
+                            <span>{sug}</span>
+                            <ArrowRight size={12} className="ai-chip-arrow" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="ai-assistant-actions">
                       <button
                         type="button"
                         className="ai-copy-btn"
-                        onClick={() => handleCopyText(m.id, m.text)}
+                        onClick={() => handleCopyText(m.id, cleanText)}
                       >
                         {copiedMsgId === m.id ? (
                           <>
@@ -779,7 +887,7 @@ export default function AiBusinessAdvisorModal({
                         ) : (
                           <>
                             <Copy size={13} />
-                            <span>Copy advice</span>
+                            <span>Copy</span>
                           </>
                         )}
                       </button>
@@ -793,24 +901,14 @@ export default function AiBusinessAdvisorModal({
             {isAiLoading && (
               <div className="ai-assistant-row">
                 <div className="ai-assistant-avatar">
-                  <Sparkles size={17} />
+                  <Sparkles size={18} />
                 </div>
                 <div className="ai-assistant-body">
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '12px 18px',
-                    borderRadius: '16px',
-                    backgroundColor: 'var(--color-bg-secondary, #f8fafc)',
-                    border: '1px solid var(--color-separator, #e2e8f0)',
-                    fontSize: '13.5px',
-                    color: 'var(--color-label-secondary, #64748b)'
-                  }}>
+                  <div className="ai-typing-container">
                     <span className="ai-typing-dot" />
                     <span className="ai-typing-dot" />
                     <span className="ai-typing-dot" />
-                    <span style={{ marginLeft: '4px' }}>Drafting restaurant growth strategy...</span>
+                    <span className="ai-typing-label">Analyzing restaurant telemetry & calculating optimal strategy...</span>
                   </div>
                 </div>
               </div>
@@ -820,10 +918,10 @@ export default function AiBusinessAdvisorModal({
           </div>
         </div>
 
-        {/* Bottom Floating Prompt Capsule (Claude / ChatGPT style) */}
+        {/* Bottom Floating Prompt Capsule */}
         <footer className="ai-workspace-input-container">
           <div className="ai-input-center-wrap">
-            {/* Quick Follow-up Chips */}
+            {/* Quick Follow-up Chips with vibrant styling */}
             <div className="ai-quick-chips-row">
               {QUICK_CHIPS.map((chip, idx) => (
                 <button
@@ -833,16 +931,18 @@ export default function AiBusinessAdvisorModal({
                   onClick={() => handleSendQuestion(chip)}
                   disabled={isAiLoading}
                 >
-                  <Lightbulb size={11} color="#f59e0b" />
+                  <Lightbulb size={12} className="ai-chip-icon" />
                   <span>{chip}</span>
                 </button>
               ))}
             </div>
 
-            {/* Capsule Bar */}
+            {/* Floating Capsule Bar */}
             <div className="ai-floating-capsule">
+              <Sparkles size={16} className="ai-input-sparkle-icon" />
               <input
                 ref={inputRef}
+                type="text"
                 className="ai-prompt-input"
                 placeholder="Ask anything about sales, dishes, staffing, or margin improvements..."
                 value={inputQuestion}
@@ -854,21 +954,20 @@ export default function AiBusinessAdvisorModal({
                   }
                 }}
                 disabled={isAiLoading}
+                autoComplete="off"
+                spellCheck="false"
               />
               <button
                 type="button"
-                className="ai-send-circle-btn"
+                className={`ai-send-circle-btn ${inputQuestion.trim() ? 'active' : ''}`}
                 onClick={() => handleSendQuestion()}
                 disabled={!inputQuestion.trim() || isAiLoading}
                 title="Send Question (Enter)"
+                aria-label="Send query"
               >
-                <Send size={16} />
+                <Send size={15} />
               </button>
             </div>
-
-            <p className="ai-foot-disclaimer">
-              DineOS AI Advisor is powered by Groq. Verify financial calculations before executing operational changes.
-            </p>
           </div>
         </footer>
       </main>

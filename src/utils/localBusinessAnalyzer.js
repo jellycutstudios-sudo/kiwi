@@ -2,7 +2,7 @@
 // 100% Client-Side Local Business Intelligence & Menu Matrix Engine
 // Runs with zero network calls, zero tokens, and full offline resilience.
 
-export function analyzeBusinessData(orders = [], _menuItems = [], restaurant = {}) {
+export function analyzeBusinessData(orders = [], menuItems = [], restaurant = {}) {
   const validOrders = (orders || []).filter(o => 
     (o.status === 'billed' || (o.paid && o.status !== 'cancelled') || (o.paymentMethod && o.paymentMethod !== 'unpaid')) &&
     o.status !== 'cancelled'
@@ -71,8 +71,23 @@ export function analyzeBusinessData(orders = [], _menuItems = [], restaurant = {
 
   const peakWindow = `${formatHour(peakHour)} – ${formatHour((peakHour + 2) % 24)}`;
 
-  // 4. Menu Item Performance & Item Matrix
+  // 4. Menu Item Performance & Item Matrix (Grounded in real items)
   const itemMap = {};
+
+  // Seed from catalog menu items
+  (menuItems || []).forEach(it => {
+    if (it && it.name) {
+      itemMap[it.name] = {
+        name: it.name,
+        qty: 0,
+        revenue: 0,
+        price: Number(it.price) || 0,
+        category: it.category || it.categoryName || 'General'
+      };
+    }
+  });
+
+  // Accumulate order sales telemetry
   validOrders.forEach(o => {
     const items = o.items || [];
     items.forEach(it => {
@@ -89,12 +104,57 @@ export function analyzeBusinessData(orders = [], _menuItems = [], restaurant = {
       const q = Number(it.qty) || 1;
       itemMap[name].qty += q;
       itemMap[name].revenue += (Number(it.price) || 0) * q;
+      if (it.category && itemMap[name].category === 'General') {
+        itemMap[name].category = it.category;
+      }
     });
   });
 
-  const allItemsRanked = Object.values(itemMap).sort((a, b) => b.qty - a.qty);
-  const topSellers = allItemsRanked.slice(0, 5);
-  const slowMovers = allItemsRanked.filter(i => i.qty > 0).slice(-4).reverse();
+  const allItems = Object.values(itemMap);
+  const allItemsRanked = [...allItems].sort((a, b) => b.qty - a.qty);
+  const topSellers = allItemsRanked.filter(i => i.qty > 0).slice(0, 5);
+  const slowMovers = allItemsRanked.slice(-5).reverse();
+
+  // Categorize actual dishes for accurate, non-hallucinated upsell pairing
+  const isBeverage = (name, cat) => /drink|beverage|tea|chai|coffee|shake|juice|soda|water|cooler|beer|wine|mojito|mocktail|lassi|smoothie|frappe|espresso|latte|cappuccino/i.test(`${name} ${cat}`);
+  const isStarter = (name, cat) => /starter|side|appetizer|soup|salad|bread|garlic|roti|naan|snack|fries|wing|dip|roll|samosa|tikka|bruschetta|nachos|chaat/i.test(`${name} ${cat}`);
+  const isDessert = (name, cat) => /dessert|sweet|cake|ice cream|pastry|pudding|jamun|halwa|brownie|kulfi|tiramisu|pie|sundae|cheesecake|baklava|falooda/i.test(`${name} ${cat}`);
+
+  const formatDishNameWithPrice = (item) => {
+    if (!item) return '';
+    const curr = restaurant.currency || '₹';
+    const space = curr.length > 1 ? ' ' : '';
+    const priceStr = item.price ? ` (${curr}${space}${item.price})` : '';
+    return `${item.name}${priceStr}`;
+  };
+
+  const startersRaw = allItems.filter(i => isStarter(i.name, i.category));
+  const beveragesRaw = allItems.filter(i => isBeverage(i.name, i.category));
+  const dessertsRaw = allItems.filter(i => isDessert(i.name, i.category));
+  const mainsRaw = allItems.filter(i => !isBeverage(i.name, i.category) && !isStarter(i.name, i.category) && !isDessert(i.name, i.category));
+
+  // Fallbacks: If specific categories are empty, fallback to available products so AI has real items to suggest
+  const remainingDishes = allItems.map(i => i.name);
+  const starters = startersRaw.length > 0 
+    ? startersRaw.map(formatDishNameWithPrice).slice(0, 8) 
+    : remainingDishes.slice(0, 3).map(name => formatDishNameWithPrice(itemMap[name]));
+  const beverages = beveragesRaw.length > 0 
+    ? beveragesRaw.map(formatDishNameWithPrice).slice(0, 8) 
+    : (remainingDishes[3] ? [formatDishNameWithPrice(itemMap[remainingDishes[3]])] : []);
+  const desserts = dessertsRaw.length > 0 
+    ? dessertsRaw.map(formatDishNameWithPrice).slice(0, 8) 
+    : (remainingDishes[4] ? [formatDishNameWithPrice(itemMap[remainingDishes[4]])] : []);
+  const mains = mainsRaw.length > 0 
+    ? mainsRaw.map(formatDishNameWithPrice).slice(0, 8) 
+    : (topSellers.length > 0 ? topSellers.map(formatDishNameWithPrice) : remainingDishes.slice(0, 5).map(name => formatDishNameWithPrice(itemMap[name])));
+
+  const menuCatalog = {
+    starters,
+    beverages,
+    desserts,
+    mains,
+    allDishes: allItems.map(formatDishNameWithPrice).slice(0, 25)
+  };
 
   // 5. Health Score Calculation (0 - 100)
   let healthScore = 65;
@@ -156,28 +216,43 @@ export function analyzeBusinessData(orders = [], _menuItems = [], restaurant = {
     peakWindow,
     topSellers,
     slowMovers,
+    menuCatalog,
     healthScore,
     localInsights
   };
 }
 
-// Generates a tiny, pre-digested summary string (~200-300 tokens)
-// to send to Groq LLM without burning API credits.
+// Generates a compact digest strictly grounded in real restaurant products
 export function generateCompactDigest(metrics, restaurant = {}, periodLabel = 'Recent Performance') {
   const currency = restaurant.currency || 'INR';
   const name = restaurant.name || 'Restaurant';
+  const cat = metrics.menuCatalog || {};
+  const cuisine = restaurant.cuisineType || restaurant.cuisine || 'Restaurant / Cafe';
+
+  const formatDishList = (arr) => {
+    if (!Array.isArray(arr) || arr.length === 0) return 'None listed';
+    return arr.join(', ');
+  };
 
   return `
-Restaurant: ${name} (${restaurant.cuisineType || 'Dining'})
+Restaurant Name: ${name}
+Cuisine / Business Concept: ${cuisine}
+Official Currency: ${currency}
 Analysis Period: ${periodLabel}
 Total Revenue: ${currency} ${metrics.totalSales.toLocaleString()}
-Order Count: ${metrics.orderCount}
+Total Orders: ${metrics.orderCount}
 Average Order Value (AOV): ${currency} ${metrics.aov}
 Discounts Burn Rate: ${metrics.discountRate}% of gross
 Peak Rush Hours: ${metrics.peakWindow}
-Channel Split: Dine-In (${metrics.channelCounts['dine-in']} orders), Takeaway (${metrics.channelCounts['takeaway']} orders), Online (${metrics.channelCounts['online']} orders)
-Top 3 Bestsellers: ${metrics.topSellers.slice(0, 3).map(s => `${s.name} (${s.qty} sold, ${currency}${s.revenue})`).join(', ') || 'N/A'}
-Slowest Moving Items: ${metrics.slowMovers.slice(0, 3).map(s => `${s.name} (${s.qty} sold)`).join(', ') || 'N/A'}
-Business Health Score: ${metrics.healthScore}/100
+
+=== REAL MENU ITEMS & PRODUCTS SOLD HERE (DO NOT INVENT OTHER DISHES) ===
+• Top Bestsellers: ${metrics.topSellers.map(s => `${s.name} (${currency}${currency.length > 1 ? ' ' : ''}${s.price || ''})`).join(', ') || 'None recorded'}
+• Slow Moving Items: ${metrics.slowMovers.map(s => `${s.name} (${currency}${currency.length > 1 ? ' ' : ''}${s.price || ''})`).join(', ') || 'None recorded'}
+• Starters & Sides on Menu: ${formatDishList(cat.starters)}
+• Main Courses on Menu: ${formatDishList(cat.mains)}
+• Beverages & Drinks on Menu: ${formatDishList(cat.beverages)}
+• Desserts & Sweets on Menu: ${formatDishList(cat.desserts)}
+• All Active Dishes in Catalog: ${formatDishList(cat.allDishes)}
+========================================================================
 `.trim();
 }

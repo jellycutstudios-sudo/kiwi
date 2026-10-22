@@ -3,11 +3,16 @@ import { ChefHat, Printer, Monitor, Zap, Volume2, Sliders, Plus, X, RotateCcw } 
 import toast from 'react-hot-toast';
 import { printSingleKitchenTicket } from '../../utils/print';
 import { getKitchenStations, DEFAULT_KITCHEN_STATIONS, SUGGESTED_KITCHEN_STATIONS } from '../../utils/stations';
+import ToggleSwitch from '../shared/ToggleSwitch';
 
 export default function KitchenSettings({ settings, updateField }) {
   const [newStationInput, setNewStationInput] = useState('');
   const kitchenConfig = settings?.kitchenConfig || {};
-  const currentMode = kitchenConfig.mode || (settings?.modes?.includes('kds') ? 'both' : 'printer_only');
+  const currentMode = kitchenConfig.mode || (
+    settings?.businessType === 'bill_only'
+      ? 'disabled'
+      : (settings?.modes?.includes('kds') ? 'both' : 'disabled')
+  );
   const paperSize = kitchenConfig.paperSize || '80mm';
   const ticketTitle = kitchenConfig.ticketTitle ?? 'KITCHEN TICKET (KOT)';
   const stationName = kitchenConfig.stationName ?? 'Main Kitchen';
@@ -385,43 +390,46 @@ export default function KitchenSettings({ settings, updateField }) {
                 Auto-Print Triggers & Alerts
               </span>
 
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
                 <div>
                   <span style={{ fontSize: '13px', fontWeight: 'var(--weight-medium)' }}>Print on Dine-In "Send to Kitchen"</span>
                   <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Prints KOT when table orders are placed or modified</div>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  id="toggle-print-dine-in"
+                  size="sm"
                   checked={autoPrintOnDineIn}
                   onChange={e => updateField('kitchenConfig.autoPrintOnDineIn', e.target.checked)}
                 />
-              </label>
+              </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
                 <div>
                   <span style={{ fontSize: '13px', fontWeight: 'var(--weight-medium)' }}>Print on Counter / Takeaway Checkout</span>
                   <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Prints ticket when takeaway/quick-pay orders are completed</div>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  id="toggle-print-quick-pay"
+                  size="sm"
                   checked={autoPrintOnQuickPay}
                   onChange={e => updateField('kitchenConfig.autoPrintOnQuickPay', e.target.checked)}
                 />
-              </label>
+              </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
                 <div>
                   <span style={{ fontSize: '13px', fontWeight: 'var(--weight-medium)' }}>Print when Online Order is Accepted</span>
                   <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Automatically dispatches ticket to kitchen when order accepted</div>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  id="toggle-print-online"
+                  size="sm"
                   checked={autoPrintOnOnlineOrder}
                   onChange={e => updateField('kitchenConfig.autoPrintOnOnlineOrder', e.target.checked)}
                 />
-              </label>
+              </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Volume2 size={15} color="var(--color-accent)" />
                   <div>
@@ -429,24 +437,26 @@ export default function KitchenSettings({ settings, updateField }) {
                     <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Beeper command on ESC/POS thermal printer</div>
                   </div>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  id="toggle-kitchen-buzzer"
+                  size="sm"
                   checked={soundBuzzer}
                   onChange={e => updateField('kitchenConfig.soundBuzzer', e.target.checked)}
                 />
-              </label>
+              </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
                 <div>
                   <span style={{ fontSize: '13px', fontWeight: 'var(--weight-medium)' }}>Highlight Cooking Notes Prominently</span>
                   <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Bold caution box for allergy / special preparation notes</div>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  id="toggle-highlight-notes"
+                  size="sm"
                   checked={highlightNotes}
                   onChange={e => updateField('kitchenConfig.highlightNotes', e.target.checked)}
                 />
-              </label>
+              </div>
             </div>
           </div>
         )}

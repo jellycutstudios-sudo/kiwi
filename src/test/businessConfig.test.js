@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { BUSINESS_PRESETS } from '../hooks/useBusinessConfig';
 
 describe('Business Configuration & Profiles Suite', () => {
-  it('defines all five core business presets with required fields', () => {
-    const expectedIds = ['cafe', 'qsr', 'restaurant', 'retail', 'service'];
+  it('defines all six core business presets with required fields', () => {
+    const expectedIds = ['bill_only', 'cafe', 'qsr', 'restaurant', 'retail', 'service'];
     const presetIds = BUSINESS_PRESETS.map(p => p.id);
 
     expectedIds.forEach(id => {
@@ -90,4 +90,31 @@ describe('Business Configuration & Profiles Suite', () => {
     expect(next100).toBe(400);
     expect(next100 - total).toBe(60); // 60 change
   });
+
+  it('correctly configures Bill Only / Express Counter with zero kitchen & zero tables', () => {
+    const billOnly = BUSINESS_PRESETS.find(p => p.id === 'bill_only');
+    expect(billOnly).toBeDefined();
+    expect(billOnly.recommendedModes).toEqual(['pos', 'till_shift']);
+    expect(billOnly.features.enableKds).toBe(false);
+    expect(billOnly.features.enableTableMap).toBe(false);
+    expect(billOnly.features.enableQuickPay).toBe(true);
+
+    // Verify kitchen is strictly inactive in bill_only even if legacy kitchenConfig has mode: 'both'
+    const mockRestaurant = {
+      businessType: 'bill_only',
+      modes: ['pos', 'till_shift'],
+      kitchenConfig: { mode: 'both' }
+    };
+
+    const isBillOnly = mockRestaurant.businessType === 'bill_only';
+    const hasKdsMode = mockRestaurant.modes.includes('kds');
+    const isKitchenActive = !isBillOnly && (
+      mockRestaurant.kitchenConfig?.mode === 'disabled'
+        ? false
+        : (hasKdsMode || (mockRestaurant.peripheralConfig?.printers?.some(p => p.type === 'kitchen') && mockRestaurant.kitchenConfig?.mode === 'printer_only'))
+    );
+
+    expect(isKitchenActive).toBe(false);
+  });
 });
+

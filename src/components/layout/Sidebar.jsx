@@ -306,12 +306,19 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 return false;
               }
               if (n.requiredMode) {
+                const modes = restaurant?.modes ?? ['pos'];
+                const isBillOnly = restaurant?.businessType === 'bill_only';
+
                 if (n.key === 'kds') {
+                  if (isBillOnly || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service') return false;
+                  if (!modes.includes('kds')) return false;
                   const km = restaurant?.kitchenConfig?.mode;
                   if (km === 'disabled' || km === 'printer_only') return false;
-                  if (km === 'display_only' || km === 'both') return true;
+                  return true;
                 }
-                const modes = restaurant?.modes ?? ['pos'];
+                if (n.key === 'tables' && (isBillOnly || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service')) {
+                  return false;
+                }
                 if (n.key === 'online_orders') {
                   return modes.includes('online') || unreadOnlineCount > 0;
                 }
