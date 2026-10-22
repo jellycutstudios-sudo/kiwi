@@ -197,7 +197,7 @@ export const useOrderStore = create((set, get) => ({
   clearCart: () => {
     clearPersistedCart();
     set({
-      items: [], tokenNumber: null, tableId: null, tableName: null,
+      items: [], orderType: 'dine-in', tokenNumber: null, tableId: null, tableName: null,
       customerName: '', customerPhone: '', note: '', editingOrderId: null,
       discount: 0, discountType: 'fixed', splitPayments: [],
       customer: null, redeemingPoints: false,

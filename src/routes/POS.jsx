@@ -1151,12 +1151,16 @@ export default function POS() {
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
-  // Auto-switch to takeaway/purchase only for pure retail and service
+  // Default to 'dine-in' for fresh orders unless pure non-food retail or service
   useEffect(() => {
-    if ((isRetail || isService) && orderType === 'dine-in') {
+    if (!isRetail && !isService) {
+      if (!editingOrderId && items.length === 0 && orderType !== 'dine-in') {
+        setOrderType('dine-in');
+      }
+    } else if (orderType === 'dine-in') {
       setOrderType('takeaway');
     }
-  }, [isRetail, isService, orderType, setOrderType]);
+  }, [isRetail, isService, editingOrderId, items.length, orderType, setOrderType]);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
 
