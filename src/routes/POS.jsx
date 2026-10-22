@@ -685,7 +685,7 @@ export default function POS() {
     const toastId = toast.loading(`Processing 1-tap ${method.toUpperCase()} payment...`);
 
     try {
-      let token = tokenNumber;
+      let token = modes.includes('token') ? tokenNumber : null;
       if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
         token = await issueToken(restaurant.id);
         setToken(token);
@@ -718,7 +718,7 @@ export default function POS() {
         id: res.orderId,
         type: snapOrderType,
         tableName: snapTableName,
-        token: res.token || token,
+        token: modes.includes('token') ? (res.token || token) : null,
         isOffline: Boolean(res.isOffline),
         customerName: snapCustomerName,
         customerPhone: snapCustomerPhone,
@@ -737,7 +737,7 @@ export default function POS() {
       if (res.isOffline) {
         toast.success(change > 0 
           ? `Offline payment buffered! Return Change: ${formatCurrency(change, currency)}` 
-          : `Order buffered offline (#${res.token || token})! Will sync when online.`, 
+          : (modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Will sync when online.` : `Order buffered offline! Will sync when online.`), 
           { id: toastId, icon: '⚡', duration: 5000 }
         );
       } else if (change > 0) {
@@ -765,7 +765,7 @@ export default function POS() {
           });
         }
 
-        if (token) {
+        if (modes.includes('token') && token) {
           printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
         }
       }, 50);
@@ -1180,7 +1180,7 @@ export default function POS() {
       return;
     }
 
-    let token = tokenNumber;
+    let token = modes.includes('token') ? tokenNumber : null;
     if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
       token = await issueToken(restaurant.id);
       setToken(token);
@@ -1202,7 +1202,7 @@ export default function POS() {
     if (!res.ok) { toast.error(res.error); return; }
 
     if (res.isOffline) {
-      toast.success(`Order buffered offline (#${res.token || token})! Ticket printing...`, { icon: '⚡', duration: 4500 });
+      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Ticket printing...` : `Order buffered offline! Ticket printing...`, { icon: '⚡', duration: 4500 });
     } else {
       toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
     }
@@ -1216,7 +1216,7 @@ export default function POS() {
           type: snapOrderType,
           tableName: snapTableName,
           tableId: snapTableId,
-          token: res.token || token,
+          token: modes.includes('token') ? (res.token || token) : null,
           isOffline: Boolean(res.isOffline),
           customerName: snapCustomerName,
           note: snapNote,
@@ -1224,7 +1224,7 @@ export default function POS() {
         items: snapItems,
         staffName: snapStaffName
       });
-      if (token || res.token) {
+      if (modes.includes('token') && (token || res.token)) {
         printTokenTicket({ token: res.token || token, orderType: snapOrderType, customerName: snapCustomerName, restaurant, isOffline: Boolean(res.isOffline) });
       }
     }, 100);
@@ -1236,7 +1236,7 @@ export default function POS() {
       id: editingOrderId || 'PRE-BILL',
       type: orderType,
       tableName,
-      token: tokenNumber,
+      token: modes.includes('token') ? tokenNumber : null,
       customerName,
       subtotal,
       discount,
@@ -1301,7 +1301,7 @@ export default function POS() {
 
     try {
       // If QSR mode — issue token (if not already set)
-      let token = tokenNumber;
+      let token = modes.includes('token') ? tokenNumber : null;
       if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
         token = await issueToken(restaurant.id);
         setToken(token);
@@ -1333,7 +1333,7 @@ export default function POS() {
       }
 
       if (res.isOffline) {
-        toast.success(`Payment buffered offline (#${res.token || token})! Tickets printing...`, { id: toastId, icon: '⚡', duration: 4500 });
+        toast.success(modes.includes('token') && (res.token || token) ? `Payment buffered offline (#${res.token || token})! Tickets printing...` : `Payment buffered offline! Tickets printing...`, { id: toastId, icon: '⚡', duration: 4500 });
       } else {
         toast.success('Payment completed & order placed! ⚡', { id: toastId });
       }
@@ -1342,7 +1342,7 @@ export default function POS() {
         id: res.orderId,
         type: snapOrderType,
         tableName: snapTableName,
-        token: res.token || token,
+        token: modes.includes('token') ? (res.token || token) : null,
         isOffline: Boolean(res.isOffline),
         customerName: snapCustomerName,
         customerPhone: snapCustomerPhone,
@@ -1377,7 +1377,7 @@ export default function POS() {
           staffName: snapStaffName,
         });
 
-        if (token) {
+        if (modes.includes('token') && token) {
           printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
         }
       }, 50);

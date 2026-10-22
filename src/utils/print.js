@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { useMenuStore } from '../stores/menuStore';
+import { getActiveModes } from '../hooks/useBusinessConfig';
 
 // A robust helper to translate Unicode strings to ASCII bytes with best-effort transliteration fallback
 function unicodeToEscPosBytes(text) {
@@ -183,9 +184,10 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     writeTextLine('*** OFFLINE BUFFERED RECEIPT ***');
     writeBytes(BOLD_OFF);
   }
+  const isTokenEnabled = getActiveModes(restaurant).includes('token');
   const orderTypeLabel =
     order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
-    order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
+    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
   writeTextLine(orderTypeLabel);
   
@@ -289,7 +291,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
 }
 
 // Compile kitchen station ticket for ESC/POS
-function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) {
+function compileEscPosKitchenTicket({ restaurant, order, items, staffName, printerConfig }) {
   const lineWidth = getPrinterLineWidth(printerConfig);
   const is58mm = lineWidth === 32;
   const ticketTitle = printerConfig?.ticketTitle || 'KITCHEN TICKET';
@@ -339,9 +341,10 @@ function compileEscPosKitchenTicket({ order, items, staffName, printerConfig }) 
   writeTextLine(`Station: ${printerConfig?.name || 'Kitchen'}`);
   writeTextLine(`Date: ${new Date().toLocaleString()}`);
   
+  const isTokenEnabled = restaurant ? getActiveModes(restaurant).includes('token') : Boolean(order.token);
   const orderTypeLabel =
     order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
-    order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
+    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
   
   writeBytes(BOLD_ON);
@@ -709,6 +712,7 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
     const effectivePaperSize = printer.paperSize || paperSize;
     if (printer.mode === 'browser') {
       printKitchenBrowser({
+        restaurant,
         order,
         items: routedItems,
         printerName: printer.name || 'Kitchen',
@@ -717,6 +721,7 @@ export function printKitchenTickets({ restaurant, order, items, staffName }) {
       });
     } else {
       const buffer = compileEscPosKitchenTicket({
+        restaurant,
         order,
         items: routedItems,
         staffName,
@@ -756,6 +761,7 @@ export function printSingleKitchenTicket({ restaurant, order, items, staffName, 
 
   if (!targetPrinter || targetPrinter.mode === 'browser') {
     printKitchenBrowser({
+      restaurant,
       order,
       items: orderItems,
       printerName: targetPrinter?.name || 'Kitchen Station',
@@ -766,6 +772,7 @@ export function printSingleKitchenTicket({ restaurant, order, items, staffName, 
   }
 
   const buffer = compileEscPosKitchenTicket({
+    restaurant,
     order,
     items: orderItems,
     staffName: staffName || order?.staffName,
@@ -821,9 +828,10 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
     `<tr><td colspan="2">${l.label}</td><td style="text-align:right">${l.amount.toFixed(2)}</td></tr>`
   ).join('');
 
+  const isTokenEnabled = getActiveModes(restaurant).includes('token');
   const orderTypeLabel =
     order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
-    order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
+    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
 
   const discountRow = order.discountAmount && order.discountAmount > 0
@@ -958,9 +966,10 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
     </tr>`
   ).join('');
 
+  const isTokenEnabled = getActiveModes(restaurant).includes('token');
   const orderTypeLabel =
     order.type === 'dine-in'  ? `Dine-In (${order.tableName ? `Table ${order.tableName}` : 'Table'})` :
-    order.type === 'takeaway' ? `Takeaway (${order.token ? `Token #${order.token}` : 'Pickup'})` :
+    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Takeaway (Token #${order.token})` : 'Takeaway (Pickup)') :
     `Online Delivery`;
 
   win.document.write(`
@@ -1163,7 +1172,7 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
   setTimeout(() => { win.print(); win.close(); }, 400);
 }
 
-function printKitchenBrowser({ order, items, printerName, paperSize = '80mm', title = 'KITCHEN TICKET' }) {
+function printKitchenBrowser({ restaurant, order, items, printerName, paperSize = '80mm', title = 'KITCHEN TICKET' }) {
   const is58mm = paperSize === '58mm';
   const win = window.open('', '_blank', 'width=360,height=480');
   if (!win) return;
@@ -1178,9 +1187,10 @@ function printKitchenBrowser({ order, items, printerName, paperSize = '80mm', ti
       : ''}`
   ).join('');
 
+  const isTokenEnabled = restaurant ? getActiveModes(restaurant).includes('token') : Boolean(order.token);
   const orderTypeLabel =
     order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
-    order.type === 'takeaway' ? `Token: #${order.token ?? '-'}` :
+    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
 
   const bodyWidth = is58mm ? '52mm' : '76mm';
@@ -1190,7 +1200,7 @@ function printKitchenBrowser({ order, items, printerName, paperSize = '80mm', ti
 <html>
 <head>
 <meta charset="UTF-8"/>
-<title>${title} - ${order.tableName || order.token || ''}</title>
+<title>${title} - ${order.tableName || (isTokenEnabled && order.token ? `Token #${order.token}` : '') || ''}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -1235,6 +1245,15 @@ ${order.note ? `<div style="font-size:${is58mm ? '12px' : '14px'}; font-weight:b
 }
 
 export function printTokenTicket({ token, orderType, customerName, restaurant, isOffline = false }) {
+  if (!token) return;
+  const activeModes = getActiveModes(restaurant);
+  if (!activeModes.includes('token')) {
+    return;
+  }
+  if (restaurant?.workflowConfig?.printTokenSlip === false) {
+    return;
+  }
+
   // Detect paper size from first receipt printer config, default to 80mm
   const printers = restaurant?.peripheralConfig?.printers ?? [];
   const receiptPrinter = printers.find(p => p.type === 'receipt');

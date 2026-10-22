@@ -32,7 +32,7 @@ describe('Zero-Downtime Offline Queue Engine', () => {
       paymentMethod: 'cash'
     };
 
-    const result = useOfflineQueueStore.getState().enqueueOrder(mockOrder, { id: 'rest-101' });
+    const result = useOfflineQueueStore.getState().enqueueOrder(mockOrder, { id: 'rest-101', modes: ['pos', 'token'] });
 
     expect(result.ok).toBe(true);
     expect(result.isOffline).toBe(true);
@@ -50,6 +50,16 @@ describe('Zero-Downtime Offline Queue Engine', () => {
     const parsed = JSON.parse(rawStorage);
     expect(parsed.length).toBe(1);
     expect(parsed[0].tableName).toBe('Table 5');
+  });
+
+  it('omits token from offline order when token mode is disabled', () => {
+    const mockOrder = {
+      type: 'takeaway',
+      total: 150,
+      paymentMethod: 'cash'
+    };
+    const noTokenResult = useOfflineQueueStore.getState().enqueueOrder(mockOrder, { id: 'rest-101', modes: ['pos'] });
+    expect(noTokenResult.token).toBeNull();
   });
 
   it('removes single order from queue on dequeueOrder', () => {

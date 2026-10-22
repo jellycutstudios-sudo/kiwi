@@ -4,7 +4,8 @@ import {
   printInvoiceA4,
   printReceiptBrowser,
   printReceiptSingle,
-  printReceipt
+  printReceipt,
+  printTokenTicket
 } from '../utils/print';
 
 describe('Multi-Format Print & Auto-Detection Suite', () => {
@@ -187,4 +188,123 @@ describe('Multi-Format Print & Auto-Detection Suite', () => {
       expect(html).toContain('Tax Invoice / Bill of Supply');
     });
   });
+
+  describe('Token Module Conditional Printing Suite', () => {
+    const restaurantWithoutToken = {
+      name: 'Boutique Dine-in',
+      businessType: 'restaurant',
+      modes: ['pos', 'table', 'kds'], // token NOT included
+      currency: 'INR'
+    };
+
+    const restaurantWithToken = {
+      name: 'Express QSR Counter',
+      businessType: 'qsr',
+      modes: ['pos', 'token', 'till_shift'], // token included
+      workflowConfig: {
+        printTokenSlip: true
+      },
+      currency: 'INR'
+    };
+
+    const restaurantWithTokenDisabledSlip = {
+      name: 'Express QSR Counter',
+      businessType: 'qsr',
+      modes: ['pos', 'token', 'till_shift'],
+      workflowConfig: {
+        printTokenSlip: false
+      },
+      currency: 'INR'
+    };
+
+    it('does NOT print token ticket when token module is not turned on', () => {
+      printTokenTicket({
+        token: '42',
+        orderType: 'takeaway',
+        customerName: 'Aarav',
+        restaurant: restaurantWithoutToken
+      });
+      expect(mockWindowOpen).not.toHaveBeenCalled();
+    });
+
+    it('does NOT print token ticket when token slip printing is explicitly turned off', () => {
+      printTokenTicket({
+        token: '42',
+        orderType: 'takeaway',
+        customerName: 'Aarav',
+        restaurant: restaurantWithTokenDisabledSlip
+      });
+      expect(mockWindowOpen).not.toHaveBeenCalled();
+    });
+
+    it('prints token ticket when token module is enabled and printTokenSlip is true', () => {
+      printTokenTicket({
+        token: '42',
+        orderType: 'takeaway',
+        customerName: 'Aarav',
+        restaurant: restaurantWithToken
+      });
+      expect(mockWindowOpen).toHaveBeenCalled();
+      const html = mockDocumentWrite.mock.calls[0][0];
+      expect(html).toContain('042');
+    });
+
+    it('prints "Takeaway" instead of "Token: #-" on receipts when token module is turned off', () => {
+      printReceiptBrowser({
+        restaurant: restaurantWithoutToken,
+        order: {
+          id: 'ORD-1234',
+          type: 'takeaway',
+          token: null,
+          total: 200
+        },
+        items: [{ name: 'Burger', qty: 1, price: 200 }],
+        taxInfo: { lines: [] },
+        staffName: 'Cashier'
+      });
+      expect(mockWindowOpen).toHaveBeenCalled();
+      const html = mockDocumentWrite.mock.calls[0][0];
+      expect(html).toContain('Takeaway');
+      expect(html).not.toContain('Token: #-');
+      expect(html).not.toContain('Token: #');
+    });
+
+    it('prints "Token: #42" on receipts when token module is turned on and token is present', () => {
+      printReceiptBrowser({
+        restaurant: restaurantWithToken,
+        order: {
+          id: 'ORD-1234',
+          type: 'takeaway',
+          token: '42',
+          total: 200
+        },
+        items: [{ name: 'Burger', qty: 1, price: 200 }],
+        taxInfo: { lines: [] },
+        staffName: 'Cashier'
+      });
+      expect(mockWindowOpen).toHaveBeenCalled();
+      const html = mockDocumentWrite.mock.calls[0][0];
+      expect(html).toContain('Token: #42');
+    });
+
+    it('prints "Takeaway (Pickup)" on A4 invoices when token module is turned off', () => {
+      printInvoiceA4({
+        restaurant: restaurantWithoutToken,
+        order: {
+          id: 'ORD-1234',
+          type: 'takeaway',
+          token: null,
+          total: 200
+        },
+        items: [{ name: 'Burger', qty: 1, price: 200 }],
+        taxInfo: { lines: [] },
+        staffName: 'Cashier'
+      });
+      expect(mockWindowOpen).toHaveBeenCalled();
+      const html = mockDocumentWrite.mock.calls[0][0];
+      expect(html).toContain('Takeaway (Pickup)');
+      expect(html).not.toContain('Token #');
+    });
+  });
 });
+

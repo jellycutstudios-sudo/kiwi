@@ -1897,6 +1897,28 @@ export default function Settings() {
                         onChange={e => updateField('workflowConfig.tokenVoiceCallout', e.target.checked)}
                       />
                     </div>
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-bg-secondary)',
+                      gap: 12
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>🖨️ Auto-Print Token Slip on New Order</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                          Automatically print dedicated thermal token slip for customer waiting / collection queues.
+                        </div>
+                      </div>
+                      <ToggleSwitch
+                        id="toggle-print-token-slip"
+                        checked={settings.workflowConfig?.printTokenSlip ?? true}
+                        onChange={e => updateField('workflowConfig.printTokenSlip', e.target.checked)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

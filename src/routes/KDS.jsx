@@ -28,6 +28,7 @@ import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getKitchenStations } from '../utils/stations';
 import { getOrderTimestampMs, getOrderElapsedSeconds, formatOrderStopwatch } from '../utils/timezoneUtils';
+import { getActiveModes } from '../hooks/useBusinessConfig';
 
 // Pleasant Web Audio synthesizer for kitchen notifications
 function playKitchenChime() {
@@ -53,7 +54,7 @@ function playKitchenChime() {
 
 export default function KDS() {
   const restaurant = useAuthStore(s => s.restaurant);
-  const modes = useMemo(() => restaurant?.modes || [], [restaurant?.modes]);
+  const modes = useMemo(() => getActiveModes(restaurant), [restaurant]);
   const activeOrders = useOrderStore(s => s.activeOrders);
   const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
   const { callSpecificToken } = useTokenStore();
@@ -268,7 +269,8 @@ export default function KDS() {
         if (targetOrder) {
           e.preventDefault();
           handleMarkReady(targetOrder, activeStation);
-          toast.success(`Bumped Ticket #${targetOrder.token || targetOrder.id.slice(-4)} via Bump Bar [${e.key}]!`, { icon: '⚡' });
+          const identifier = (modes.includes('token') && targetOrder.token) ? targetOrder.token : targetOrder.id.slice(-4);
+          toast.success(`Bumped Ticket #${identifier} via Bump Bar [${e.key}]!`, { icon: '⚡' });
         }
         return;
       }
@@ -279,7 +281,8 @@ export default function KDS() {
           e.preventDefault();
           const oldestOrder = kdsOrders[0];
           handleMarkReady(oldestOrder, activeStation);
-          toast.success(`Bumped Ticket #${oldestOrder.token || oldestOrder.id.slice(-4)} Ready!`, { icon: '⚡' });
+          const identifier = (modes.includes('token') && oldestOrder.token) ? oldestOrder.token : oldestOrder.id.slice(-4);
+          toast.success(`Bumped Ticket #${identifier} Ready!`, { icon: '⚡' });
         }
         return;
       }
@@ -983,7 +986,7 @@ export default function KDS() {
                 <div className="kds-order-header">
                   <div>
                     <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {order.token && (
+                      {modes.includes('token') && order.token && (
                         <span style={{
                           background: 'var(--color-accent-light)',
                           color: 'var(--color-accent)',
@@ -1206,7 +1209,7 @@ export default function KDS() {
                   <div className="kds-order-header">
                     <div>
                       <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        {order.token && (
+                        {modes.includes('token') && order.token && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

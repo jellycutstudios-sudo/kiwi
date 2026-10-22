@@ -3,6 +3,7 @@ import { collection, doc, writeBatch, serverTimestamp, increment, Timestamp } fr
 import { db } from '../firebase';
 import { useShiftStore } from './shiftStore';
 import { useAuthStore } from './authStore';
+import { getActiveModes } from '../hooks/useBusinessConfig';
 import toast from 'react-hot-toast';
 
 const QUEUE_STORAGE_KEY = 'dineos_offline_order_queue';
@@ -49,7 +50,11 @@ export const useOfflineQueueStore = create((set, get) => {
     enqueueOrder: (orderPayload, restaurant) => {
       const queue = get().queue;
       const clientOrderId = orderPayload.id || `offline_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      const tokenNumber = orderPayload.token || `OFF-${Math.floor(100 + Math.random() * 900)}`;
+      const rest = restaurant || useAuthStore.getState().restaurant;
+      const isTokenEnabled = getActiveModes(rest).includes('token');
+      const tokenNumber = isTokenEnabled
+        ? (orderPayload.token || `OFF-${Math.floor(100 + Math.random() * 900)}`)
+        : null;
       const nowIso = new Date().toISOString();
 
       // Ensure createdAt is a valid ISO string, never undefined or Firestore sentinel
