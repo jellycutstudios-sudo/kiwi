@@ -186,7 +186,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   }
   const isTokenEnabled = getActiveModes(restaurant).includes('token');
   const orderTypeLabel =
-    order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
+    order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
   writeTextLine(orderTypeLabel);
@@ -343,7 +343,7 @@ function compileEscPosKitchenTicket({ restaurant, order, items, staffName, print
   
   const isTokenEnabled = restaurant ? getActiveModes(restaurant).includes('token') : Boolean(order.token);
   const orderTypeLabel =
-    order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
+    order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
   
@@ -830,7 +830,7 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
 
   const isTokenEnabled = getActiveModes(restaurant).includes('token');
   const orderTypeLabel =
-    order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
+    order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
 
@@ -968,7 +968,7 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
 
   const isTokenEnabled = getActiveModes(restaurant).includes('token');
   const orderTypeLabel =
-    order.type === 'dine-in'  ? `Dine-In (${order.tableName ? `Table ${order.tableName}` : 'Table'})` :
+    order.type === 'dine-in'  ? (order.tableName ? `Dine-In (Table ${order.tableName})` : `Dine-In (Open Seating)`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Takeaway (Token #${order.token})` : 'Takeaway (Pickup)') :
     `Online Delivery`;
 
@@ -1189,7 +1189,7 @@ function printKitchenBrowser({ restaurant, order, items, printerName, paperSize 
 
   const isTokenEnabled = restaurant ? getActiveModes(restaurant).includes('token') : Boolean(order.token);
   const orderTypeLabel =
-    order.type === 'dine-in'  ? `Table: ${order.tableName ?? '-'}` :
+    order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
 
@@ -1200,7 +1200,7 @@ function printKitchenBrowser({ restaurant, order, items, printerName, paperSize 
 <html>
 <head>
 <meta charset="UTF-8"/>
-<title>${title} - ${order.tableName || (isTokenEnabled && order.token ? `Token #${order.token}` : '') || ''}</title>
+<title>${title} - ${order.tableName ? `Table ${order.tableName}` : (order.type === 'dine-in' ? 'Dine-In' : (isTokenEnabled && order.token ? `Token #${order.token}` : 'Takeaway'))}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {

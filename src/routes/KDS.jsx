@@ -1235,7 +1235,7 @@ export default function KDS() {
                           </button>
                         )}
                         <span>
-                          {order.type === 'dine-in' ? `🪑 ${order.tableName ?? 'Table'}` : (order.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online')}
+                          {order.type === 'dine-in' ? (order.tableName ? `🪑 Table ${order.tableName}` : '🍽️ Dine-In') : (order.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online')}
                         </span>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 3, fontWeight: 600 }}>

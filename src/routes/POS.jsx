@@ -1146,17 +1146,17 @@ export default function POS() {
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly && hasMode('table') },
+    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService },
     { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (t('takeaway') || 'Takeaway')), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
-  // Auto-switch to takeaway/purchase if currently in dine-in for pure retail, service, bill only, or when table mode is off
+  // Auto-switch to takeaway/purchase only for pure retail and service
   useEffect(() => {
-    if ((isRetail || isService || isBillOnly || !hasMode('table')) && orderType === 'dine-in') {
+    if ((isRetail || isService) && orderType === 'dine-in') {
       setOrderType('takeaway');
     }
-  }, [isRetail, isService, isBillOnly, hasMode, orderType, setOrderType]);
+  }, [isRetail, isService, orderType, setOrderType]);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
 
