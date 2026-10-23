@@ -349,7 +349,7 @@ export default function KDS() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [kdsOrders, recentReadyOrders, activeStation, stationsList, kdsSortOrder, handleSortOrderChange, toggleFullscreen, handleMarkReady, handleRecallOrder]);
+  }, [kdsOrders, recentReadyOrders, activeStation, stationsList, kdsSortOrder, handleSortOrderChange, toggleFullscreen, handleMarkReady, handleRecallOrder, modes]);
 
   const cycleItemStatus = async (order, itemIndex, currentStatus) => {
     let nextStatus = 'pending';

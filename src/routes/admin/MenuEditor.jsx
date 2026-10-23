@@ -825,26 +825,39 @@ export default function MenuEditor() {
 
           {/* Mobile Clean 2-Row Toolbar */}
           <div className="mobile-only" style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-separator-opaque)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Row 1: Active Category Info & Edit Button */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '18px' }}>{activeCatData?.emoji}</span>
-                <span style={{ fontWeight: 700, fontSize: '15px' }}>{activeCatData?.name ?? 'Select category'}</span>
-                <span className="badge badge-gray" style={{ fontSize: '10px', padding: '2px 6px' }}>
+            {/* Row 1: Active Category Info & Edit / Add Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ fontSize: '18px', flexShrink: 0 }}>{activeCatData?.emoji}</span>
+                <span style={{ fontWeight: 700, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeCatData?.name ?? 'Select category'}</span>
+                <span className="badge badge-gray" style={{ fontSize: '10px', padding: '2px 6px', flexShrink: 0 }}>
                   {activeCatData?.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
                 </span>
               </div>
-              {activeCatData && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => openEditCategory(activeCatData)}
-                  style={{ height: 30, padding: '0 10px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                  title={`Edit ${activeCatData.name}`}
-                >
-                  <Edit2 size={12} /> Edit
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {activeCatData && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => openEditCategory(activeCatData)}
+                    style={{ height: 30, padding: '0 10px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    title={`Edit ${activeCatData.name}`}
+                  >
+                    <Edit2 size={12} /> Edit
+                  </button>
+                )}
+                {activeCatId && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    id="mobile-toolbar-add-item-btn"
+                    onClick={openAddItemModal}
+                    style={{ height: 30, padding: '0 10px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}
+                  >
+                    <Plus size={13} /> Add {terms.item || 'Item'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Row 2: Search input + View switcher side-by-side (100% balanced, no wrapping!) */}
@@ -905,6 +918,16 @@ export default function MenuEditor() {
               <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
                 <div style={{fontSize:32}}>🍽️</div>
                 <div style={{marginTop:'var(--space-2)'}}>No {terms.items?.toLowerCase() || 'items'} in this {terms.category?.toLowerCase() || 'category'}</div>
+                {activeCatId && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={openAddItemModal}
+                    style={{ marginTop: 'var(--space-3)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Plus size={14} /> Add First {terms.item || 'Item'}
+                  </button>
+                )}
               </div>
             ) : (() => {
               const filteredItems = (activeCatData?.items ?? []).filter(item => {

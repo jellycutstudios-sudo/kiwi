@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import {
   X, UploadCloud, Download, FileText, CheckCircle2, AlertTriangle,
-  Layers, Utensils, RefreshCw, HelpCircle, ArrowRight, ShieldAlert, Sparkles, Filter
+  Layers, Utensils, RefreshCw, HelpCircle, Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -15,8 +15,6 @@ import {
 import { formatCurrency } from '../../utils/formatCurrency';
 
 export default function MenuCsvModal({ isOpen, onClose, restaurant }) {
-  if (!isOpen) return null;
-
   const { categories, setCategories } = useMenuStore();
   const fileInputRef = useRef(null);
 
@@ -27,6 +25,8 @@ export default function MenuCsvModal({ isOpen, onClose, restaurant }) {
   const [importMode, setImportMode] = useState('merge'); // 'merge' | 'replace'
   const [previewSearch, setPreviewSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  if (!isOpen) return null;
 
   // Download official sample template
   const handleDownloadTemplate = () => {

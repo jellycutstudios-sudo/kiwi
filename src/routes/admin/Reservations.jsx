@@ -328,32 +328,19 @@ export default function Reservations() {
       </div>
 
       {/* Tabs / Filter Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)', borderBottom: '1.5px solid var(--color-separator)' }}>
-        <div style={{ display: 'flex', marginBottom: '-1.5px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+        <div className="nav-tabs no-scrollbar touch-scroll-x" style={{ flex: 1, minWidth: 260 }}>
           {[
             { key: 'bookings', label: 'Reservation Book', count: reservations.length },
             { key: 'waitlist', label: 'Waitlist Queue', count: waitlist.length }
           ].map(t => (
             <button
               key={t.key}
+              type="button"
               onClick={() => setActiveTab(t.key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '12px 20px',
-                background: 'none',
-                border: 'none',
-                borderBottom: `2.5px solid ${activeTab === t.key ? 'var(--color-accent)' : 'transparent'}`,
-                color: activeTab === t.key ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-                fontWeight: activeTab === t.key ? 'var(--weight-bold)' : 'var(--weight-semibold)',
-                fontSize: 'var(--text-subhead)',
-                cursor: 'pointer',
-                transition: 'all var(--duration-fast)',
-                fontFamily: 'var(--font-family)'
-              }}
+              className={`nav-tab-btn ${activeTab === t.key ? 'active' : ''}`}
             >
-              {t.label}
+              <span>{t.label}</span>
               {t.count > 0 && (
                 <span className="badge badge-gray" style={{ fontSize: 10, padding: '1px 5px' }}>{t.count}</span>
               )}

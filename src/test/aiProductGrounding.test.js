@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { analyzeBusinessData, generateCompactDigest } from '../utils/localBusinessAnalyzer';
 import { generatePlanBAdvice } from '../services/localAdvisorEngine';
-import { loadStoredAiChat, saveStoredAiChat } from '../components/analytics/AiBusinessAdvisorModal';
+import { loadStoredAiChat, saveStoredAiChat } from '../utils/aiChatStorage';
 
 describe('AI Advisor Menu & Product Grounding', () => {
   const sampleRestaurant = {

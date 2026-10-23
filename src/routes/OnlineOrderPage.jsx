@@ -5,8 +5,8 @@ import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
 import { 
-  Plus, Minus, Check, Clock, ChefHat, CheckSquare, Search, X, Tag, AlertCircle, 
-  Sparkles, Star, ChevronDown, ChevronUp, MapPin, Utensils, Share2 
+  Plus, Minus, Check, Clock, ChefHat, CheckSquare, Search, X, AlertCircle, 
+  Sparkles, Star, ChevronDown, ChevronUp, Utensils, Share2 
 } from 'lucide-react';
 import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
@@ -33,7 +33,6 @@ export default function OnlineOrderPage() {
 
   const [restaurant, setRestaurant] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [activeCat, setActiveCat] = useState(null);
   const [cart, setCart] = useState([]);
   const [orderType, setOrderType] = useState(() => {
     return tableId ? 'dine-in' : 'delivery';
@@ -101,7 +100,6 @@ export default function OnlineOrderPage() {
           unsubMenu = onSnapshot(collection(db, 'restaurants', resolved.id, 'menu'), snap => {
             const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             setCategories(cats);
-            if (cats.length) setActiveCat(cats[0].id);
           });
           return;
         }
@@ -118,7 +116,6 @@ export default function OnlineOrderPage() {
           unsubMenu = onSnapshot(collection(db, 'restaurants', resolved.id, 'menu'), snap => {
             const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             setCategories(cats);
-            if (cats.length) setActiveCat(cats[0].id);
           });
         }
       } catch (err) {
@@ -210,15 +207,7 @@ export default function OnlineOrderPage() {
         items: filteredItems,
       };
     }).filter(cat => cat.items.length > 0);
-  }, [categories, searchQuery, vegOnly, nonVegOnly, bestsellerOnly, restaurant?.onlineExcludedItemIds]);
-
-  const totalFilteredCount = useMemo(() => {
-    return groupedCategories.reduce((sum, c) => sum + c.items.length, 0);
-  }, [groupedCategories]);
-
-  const items = useMemo(() => {
-    return groupedCategories.flatMap(c => c.items);
-  }, [groupedCategories]);
+  }, [categories, searchQuery, vegOnly, nonVegOnly, bestsellerOnly, restaurant?.onlineExcludedItemIds, restaurant?.manualBestsellerItemIds, restaurant?.autoDetectBestsellers, restaurant?.autoBestsellerItemIds]);
 
   const scrollToCategory = (catId) => {
     setShowMenuDrawer(false);
@@ -242,19 +231,6 @@ export default function OnlineOrderPage() {
       navigator.clipboard?.writeText(url);
       toast.success('Restaurant link copied to clipboard!');
     }
-  };
-
-  const heroStyle = {
-    background: restaurant?.onlineCover 
-      ? `linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75)), url(${restaurant.onlineCover}) center/cover no-repeat` 
-      : 'var(--color-bg-elevated)',
-    borderBottom: restaurant?.onlineCover ? 'none' : '1px solid var(--color-separator-opaque)',
-    color: restaurant?.onlineCover ? 'var(--color-on-dark)' : 'var(--color-label)',
-    padding: 'var(--space-8) var(--space-6)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
   };
 
   const trackerHeroStyle = {

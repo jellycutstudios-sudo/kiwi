@@ -185,47 +185,20 @@ export default function Restaurants() {
         )}
       </div>
 
-      {/* Tabs Selector Navigation */}
-      <div 
-        className="no-scrollbar touch-scroll-x"
-        style={{ 
-          display: 'flex', 
-          borderBottom: '1.5px solid var(--color-separator)', 
-          marginBottom: '-1px',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          gap: 'var(--space-2)'
-        }}
-      >
+      <div className="nav-tabs no-scrollbar touch-scroll-x">
         {[
           { key: 'outlets', label: 'Outlets Directory', icon: Building2 },
           { key: 'analytics', label: 'Consolidated Analytics', icon: BarChart3 }
         ].map(tab => (
           <button
             key={tab.key}
+            type="button"
             onClick={() => setActiveTab(tab.key)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '12px 18px',
-              minHeight: 44,
-              whiteSpace: 'nowrap',
-              background: 'none',
-              border: 'none',
-              borderBottom: `2.5px solid ${activeTab === tab.key ? 'var(--color-accent)' : 'transparent'}`,
-              color: activeTab === tab.key ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-              fontWeight: activeTab === tab.key ? 'var(--weight-bold)' : 'var(--weight-semibold)',
-              fontSize: 'var(--text-subhead)',
-              cursor: 'pointer',
-              transition: 'all var(--duration-fast)',
-              fontFamily: 'var(--font-family)',
-              marginBottom: '-2px'
-            }}
+            className={`nav-tab-btn ${activeTab === tab.key ? 'active' : ''}`}
             id={`tab-btn-${tab.key}`}
           >
             <tab.icon size={16} />
-            {tab.label}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>

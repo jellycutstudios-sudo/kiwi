@@ -606,8 +606,8 @@ export default function POS() {
   const kitchenConfig = restaurant?.kitchenConfig;
   const hasKdsMode = hasMode('kds');
 
-  // In Bill Only, Retail, or Service mode (or if kitchen is explicitly disabled), kitchen operations (KDS & KOT) are completely deactivated
-  const hasNoKitchen = isBillOnly || isRetail || isService;
+  // When kitchen mode is explicitly enabled via hasMode('kds'), kitchen operations are active even if businessType preset was bill_only/retail/service
+  const hasNoKitchen = !hasKdsMode && (isBillOnly || isRetail || isService);
   const isKitchenActive = !hasNoKitchen && (
     kitchenConfig?.mode === 'disabled'
       ? false
@@ -1655,36 +1655,31 @@ export default function POS() {
                       }
                     }}
                   >
-                    {/* Top Meta Bar: Dietary badge, Custom/Special pills & Quantity */}
-                    <div className="menu-key-meta-row">
-                      <div className="menu-key-badges-left">
+                    {/* Header Row: Dietary Icon + Title on left, Status Badge on right */}
+                    <div className="menu-key-header">
+                      <div className="menu-key-title-wrap">
                         <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-                        {item.highMargin && (
-                          <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
-                            ★ Special
+                        <span className="menu-key-name" title={item.name}>{item.name}</span>
+                      </div>
+                      <div className="menu-key-badges-right">
+                        {qty > 0 ? (
+                          <span className="menu-key-qty-pill">
+                            <Check size={10} strokeWidth={3} /> {qty}
                           </span>
-                        )}
-                        {(item.isBestseller || item.bestseller || ((itemSalesMap[item.id] || 0) + (itemSalesMap[(item.name || '').toLowerCase()] || 0) > 0)) && (
-                          <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
-                            🔥 Popular
-                          </span>
-                        )}
-                        {hasModifiers && (
+                        ) : hasModifiers ? (
                           <span className="menu-key-pill menu-key-pill-mod">
                             Options
                           </span>
-                        )}
+                        ) : (item.isBestseller || item.bestseller || item.popular) ? (
+                          <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
+                            🔥
+                          </span>
+                        ) : item.highMargin ? (
+                          <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
+                            ★
+                          </span>
+                        ) : null}
                       </div>
-                      {qty > 0 && (
-                        <span className="menu-key-qty-pill">
-                          <Check size={10} strokeWidth={3} /> {qty}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Card Body: Item Title with comfortable line height and breathing room */}
-                    <div className="menu-key-body">
-                      <span className="menu-key-name" title={item.name}>{item.name}</span>
                     </div>
 
                     {/* Bottom Row: Price display & Subtle Tactile Action Button */}
@@ -1750,7 +1745,7 @@ export default function POS() {
                     <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       {item.name}
                       {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px' }}>⭐</span>}
-                      {(item.isBestseller || item.bestseller || ((itemSalesMap[item.id] || 0) + (itemSalesMap[(item.name || '').toLowerCase()] || 0) > 0)) && (
+                      {(item.isBestseller || item.bestseller || item.popular) && (
                         <span title="Bestseller" style={{ fontSize: '11px' }}>🔥</span>
                       )}
                     </div>

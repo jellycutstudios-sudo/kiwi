@@ -34,7 +34,7 @@ export default function Dashboard() {
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const user = useAuthStore(s => s.user);
-  const { hasMode, isBillOnly, isRetail, isService } = useBusinessConfig();
+  const { hasMode } = useBusinessConfig();
 
   // Role access control: Only admin/super_admin and explicitly permitted cashiers may access turnover analytics
   const staffRole = staffDoc?.role ?? (user ? 'admin' : 'cashier');
@@ -540,7 +540,7 @@ export default function Dashboard() {
       desc: 'Order ticket average', 
       tooltip: 'The typical amount a customer spends per order' 
     },
-    ...((!isBillOnly && !isRetail && !isService && hasMode('kds') && restaurant?.kitchenConfig?.mode !== 'disabled') ? [{
+    ...((hasMode('kds') && restaurant?.kitchenConfig?.mode !== 'disabled') ? [{
       label: 'Orders Cooking',   
       value: activeOrders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status)).length, 
       icon: Clock, 
@@ -947,7 +947,7 @@ export default function Dashboard() {
           </div>
 
           {/* Times per Table (only for businesses with table mode active) */}
-          {hasMode('table') && !isRetail && !isBillOnly && !isService && (
+          {hasMode('table') && (
             <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
                 <TrendingUp size={13} /> Times per Table

@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { collection, onSnapshot, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { 
   Truck, RefreshCw, AlertCircle, CheckCircle2, 
   ShoppingBag, DollarSign, Percent, Clock, Plus, 
   Trash2, ChevronDown, ChevronUp, Check, X, Sliders,
-  Key, Settings as SettingsIcon, Copy, Eye, EyeOff, ExternalLink,
-  Flame, Search, Filter, Play, Pause, ArrowRight, User, Hash,
-  TrendingUp, BarChart3, Package, CheckSquare, Square, Zap,
-  AlertTriangle, Phone, MapPin, Coffee
+  Key, Settings as SettingsIcon, Copy, Eye, EyeOff,
+  Flame, Search, Play, User,
+  TrendingUp, BarChart3, Package, Zap,
+  Phone, MapPin, Radio
 } from 'lucide-react';
 import { useOrderStore } from '../../stores/orderStore';
 import toast from 'react-hot-toast';
@@ -1200,121 +1200,43 @@ export default function DeliveryHub() {
       </div>
 
       {/* 5 Streamlined Tabs with touch scroll */}
-      <div style={{
-        display: 'flex',
-        gap: 'var(--space-2)',
-        borderBottom: '1px solid var(--color-separator)',
-        paddingBottom: 0,
-        overflowX: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'none'
-      }}>
-        <button 
-          className="btn" 
-          onClick={() => setActiveTab('partners')}
-          style={{
-            borderBottom: activeTab === 'partners' ? '2.5px solid var(--color-accent)' : 'none',
-            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-            background: activeTab === 'partners' ? 'var(--color-accent-light)' : 'transparent',
-            color: activeTab === 'partners' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-            fontWeight: activeTab === 'partners' ? 'var(--weight-bold)' : 'var(--weight-medium)',
-            padding: 'var(--space-3) var(--space-4)',
-            minHeight: 44,
-            whiteSpace: 'nowrap',
-            fontSize: 'var(--text-subhead)'
-          }}
-        >
-          🤝 Live Channels
-        </button>
-
-        <button 
-          className="btn" 
-          onClick={() => setActiveTab('orders')}
-          style={{
-            borderBottom: activeTab === 'orders' ? '2.5px solid var(--color-accent)' : 'none',
-            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-            background: activeTab === 'orders' ? 'var(--color-accent-light)' : 'transparent',
-            color: activeTab === 'orders' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-            fontWeight: activeTab === 'orders' ? 'var(--weight-bold)' : 'var(--weight-medium)',
-            padding: 'var(--space-3) var(--space-4)',
-            minHeight: 44,
-            whiteSpace: 'nowrap',
-            fontSize: 'var(--text-subhead)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6
-          }}
-        >
-          <span>📦 Live Deliveries</span>
-          {activeDeliveryOrders.length > 0 && (
-            <span style={{
-              background: pendingOrdersCount > 0 ? 'var(--color-red)' : 'var(--color-accent)',
-              color: '#ffffff',
-              fontSize: '10px',
-              fontWeight: 'var(--weight-bold)',
-              padding: '1px 6px',
-              borderRadius: 'var(--radius-full)'
-            }}>
-              {activeDeliveryOrders.length}
-            </span>
-          )}
-        </button>
-
-        <button 
-          className="btn" 
-          onClick={() => setActiveTab('categories')}
-          style={{
-            borderBottom: activeTab === 'categories' ? '2.5px solid var(--color-accent)' : 'none',
-            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-            background: activeTab === 'categories' ? 'var(--color-accent-light)' : 'transparent',
-            color: activeTab === 'categories' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-            fontWeight: activeTab === 'categories' ? 'var(--weight-bold)' : 'var(--weight-medium)',
-            padding: 'var(--space-3) var(--space-4)',
-            minHeight: 44,
-            whiteSpace: 'nowrap',
-            fontSize: 'var(--text-subhead)'
-          }}
-        >
-          🗂️ Menu Controls (86'ing)
-        </button>
-
-        <button 
-          className="btn" 
-          onClick={() => setActiveTab('reconciliation')}
-          style={{
-            borderBottom: activeTab === 'reconciliation' ? '2.5px solid var(--color-accent)' : 'none',
-            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-            background: activeTab === 'reconciliation' ? 'var(--color-accent-light)' : 'transparent',
-            color: activeTab === 'reconciliation' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-            fontWeight: activeTab === 'reconciliation' ? 'var(--weight-bold)' : 'var(--weight-medium)',
-            padding: 'var(--space-3) var(--space-4)',
-            minHeight: 44,
-            whiteSpace: 'nowrap',
-            fontSize: 'var(--text-subhead)'
-          }}
-        >
-          📊 Financials & Net
-        </button>
-
-        {isUserAdmin && (
-          <button 
-            className="btn" 
-            onClick={() => setActiveTab('settings')}
-            style={{
-              borderBottom: activeTab === 'settings' ? '2.5px solid var(--color-accent)' : 'none',
-              borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-              background: activeTab === 'settings' ? 'var(--color-accent-light)' : 'transparent',
-              color: activeTab === 'settings' ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-              fontWeight: activeTab === 'settings' ? 'var(--weight-bold)' : 'var(--weight-medium)',
-              padding: 'var(--space-3) var(--space-4)',
-              minHeight: 44,
-              whiteSpace: 'nowrap',
-              fontSize: 'var(--text-subhead)'
-            }}
-          >
-            ⚙️ Hub Settings
-          </button>
-        )}
+      <div className="reports-tabs no-scrollbar touch-scroll-x">
+        {[
+          { key: 'partners', label: 'Live Channels', icon: Radio },
+          { key: 'orders', label: 'Live Deliveries', icon: Truck, badge: activeDeliveryOrders.length, badgeAlert: pendingOrdersCount > 0 },
+          { key: 'categories', label: "Menu Controls (86'ing)", icon: Sliders },
+          { key: 'reconciliation', label: 'Financials & Net', icon: BarChart3 },
+          { key: 'settings', label: 'Hub Settings', icon: SettingsIcon, adminOnly: true }
+        ].filter(t => !t.adminOnly || isUserAdmin).map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={(e) => {
+                setActiveTab(tab.key);
+                e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+              }}
+              className={`reports-tab-btn ${isActive ? 'active' : ''}`}
+            >
+              <Icon size={15} />
+              <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
+              {tab.badge > 0 && (
+                <span style={{
+                  background: tab.badgeAlert ? 'var(--color-red)' : 'var(--color-accent)',
+                  color: '#ffffff',
+                  fontSize: '10px',
+                  fontWeight: 'var(--weight-bold)',
+                  padding: '1px 6px',
+                  borderRadius: 'var(--radius-full)'
+                }}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Partners Tab */}

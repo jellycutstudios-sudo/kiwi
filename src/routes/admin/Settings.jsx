@@ -202,7 +202,7 @@ export default function Settings() {
         setActiveTabState(queryTab === 'features' ? 'workflows' : queryTab);
       }
     } catch {}
-  }, []);
+  }, [activeTab]);
 
   const setActiveTab = (tabId) => {
     setActiveTabState(tabId);
@@ -307,14 +307,14 @@ export default function Settings() {
 
   const filteredTabs = useMemo(() => {
     let list = TABS;
-    const isBillOnly = settings.businessType === 'bill_only';
-    const isKitchenDisabled = !settings.modes?.includes('kds') && (settings.kitchenConfig?.mode === 'disabled' || !settings.kitchenConfig?.mode);
     const activeModes = settings.modes ?? [];
+    const hasKdsMode = activeModes.includes('kds');
+    const isKitchenDisabled = !hasKdsMode && (settings.businessType === 'bill_only' || settings.kitchenConfig?.mode === 'disabled' || !settings.kitchenConfig?.mode);
     const isDisplaysDisabled = !activeModes.includes('posters') && !activeModes.includes('token');
     const isOnlineDisabled = !activeModes.includes('online') && !activeModes.includes('delivery_hub');
 
     if (!searchQuery.trim()) {
-      if (isBillOnly || isKitchenDisabled) {
+      if (isKitchenDisabled) {
         list = list.filter(t => t.id !== 'kitchen');
       }
       if (isDisplaysDisabled) {
@@ -713,7 +713,7 @@ export default function Settings() {
   if (!settings) return <div style={{padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)'}}>Loading settings...</div>;
 
   return (
-    <div className="settings-page-wrapper" style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)', maxWidth: 1240, width: '100%', minWidth: 0, margin: '0 auto', paddingBottom: 80, boxSizing: 'border-box' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', width: '100%', minWidth: 0, paddingBottom: 80, boxSizing: 'border-box' }}>
       {/* Draft Restored Banner */}
       {hasRestoredDraft && (
         <div style={{
@@ -1432,7 +1432,7 @@ export default function Settings() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                   {MODULE_PRESETS.map(preset => {
                     const activeCount = preset.modes.filter(k => (settings.modes ?? []).includes(k)).length;
-                    const isFullyActive = activeCount === preset.modes.length;
+                    const isFullyActive = activeCount === preset.modes.length && (settings.modes ?? []).length === preset.modes.length;
                     return (
                       <button
                         key={preset.id}
@@ -1481,16 +1481,16 @@ export default function Settings() {
               </div>
 
               {/* The 6 Modular Pillars */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 {MODULE_PILLARS.map(pillar => (
-                  <div key={pillar.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <div key={pillar.id} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {/* Pillar Title & Badge */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       borderBottom: '1px solid var(--color-separator)',
-                      paddingBottom: '6px',
+                      paddingBottom: '10px',
                       flexWrap: 'wrap',
                       gap: 8
                     }}>
@@ -1518,7 +1518,7 @@ export default function Settings() {
                     </div>
 
                     {/* Cards Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
                       {pillar.keys.map(key => {
                         const m = MODES.find(x => x.key === key);
                         if (!m) return null;
@@ -1530,17 +1530,20 @@ export default function Settings() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '10px 14px',
+                              padding: '16px 18px',
                               border: `1.5px solid ${active ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                              borderRadius: 'var(--radius-md)',
+                              borderRadius: 'var(--radius-lg)',
                               background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
+                              boxShadow: active ? '0 2px 8px rgba(0, 0, 0, 0.08)' : '0 1px 3px rgba(0, 0, 0, 0.03)',
                               transition: 'all var(--duration-fast)',
-                              gap: '12px'
+                              gap: '16px',
+                              minHeight: '74px',
+                              boxSizing: 'border-box'
                             }}
                           >
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-label-primary)' }}>
+                                <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label-primary)' }}>
                                   {m.label}
                                 </span>
                                 {active && (
@@ -1606,7 +1609,7 @@ export default function Settings() {
                                   </>
                                 )}
                               </div>
-                              <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.3 }}>
+                              <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: 4, lineHeight: 1.4 }}>
                                 {m.desc}
                               </div>
                             </div>
@@ -1619,6 +1622,9 @@ export default function Settings() {
                                 updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
                                 if (m.key === 'kds') {
                                   updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                                }
+                                if (checked && (m.key === 'table' || m.key === 'kds') && settings.businessType === 'bill_only') {
+                                  updateField('businessType', 'restaurant');
                                 }
                               }}
                             />

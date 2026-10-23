@@ -375,7 +375,7 @@ export default function Inventory() {
       )}
 
       {/* Tabs Selector Navigation */}
-      <div className="no-scrollbar touch-scroll-x" style={{ display: 'flex', borderBottom: '1.5px solid var(--color-separator)', marginBottom: '-1px' }}>
+      <div className="nav-tabs no-scrollbar touch-scroll-x">
         {[
           { key: 'stock', label: 'Stock Ledger', icon: Boxes },
           { key: 'suppliers', label: 'Suppliers Directory', icon: Truck },
@@ -383,28 +383,12 @@ export default function Inventory() {
         ].map(tab => (
           <button
             key={tab.key}
+            type="button"
             onClick={() => setActiveTab(tab.key)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '12px 18px',
-              background: 'none',
-              border: 'none',
-              borderBottom: `2.5px solid ${activeTab === tab.key ? 'var(--color-accent)' : 'transparent'}`,
-              color: activeTab === tab.key ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-              fontWeight: activeTab === tab.key ? 'var(--weight-bold)' : 'var(--weight-semibold)',
-              fontSize: 'var(--text-subhead)',
-              cursor: 'pointer',
-              transition: 'all var(--duration-fast)',
-              fontFamily: 'var(--font-family)',
-              marginBottom: '-2px',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
+            className={`nav-tab-btn ${activeTab === tab.key ? 'active' : ''}`}
           >
             <tab.icon size={16} />
-            {tab.label}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>

@@ -71,18 +71,14 @@ export function parseModifierGroupsString(modifiersStr) {
   const modifierGroups = [];
 
   groupChunks.forEach((chunk, gIdx) => {
-    let groupName = `Option ${gIdx + 1}`;
-    let optionsPart = chunk;
-
     // Check if format is "GroupName: Option 1, Option 2"
-    if (chunk.includes(':')) {
-      const colonIdx = chunk.indexOf(':');
-      groupName = chunk.slice(0, colonIdx).trim();
-      optionsPart = chunk.slice(colonIdx + 1).trim();
-    } else {
+    if (!chunk.includes(':')) {
       // Chunk without colon is malformed, skip
       return;
     }
+    const colonIdx = chunk.indexOf(':');
+    const groupName = chunk.slice(0, colonIdx).trim();
+    const optionsPart = chunk.slice(colonIdx + 1).trim();
 
     // Determine type: Required (Pick 1) vs Optional (Multiple)
     const lowerName = groupName.toLowerCase();

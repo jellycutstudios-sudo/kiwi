@@ -357,33 +357,19 @@ export default function Customers() {
       </div>
 
       {/* Tabs Selector Navigation */}
-      <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-separator)', marginBottom: '-1px' }}>
+      <div className="nav-tabs no-scrollbar touch-scroll-x">
         {[
           { key: 'crm', label: 'Customer Database', icon: Users },
           { key: 'giftcards', label: 'Prepaid Gift Cards', icon: Ticket }
         ].map(tab => (
           <button
             key={tab.key}
+            type="button"
             onClick={() => setActiveTab(tab.key)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '12px 20px',
-              background: 'none',
-              border: 'none',
-              borderBottom: `2.5px solid ${activeTab === tab.key ? 'var(--color-accent)' : 'transparent'}`,
-              color: activeTab === tab.key ? 'var(--color-accent)' : 'var(--color-label-secondary)',
-              fontWeight: activeTab === tab.key ? 'var(--weight-bold)' : 'var(--weight-semibold)',
-              fontSize: 'var(--text-subhead)',
-              cursor: 'pointer',
-              transition: 'all var(--duration-fast)',
-              fontFamily: 'var(--font-family)',
-              marginBottom: '-2px'
-            }}
+            className={`nav-tab-btn ${activeTab === tab.key ? 'active' : ''}`}
           >
             <tab.icon size={16} />
-            {tab.label}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>

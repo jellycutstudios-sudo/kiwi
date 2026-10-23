@@ -309,17 +309,14 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 return false;
               }
               if (n.requiredMode) {
-                const isBillOnly = restaurant?.businessType === 'bill_only';
-
                 if (n.key === 'kds') {
-                  if (isBillOnly || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service') return false;
                   if (!hasMode('kds')) return false;
                   const km = restaurant?.kitchenConfig?.mode;
                   if (km === 'disabled' || km === 'printer_only') return false;
                   return true;
                 }
-                if (n.key === 'tables' && (isBillOnly || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service')) {
-                  return false;
+                if (n.key === 'tables') {
+                  return hasMode('table');
                 }
                 if (n.key === 'online_orders') {
                   return hasMode('online') || unreadOnlineCount > 0;

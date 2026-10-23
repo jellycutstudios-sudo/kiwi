@@ -274,10 +274,10 @@ export default function AppShell() {
             <div className="pos-topbar-center">
               {/* Search Bar */}
               <div className="pos-search-wrapper">
-                <Search size={15} className="pos-search-icon" />
+                <Search size={14} className="pos-search-icon" />
                 <input
                   className="form-input pos-search-input"
-                  placeholder="Search menu..."
+                  placeholder="Search..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   id="menu-search-input"
