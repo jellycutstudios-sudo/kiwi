@@ -13043,7 +13043,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 /* ────────────────────────────────────────────────────────────
-   Modern iOS / Linear Style Toggle Switch Component
+   Modern Squircle Toggle Switch Component
    ──────────────────────────────────────────────────────────── */
 .toggle-switch {
   position: relative;
@@ -13068,33 +13068,33 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 .toggle-slider {
   position: absolute;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-bg-tertiary, #e2e8f0);
-  border: 1.5px solid var(--color-separator-opaque, #cbd5e1);
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 24px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  inset: 0;
+  background-color: #e5e7eb;
+  transition: background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 16px;
-  width: 16px;
+  height: 20px;
+  width: 20px;
   left: 2px;
-  bottom: 2.5px;
+  top: 2px;
   background-color: #ffffff;
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
+  border-radius: 6.5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-switch:hover:not(.disabled) .toggle-slider:before {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background-color: var(--color-accent, #3b82f6);
-  border-color: var(--color-accent, #3b82f6);
+  background-color: var(--color-accent, #10b981);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
@@ -13102,7 +13102,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .toggle-switch input:focus-visible + .toggle-slider {
-  outline: 2px solid var(--color-accent, #3b82f6);
+  outline: 2px solid var(--color-accent, #10b981);
   outline-offset: 2px;
 }
 
@@ -13119,14 +13119,15 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .toggle-switch.toggle-sm .toggle-slider {
-  border-radius: 20px;
+  border-radius: 9999px;
 }
 
 .toggle-switch.toggle-sm .toggle-slider:before {
-  height: 14px;
-  width: 14px;
+  height: 16px;
+  width: 16px;
   left: 2px;
-  bottom: 1.5px;
+  top: 2px;
+  border-radius: 5px;
 }
 
 .toggle-switch.toggle-sm input:checked + .toggle-slider:before {
@@ -13140,14 +13141,15 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .toggle-switch.toggle-lg .toggle-slider {
-  border-radius: 28px;
+  border-radius: 9999px;
 }
 
 .toggle-switch.toggle-lg .toggle-slider:before {
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 2.5px;
+  height: 24px;
+  width: 24px;
+  left: 2px;
+  top: 2px;
+  border-radius: 8px;
 }
 
 .toggle-switch.toggle-lg input:checked + .toggle-slider:before {
@@ -13156,18 +13158,19 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 /* Dark mode theme adjustments */
 [data-theme="dark"] .toggle-slider {
-  background-color: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
+  background-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 [data-theme="dark"] .toggle-switch input:checked + .toggle-slider {
-  background-color: var(--color-accent, #3b82f6);
-  border-color: var(--color-accent, #3b82f6);
+  background-color: var(--color-accent, #10b981);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .toggle-slider:before {
   background-color: #ffffff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
+
 
 

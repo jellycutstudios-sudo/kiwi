@@ -1346,35 +1346,31 @@ export default function Settings() {
                       When turned off, cashiers land directly on the POS register and cannot see total daily sales, revenue charts, or managerial analytics. Keep this off to protect confidential business figures.
                     </p>
                   </div>
-                  <label className="toggle-switch" style={{ cursor: 'pointer', flexShrink: 0 }}>
-                    <input
-                      type="checkbox"
-                      id="toggle-cashier-dashboard"
-                      checked={Boolean(settings.allowCashierDashboard)}
-                      onChange={async (e) => {
-                        const enable = e.target.checked;
-                        updateField('allowCashierDashboard', enable);
-                        const updatedRest = { ...(restaurant || {}), allowCashierDashboard: enable };
-                        useAuthStore.setState({ restaurant: updatedRest });
-                        try {
-                          if (typeof localStorage !== 'undefined' && restaurant?.id) {
-                            localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
-                          }
-                          if (!settings.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
-                            await updateDoc(doc(db, 'restaurants', restaurant.id), { allowCashierDashboard: enable });
-                          }
-                        } catch (err) {
-                          console.warn('[Settings] Failed to save allowCashierDashboard directly:', err);
+                  <ToggleSwitch
+                    id="toggle-cashier-dashboard"
+                    checked={Boolean(settings.allowCashierDashboard)}
+                    onChange={async (e) => {
+                      const enable = e.target.checked;
+                      updateField('allowCashierDashboard', enable);
+                      const updatedRest = { ...(restaurant || {}), allowCashierDashboard: enable };
+                      useAuthStore.setState({ restaurant: updatedRest });
+                      try {
+                        if (typeof localStorage !== 'undefined' && restaurant?.id) {
+                          localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
                         }
-                        if (enable) {
-                          toast.success('Cashiers can now view the Dashboard overview.', { icon: '📊' });
-                        } else {
-                          toast.success('Dashboard hidden from cashiers. Cashiers will land on the POS register.', { icon: '🔒' });
+                        if (!settings.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+                          await updateDoc(doc(db, 'restaurants', restaurant.id), { allowCashierDashboard: enable });
                         }
-                      }}
-                    />
-                    <span className="toggle-slider" />
-                  </label>
+                      } catch (err) {
+                        console.warn('[Settings] Failed to save allowCashierDashboard directly:', err);
+                      }
+                      if (enable) {
+                        toast.success('Cashiers can now view the Dashboard overview.', { icon: '📊' });
+                      } else {
+                        toast.success('Dashboard hidden from cashiers. Cashiers will land on the POS register.', { icon: '🔒' });
+                      }
+                    }}
+                  />
                 </div>
               </div>
 
@@ -2397,14 +2393,11 @@ export default function Settings() {
                       <div style={{ fontWeight: 600, fontSize: 14 }}>Enable Smart Terminal Integration</div>
                       <div className="text-secondary text-caption2">Auto-push bill amount to physical card reader and sync payment status</div>
                     </div>
-                    <label className="switch" style={{ margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(settings.terminalConfig?.enabled)}
-                        onChange={e => updateField('terminalConfig.enabled', e.target.checked)}
-                      />
-                      <span className="slider round"></span>
-                    </label>
+                    <ToggleSwitch
+                      id="settings-terminal-enabled"
+                      checked={Boolean(settings.terminalConfig?.enabled)}
+                      onChange={e => updateField('terminalConfig.enabled', e.target.checked)}
+                    />
                   </div>
 
                   {/* Provider Selector */}
