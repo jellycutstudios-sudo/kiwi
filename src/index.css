@@ -9053,6 +9053,63 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 }
 
+/* Guest Phone Requirement segmented control */
+.phone-req-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.phone-req-segmented {
+  display: inline-flex;
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+}
+
+.phone-req-btn {
+  padding: 6px 14px;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--color-label-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: inherit;
+}
+
+.phone-req-btn:hover:not(.active) {
+  color: var(--color-label-primary);
+  background: var(--color-fill, rgba(255, 255, 255, 0.05));
+}
+
+.phone-req-btn.active {
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.phone-req-mobile-label {
+  display: none;
+}
+.phone-req-desktop-label {
+  display: inline;
+}
+
 /* Unified Page Navigation Tabs (Reports, Delivery Hub, Inventory, Restaurants, Customers, Reservations) */
 .nav-tabs,
 .reports-tabs {
@@ -9329,6 +9386,31 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     padding: 8px 12px !important;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
     box-sizing: border-box !important;
+  }
+
+  .phone-req-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .phone-req-segmented {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    width: 100% !important;
+  }
+
+  .phone-req-btn {
+    padding: 8px 4px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+  }
+
+  .phone-req-desktop-label {
+    display: none !important;
+  }
+
+  .phone-req-mobile-label {
+    display: inline !important;
   }
 }
 
@@ -13071,7 +13153,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   inset: 0;
   background-color: #e5e7eb;
   transition: background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
-  border-radius: 9999px;
+  border-radius: 8px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
@@ -13084,7 +13166,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   top: 2px;
   background-color: #ffffff;
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
-  border-radius: 6.5px;
+  border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
@@ -13119,7 +13201,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .toggle-switch.toggle-sm .toggle-slider {
-  border-radius: 9999px;
+  border-radius: 7px;
 }
 
 .toggle-switch.toggle-sm .toggle-slider:before {
@@ -13141,7 +13223,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .toggle-switch.toggle-lg .toggle-slider {
-  border-radius: 9999px;
+  border-radius: 10px;
 }
 
 .toggle-switch.toggle-lg .toggle-slider:before {

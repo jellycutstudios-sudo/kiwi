@@ -1715,15 +1715,10 @@ export default function Settings() {
                     />
                   </div>
 
-                  <div style={{
+                  <div className="phone-req-card" style={{
                     padding: '12px 14px',
                     borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-secondary)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 12
+                    background: 'var(--color-bg-secondary)'
                   }}>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13.5 }}>Guest Phone Number at Checkout</div>
@@ -1731,19 +1726,11 @@ export default function Settings() {
                         Prompt cashiers to capture guest mobile number before payment.
                       </div>
                     </div>
-                    <div style={{
-                      display: 'inline-flex',
-                      background: 'var(--color-bg)',
-                      border: '1px solid var(--color-separator)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '3px',
-                      gap: '3px',
-                      flexWrap: 'wrap'
-                    }}>
+                    <div className="phone-req-segmented">
                       {[
-                        { id: 'optional', label: '⚡ Optional', desc: 'Fastest' },
-                        { id: 'loyalty_only', label: '🎁 Loyalty Prompt', desc: 'Points' },
-                        { id: 'mandatory', label: '🔒 Mandatory', desc: 'Required' }
+                        { id: 'optional', label: '⚡ Optional', mobileLabel: '⚡ Optional' },
+                        { id: 'loyalty_only', label: '🎁 Loyalty Prompt', mobileLabel: '🎁 Loyalty' },
+                        { id: 'mandatory', label: '🔒 Mandatory', mobileLabel: '🔒 Mandatory' }
                       ].map(opt => {
                         const isSelected = (settings.workflowConfig?.phoneRequirement ?? 'optional') === opt.id;
                         return (
@@ -1751,20 +1738,10 @@ export default function Settings() {
                             key={opt.id}
                             type="button"
                             onClick={() => updateField('workflowConfig.phoneRequirement', opt.id)}
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: 'calc(var(--radius-md) - 2px)',
-                              border: 'none',
-                              fontSize: '12px',
-                              fontWeight: isSelected ? 600 : 500,
-                              background: isSelected ? 'var(--color-accent)' : 'transparent',
-                              color: isSelected ? '#ffffff' : 'var(--color-label-secondary)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                              whiteSpace: 'nowrap'
-                            }}
+                            className={`phone-req-btn ${isSelected ? 'active' : ''}`}
                           >
-                            {opt.label}
+                            <span className="phone-req-desktop-label">{opt.label}</span>
+                            <span className="phone-req-mobile-label">{opt.mobileLabel}</span>
                           </button>
                         );
                       })}
