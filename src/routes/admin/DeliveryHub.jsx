@@ -11,8 +11,9 @@ import {
   Key, Settings as SettingsIcon, Copy, Eye, EyeOff,
   Flame, Search, Play, User,
   TrendingUp, BarChart3, Package, Zap,
-  Phone, MapPin, Radio
+  Phone, MapPin, Radio, Power
 } from 'lucide-react';
+import ToggleSwitch from '../../components/shared/ToggleSwitch';
 import { useOrderStore } from '../../stores/orderStore';
 import toast from 'react-hot-toast';
 
@@ -124,6 +125,136 @@ const DAYS_OF_WEEK = [
   { value: 'saturday', label: 'Saturday' },
   { value: 'sunday', label: 'Sunday' },
 ];
+
+// Authentic SVG Platform Brand Marks
+export function PlatformBrandLogo({ id, size = 42, style = {} }) {
+  const meta = PLATFORM_META[id] || {};
+  const baseStyle = {
+    width: size,
+    height: size,
+    borderRadius: Math.round(size * 0.28),
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    fontWeight: 800,
+    userSelect: 'none',
+    ...style
+  };
+
+  switch (id) {
+    case 'talabat':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #FF5A00 0%, #D84800 100%)',
+          color: '#ffffff',
+          boxShadow: '0 3px 10px rgba(255, 90, 0, 0.25)',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <span style={{ fontSize: size * 0.44, fontWeight: 900, letterSpacing: '-0.5px' }}>tal.</span>
+        </div>
+      );
+    case 'snoonu':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #E30613 0%, #B8000A 100%)',
+          color: '#ffffff',
+          boxShadow: '0 3px 10px rgba(227, 6, 19, 0.25)',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <span style={{ fontSize: size * 0.48, fontWeight: 900 }}>S</span>
+        </div>
+      );
+    case 'rafeeq':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #5C1D8C 0%, #3D105E 100%)',
+          color: '#ffffff',
+          boxShadow: '0 3px 10px rgba(92, 29, 140, 0.25)',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <span style={{ fontSize: size * 0.48, fontWeight: 900 }}>R</span>
+        </div>
+      );
+    case 'jahez':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #FFB300 0%, #E69D00 100%)',
+          color: '#1a1a1a',
+          boxShadow: '0 3px 10px rgba(255, 179, 0, 0.25)',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <span style={{ fontSize: size * 0.48, fontWeight: 900 }}>J</span>
+        </div>
+      );
+    case 'deliveroo':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #00CDBC 0%, #009E91 100%)',
+          color: '#ffffff',
+          boxShadow: '0 3px 10px rgba(0, 205, 188, 0.25)'
+        }}>
+          <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M12 2C8 2 6 5.5 6 9c0 3.5 2 6 3.5 7.5L8 20h3l1.5-3.5h3L17 20h3l-1.5-3.5C20 15 22 12.5 22 9c0-3.5-2-7-6-7-1.5 0-2.8.5-4 1.5C10.8 2.5 9.5 2 8 2h4zM10 8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm6 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+          </svg>
+        </div>
+      );
+    case 'ubereats':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: '#0a0a0a',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 3px 10px rgba(0, 0, 0, 0.35)',
+          lineHeight: 1
+        }}>
+          <span style={{ color: '#ffffff', fontWeight: 800, fontSize: size * 0.22, letterSpacing: '0.02em' }}>Uber</span>
+          <span style={{ color: '#06C167', fontWeight: 900, fontSize: size * 0.26, letterSpacing: '0.04em', marginTop: 1 }}>Eats</span>
+        </div>
+      );
+    case 'zomato':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #E23744 0%, #B81D2A 100%)',
+          color: '#ffffff',
+          boxShadow: '0 3px 10px rgba(226, 55, 68, 0.25)',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <span style={{ fontSize: size * 0.34, fontStyle: 'italic', fontWeight: 900, letterSpacing: '-0.5px' }}>zomato</span>
+        </div>
+      );
+    case 'swiggy':
+      return (
+        <div style={{
+          ...baseStyle,
+          background: 'linear-gradient(135deg, #FC8019 0%, #D86303 100%)',
+          color: '#ffffff',
+          boxShadow: '0 3px 10px rgba(252, 128, 25, 0.25)'
+        }}>
+          <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ffffff" />
+            <path d="M12 7c-1.3 0-2.3 1-2.3 2.3 0 .8.4 1.5 1.1 1.9l-1.3 1.8h3.5c.9 0 1.5-.7 1.5-1.5 0-1.4-1.1-2.5-2.5-2.5z" fill="#FC8019" />
+          </svg>
+        </div>
+      );
+    default:
+      return (
+        <div style={{ ...baseStyle, background: 'var(--color-bg-secondary)', color: 'var(--color-accent)' }}>
+          <Truck size={size * 0.5} />
+        </div>
+      );
+  }
+}
 
 export default function DeliveryHub() {
   const { restaurant, staffDoc, user } = useAuthStore();
@@ -1294,7 +1425,7 @@ export default function DeliveryHub() {
           </div>
 
           {/* Integration Platform Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-4)' }}>
             {Object.entries(PLATFORM_META).map(([id, meta]) => {
               const config = integrations[id] || {};
               const isEnabled = config.enabled === true;
@@ -1309,19 +1440,16 @@ export default function DeliveryHub() {
               const channelRev = channelOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
               let statusText = 'Offline';
-              let pillBg = 'rgba(142, 142, 147, 0.1)';
               let pillColor = 'var(--color-label-tertiary)';
               let dotBg = 'var(--color-label-tertiary)';
 
               if (isEnabled) {
                 if (paused) {
                   statusText = countdown ? `Paused (${countdown})` : 'Paused Indefinitely';
-                  pillBg = 'rgba(255, 149, 0, 0.1)';
                   pillColor = '#ff9500';
                   dotBg = '#ff9500';
                 } else {
-                  statusText = 'Active';
-                  pillBg = 'rgba(52, 199, 89, 0.1)';
+                  statusText = 'Live';
                   pillColor = 'var(--color-success)';
                   dotBg = 'var(--color-success)';
                 }
@@ -1330,47 +1458,57 @@ export default function DeliveryHub() {
               return (
                 <div 
                   key={id} 
-                  className="card card-padded" 
+                  className="card" 
                   style={{ 
                     display: 'flex', 
                     flexDirection: 'column', 
-                    gap: 'var(--space-4)', 
-                    border: '1px solid var(--color-separator-opaque)',
+                    gap: 'var(--space-3)', 
+                    border: isEnabled 
+                      ? (paused ? '1px solid rgba(255, 149, 0, 0.35)' : '1px solid rgba(52, 199, 89, 0.35)') 
+                      : '1px solid var(--color-separator-opaque)',
                     background: 'var(--color-bg-elevated)',
-                    transition: 'border-color var(--duration-fast)'
+                    borderRadius: 'var(--radius-lg, 16px)',
+                    padding: 'var(--space-4)',
+                    boxShadow: isEnabled 
+                      ? (paused ? '0 4px 20px rgba(255, 149, 0, 0.05)' : '0 4px 20px rgba(52, 199, 89, 0.06)') 
+                      : 'none',
+                    transition: 'border-color var(--duration-fast), box-shadow var(--duration-fast)',
+                    position: 'relative'
                   }}
                 >
-                  {/* Card Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                      <span style={{ fontSize: '1.8rem' }}>{meta.emoji}</span>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <h4 style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)', margin: 0 }}>{meta.name}</h4>
+                  {/* Card Header: Brand Logo + Details + Header Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', minWidth: 0 }}>
+                      <PlatformBrandLogo id={id} size={42} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <h4 style={{ fontWeight: 700, fontSize: '15px', margin: 0, letterSpacing: '-0.2px' }}>
+                            {meta.name}
+                          </h4>
                           {meta.region && (
                             <span style={{
                               fontSize: '10px',
-                              fontWeight: 'var(--weight-medium)',
-                              padding: '1px 5px',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'var(--color-bg-secondary)',
-                              color: 'var(--color-label-secondary)'
+                              fontWeight: 600,
+                              padding: '1px 6px',
+                              borderRadius: 'var(--radius-full)',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              color: 'var(--color-label-secondary)',
+                              whiteSpace: 'nowrap'
                             }}>
                               {meta.region}
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
                           <span style={{
-                            width: 8, height: 8, borderRadius: '50%',
-                            background: dotBg
+                            width: 7, height: 7, borderRadius: '50%',
+                            background: dotBg,
+                            boxShadow: isEnabled && !paused ? '0 0 6px var(--color-success)' : 'none',
+                            flexShrink: 0
                           }} />
                           <span style={{ 
-                            fontSize: 'var(--text-caption2)', 
-                            fontWeight: 'var(--weight-medium)',
-                            background: pillBg,
-                            padding: '2px 6px',
-                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '11px', 
+                            fontWeight: 600,
                             color: pillColor
                           }}>
                             {statusText}
@@ -1379,141 +1517,198 @@ export default function DeliveryHub() {
                       </div>
                     </div>
 
-                    {isEnabled && isUserAdmin && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {/* Header Controls: Config Gear + Squircle Toggle Switch */}
+                    {isUserAdmin && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                         <button 
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => openConfigModal(id)}
-                          style={{ padding: '6px 10px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 5, fontSize: '12px' }}
-                          title="Configure API keys and credentials"
-                        >
-                          <SettingsIcon size={13} /> Config
-                        </button>
-                        <button 
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => triggerSync(id)}
-                          disabled={syncing || syncingPlatform !== null}
-                          style={{ padding: '6px 12px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 6 }}
-                          title="Trigger manual menu catalog sync to platform"
-                        >
-                          <RefreshCw size={13} className={isSyncingThis ? 'spin' : ''} /> Sync
-                        </button>
-                        <button
+                          type="button"
                           className="btn btn-ghost btn-sm"
-                          onClick={() => handleTogglePlatform(id, false)}
-                          title="Deactivate this channel"
-                          style={{ padding: '6px 8px', minHeight: 36, color: 'var(--color-red)', fontSize: '11px' }}
+                          onClick={() => openConfigModal(id)}
+                          style={{ 
+                            width: 32, height: 32, padding: 0,
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: 'var(--color-label-secondary)',
+                            background: 'rgba(255, 255, 255, 0.04)'
+                          }}
+                          title={`Configure ${meta.name} API & Credentials`}
                         >
-                          Disable
+                          <SettingsIcon size={14} />
                         </button>
+                        <ToggleSwitch
+                          id={`toggle-${id}`}
+                          checked={isEnabled}
+                          onChange={(e) => handleTogglePlatform(id, e.target.checked)}
+                          size="sm"
+                          title={isEnabled ? `Deactivate ${meta.name}` : `Activate ${meta.name}`}
+                        />
                       </div>
                     )}
                   </div>
 
                   {/* Pause Info / reason if active */}
-                  {isEnabled && paused && settingsInfo.pauseReason && (
+                  {isEnabled && paused && (
                     <div style={{
-                      background: 'rgba(255, 149, 0, 0.05)',
-                      padding: 'var(--space-2) var(--space-3)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: 'var(--text-caption2)',
-                      color: '#cc7a00',
-                      borderLeft: '3px solid #ff9500',
+                      background: 'rgba(255, 149, 0, 0.08)',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '11px',
+                      color: '#ff9500',
+                      border: '1px solid rgba(255, 149, 0, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 'var(--space-2)'
+                      justifyContent: 'space-between',
+                      gap: 8
                     }}>
-                      <Clock size={12} />
-                      <span><strong>Reason:</strong> {settingsInfo.pauseReason}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <Clock size={13} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {settingsInfo.pauseReason ? settingsInfo.pauseReason : 'Channel paused temporarily'}
+                        </span>
+                      </div>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '2px 8px', minHeight: 24, fontSize: '11px', fontWeight: 600, color: 'var(--color-success)', flexShrink: 0 }}
+                        onClick={() => handleResumePlatform(id)}
+                      >
+                        Resume
+                      </button>
                     </div>
                   )}
 
-                  {/* Dynamic control buttons */}
-                  {isEnabled && (
-                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                      {paused ? (
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 'var(--weight-semibold)' }}
-                          onClick={() => handleResumePlatform(id)}
-                        >
-                          <CheckCircle2 size={16} style={{ color: 'var(--color-success)' }} /> Resume Channel
-                        </button>
-                      ) : (
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderColor: 'rgba(255, 149, 0, 0.4)', fontWeight: 'var(--weight-semibold)' }}
-                          onClick={() => openPauseModal(id)}
-                        >
-                          <Clock size={16} style={{ color: '#ff9500' }} /> Pause Channel
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Stats or explanation placeholder */}
+                  {/* Content Body: Active Metrics vs Inactive Channel Specifications */}
                   {isEnabled ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', background: 'var(--color-bg-secondary)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)' }}>
-                      <div>
-                        <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-secondary)' }}>Orders Today</div>
-                        <div style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)', marginTop: 2 }}>{channelOrders.length}</div>
+                    <>
+                      {/* Metrics 2-column box */}
+                      <div style={{ 
+                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, 
+                        background: 'var(--color-bg-secondary)', 
+                        padding: '10px 12px', 
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-separator)'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
+                            Orders Today
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, marginTop: 2, color: 'var(--color-label-primary)' }}>
+                            {channelOrders.length}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
+                            Revenue
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, marginTop: 2, color: 'var(--color-label-primary)' }}>
+                            {formatCurrency(channelRev, currency)}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-secondary)' }}>Revenue Today</div>
-                        <div style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)', marginTop: 2 }}>{formatCurrency(channelRev, currency)}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 'var(--space-4) var(--space-2)', minHeight: 100 }}>
-                      <span style={{ color: 'var(--color-label-secondary)', fontSize: 'var(--text-caption1)', textAlign: 'center' }}>
-                        Inactive. Enable to start receiving orders & menu sync.
-                      </span>
-                      {isUserAdmin && (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleTogglePlatform(id, true)}
-                            style={{ minHeight: 36, padding: '0 14px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+
+                      {/* Control buttons */}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {paused ? (
+                          <button 
+                            className="btn btn-secondary btn-sm" 
+                            style={{ flex: 1, minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600 }}
+                            onClick={() => handleResumePlatform(id)}
                           >
-                            <Check size={14} /> Quick Enable
+                            <Play size={13} style={{ color: 'var(--color-success)' }} /> Resume Channel
                           </button>
+                        ) : (
+                          <button 
+                            className="btn btn-secondary btn-sm" 
+                            style={{ flex: 1, minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600 }}
+                            onClick={() => openPauseModal(id)}
+                          >
+                            <Clock size={13} style={{ color: '#ff9500' }} /> Pause
+                          </button>
+                        )}
+
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => triggerSync(id)}
+                          disabled={syncing || syncingPlatform !== null}
+                          style={{ minHeight: 34, padding: '0 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: '12px' }}
+                          title="Trigger catalog sync"
+                        >
+                          <RefreshCw size={13} className={isSyncingThis ? 'spin' : ''} />
+                          <span>Sync</span>
+                        </button>
+                      </div>
+
+                      {/* Sync status logs */}
+                      <div style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-label-secondary)', paddingTop: 2 }}>
+                        {log ? (
+                          log.status === 'success' ? (
+                            <>
+                              <CheckCircle2 size={12} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                Synced {log.itemsSynced} items ({new Date(log.timestamp?.toDate ? log.timestamp.toDate() : log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle size={12} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
+                              <span style={{ color: 'var(--color-red)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                Sync error: {log.error}
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-label-tertiary)', flexShrink: 0 }} />
+                            <span>Catalog ready to sync</span>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      padding: '12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px dashed var(--color-separator)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-label-secondary)' }}>
+                        <span>Est. Commission</span>
+                        <span style={{ fontWeight: 600, color: 'var(--color-label-primary)' }}>
+                          {commissions[id] ? `${commissions[id]}%` : '20%'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-label-secondary)' }}>
+                        <span>Integration</span>
+                        <span style={{ fontWeight: 600, color: 'var(--color-label-primary)' }}>Direct API & Webhook</span>
+                      </div>
+
+                      {isUserAdmin && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
                             onClick={() => openConfigModal(id)}
-                            style={{ minHeight: 36, padding: '0 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            style={{ 
+                              flex: 1, minHeight: 34, fontSize: '12px', fontWeight: 600,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                            }}
                           >
-                            <Key size={13} /> Configure Credentials
+                            <Key size={13} /> Configure API
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleTogglePlatform(id, true)}
+                            style={{ 
+                              minHeight: 34, padding: '0 14px', fontSize: '12px', fontWeight: 600,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
+                            }}
+                          >
+                            <Power size={13} /> Enable
                           </button>
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Sync status logs */}
-                  {isEnabled && (
-                    <div style={{ fontSize: 'var(--text-caption2)', borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                      {log ? (
-                        log.status === 'success' ? (
-                          <>
-                            <CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} />
-                            <span style={{ color: 'var(--color-label-secondary)' }}>
-                              Synced: {log.itemsSynced} items ({new Date(log.timestamp?.toDate ? log.timestamp.toDate() : log.timestamp).toLocaleTimeString()})
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle size={14} style={{ color: 'var(--color-red)' }} />
-                            <span style={{ color: 'var(--color-red)' }}>
-                              Sync failed: {log.error}
-                            </span>
-                          </>
-                        )
-                      ) : (
-                        <>
-                          <AlertCircle size={14} style={{ color: 'var(--color-label-tertiary)' }} />
-                          <span style={{ color: 'var(--color-label-secondary)' }}>No sync logs found.</span>
-                        </>
                       )}
                     </div>
                   )}
@@ -3066,7 +3261,7 @@ export default function DeliveryHub() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-3)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                <span style={{ fontSize: '2rem' }}>{PLATFORM_META[configModal.platformId]?.emoji}</span>
+                <PlatformBrandLogo id={configModal.platformId} size={48} />
                 <div>
                   <h3 className="text-title3" style={{ margin: 0, fontWeight: 'var(--weight-bold)' }}>
                     Configure {PLATFORM_META[configModal.platformId]?.name}

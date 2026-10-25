@@ -117,7 +117,14 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     const unsub = onSnapshot(q, (snap) => {
       let paused = false;
       const now = new Date();
+      const integrations = restaurant?.deliveryIntegrations || {};
       snap.forEach(docSnap => {
+        // Only count as paused if this channel is actually enabled/active
+        const platformConfig = integrations[docSnap.id];
+        if (!platformConfig || platformConfig.enabled !== true) {
+          return;
+        }
+
         const data = docSnap.data();
         if (data.paused) {
           if (data.pauseUntil) {
@@ -135,7 +142,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       console.warn('Sidebar deliverySettings listener:', err);
     });
     return unsub;
-  }, [restaurant?.id]);
+  }, [restaurant?.id, restaurant?.deliveryIntegrations]);
 
   const handleItemClick = () => {
     if (setMobileOpen) {
@@ -370,13 +377,28 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
                   {/* Delivery Hub pause indicator */}
                   {n.key === 'delivery_hub' && anyPlatformPaused && !isCollapsed && (
-                    <span className="nav-badge" style={{ background: 'var(--color-red)' }}>⏸️</span>
+                    <span 
+                      className="nav-badge" 
+                      style={{ 
+                        background: 'rgba(255, 149, 0, 0.18)', 
+                        color: '#ff9500', 
+                        border: '1px solid rgba(255, 149, 0, 0.35)',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        padding: '1px 5px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
+                      title="Delivery channels paused"
+                    >
+                      PAUSED
+                    </span>
                   )}
                   {n.key === 'delivery_hub' && anyPlatformPaused && isCollapsed && (
                     <span style={{
                       position: 'absolute', top: 4, right: 6,
                       width: 8, height: 8, borderRadius: '50%',
-                      background: 'var(--color-red)',
+                      background: '#ff9500',
                     }} />
                   )}
                 </NavLink>
