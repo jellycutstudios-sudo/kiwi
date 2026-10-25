@@ -117,7 +117,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     const unsub = onSnapshot(q, (snap) => {
       let paused = false;
       const now = new Date();
-      const integrations = restaurant?.deliveryIntegrations || {};
+      const integrations = useAuthStore.getState().restaurant?.deliveryIntegrations || restaurant?.deliveryIntegrations || {};
       snap.forEach(docSnap => {
         // Only count as paused if this channel is actually enabled/active
         const platformConfig = integrations[docSnap.id];
@@ -142,7 +142,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       console.warn('Sidebar deliverySettings listener:', err);
     });
     return unsub;
-  }, [restaurant?.id, restaurant?.deliveryIntegrations]);
+  }, [restaurant?.id]);
 
   const handleItemClick = () => {
     if (setMobileOpen) {
