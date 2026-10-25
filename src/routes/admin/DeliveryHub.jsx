@@ -18,13 +18,15 @@ import ToggleSwitch from '../../components/shared/ToggleSwitch';
 import { useOrderStore } from '../../stores/orderStore';
 import toast from 'react-hot-toast';
 
-const PLATFORM_META = {
+export const PLATFORM_META = {
   talabat: {
     name: 'Talabat',
     emoji: '🟧',
     color: '#ff5a00',
     bg: '#fff4ed',
     region: 'Qatar & GCC',
+    currencies: ['QAR', 'AED', 'SAR', 'KWD', 'BHD', 'OMR', 'EGP', 'JOD'],
+    countries: ['Qatar', 'United Arab Emirates', 'Saudi Arabia', 'Kuwait', 'Bahrain', 'Oman', 'Egypt', 'Jordan', 'QA', 'AE', 'SA', 'KW', 'BH', 'OM', 'EG', 'JO'],
     fields: [
       { key: 'apiKey', label: 'Talabat Partner API Key', placeholder: 'talabat_api_key_...' },
       { key: 'restaurantId', label: 'Talabat Restaurant / Chain ID', placeholder: 'talabat_branch_id_...' },
@@ -37,6 +39,8 @@ const PLATFORM_META = {
     color: '#e30613',
     bg: '#fdefef',
     region: 'Qatar',
+    currencies: ['QAR'],
+    countries: ['Qatar', 'QA'],
     fields: [
       { key: 'apiKey', label: 'Snoonu Merchant API Token', placeholder: 'snoonu_token_...' },
       { key: 'merchantId', label: 'Merchant ID', placeholder: 'snoonu_merchant_id_...' },
@@ -49,6 +53,8 @@ const PLATFORM_META = {
     color: '#5c1d8c',
     bg: '#f5effa',
     region: 'Qatar',
+    currencies: ['QAR'],
+    countries: ['Qatar', 'QA'],
     fields: [
       { key: 'apiKey', label: 'Rafeeq Partner API Token', placeholder: 'rafeeq_api_key_...' },
       { key: 'vendorId', label: 'Vendor / Branch ID', placeholder: 'rafeeq_vendor_id_...' }
@@ -60,6 +66,8 @@ const PLATFORM_META = {
     color: '#ffb300',
     bg: '#fffbf0',
     region: 'KSA & GCC',
+    currencies: ['SAR', 'BHD', 'KWD', 'QAR', 'AED'],
+    countries: ['Saudi Arabia', 'Bahrain', 'Kuwait', 'Qatar', 'United Arab Emirates', 'SA', 'BH', 'KW', 'QA', 'AE'],
     fields: [
       { key: 'apiKey', label: 'Jahez API Key', placeholder: 'jahez_key_...' },
       { key: 'branchId', label: 'Branch Code', placeholder: 'jahez_branch_code_...' }
@@ -71,6 +79,8 @@ const PLATFORM_META = {
     color: '#00cdbc',
     bg: '#eefcfb',
     region: 'UAE, Qatar & Global',
+    currencies: ['AED', 'QAR', 'KWD', 'GBP', 'EUR', 'SGD', 'HKD', 'AUD'],
+    countries: ['United Kingdom', 'United Arab Emirates', 'Qatar', 'Kuwait', 'France', 'Ireland', 'Singapore', 'Hong Kong', 'Australia', 'GB', 'UK', 'AE', 'QA', 'KW', 'FR', 'IE', 'SG', 'HK', 'AU'],
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'deliveroo_api_key_...' },
       { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'deliveroo_restaurant_id_...' }
@@ -82,6 +92,9 @@ const PLATFORM_META = {
     color: '#06c167',
     bg: '#eefaf3',
     region: 'Global',
+    isGlobal: true,
+    currencies: ['USD', 'CAD', 'GBP', 'EUR', 'INR', 'AED', 'AUD', 'NZD', 'JPY', 'ZAR'],
+    countries: ['United States', 'Canada', 'United Kingdom', 'India', 'United Arab Emirates', 'Australia', 'New Zealand', 'France', 'Spain', 'Germany', 'US', 'CA', 'GB', 'UK', 'IN', 'AE', 'AU', 'NZ', 'FR', 'ES', 'DE'],
     fields: [
       { key: 'clientId', label: 'Client ID', placeholder: 'client_id_...' },
       { key: 'clientSecret', label: 'Client Secret', placeholder: 'client_secret_...', type: 'password' },
@@ -94,6 +107,8 @@ const PLATFORM_META = {
     color: '#e23744',
     bg: '#fdefef',
     region: 'India & UAE',
+    currencies: ['INR', 'AED'],
+    countries: ['India', 'United Arab Emirates', 'IN', 'AE'],
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'zomato_api_key_...' },
       { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'zomato_restaurant_id_...' }
@@ -105,6 +120,8 @@ const PLATFORM_META = {
     color: '#fc8019',
     bg: '#fff5ed',
     region: 'India',
+    currencies: ['INR'],
+    countries: ['India', 'IN'],
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'swiggy_api_key_...' },
       { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'swiggy_restaurant_id_...' }
@@ -112,7 +129,30 @@ const PLATFORM_META = {
   }
 };
 
-const ALL_PLATFORMS = Object.keys(PLATFORM_META);
+export const ALL_PLATFORMS = Object.keys(PLATFORM_META);
+
+export function isPlatformRelevantToRestaurant(platformId, restaurant, integrations = {}) {
+  // If active or configured, always treat as relevant
+  const config = integrations?.[platformId] || {};
+  if (config.enabled === true || config.apiKey || config.clientId || config.vendorId || config.merchantId) {
+    return true;
+  }
+
+  const meta = PLATFORM_META[platformId];
+  if (!meta) return false;
+  if (meta.isGlobal) return true;
+
+  const restCurrency = (restaurant?.currency || 'INR').toUpperCase().trim();
+  const restCountry = (restaurant?.country || '').toLowerCase().trim();
+
+  // Match by currency
+  if (meta.currencies && meta.currencies.includes(restCurrency)) return true;
+
+  // Match by country
+  if (restCountry && meta.countries && meta.countries.some(c => c.toLowerCase() === restCountry)) return true;
+
+  return false;
+}
 
 const DAYS_OF_WEEK = [
   { value: 'all', label: 'All Days' },
@@ -284,6 +324,9 @@ export default function DeliveryHub() {
   
   // Timer for countdowns
   const [now, setNow] = useState(new Date());
+
+  // Channel Region filter ('recommended' | 'connected' | 'all')
+  const [channelFilter, setChannelFilter] = useState('recommended');
 
   // Category Matrix UI states
   const [expandedCategories, setExpandedCategories] = useState({});
@@ -849,6 +892,21 @@ export default function DeliveryHub() {
 
   // Helper checks
   const isPlatformEnabled = (platformId) => integrations[platformId]?.enabled === true;
+
+  // Resolve platforms relevant to restaurant region + any connected
+  const recommendedPlatformIds = useMemo(() => {
+    return ALL_PLATFORMS.filter(id => isPlatformRelevantToRestaurant(id, restaurant, integrations));
+  }, [restaurant, integrations]);
+
+  const displayedPlatformIds = useMemo(() => {
+    if (channelFilter === 'connected') {
+      return ALL_PLATFORMS.filter(id => isPlatformEnabled(id));
+    }
+    if (channelFilter === 'recommended') {
+      return recommendedPlatformIds;
+    }
+    return ALL_PLATFORMS;
+  }, [channelFilter, recommendedPlatformIds, integrations]);
   const isPlatformPaused = (platformId) => platformSettings[platformId]?.paused === true;
 
   // Open partner configuration modal
@@ -1469,16 +1527,138 @@ export default function DeliveryHub() {
                 <div className="hub-stat-value" style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                   <span>{activeCount}</span>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>
-                    ({enabledCount}/{ALL_PLATFORMS.length} Connected)
+                    ({enabledCount}/{recommendedPlatformIds.length} in Region)
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Region & Status Filter Segmented Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginBottom: 'var(--space-1)'
+          }}>
+            <div style={{
+              display: 'inline-flex',
+              background: 'var(--color-bg-secondary)',
+              padding: '3px',
+              borderRadius: '10px',
+              border: '1px solid var(--color-separator-opaque)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setChannelFilter('recommended')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: channelFilter === 'recommended' ? 'var(--color-bg)' : 'transparent',
+                  color: channelFilter === 'recommended' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  boxShadow: channelFilter === 'recommended' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>📍</span>
+                <span>For Your Region ({recommendedPlatformIds.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setChannelFilter('connected')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: channelFilter === 'connected' ? 'var(--color-bg)' : 'transparent',
+                  color: channelFilter === 'connected' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  boxShadow: channelFilter === 'connected' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>✅</span>
+                <span>Connected ({enabledCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setChannelFilter('all')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: channelFilter === 'all' ? 'var(--color-bg)' : 'transparent',
+                  color: channelFilter === 'all' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  boxShadow: channelFilter === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>🌐</span>
+                <span>All Directory ({ALL_PLATFORMS.length})</span>
+              </button>
+            </div>
+
+            <div style={{ fontSize: '12px', color: 'var(--color-label-tertiary)' }}>
+              {channelFilter === 'recommended' && (
+                <span>Auto-filtered for {restaurant?.country || (currency === 'QAR' ? 'Qatar' : currency === 'INR' ? 'India' : currency === 'AED' ? 'UAE' : currency === 'SAR' ? 'Saudi Arabia' : currency)}</span>
+              )}
+              {channelFilter === 'connected' && (
+                <span>Showing {enabledCount} active integration{enabledCount !== 1 ? 's' : ''}</span>
+              )}
+              {channelFilter === 'all' && (
+                <span>Viewing complete international aggregator catalog</span>
+              )}
+            </div>
+          </div>
+
           {/* Integration Platform Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-4)' }}>
-            {Object.entries(PLATFORM_META).map(([id, meta]) => {
+            {displayedPlatformIds.length === 0 ? (
+              <div style={{
+                gridColumn: '1 / -1',
+                padding: 'var(--space-8)',
+                textAlign: 'center',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1.5px dashed var(--color-separator-opaque)'
+              }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔌</div>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--color-label)' }}>No Connected Delivery Partners Yet</div>
+                <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', marginTop: '4px', maxWidth: 440, margin: '4px auto 16px' }}>
+                  Switch to &quot;For Your Region&quot; to configure delivery aggregators operating in your area.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setChannelFilter('recommended')}
+                >
+                  Browse Regional Partners
+                </button>
+              </div>
+            ) : displayedPlatformIds.map(id => {
+              const meta = PLATFORM_META[id] || {};
               const config = integrations[id] || {};
               const isEnabled = config.enabled === true;
               const log = syncLogs[id];
@@ -1866,7 +2046,7 @@ export default function DeliveryHub() {
               >
                 All Channels ({orders.length})
               </button>
-              {Object.keys(PLATFORM_META).map(platformId => {
+              {ALL_PLATFORMS.filter(p => isPlatformEnabled(p) || recommendedPlatformIds.includes(p) || orders.some(o => o.source === p)).map(platformId => {
                 const meta = PLATFORM_META[platformId];
                 const count = orders.filter(o => o.source === platformId).length;
                 const isSelected = ordersChannelFilter === platformId;

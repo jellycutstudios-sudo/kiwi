@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { isPlatformRelevantToRestaurant } from '../routes/admin/DeliveryHub';
 
 describe('Delivery Hub Configuration & Security Logic', () => {
   // Test role resolution logic used in DeliveryHub.jsx and Sidebar.jsx
@@ -193,6 +194,38 @@ describe('Delivery Hub Configuration & Security Logic', () => {
     expect(effectivePrepTime(30)).toBe(50);
     expect(effectivePrepTime(45)).toBe(65);
     expect(prepBufferOptions.includes(30)).toBe(true);
+  });
+
+  it('correctly filters delivery platforms based on restaurant country and currency', () => {
+    const qatarRestaurant = { currency: 'QAR', country: 'Qatar' };
+    const indiaRestaurant = { currency: 'INR', country: 'India' };
+    const ukRestaurant = { currency: 'GBP', country: 'United Kingdom' };
+
+    // Qatar restaurant: Talabat, Snoonu, Rafeeq, Deliveroo, Uber Eats
+    expect(isPlatformRelevantToRestaurant('talabat', qatarRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('snoonu', qatarRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('rafeeq', qatarRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('deliveroo', qatarRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('ubereats', qatarRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('swiggy', qatarRestaurant)).toBe(false);
+    expect(isPlatformRelevantToRestaurant('zomato', qatarRestaurant)).toBe(false);
+
+    // India restaurant: Swiggy, Zomato, Uber Eats
+    expect(isPlatformRelevantToRestaurant('swiggy', indiaRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('zomato', indiaRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('ubereats', indiaRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('snoonu', indiaRestaurant)).toBe(false);
+    expect(isPlatformRelevantToRestaurant('rafeeq', indiaRestaurant)).toBe(false);
+
+    // UK restaurant: Deliveroo, Uber Eats
+    expect(isPlatformRelevantToRestaurant('deliveroo', ukRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('ubereats', ukRestaurant)).toBe(true);
+    expect(isPlatformRelevantToRestaurant('talabat', ukRestaurant)).toBe(false);
+    expect(isPlatformRelevantToRestaurant('swiggy', ukRestaurant)).toBe(false);
+
+    // Any platform that is already active/connected is ALWAYS shown
+    const connectedMock = { swiggy: { enabled: true } };
+    expect(isPlatformRelevantToRestaurant('swiggy', qatarRestaurant, connectedMock)).toBe(true);
   });
 });
 
