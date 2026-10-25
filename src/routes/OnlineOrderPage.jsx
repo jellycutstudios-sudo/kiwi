@@ -1454,7 +1454,7 @@ export default function OnlineOrderPage() {
           position: 'sticky',
           top: 56,
           zIndex: 35,
-          background: 'var(--color-bg)',
+          background: 'transparent',
           padding: '8px 0',
           marginBottom: 16
         }}>
