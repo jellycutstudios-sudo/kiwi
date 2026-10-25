@@ -1085,8 +1085,8 @@ export default function POS() {
   const displayItems = useMemo(() => {
     // When searching, search across all items regardless of active category tab
     const rawItems = (activeCat === 'all' || search.trim())
-      ? categories.flatMap(c => c.items ?? [])
-      : categories.find(c => c.id === activeCat)?.items ?? [];
+      ? categories.flatMap(c => (c.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || c.id, categoryName: i.categoryName || c.name })))
+      : (categories.find(c => c.id === activeCat)?.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || activeCat, categoryName: i.categoryName || categories.find(c => c.id === activeCat)?.name }));
 
     let filtered = rawItems;
     if (search.trim()) {

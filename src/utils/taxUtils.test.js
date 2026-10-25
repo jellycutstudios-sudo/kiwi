@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeTax } from './taxUtils';
+import { computeTax, computeOrderTaxes, resolveItemTaxRule } from './taxUtils';
 
 describe('computeTax', () => {
   it('should return default none tax configuration if config is empty', () => {
@@ -80,3 +80,63 @@ describe('computeTax', () => {
   });
 });
 
+describe('computeOrderTaxes (Universal Inherited Engine)', () => {
+  it('should resolve fallback inheritance: Item -> Category -> Store', () => {
+    const storeConfig = { type: 'vat', rate: 15 };
+    const category = { id: 'bakery', name: 'Bakery', taxRate: 0 };
+    const item1 = { id: 'croissant', name: 'Croissant', price: 10, categoryId: 'bakery' };
+    const item2 = { id: 'special_wine', name: 'Special Wine', price: 50, taxRate: 20 };
+    const item3 = { id: 'pasta', name: 'Pasta', price: 30 }; // inherits store 15%
+
+    const rule1 = resolveItemTaxRule(item1, category, storeConfig);
+    expect(rule1.rate).toBe(0);
+    expect(rule1.label).toBe('Zero-Rated (0%)');
+
+    const rule2 = resolveItemTaxRule(item2, category, storeConfig);
+    expect(rule2.rate).toBe(20);
+
+    const rule3 = resolveItemTaxRule(item3, {}, storeConfig);
+    expect(rule3.rate).toBe(15);
+  });
+
+  it('should compute mixed multi-tier line item taxes in 1 pass', () => {
+    const storeConfig = { type: 'vat', rate: 20, mode: 'exclusive' };
+    const categoriesMap = {
+      bakery: { id: 'bakery', name: 'Bakery', taxRate: 0 }
+    };
+    const cart = [
+      { id: '1', name: 'Steak', price: 50, qty: 1 }, // inherits 20% VAT = 10
+      { id: '2', name: 'Bread', price: 10, qty: 2, categoryId: 'bakery' }, // inherits 0% Bakery = 0
+      { id: '3', name: 'Luxury Cigar', price: 40, qty: 1, taxRate: 50 } // override 50% = 20
+    ];
+
+    const result = computeOrderTaxes(cart, categoriesMap, storeConfig);
+
+    expect(result.taxTotal).toBe(30); // 10 (Steak) + 0 (Bread) + 20 (Cigar) = 30
+    expect(result.total).toBe(140); // 50 + 20 + 40 + 30 = 140
+    expect(result.lines).toHaveLength(3);
+    expect(result.lines).toEqual(expect.arrayContaining([
+      { label: 'VAT (20%)', amount: 10 },
+      { label: 'Zero-Rated (0%)', amount: 0 },
+      { label: 'VAT (50%)', amount: 20 }
+    ]));
+  });
+
+  it('should respect takeaway reduced tax rule when orderType is takeaway', () => {
+    const storeConfig = {
+      type: 'vat',
+      rate: 20, // 20% dine in
+      takeawayRate: 7, // 7% reduced takeaway
+      takeawayLabel: 'Takeaway VAT (7%)',
+      mode: 'exclusive'
+    };
+    const cart = [{ id: '1', name: 'Meal', price: 100, qty: 1 }];
+
+    const dineInResult = computeOrderTaxes(cart, {}, storeConfig, { orderType: 'dine-in' });
+    expect(dineInResult.taxTotal).toBe(20);
+
+    const takeawayResult = computeOrderTaxes(cart, {}, storeConfig, { orderType: 'takeaway' });
+    expect(takeawayResult.taxTotal).toBe(7);
+    expect(takeawayResult.lines[0].label).toBe('Takeaway VAT (7%)');
+  });
+});

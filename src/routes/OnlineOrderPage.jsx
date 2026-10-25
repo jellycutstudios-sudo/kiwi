@@ -312,8 +312,11 @@ export default function OnlineOrderPage() {
   }, [orderType, restaurant?.deliveryFee, restaurant?.freeDeliveryAbove, subtotal]);
 
   const taxResult = useMemo(() => {
-    return computeTax(subtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
-  }, [subtotal, restaurant?.taxConfig]);
+    return computeTax(subtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 }, {
+      items: cart,
+      orderType
+    });
+  }, [subtotal, restaurant?.taxConfig, cart, orderType]);
 
   const total = useMemo(() => {
     return taxResult.total + deliveryFee;

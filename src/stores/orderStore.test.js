@@ -2,6 +2,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useOrderStore } from './orderStore';
 import { useGiftCardStore } from './giftCardStore';
 import { useShiftStore } from './shiftStore';
+import { useMenuStore } from './menuStore';
 
 // Mock Firestore operations
 vi.mock('firebase/firestore', () => ({
@@ -345,5 +346,27 @@ describe('orderStore', () => {
     expect(shift.upiSalesAmount).toBe(20);
     expect(shift.upiSalesCount).toBe(1);
     expect(shift.totalSalesAmount).toBe(175);
+  });
+
+  it('should calculate multi-tier inherited tax in orderStore (Item & Category overrides)', () => {
+    useMenuStore.getState().setCategories([
+      { id: 'cat-exempt', name: 'Fresh Bakery', taxRate: 0, items: [] }
+    ]);
+    const store = useOrderStore.getState();
+    store.clearCart();
+    // Item 1: inherits store VAT 20% -> 20% of 50 = 10
+    store.addItem({ id: 'item-1', name: 'Steak', price: 50 });
+    // Item 2: belongs to 0% Category -> 0% of 20 = 0
+    store.addItem({ id: 'item-2', name: 'Baguette', price: 20, categoryId: 'cat-exempt' });
+    // Item 3: has item-level 50% override -> 50% of 10 = 5
+    store.addItem({ id: 'item-3', name: 'Special Item', price: 10, taxRate: 50 });
+
+    const restaurant = {
+      taxConfig: { type: 'vat', rate: 20, mode: 'exclusive' }
+    };
+
+    const taxInfo = store.getTaxInfo(restaurant);
+    expect(taxInfo.taxTotal).toBe(15);
+    expect(store.getTotal(restaurant)).toBe(95);
   });
 });

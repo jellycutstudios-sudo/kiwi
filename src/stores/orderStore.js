@@ -6,6 +6,7 @@ import {
 import { db } from '../firebase';
 import { computeTax } from '../utils/taxUtils';
 import { useTableStore } from './tableStore';
+import { useMenuStore } from './menuStore';
 import { useAuthStore } from './authStore';
 import { useShiftStore } from './shiftStore';
 import { useGiftCardStore } from './giftCardStore';
@@ -416,7 +417,17 @@ export const useOrderStore = create((set, get) => ({
         taxableAmountForTax += serviceChargeAmt;
       }
 
-      const taxRes = computeTax(taxableAmountForTax, rest?.taxConfig ?? { type: 'none', rate: 0 });
+      const categories = useMenuStore.getState().categories || [];
+      const categoriesMap = Object.fromEntries(categories.map(c => [c.id, c]));
+      const taxRes = computeTax(taxableAmountForTax, rest?.taxConfig ?? { type: 'none', rate: 0 }, {
+        items: mergedItems,
+        categoriesMap,
+        discountAmount,
+        pointsDiscount,
+        serviceChargeAmount: serviceChargeAmt,
+        serviceChargeTaxable: rest?.serviceChargeTaxable === 'yes',
+        orderType: primaryOrder.type || 'dine-in'
+      });
       const tipAmt = primaryOrder.tipAmount ?? 0;
       const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
       const totalBeforeGiftCard = baseTaxable + taxToAdd + serviceChargeAmt + tipAmt;
@@ -536,11 +547,22 @@ export const useOrderStore = create((set, get) => ({
     const subtotal = get().getSubtotal();
     const discountAmt = get().getDiscountAmount();
     const pointsDiscount = get().getPointsDiscountAmount();
-    let taxableAmount = Math.max(0, subtotal - discountAmt - pointsDiscount);
-    if (restaurant?.serviceChargeTaxable === 'yes') {
-      taxableAmount += get().getServiceChargeAmount(restaurant);
-    }
-    return computeTax(taxableAmount, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+    const serviceChargeAmt = get().getServiceChargeAmount(restaurant);
+    const serviceChargeTaxable = restaurant?.serviceChargeTaxable === 'yes';
+
+    const items = get().items || [];
+    const categories = useMenuStore.getState().categories || [];
+    const categoriesMap = Object.fromEntries(categories.map(c => [c.id, c]));
+
+    return computeTax(subtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 }, {
+      items,
+      categoriesMap,
+      discountAmount: discountAmt,
+      pointsDiscount,
+      serviceChargeAmount: serviceChargeAmt,
+      serviceChargeTaxable,
+      orderType: get().orderType || 'dine-in'
+    });
   },
 
   getTotal: (restaurant) => {
@@ -548,14 +570,11 @@ export const useOrderStore = create((set, get) => ({
     const discountAmt = get().getDiscountAmount();
     const pointsDiscount = get().getPointsDiscountAmount();
     const serviceChargeAmt = get().getServiceChargeAmount(restaurant);
-    let taxableAmountForTax = Math.max(0, subtotal - discountAmt - pointsDiscount);
-    const baseTaxable = taxableAmountForTax;
-    if (restaurant?.serviceChargeTaxable === 'yes') {
-      taxableAmountForTax += serviceChargeAmt;
-    }
-    const taxRes = computeTax(taxableAmountForTax, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+    const baseTaxable = Math.max(0, subtotal - discountAmt - pointsDiscount);
+
+    const taxRes = get().getTaxInfo(restaurant);
     const tipAmt = Number(get().tipAmount) || 0;
-    const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
+    const taxToAdd = taxRes?.mode === 'inclusive' ? 0 : (Number(taxRes?.taxTotal) || 0);
     const totalBeforeGiftCard = baseTaxable + taxToAdd + (Number(serviceChargeAmt) || 0) + tipAmt;
     const giftCardDeduction = Number(useGiftCardStore.getState().giftCardDeduction) || 0;
     return Math.max(0, Math.round((totalBeforeGiftCard - giftCardDeduction) * 100) / 100);
@@ -572,6 +591,8 @@ export const useOrderStore = create((set, get) => ({
     const discountAmount = get().getDiscountAmount();
     const pointsDiscount = get().getPointsDiscountAmount();
     const serviceChargeAmount = get().getServiceChargeAmount(restaurant);
+    const taxInfo = get().getTaxInfo(restaurant);
+    const taxTotal = Number(taxInfo?.taxTotal) || 0;
     const total    = get().getTotal(restaurant);
 
     const isPaid = paymentMethod !== 'unpaid';
@@ -613,6 +634,8 @@ export const useOrderStore = create((set, get) => ({
       serviceChargeRate: restaurant?.serviceChargeRate ?? 0,
       serviceChargeAmount,
       tipAmount,
+      taxInfo,
+      taxTotal,
       total,
       paymentMethod,
       tableId: tableId ?? null,

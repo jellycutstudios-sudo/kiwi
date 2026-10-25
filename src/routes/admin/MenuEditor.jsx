@@ -61,8 +61,8 @@ export default function MenuEditor() {
   const [editingCat, setEditingCat] = useState(null);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [catForm, setCatForm] = useState({ name: '', emoji: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs' });
+  const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '' });
+  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '' });
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -135,7 +135,8 @@ export default function MenuEditor() {
       highMargin: false,
       isBestseller: false,
       barcode: '',
-      unit: 'pcs'
+      unit: 'pcs',
+      taxRate: ''
     });
     setShowAdvancedDetails(false);
     setActiveTab('general');
@@ -159,9 +160,10 @@ export default function MenuEditor() {
       highMargin: item.highMargin || false,
       isBestseller: item.isBestseller || item.bestseller || false,
       barcode: item.barcode ?? '',
-      unit: item.unit ?? 'pcs'
+      unit: item.unit ?? 'pcs',
+      taxRate: item.taxRate != null ? String(item.taxRate) : ''
     });
-    setShowAdvancedDetails(Boolean(item.barcode || item.description || (item.unit && item.unit !== 'pcs')));
+    setShowAdvancedDetails(Boolean(item.barcode || item.description || item.taxRate != null || (item.unit && item.unit !== 'pcs')));
     setActiveTab('general');
     setShowItemForm(true);
   };
@@ -274,13 +276,13 @@ export default function MenuEditor() {
 
   const openAddCategory = () => {
     setEditingCat(null);
-    setCatForm({ name: '', emoji: '' });
+    setCatForm({ name: '', emoji: '', taxRate: '' });
     setShowCatForm(true);
   };
 
   const openEditCategory = (cat) => {
     setEditingCat(cat);
-    setCatForm({ name: cat.name || '', emoji: cat.emoji || '🍽️' });
+    setCatForm({ name: cat.name || '', emoji: cat.emoji || '🍽️', taxRate: cat.taxRate != null ? String(cat.taxRate) : '' });
     setShowCatForm(true);
   };
 
@@ -289,11 +291,16 @@ export default function MenuEditor() {
     const isLocalOnly = Boolean(restaurant?.localStorageOnly);
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
 
+    const parsedTaxRate = (catForm.taxRate !== '' && !isNaN(parseFloat(catForm.taxRate)))
+      ? parseFloat(catForm.taxRate)
+      : null;
+
     if (editingCat) {
       const updatedCats = categories.map(c => c.id === editingCat.id ? {
         ...c,
         name: catForm.name.trim(),
-        emoji: catForm.emoji.trim() || '🍽️'
+        emoji: catForm.emoji.trim() || '🍽️',
+        ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : { taxRate: undefined })
       } : c);
       useMenuStore.getState().setCategories(updatedCats);
       try {
@@ -302,10 +309,16 @@ export default function MenuEditor() {
 
       if (!isLocalOnly && isOnline) {
         try {
-          await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', editingCat.id), {
+          const updatePayload = {
             name: catForm.name.trim(),
             emoji: catForm.emoji.trim() || '🍽️',
-          });
+          };
+          if (parsedTaxRate !== null) {
+            updatePayload.taxRate = parsedTaxRate;
+          } else {
+            updatePayload.taxRate = null;
+          }
+          await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', editingCat.id), updatePayload);
         } catch (e) {
           console.warn('[MenuEditor] Category cloud sync deferred:', e?.message);
         }
@@ -317,6 +330,7 @@ export default function MenuEditor() {
         id: newCatId,
         name: catForm.name.trim(),
         emoji: catForm.emoji.trim() || '🍽️',
+        ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {}),
         items: [],
       };
       const updatedCats = [...categories, newCat];
@@ -327,11 +341,15 @@ export default function MenuEditor() {
 
       if (!isLocalOnly && isOnline) {
         try {
-          const docRef = await addDoc(collection(db, 'restaurants', restaurant.id, 'menu'), {
+          const docPayload = {
             name: catForm.name.trim(),
             emoji: catForm.emoji.trim() || '🍽️',
             items: [],
-          });
+          };
+          if (parsedTaxRate !== null) {
+            docPayload.taxRate = parsedTaxRate;
+          }
+          const docRef = await addDoc(collection(db, 'restaurants', restaurant.id, 'menu'), docPayload);
           // Update id with cloud id if available
           const finalCats = updatedCats.map(c => c.id === newCatId ? { ...c, id: docRef.id } : c);
           useMenuStore.getState().setCategories(finalCats);
@@ -341,7 +359,7 @@ export default function MenuEditor() {
       }
       toast.success('Category added!');
     }
-    setCatForm({ name: '', emoji: '' });
+    setCatForm({ name: '', emoji: '', taxRate: '' });
     setEditingCat(null);
     setShowCatForm(false);
   };
@@ -380,6 +398,10 @@ export default function MenuEditor() {
     const isLocalOnly = Boolean(restaurant?.localStorageOnly);
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
 
+    const parsedTaxRate = (itemForm.taxRate !== '' && !isNaN(parseFloat(itemForm.taxRate)))
+      ? parseFloat(itemForm.taxRate)
+      : null;
+
     const newItem = {
       id: editItem?.id ?? generateId(),
       name: itemForm.name.trim(),
@@ -395,6 +417,7 @@ export default function MenuEditor() {
       isBestseller: itemForm.isBestseller || false,
       barcode: itemForm.barcode?.trim() ?? '',
       unit: itemForm.unit || 'pcs',
+      ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {})
     };
     const items = editItem
       ? cat.items.map(i => i.id === editItem.id ? newItem : i)
@@ -1184,6 +1207,28 @@ export default function MenuEditor() {
                 <label className="form-label">Emoji</label>
                 <input id="cat-emoji-input" className="form-input" placeholder="e.g. 🥗" value={catForm.emoji} onChange={e => setCatForm(f => ({...f, emoji:e.target.value}))} />
               </div>
+              <div className="form-group">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Tax Rate Override (%)</label>
+                  <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                    {restaurant?.taxConfig?.rate != null ? `Store Default: ${restaurant.taxConfig.rate}%` : 'Optional'}
+                  </span>
+                </div>
+                <input
+                  id="cat-tax-rate-input"
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder={`Inherit store (${restaurant?.taxConfig?.rate ?? 0}%) or enter e.g. 0, 5, 20`}
+                  value={catForm.taxRate}
+                  onChange={e => setCatForm(f => ({ ...f, taxRate: e.target.value }))}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: '4px', display: 'block' }}>
+                  Leave empty to inherit restaurant tax rate. Enter 0 for zero-rated / tax-exempt items in this category.
+                </span>
+              </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowCatForm(false)}>Cancel</button>
@@ -1499,13 +1544,42 @@ export default function MenuEditor() {
                       {showAdvancedDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       <span>{showAdvancedDetails ? 'Hide Optional Details' : 'More Details (SKU, Unit, Description)'}</span>
                     </span>
-                    {(itemForm.barcode || itemForm.description || (itemForm.unit && itemForm.unit !== 'pcs')) && (
+                    {(itemForm.barcode || itemForm.description || itemForm.taxRate !== '' || (itemForm.unit && itemForm.unit !== 'pcs')) && (
                       <span className="optional-details-configured-badge">Configured</span>
                     )}
                   </button>
 
                   {showAdvancedDetails && (
                     <div className="optional-details-content">
+                      {/* Tax Rate Override Row */}
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 600, margin: 0 }}>
+                            Tax Rate Override (%)
+                          </label>
+                          <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>
+                            {activeCatData?.taxRate != null 
+                              ? `Inherits Category: ${activeCatData.taxRate}%` 
+                              : `Inherits Store: ${restaurant?.taxConfig?.rate ?? 0}%`}
+                          </span>
+                        </div>
+                        <input 
+                          id="item-tax-rate-input" 
+                          className="form-input" 
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          placeholder={`Inherit (${activeCatData?.taxRate ?? restaurant?.taxConfig?.rate ?? 0}%) or enter 0 for Zero-Rated`} 
+                          value={itemForm.taxRate ?? ''} 
+                          onChange={e => setItemForm(f=>({...f, taxRate: e.target.value}))} 
+                          style={{ height: 36, padding: '0 12px', fontSize: '13px' }}
+                        />
+                        <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px', display: 'block' }}>
+                          Leave blank to inherit category/store tax. Set to 0 for tax-exempt / zero-rated items.
+                        </span>
+                      </div>
+
                       {/* Barcode & Unit Row */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
                         <div className="form-group" style={{ margin: 0 }}>

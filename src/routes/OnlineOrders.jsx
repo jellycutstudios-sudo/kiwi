@@ -379,7 +379,10 @@ export default function OnlineOrders() {
     if (e) e.stopPropagation();
     const discountAmount = order.discountAmount ?? 0;
     const taxableAmount = Math.max(0, (order.subtotal || order.total) - discountAmount);
-    const taxInfo = computeTax(taxableAmount, restaurant?.taxConfig ?? { type: 'none', rate: 0 });
+    const taxInfo = order.taxInfo || computeTax(taxableAmount, restaurant?.taxConfig ?? { type: 'none', rate: 0 }, {
+      items: order.items || [],
+      orderType: order.type || 'delivery'
+    });
     printReceipt({
       restaurant,
       order,
