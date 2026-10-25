@@ -43,8 +43,20 @@ export default function Dashboard() {
 
   const activeOrders = useOrderStore(s => s.activeOrders);
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
+
+  // Auto-filter out completed orders: an order is done if it is billed OR (paid AND food is ready)
+  const displayedActiveOrders = useMemo(() => {
+    return activeOrders.filter(o => {
+      if (['billed', 'cancelled', 'completed'].includes(o.status)) return false;
+      const isPaid = o.paid === true || (o.paymentMethod && o.paymentMethod !== 'unpaid');
+      const allItemsReady = (o.items || []).length > 0 && o.items.every(i => i.status === 'ready');
+      if (isPaid && (o.status === 'ready' || allItemsReady)) return false;
+      return true;
+    });
+  }, [activeOrders]);
   const categories = useMenuStore(s => s.categories);
   const settleOrder = useOrderStore(s => s.settleOrder);
+  const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const [todayStats, setTodayStats] = useState({ 
     sales: 0, 
     orders: 0, 
@@ -568,6 +580,14 @@ export default function Dashboard() {
     billed:    'badge-gray',
   };
 
+  const orderStatusLabels = {
+    pending:   'In Kitchen',
+    preparing: 'Cooking',
+    ready:     'Ready',
+    served:    'Served',
+    billed:    'Completed',
+  };
+
   const CustomChartTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
@@ -1047,9 +1067,9 @@ export default function Dashboard() {
           <div className="card" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-xl)', minWidth: 0 }}>
             <div className="card-header" style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--color-separator)' }}>
               <span className="card-title" style={{ fontSize: 'var(--text-title3)', fontWeight: 700 }}>Active Orders</span>
-              <span className="badge badge-blue" style={{ fontSize: '11px', fontWeight: 700 }}>{activeOrders.length}</span>
+              <span className="badge badge-blue" style={{ fontSize: '11px', fontWeight: 700 }}>{displayedActiveOrders.length}</span>
             </div>
-            {activeOrders.length === 0 ? (
+            {displayedActiveOrders.length === 0 ? (
               <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
                 <div style={{ fontSize: 32, marginBottom: 'var(--space-2)' }}>🎉</div>
                 <div style={{ fontWeight: 600, fontSize: '14px' }}>All caught up!</div>
@@ -1062,7 +1082,7 @@ export default function Dashboard() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
-                        {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Status', 'Action'].map(h => (
+                        {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Kitchen Status', 'Action'].map(h => (
                           <th key={h} style={{
                             padding: 'var(--space-3) var(--space-5)',
                             textAlign: 'left',
@@ -1076,7 +1096,7 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {activeOrders.slice(0, 15).map((o) => (
+                      {displayedActiveOrders.slice(0, 15).map((o) => (
                         <tr key={o.id} style={{
                           borderBottom: '1px solid var(--color-separator)',
                           transition: 'background var(--duration-fast)',
@@ -1103,7 +1123,7 @@ export default function Dashboard() {
                           </td>
                           <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
                             <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`}>
-                              {o.status}
+                              {orderStatusLabels[o.status] ?? o.status}
                             </span>
                           </td>
                           <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
@@ -1129,9 +1149,36 @@ export default function Dashboard() {
                                 <Zap size={11} fill="#fff" /> Settle
                               </button>
                             ) : (
-                              <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                <Check size={12} color="#10b981" /> Paid
-                              </span>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <Check size={12} color="#10b981" /> Paid
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      await updateOrderStatus(restaurant.id, o.id, 'billed');
+                                      toast.success(`Order #${o.id.slice(-6).toUpperCase()} marked complete!`);
+                                    } catch (err) {
+                                      toast.error('Failed to complete order: ' + err.message);
+                                    }
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    padding: '2px 8px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                  title="Mark order complete and close"
+                                >
+                                  Complete ✓
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1142,7 +1189,7 @@ export default function Dashboard() {
 
                 {/* Mobile Cards View */}
                 <div className="mobile-only" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                  {activeOrders.slice(0, 15).map(o => (
+                  {displayedActiveOrders.slice(0, 15).map(o => (
                     <div 
                       key={o.id}
                       style={{
@@ -1168,7 +1215,7 @@ export default function Dashboard() {
                           </span>
                         </div>
                         <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`} style={{ fontSize: '10px' }}>
-                          {o.status}
+                          {orderStatusLabels[o.status] ?? o.status}
                         </span>
                       </div>
 
@@ -1200,9 +1247,35 @@ export default function Dashboard() {
                             <Zap size={11} fill="#fff" /> Settle
                           </button>
                         ) : (
-                          <span style={{ fontSize: '12px', color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            <Check size={12} color="#10b981" /> Paid
-                          </span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Check size={12} color="#10b981" /> Paid
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await updateOrderStatus(restaurant.id, o.id, 'billed');
+                                  toast.success(`Order #${o.id.slice(-6).toUpperCase()} marked complete!`);
+                                } catch (err) {
+                                  toast.error('Failed to complete order: ' + err.message);
+                                }
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                padding: '4px 10px',
+                                borderRadius: 'var(--radius-sm)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                            >
+                              Complete ✓
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

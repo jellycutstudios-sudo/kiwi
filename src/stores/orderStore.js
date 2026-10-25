@@ -304,7 +304,7 @@ export const useOrderStore = create((set, get) => ({
         } : o);
         useOfflineQueueStore.setState({ queue: updatedQueue });
         try {
-          localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+          localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
         } catch {}
       }
 
@@ -480,7 +480,7 @@ export const useOrderStore = create((set, get) => ({
         });
         useOfflineQueueStore.setState({ queue: updatedQueue });
         try {
-          localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+          localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
         } catch {}
       }
 
@@ -1168,19 +1168,36 @@ export const useOrderStore = create((set, get) => ({
   patchActiveOrder: (orderId, partial) => {
     const currentRestId = useAuthStore.getState().restaurant?.id;
     set(s => ({
-      activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o)
+      activeOrders: ['billed', 'cancelled', 'completed'].includes(partial.status)
+        ? (s.activeOrders || []).filter(o => o.id !== orderId)
+        : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o)
     }));
     localSyncChannel.broadcast('LOCAL_ORDER_UPDATED', {
       orderId,
       partial,
       restaurantId: currentRestId
     });
+
+    const queue = useOfflineQueueStore.getState().queue || [];
+    if (queue.some(o => o.id === orderId)) {
+      const updatedQueue = queue.map(o => o.id === orderId ? {
+        ...o,
+        ...partial,
+        updatedAt: new Date().toISOString()
+      } : o);
+      useOfflineQueueStore.setState({ queue: updatedQueue });
+      try {
+        localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
+      } catch {}
+    }
   },
 
   updateOrderStatus: async (restaurantId, orderId, status) => {
     // 1. Immediately update active order status locally for zero UI lag
     set(s => ({
-      activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status } : o)
+      activeOrders: ['billed', 'cancelled'].includes(status)
+        ? (s.activeOrders || []).filter(o => o.id !== orderId)
+        : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status } : o)
     }));
     localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
       orderId,
@@ -1202,7 +1219,7 @@ export const useOrderStore = create((set, get) => ({
       } : o);
       useOfflineQueueStore.setState({ queue: updatedQueue });
       try {
-        localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+        localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
       } catch {}
     }
 
@@ -1290,15 +1307,7 @@ export const useOrderStore = create((set, get) => ({
       // 2. OPTIMISTIC INSTANT UPDATE (0ms delay):
       // Update in-memory active orders & broadcast to all tabs (KDS, POS, TableMap, Dashboard)
       set(s => ({
-        activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? {
-          ...o,
-          status: 'billed',
-          paymentMethod: method,
-          paid: true,
-          paidAt: nowIso,
-          updatedAt: nowIso,
-          ...additionalFields
-        } : o)
+        activeOrders: (s.activeOrders || []).filter(o => o.id !== orderId)
       }));
 
       localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
@@ -1332,7 +1341,7 @@ export const useOrderStore = create((set, get) => ({
         } : o);
         useOfflineQueueStore.setState({ queue: updatedQueue });
         try {
-          localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(updatedQueue));
+          localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
         } catch {}
       }
 

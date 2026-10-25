@@ -11,7 +11,7 @@ const QUEUE_STORAGE_KEY = 'dineos_offline_order_queue';
 const loadPersistedQueue = () => {
   if (typeof localStorage === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
+    const raw = localStorage.getItem(QUEUE_STORAGE_KEY) || localStorage.getItem('dineos_offline_orders_queue');
     const parsed = raw ? JSON.parse(raw) : [];
     return parsed.map(o => ({
       ...o,
@@ -27,6 +27,7 @@ const savePersistedQueue = (queue) => {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    localStorage.setItem('dineos_offline_orders_queue', JSON.stringify(queue));
   } catch (err) {
     console.error('Failed to persist offline order queue:', err);
   }
@@ -104,6 +105,19 @@ export const useOfflineQueueStore = create((set, get) => {
         token: tokenNumber,
         isOffline: true
       };
+    },
+
+    // ── Update single order in queue ──
+    updateQueuedOrder: (orderId, partial) => {
+      const queue = get().queue;
+      if (!queue.some(o => o.id === orderId)) return;
+      const updatedQueue = queue.map(o => o.id === orderId ? {
+        ...o,
+        ...partial,
+        updatedAt: new Date().toISOString()
+      } : o);
+      set({ queue: updatedQueue });
+      savePersistedQueue(updatedQueue);
     },
 
     // ── Remove single order from queue ──

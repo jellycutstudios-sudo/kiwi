@@ -190,14 +190,14 @@ export default function KDS() {
     return activeOrders
       .filter(o => {
         if (o.status !== 'ready') return false;
-        const createdAtMs = getOrderTimestampMs(o);
-        if (!createdAtMs) return true;
-        return (currentTime - createdAtMs) <= 30 * 60 * 1000;
+        const readyTimeMs = getOrderTimestampMs(o.prepCompletedAt || o.updatedAt || o);
+        if (!readyTimeMs) return true;
+        return (currentTime - readyTimeMs) <= 30 * 60 * 1000;
       })
       .slice()
       .sort((a, b) => {
-        const timeA = getOrderTimestampMs(a) || 0;
-        const timeB = getOrderTimestampMs(b) || 0;
+        const timeA = getOrderTimestampMs(a.prepCompletedAt || a.updatedAt || a) || 0;
+        const timeB = getOrderTimestampMs(b.prepCompletedAt || b.updatedAt || b) || 0;
         return timeB - timeA;
       });
   }, [activeOrders, currentTime]);

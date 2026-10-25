@@ -15,6 +15,15 @@ export default function StaffManager() {
   const [showForm, setShowForm] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [revealedPins, setRevealedPins] = useState({});
+  const [showAllPins, setShowAllPins] = useState(false);
+
+  const togglePinVisibility = (id) => {
+    setRevealedPins(prev => ({
+      ...prev,
+      [id]: showAllPins ? false : !prev[id]
+    }));
+  };
   const [form, setForm] = useState({
     name: '',
     pin: '',
@@ -247,8 +256,22 @@ export default function StaffManager() {
       </div>
 
       <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <span className="card-title">Staff Members ({staff.length})</span>
+          {staff.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setShowAllPins(prev => !prev);
+                setRevealedPins({});
+              }}
+              style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
+            >
+              {showAllPins ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{showAllPins ? 'Hide All PINs' : 'Show All PINs'}</span>
+            </button>
+          )}
         </div>
         <div>
           {staff.length === 0 ? (
@@ -270,8 +293,45 @@ export default function StaffManager() {
                       {s.active !== false ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <div style={{fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:2, wordBreak: 'break-all'}}>
-                    PIN: {'●'.repeat(s.pin?.length ?? 4)} {s.email ? `· ${s.email}` : ''} {s.salaryRate ? `· ${s.salaryType === 'hourly' ? 'Hourly' : 'Monthly'} (${formatCurrency(s.salaryRate, restaurant?.currency)})` : ''}
+                  <div style={{
+                    fontSize: 'var(--text-caption1)',
+                    color: 'var(--color-label-secondary)',
+                    marginTop: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '6px'
+                  }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span>PIN:</span>
+                      <span style={{
+                        fontFamily: (showAllPins || revealedPins[s.id]) ? 'monospace' : 'inherit',
+                        letterSpacing: (showAllPins || revealedPins[s.id]) ? '1.5px' : '1px',
+                        fontWeight: (showAllPins || revealedPins[s.id]) ? 700 : 400,
+                        color: (showAllPins || revealedPins[s.id]) ? 'var(--color-label)' : 'inherit'
+                      }}>
+                        {(showAllPins || revealedPins[s.id]) ? (s.pin || 'None') : '●'.repeat(s.pin?.length ?? 4)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => togglePinVisibility(s.id)}
+                        aria-label={(showAllPins || revealedPins[s.id]) ? `Hide PIN for ${s.name}` : `Show PIN for ${s.name}`}
+                        title={(showAllPins || revealedPins[s.id]) ? 'Hide PIN' : 'Show PIN'}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-label-tertiary)',
+                          cursor: 'pointer',
+                          padding: '0 2px',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {(showAllPins || revealedPins[s.id]) ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                    </span>
+                    {s.email ? <span>· {s.email}</span> : null}
+                    {s.salaryRate ? <span>· {s.salaryType === 'hourly' ? 'Hourly' : 'Monthly'} ({formatCurrency(s.salaryRate, restaurant?.currency)})</span> : null}
                   </div>
                 </div>
               </div>

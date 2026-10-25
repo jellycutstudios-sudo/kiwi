@@ -1335,8 +1335,9 @@ export default function DeliveryHub() {
                     display: 'flex', 
                     flexDirection: 'column', 
                     gap: 'var(--space-4)', 
-                    border: isEnabled ? '1px solid var(--color-separator-opaque)' : '1px dashed var(--color-separator)',
-                    opacity: isEnabled ? 1 : 0.6
+                    border: '1px solid var(--color-separator-opaque)',
+                    background: 'var(--color-bg-elevated)',
+                    transition: 'border-color var(--duration-fast)'
                   }}
                 >
                   {/* Card Header */}
@@ -1464,7 +1465,7 @@ export default function DeliveryHub() {
                     </div>
                   ) : (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 'var(--space-4) var(--space-2)', minHeight: 100 }}>
-                      <span style={{ color: 'var(--color-label-tertiary)', fontSize: 'var(--text-caption1)', textAlign: 'center' }}>
+                      <span style={{ color: 'var(--color-label-secondary)', fontSize: 'var(--text-caption1)', textAlign: 'center' }}>
                         Inactive. Enable to start receiving orders & menu sync.
                       </span>
                       {isUserAdmin && (
