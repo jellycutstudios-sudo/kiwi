@@ -123,7 +123,7 @@ const MODULE_PRESETS = [
 const TAX_TYPES = [
   { key: 'none',  label: 'No Tax' },
   { key: 'gst',   label: 'GST (India — CGST + SGST)' },
-  { key: 'vat',   label: 'VAT (Middle East)' },
+  { key: 'vat',   label: 'VAT (UK, EU, Middle East)' },
   { key: 'flat',  label: 'Flat Rate %' },
 ];
 
@@ -2280,6 +2280,28 @@ export default function Settings() {
                     <div className="form-group">
                       <label className="form-label">Rate %</label>
                       <input id="tax-rate-input" className="form-input" type="number" min={0} max={50} step={0.5} value={settings.taxConfig?.rate??5} onChange={e=>updateField('taxConfig.rate',parseFloat(e.target.value))} />
+                    </div>
+                  )}
+                  {settings.taxConfig?.type !== 'none' && (
+                    <div className="form-group">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <label className="form-label" style={{ margin: 0 }}>Takeaway Reduced Rate % (Optional)</label>
+                        <span className="text-secondary text-caption2">UK / Germany / EU</span>
+                      </div>
+                      <input 
+                        id="takeaway-rate-input" 
+                        className="form-input" 
+                        type="number" 
+                        min={0} 
+                        max={50} 
+                        step={0.5} 
+                        placeholder="Leave blank to use standard rate" 
+                        value={settings.taxConfig?.takeawayRate ?? ''} 
+                        onChange={e => updateField('taxConfig.takeawayRate', e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                      />
+                      <span className="text-secondary text-caption2" style={{ marginTop: '4px', display: 'block' }}>
+                        Special reduced rate automatically applied whenever an order is marked as Takeaway.
+                      </span>
                     </div>
                   )}
                 </div>
