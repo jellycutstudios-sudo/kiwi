@@ -735,6 +735,18 @@ export const useOrderStore = create((set, get) => ({
     });
   },
 
+  getSettledTotal: () => {
+    const settled = get().settledChecks || [];
+    const sum = settled.reduce((acc, c) => acc + (Number(c.total) || 0), 0);
+    return Math.round(sum * 100) / 100;
+  },
+
+  getRemainingTotal: (restaurant) => {
+    const total = get().getTotal(restaurant);
+    const settled = get().getSettledTotal();
+    return Math.max(0, Math.round((total - settled) * 100) / 100);
+  },
+
   getTotal: (restaurant) => {
     const subtotal = get().getSubtotal();
     const discountAmt = get().getDiscountAmount();
@@ -903,7 +915,8 @@ export const useOrderStore = create((set, get) => ({
       const activeShift = useShiftStore.getState().activeShift;
       let shiftUpdate = null;
       if (activeShift?.id && paymentMethod !== 'unpaid') {
-        const val = total;
+        const settledTotal = get().getSettledTotal();
+        const val = settledTotal > 0 ? Math.max(0, Math.round((total - settledTotal) * 100) / 100) : total;
         shiftUpdate = {
           totalSalesAmount: increment(val)
         };

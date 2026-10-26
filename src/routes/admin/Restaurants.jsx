@@ -185,19 +185,36 @@ export default function Restaurants() {
       const payload = prepareMasterMenuPayload(sourceCategories, { adjustment });
 
       for (const targetId of targetOutletIds) {
+        // Query existing categories on target to upsert in-place and avoid duplicate categories
+        const existingSnap = await getDocs(collection(db, 'restaurants', targetId, 'menu'));
+        const existingCatsByName = new Map();
+        existingSnap.docs.forEach(d => {
+          const dData = d.data();
+          if (dData.name) existingCatsByName.set(dData.name.trim().toLowerCase(), d.id);
+        });
+
         for (const cat of payload) {
-          await addDoc(collection(db, 'restaurants', targetId, 'menu'), {
+          const catKey = (cat.name || '').trim().toLowerCase();
+          const existingDocId = existingCatsByName.get(catKey);
+
+          const catData = {
             name: cat.name,
             emoji: cat.emoji || '🍽️',
             items: cat.items,
             taxRate: cat.taxRate ?? null,
             updatedAt: serverTimestamp(),
             pushedFromMaster: sourceOutletId
-          });
+          };
+
+          if (existingDocId) {
+            await updateDoc(doc(db, 'restaurants', targetId, 'menu', existingDocId), catData);
+          } else {
+            await addDoc(collection(db, 'restaurants', targetId, 'menu'), catData);
+          }
         }
       }
 
-      toast.success(`Master menu successfully pushed to ${targetOutletIds.length} outlet(s)!`, { id: toastId, icon: '🚀' });
+      toast.success(`Master menu successfully synchronized to ${targetOutletIds.length} outlet(s)!`, { id: toastId, icon: '🚀' });
     } catch (err) {
       console.error("Master menu push error:", err);
       toast.error(`Push failed: ${err.message}`, { id: toastId });

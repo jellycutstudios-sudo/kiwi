@@ -1357,11 +1357,51 @@ export default function KDS() {
                                         color: isReady ? 'var(--color-label-tertiary)' : 'var(--color-label)',
                                         fontSize: 15,
                                         fontWeight: isPreparing ? 800 : 700,
-                                        letterSpacing: '-0.2px'
+                                        letterSpacing: '-0.2px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 6
                                       }}>
-                                        {item.name}
+                                        <span>{item.name}</span>
+                                        {item.seatNumber && (
+                                          <span style={{
+                                            fontSize: 11,
+                                            fontWeight: 900,
+                                            background: '#0f172a',
+                                            color: '#38bdf8',
+                                            border: '1px solid #38bdf8',
+                                            padding: '1px 6px',
+                                            borderRadius: 5
+                                          }}>
+                                            🪑 S{item.seatNumber}
+                                          </span>
+                                        )}
                                       </span>
                                     </div>
+                                    {item.allergies && item.allergies.length > 0 && (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, paddingLeft: 38 }}>
+                                        {item.allergies.map(a => (
+                                          <span key={a} style={{
+                                            fontSize: 11,
+                                            fontWeight: 900,
+                                            background: 'rgba(239, 68, 68, 0.15)',
+                                            color: '#ef4444',
+                                            border: '1px solid #ef4444',
+                                            padding: '2px 7px',
+                                            borderRadius: 4,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.04em'
+                                          }}>
+                                            ⚠️ {a.replace(/_/g, ' ')}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {(item.itemNote || item.notes) && (
+                                      <div style={{ fontSize: 12, fontStyle: 'italic', color: '#f59e0b', marginTop: 3, paddingLeft: 38 }}>
+                                        📝 {item.itemNote || item.notes}
+                                      </div>
+                                    )}
                                     {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
                                       const variantMods = item.selectedModifiers.filter(m => m.isVariantAxis);
                                       const regularMods = item.selectedModifiers.filter(m => !m.isVariantAxis);

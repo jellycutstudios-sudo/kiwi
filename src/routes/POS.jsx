@@ -657,6 +657,10 @@ export default function POS() {
   const discountAmount = getDiscountAmount();
   const taxInfo   = getTaxInfo(restaurant);
   const total     = getTotal(restaurant);
+  const settledTotal = useMemo(() => {
+    return (settledChecks || []).reduce((sum, c) => sum + (Number(c.total) || 0), 0);
+  }, [settledChecks]);
+  const remainingTotal = settledTotal > 0 ? Math.max(0, Math.round((total - settledTotal) * 100) / 100) : total;
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
   const [isQuickPaying, setIsQuickPaying] = useState(false);
@@ -736,7 +740,7 @@ export default function POS() {
       const snapDiscount = discount;
       const snapDiscountType = discountType;
       const snapDiscountAmount = discountAmount;
-      const snapTotal = total;
+      const snapTotal = settledTotal > 0 ? remainingTotal : total;
       const snapPaymentMethod = method;
       const snapTaxInfo = taxInfo;
       const snapStaffName = staffDoc?.name || 'Cashier';
@@ -2694,13 +2698,28 @@ export default function POS() {
               </div>
 
               {/* Total Value */}
-              <span 
-                onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 16 }}
-                title="Click to toggle tax breakdown details"
-              >
-                {formatCurrency(total, currency)}
-              </span>
+              {settledTotal > 0 ? (
+                <div 
+                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                  style={{ cursor: 'pointer', textAlign: 'right' }}
+                  title="Click to toggle tax breakdown details"
+                >
+                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', textDecoration: 'line-through' }}>
+                    {formatCurrency(total, currency)}
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: '#10b981' }}>
+                    Due {formatCurrency(remainingTotal, currency)}
+                  </div>
+                </div>
+              ) : (
+                <span 
+                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                  style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 16 }}
+                  title="Click to toggle tax breakdown details"
+                >
+                  {formatCurrency(total, currency)}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -2708,7 +2727,7 @@ export default function POS() {
         {/* Quick Pay Bar for Instant 1-Tap Queue Busting */}
         {items.length > 0 && enableQuickPay && (
           <QuickPayBar
-            total={total}
+            total={remainingTotal}
             currency={currency}
             onQuickPay={handleQuickPay}
             isProcessing={isQuickPaying}

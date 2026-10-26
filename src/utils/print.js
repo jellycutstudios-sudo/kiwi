@@ -368,14 +368,30 @@ function compileEscPosKitchenTicket({ restaurant, order, items, staffName, print
   
   // Items — columns: 58mm: 26+6=32, 80mm: 40+8=48
   items.forEach(i => {
+    const seatSuffix = (i.seatNumber && Number(i.seatNumber) > 0) ? ` [S${i.seatNumber}]` : '';
+    const rawName = `${i.name}${seatSuffix}`;
     if (is58mm) {
-      const itemLeft = i.name.slice(0, 26).padEnd(26, ' ');
+      const itemLeft = rawName.slice(0, 26).padEnd(26, ' ');
       const qtyRight = String(i.qty).padStart(6, ' ');
       writeTextLine(`${itemLeft}${qtyRight}`);
     } else {
-      const itemLeft = i.name.slice(0, 40).padEnd(40, ' ');
+      const itemLeft = rawName.slice(0, 40).padEnd(40, ' ');
       const qtyRight = String(i.qty).padStart(8, ' ');
       writeTextLine(`${itemLeft}${qtyRight}`);
+    }
+    if (i.prepState === 'hold') {
+      writeBytes(BOLD_ON);
+      writeTextLine('  *** HOLD - DO NOT PREP ***'.slice(0, lineWidth));
+      writeBytes(BOLD_OFF);
+    }
+    if (i.allergies && i.allergies.length > 0) {
+      writeBytes(BOLD_ON);
+      const allergyLabel = `  ⚠️ ALLERGY: ${i.allergies.map(a => a.replace(/_/g, ' ').toUpperCase()).join(', ')}`;
+      writeTextLine(allergyLabel.slice(0, lineWidth));
+      writeBytes(BOLD_OFF);
+    }
+    if (i.itemNote || i.notes) {
+      writeTextLine(`  Note: ${i.itemNote || i.notes}`.slice(0, lineWidth));
     }
     // Variant axis modifiers — print on bold dedicated lines
     const variantMods = (i.selectedModifiers ?? []).filter(m => m.isVariantAxis);
@@ -1177,15 +1193,25 @@ function printKitchenBrowser({ restaurant, order, items, printerName, paperSize 
   const win = window.open('', '_blank', 'width=360,height=480');
   if (!win) return;
 
-  const itemRows = items.map(i =>
-    `<tr>
-      <td style="font-size: ${is58mm ? '13px' : '16px'}; font-weight: bold; vertical-align: top; padding-right: 6px;">${i.name}</td>
+  const itemRows = items.map(i => {
+    const seatTag = (i.seatNumber && Number(i.seatNumber) > 0) ? ` <span style="font-size:11px;background:#000;color:#fff;padding:1px 5px;border-radius:3px;font-weight:900;">[SEAT ${i.seatNumber}]</span>` : '';
+    const courseTag = i.course ? ` <span style="font-size:11px;color:#555;font-weight:bold;">(${i.course})</span>` : '';
+    const holdTag = i.prepState === 'hold' ? `<tr><td colspan="2" style="font-size:12px;color:#b91c1c;font-weight:900;padding-left:2mm;padding-bottom:2px;">⚠️ [HOLD - DO NOT PREP]</td></tr>` : '';
+    const allergyTag = (i.allergies && i.allergies.length > 0) ? `<tr><td colspan="2" style="font-size:12px;color:#dc2626;font-weight:900;padding-left:2mm;padding-bottom:2px;">⚠️ ALLERGY: ${i.allergies.map(a => a.replace(/_/g, ' ').toUpperCase()).join(', ')}</td></tr>` : '';
+    const noteTag = (i.itemNote || i.notes) ? `<tr><td colspan="2" style="font-size:11px;color:#333;font-style:italic;padding-left:2mm;padding-bottom:2px;">📝 Note: ${i.itemNote || i.notes}</td></tr>` : '';
+    const modRow = (i.selectedModifiers && i.selectedModifiers.length > 0)
+      ? `<tr><td colspan="2" style="font-size:11px; color:#222; font-weight:bold; padding-left:2mm; padding-bottom: 4px;">${i.selectedModifiers.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}</td></tr>`
+      : '';
+
+    return `<tr>
+      <td style="font-size: ${is58mm ? '13px' : '16px'}; font-weight: bold; vertical-align: top; padding-right: 6px;">${i.name}${seatTag}${courseTag}</td>
       <td style="font-size: ${is58mm ? '15px' : '18px'}; font-weight: 900; text-align: right; vertical-align: top;">×${i.qty}</td>
     </tr>
-    ${i.selectedModifiers && i.selectedModifiers.length > 0
-      ? `<tr><td colspan="2" style="font-size:11px; color:#222; font-weight:bold; padding-left:2mm; padding-bottom: 4px;">${i.selectedModifiers.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}</td></tr>`
-      : ''}`
-  ).join('');
+    ${holdTag}
+    ${allergyTag}
+    ${modRow}
+    ${noteTag}`;
+  }).join('');
 
   const isTokenEnabled = restaurant ? getActiveModes(restaurant).includes('token') : Boolean(order.token);
   const orderTypeLabel =

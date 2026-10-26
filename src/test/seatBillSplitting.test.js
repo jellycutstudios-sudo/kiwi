@@ -159,5 +159,14 @@ describe('Pillar 1: Seat-Level Bill Splitting & Partial Settlements', () => {
     expect(settled[0].checkId).toBe('check-seat-1');
     expect(settled[0].paymentMethod).toBe('card');
     expect(settled[0].total).toBe(57.50);
+
+    // Verify getSettledTotal and getRemainingTotal
+    expect(useOrderStore.getState().getSettledTotal()).toBe(57.50);
+
+    // Add remaining item ($42.50)
+    useOrderStore.getState().addItem({ id: 'item-wine', name: 'Wine', price: 42.50 });
+    const fullTotal = useOrderStore.getState().getTotal(mockRestaurant);
+    const remaining = useOrderStore.getState().getRemainingTotal(mockRestaurant);
+    expect(remaining).toBe(Math.max(0, Math.round((fullTotal - 57.50) * 100) / 100));
   });
 });

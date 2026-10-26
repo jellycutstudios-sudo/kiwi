@@ -30,7 +30,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
     getPointsDiscountAmount, tipAmount, setTip,
     tableName, tokenNumber, upiRef, setUpiRef,
-    setTerminalTx
+    setTerminalTx, getSettledTotal, getRemainingTotal, settledChecks
   } = useOrderStore();
 
   const {
@@ -39,6 +39,10 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
 
   const subtotal = getSubtotal();
   const discountAmt = getDiscountAmount();
+
+  // Partial split checks handling
+  const settledTotal = getSettledTotal ? getSettledTotal() : 0;
+  const effectiveDue = settledTotal > 0 && getRemainingTotal ? getRemainingTotal(restaurant) : total;
 
   // Tip preset state
   const [tipPreset, setTipPreset] = useState('none'); // 'none' | '15' | '18' | '20' | 'custom'
@@ -49,20 +53,21 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
 
   // Compute subtotal for tip base
   const tipBaseAmount = subtotal - getDiscountAmount() - getPointsDiscountAmount();
-  const [cashTendered, setCashTendered] = useState(() => (total > 0 ? total.toString() : ''));
+  const [cashTendered, setCashTendered] = useState(() => (effectiveDue > 0 ? effectiveDue.toString() : ''));
   const [loading, setLoading] = useState(false);
 
-  // Ensure cashTendered defaults to total when entering cash mode or total changes
+  // Ensure cashTendered defaults to effectiveDue when entering cash mode or amount changes
   useEffect(() => {
     if (paymentMethod === 'cash') {
-      setCashTendered(prev => (!prev || parseFloat(prev) <= 0) ? (total > 0 ? total.toString() : '') : prev);
+      setCashTendered(prev => (!prev || parseFloat(prev) <= 0) ? (effectiveDue > 0 ? effectiveDue.toString() : '') : prev);
     }
-  }, [paymentMethod, total]);
+  }, [paymentMethod, effectiveDue]);
 
   // Smart quick cash options for 1-tap cashier checkout
   const quickCashOptions = useMemo(() => {
-    if (total <= 0) return [];
-    const exact = Math.round(total * 100) / 100;
+    const dueAmount = effectiveDue;
+    if (dueAmount <= 0) return [];
+    const exact = Math.round(dueAmount * 100) / 100;
     const result = [
       { amount: exact, label: 'Exact', change: 0 }
     ];
@@ -691,16 +696,36 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               </span>
             </div>
 
-            <div style={{
-              fontSize: 'clamp(28px, 7vw, 38px)',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
-              color: '#ffffff',
-              fontVariantNumeric: 'tabular-nums',
-              lineHeight: 1.15
-            }}>
-              {formatCurrency(total, currency)}
-            </div>
+            {settledTotal > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>Bill Total: {formatCurrency(total, currency)}</span>
+                  <span>•</span>
+                  <span style={{ color: '#34d399', fontWeight: 700 }}>Paid: {formatCurrency(settledTotal, currency)}</span>
+                </div>
+                <div style={{
+                  fontSize: 'clamp(28px, 7vw, 38px)',
+                  fontWeight: 900,
+                  letterSpacing: '-0.03em',
+                  color: '#ffffff',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.15
+                }}>
+                  Due: {formatCurrency(effectiveDue, currency)}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                fontSize: 'clamp(28px, 7vw, 38px)',
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
+                color: '#ffffff',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1.15
+              }}>
+                {formatCurrency(total, currency)}
+              </div>
+            )}
 
             {(discountAmt > 0 || getPointsDiscountAmount() > 0 || giftCardDeduction > 0 || tipAmount > 0) && (
               <div style={{
@@ -1713,7 +1738,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             }}
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={2.5} />}
-            <span>Complete Payment &middot; {formatCurrency(total, currency)}</span>
+            <span>Complete Payment &middot; {formatCurrency(effectiveDue, currency)}</span>
           </button>
         </div>
       </div>
