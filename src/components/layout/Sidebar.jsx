@@ -173,8 +173,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     .toUpperCase();
 
   const filteredAdminNav = ADMIN_NAV.filter(n => {
-    const hasRole = isSuperAdmin ? n.superAdmin : !n.superAdmin;
-    if (!hasRole) return false;
+    if (n.superAdmin && !isSuperAdmin && role !== 'admin') return false;
     if (n.requiredMode) {
       return hasMode(n.requiredMode);
     }
