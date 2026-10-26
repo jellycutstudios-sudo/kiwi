@@ -7,7 +7,15 @@ import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-const ROLES = ['cashier', 'waiter', 'kitchen', 'admin'];
+const ROLES = ['admin', 'manager', 'cashier', 'waiter', 'kitchen'];
+
+const ROLE_LABELS = {
+  admin: 'Admin (Full Store - Settings, Menu & Staff)',
+  manager: 'Manager (Floor Supervisor - Operations, Tables & Voids)',
+  cashier: 'Cashier (Front Counter - Billing, Tenders & Register)',
+  waiter: 'Waiter (Floor Staff - Tables & Mobile Ordering)',
+  kitchen: 'Kitchen (Line Cook - KDS Screen Only)',
+};
 
 export default function StaffManager() {
   const { restaurant, staffDoc: currentUser } = useAuthStore();
@@ -234,7 +242,7 @@ export default function StaffManager() {
     }
   };
 
-  const roleColors = { admin:'badge-purple', cashier:'badge-blue', waiter:'badge-teal', kitchen:'badge-orange' };
+  const roleColors = { admin:'badge-purple', manager:'badge-green', cashier:'badge-blue', waiter:'badge-teal', kitchen:'badge-orange' };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
@@ -428,7 +436,7 @@ export default function StaffManager() {
               <div className="form-group">
                 <label className="form-label">Role</label>
                 <select id="staff-role-select" className="form-select" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
-                  {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
+                  {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || (r.charAt(0).toUpperCase()+r.slice(1))}</option>)}
                 </select>
               </div>
               <div className="form-group">

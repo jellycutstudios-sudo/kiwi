@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useKdsStore } from '../stores/kdsStore';
 import { useTokenStore } from '../stores/tokenStore';
+import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import toast from 'react-hot-toast';
 import { 
   ChefHat, 
@@ -22,7 +24,9 @@ import {
   ArrowUpDown,
   Zap,
   Keyboard,
-  X
+  X,
+  LogOut,
+  ArrowLeft
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -53,7 +57,14 @@ function playKitchenChime() {
 }
 
 export default function KDS() {
+  const navigate = useNavigate();
   const restaurant = useAuthStore(s => s.restaurant);
+  const user = useAuthStore(s => s.user);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const signOut = useAuthStore(s => s.signOut);
+  const isOnline = useOfflineQueueStore(s => s.isOnline);
+  const userRole = staffDoc?.role ?? (user ? 'admin' : 'kitchen');
+  const isDedicatedKitchen = userRole === 'kitchen';
   const modes = useMemo(() => getActiveModes(restaurant), [restaurant]);
   const activeOrders = useOrderStore(s => s.activeOrders);
   const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
@@ -422,499 +433,150 @@ export default function KDS() {
 
   return (
     <div className="kds-layout">
-      {/* ── High-Visibility Kitchen Header ── */}
-      <div className="kds-header">
-        {/* Tier 1: Brand / Title + Queue Status + Utility Tools Cluster */}
-        <div className="kds-header-tier1" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}>
-          {/* Brand & Kitchen Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: 42,
-              height: 42,
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(217,119,6,0.2) 100%)',
-              border: '1px solid rgba(245,158,11,0.35)',
-              color: 'var(--color-yellow)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <ChefHat size={22} strokeWidth={2.4} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h2 className="kds-title" style={{ margin: 0, fontSize: '17px', fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--color-label)' }}>
-                  {restaurant?.name ? `${restaurant.name} Kitchen` : 'Kitchen Display'}
-                </h2>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  background: kdsOrders.length > 0 ? 'rgba(245, 158, 11, 0.16)' : 'rgba(16, 185, 129, 0.12)',
-                  color: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-green)',
-                  border: kdsOrders.length > 0 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.25)'
-                }}>
-                  <span style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-green)',
-                    boxShadow: kdsOrders.length > 0 ? '0 0 6px var(--color-yellow)' : '0 0 6px var(--color-green)'
-                  }} />
-                  {kdsOrders.length > 0 ? `${kdsOrders.length} In Queue` : 'Queue Clear'}
-                </span>
-              </div>
-              <p className="text-caption1 text-secondary" style={{ margin: 0, marginTop: 2 }}>
-                Real-time line production & kitchen bump bar
-              </p>
-            </div>
+      {/* ── Ultra-Compact Unified Kitchen Header ── */}
+      <div className="kds-compact-header">
+        {/* Left Section: Active / Ready Queue Switcher + Sort + Station Filters */}
+        <div className="kds-header-left">
+          {/* Active Queue vs Plated & Ready Tabs */}
+          <div className="kds-queue-tabs">
+            <button
+              type="button"
+              onClick={() => setViewTab('active')}
+              className={`kds-tab-btn ${viewTab === 'active' ? 'active' : ''}`}
+            >
+              <span>Active</span>
+              <span className={`kds-count-badge ${kdsOrders.length > 0 ? 'badge-has-orders' : ''}`}>
+                {kdsOrders.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewTab('recent')}
+              className={`kds-tab-btn ${viewTab === 'recent' ? 'active' : ''}`}
+            >
+              <span>Ready & Recall</span>
+              <span className="kds-count-badge">
+                {recentReadyOrders.length}
+              </span>
+            </button>
           </div>
 
-          {/* Utility Toolbar: Sound, Wake Lock, Fullscreen, Clock */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Audio Chime Button */}
+          {/* Quick Cycle Sort Button */}
+          {viewTab === 'active' && (
             <button
               type="button"
+              className="kds-sort-pill"
               onClick={() => {
-                const nextState = !soundEnabled;
-                setSoundEnabled(nextState);
-                if (nextState) {
-                  playKitchenChime();
-                  toast.success('Kitchen sound chime enabled', { icon: '🔔' });
-                } else {
-                  toast('Kitchen sound muted', { icon: '🔕' });
-                }
+                const nextSort = kdsSortOrder === 'oldest' ? 'newest' : (kdsSortOrder === 'newest' ? 'urgency' : 'oldest');
+                handleSortOrderChange(nextSort);
               }}
-              title={soundEnabled ? 'Chime sound is ON (Tap to mute)' : 'Chime sound is MUTED (Tap to enable)'}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 'var(--radius-md)',
-                background: soundEnabled ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
-                border: soundEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--color-separator-opaque)',
-                color: soundEnabled ? 'var(--color-green)' : 'var(--color-label-tertiary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
+              title="Click to cycle ticket sorting (FIFO Oldest -> Newest -> Rush Urgency)"
             >
-              {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              {kdsSortOrder === 'oldest' && <Clock size={13} />}
+              {kdsSortOrder === 'newest' && <Zap size={13} />}
+              {kdsSortOrder === 'urgency' && <Flame size={13} color="var(--color-red)" />}
+              <span>
+                {kdsSortOrder === 'oldest' ? 'Oldest (FIFO)' : (kdsSortOrder === 'newest' ? 'Newest' : 'Urgency')}
+              </span>
             </button>
+          )}
 
-            {/* Screen Wake Lock Indicator */}
-            {isWakeSupported && (
-              <div
-                title={isWakeLocked ? 'Screen Wake Lock Active: Display will stay awake' : 'Screen Wake Lock Inactive'}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '0 10px',
-                  height: 36,
-                  borderRadius: 'var(--radius-md)',
-                  background: isWakeLocked ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
-                  border: isWakeLocked ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--color-separator-opaque)',
-                  color: isWakeLocked ? 'var(--color-green)' : 'var(--color-label-secondary)',
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
-                <Sun size={14} className={isWakeLocked ? 'animate-pulse' : ''} />
-                <span className="desktop-only">{isWakeLocked ? 'Awake' : 'Sleep OK'}</span>
-              </div>
-            )}
-
-            {/* Fullscreen Toggle */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? 'Exit Fullscreen (F)' : 'Enter Fullscreen (F)'}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-separator-opaque)',
-                color: 'var(--color-label)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-
-            {/* Bump Bar / Keyboard Shortcuts Guide */}
-            <button
-              type="button"
-              onClick={() => setShowBumpBarHelp(prev => !prev)}
-              title="Bump Bar & Kitchen Keyboard Shortcuts (?)"
-              style={{
-                height: 36,
-                padding: '0 10px',
-                borderRadius: 'var(--radius-md)',
-                background: showBumpBarHelp ? 'var(--color-accent)' : 'var(--color-bg)',
-                border: showBumpBarHelp ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)',
-                color: showBumpBarHelp ? '#ffffff' : 'var(--color-label)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 600,
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Keyboard size={15} />
-              <span className="desktop-only">Bump Bar</span>
-            </button>
-
-            {/* Digital Clock */}
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              fontWeight: 800,
-              color: 'var(--color-label)',
-              background: 'var(--color-bg)',
-              padding: '0 12px',
-              height: 36,
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-separator-opaque)',
-              letterSpacing: '0.04em'
-            }}>
-              {new Date(currentTime).toLocaleTimeString()}
-            </div>
+          {/* Station Filters */}
+          <div className="kds-header-stations no-scrollbar touch-scroll-x">
+            {stationsList.map(station => {
+              const count = getStationOrderCount(station);
+              const isActive = activeStation === station;
+              return (
+                <button
+                  key={station}
+                  onClick={() => setActiveStation(station)}
+                  className={`kds-station-chip ${isActive ? 'active' : ''}`}
+                  title={`Filter by ${station}`}
+                >
+                  <span>{station}</span>
+                  {count > 0 && <span className="kds-station-count">{count}</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Tier 2: View Switcher (Active vs Ready) + Kitchen Health HUD Metrics */}
-        <div className="kds-header-tier2" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '10px',
-          borderTop: '1px solid var(--color-separator-opaque)',
-          paddingTop: '10px'
-        }}>
-          {/* Left Controls Cluster: Active vs Ready Tabs + Sort Order Control */}
-          <div className="kds-tier2-left">
-            {/* Active vs Ready Tabs */}
-            <div style={{
-              display: 'inline-flex',
-              background: 'var(--color-bg)',
-              padding: '3px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-separator-opaque)'
-            }}>
-              <button
-                type="button"
-                onClick={() => setViewTab('active')}
-                style={{
-                  background: viewTab === 'active' ? 'var(--color-bg-elevated)' : 'transparent',
-                  color: viewTab === 'active' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '6px 14px',
-                  fontSize: '12.5px',
-                  fontWeight: viewTab === 'active' ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: viewTab === 'active' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>Active Queue</span>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 18,
-                  height: 18,
-                  padding: '0 5px',
-                  borderRadius: '9999px',
-                  fontSize: '10.5px',
-                  fontWeight: 700,
-                  background: kdsOrders.length > 0 ? 'var(--color-yellow)' : 'var(--color-fill)',
-                  color: kdsOrders.length > 0 ? '#000000' : 'var(--color-label-secondary)'
-                }}>
-                  {kdsOrders.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewTab('recent')}
-                style={{
-                  background: viewTab === 'recent' ? 'var(--color-bg-elevated)' : 'transparent',
-                  color: viewTab === 'recent' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '6px 14px',
-                  fontSize: '12.5px',
-                  fontWeight: viewTab === 'recent' ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: viewTab === 'recent' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>Plated & Ready</span>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 18,
-                  height: 18,
-                  padding: '0 5px',
-                  borderRadius: '9999px',
-                  fontSize: '10.5px',
-                  fontWeight: 700,
-                  background: 'var(--color-fill)',
-                  color: 'var(--color-label-secondary)'
-                }}>
-                  {recentReadyOrders.length}
-                </span>
-              </button>
-            </div>
-
-            {/* Sort Order Selector (Oldest FIFO / Newest LIFO / Urgency Rush) */}
-            {viewTab === 'active' && (
-              <div className="kds-sort-control" style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                background: 'var(--color-bg)',
-                padding: '3px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-separator-opaque)'
-              }}>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--color-label-tertiary)',
-                  padding: '0 4px 0 7px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 3
-                }}>
-                  <ArrowUpDown size={12} />
-                  <span className="desktop-only">Sort:</span>
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => handleSortOrderChange('oldest')}
-                  title="Oldest First (FIFO) - Kitchen standard: tickets waiting longest appear first"
-                  style={{
-                    background: kdsSortOrder === 'oldest' ? 'var(--color-bg-elevated)' : 'transparent',
-                    color: kdsSortOrder === 'oldest' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '5px 9px',
-                    fontSize: '11.5px',
-                    fontWeight: kdsSortOrder === 'oldest' ? 700 : 500,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    boxShadow: kdsSortOrder === 'oldest' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <Clock size={12} />
-                  <span>Oldest <span className="desktop-only">(FIFO)</span></span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSortOrderChange('newest')}
-                  title="Newest First (LIFO) - Recent tickets appear first"
-                  style={{
-                    background: kdsSortOrder === 'newest' ? 'var(--color-bg-elevated)' : 'transparent',
-                    color: kdsSortOrder === 'newest' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '5px 9px',
-                    fontSize: '11.5px',
-                    fontWeight: kdsSortOrder === 'newest' ? 700 : 500,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    boxShadow: kdsSortOrder === 'newest' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <Zap size={12} />
-                  <span>Newest</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSortOrderChange('urgency')}
-                  title="Urgency / Rush - Highest elapsed wait and rush orders first"
-                  style={{
-                    background: kdsSortOrder === 'urgency' ? 'var(--color-bg-elevated)' : 'transparent',
-                    color: kdsSortOrder === 'urgency' ? 'var(--color-red)' : 'var(--color-label-secondary)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '5px 9px',
-                    fontSize: '11.5px',
-                    fontWeight: kdsSortOrder === 'urgency' ? 700 : 500,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    boxShadow: kdsSortOrder === 'urgency' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <Flame size={12} color={kdsSortOrder === 'urgency' ? 'var(--color-red)' : 'inherit'} />
-                  <span>Urgency</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Sound Chime Quick Toggle */}
+        {/* Right Section: Sound, Fullscreen, Shortcuts, Clock, Live, Logout */}
+        <div className="kds-header-right">
+          {/* Audio Chime Mute/Unmute */}
           <button
             type="button"
-            className="kds-mobile-sound-btn"
+            className={`kds-icon-btn ${soundEnabled ? 'kds-btn-active' : ''}`}
             onClick={() => {
               const nextState = !soundEnabled;
               setSoundEnabled(nextState);
               if (nextState) {
                 playKitchenChime();
-                toast.success('Kitchen sound chime enabled', { icon: '🔔' });
+                toast.success('Chime enabled', { icon: '🔔' });
               } else {
-                toast('Kitchen sound muted', { icon: '🔕' });
+                toast('Muted', { icon: '🔕' });
               }
             }}
-            title={soundEnabled ? 'Chime sound is ON (Tap to mute)' : 'Chime sound is MUTED (Tap to enable)'}
-            style={{
-              background: soundEnabled ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
-              border: soundEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--color-separator-opaque)',
-              color: soundEnabled ? 'var(--color-green)' : 'var(--color-label-tertiary)'
-            }}
+            title={soundEnabled ? 'Sound is ON (Tap to mute)' : 'Sound is MUTED (Tap to unmute)'}
           >
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
 
-          {/* Kitchen Health HUD Chips (Desktop / Tablet) */}
-          <div className="kds-metrics-hud" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-bg)',
-              border: '1px solid var(--color-separator-opaque)',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--color-label)'
-            }}>
-              <Timer size={14} color="var(--color-accent)" />
-              <span style={{ color: 'var(--color-label-secondary)' }}>Avg:</span>
-              <span style={{ fontWeight: 700 }}>{kitchenMetrics.avgWaitMins}m</span>
-            </div>
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            className="kds-icon-btn"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen Kiosk (F)'}
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
 
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              background: kitchenMetrics.maxWaitMins > 20 ? 'rgba(239, 68, 68, 0.12)' : 'var(--color-bg)',
-              border: kitchenMetrics.maxWaitMins > 20 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--color-separator-opaque)',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-label)'
-            }}>
-              <Flame size={14} color={kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-orange)'} />
-              <span style={{ color: kitchenMetrics.maxWaitMins > 20 ? 'var(--color-red)' : 'var(--color-label-secondary)' }}>Max:</span>
-              <span style={{ fontWeight: 700 }}>{kitchenMetrics.maxWaitMins}m</span>
-            </div>
+          {/* Bump Bar / Shortcuts Help Modal */}
+          <button
+            type="button"
+            className={`kds-icon-btn ${showBumpBarHelp ? 'kds-btn-accent' : ''}`}
+            onClick={() => setShowBumpBarHelp(v => !v)}
+            title="Bump Bar & Keyboard Shortcuts (?)"
+          >
+            <Keyboard size={15} />
+          </button>
+
+          {/* Digital Clock */}
+          <div className="kds-clock-box">
+            {new Date(currentTime).toLocaleTimeString()}
           </div>
-        </div>
-      </div>
 
-      {/* ── Station Pills Filter ── */}
-      <div className="kds-stations-bar no-scrollbar touch-scroll-x" style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        marginBottom: '16px',
-        padding: '2px 0 6px 0'
-      }}>
-        {stationsList.map(station => {
-          const count = getStationOrderCount(station);
-          const isActive = activeStation === station;
-          return (
+          {/* Cloud Sync Status */}
+          <div className={`kds-sync-beacon ${isOnline ? 'online' : 'offline'}`} title={isOnline ? 'Online' : 'Offline'}>
+            <span className="kds-dot" />
+            <span className="desktop-only">{isOnline ? 'Live' : 'Offline'}</span>
+          </div>
+
+          {/* Back to POS (Admins only) */}
+          {!isDedicatedKitchen && (
             <button
-              key={station}
-              onClick={() => setActiveStation(station)}
-              title={station === 'All' ? 'Show all orders from every station' : `Show only orders for the ${station} station`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                minHeight: 38,
-                borderRadius: 'var(--radius-md)',
-                fontSize: '12.5px',
-                fontWeight: isActive ? 700 : 500,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-                background: isActive ? 'var(--color-accent)' : 'var(--color-bg-elevated)',
-                color: isActive ? '#ffffff' : 'var(--color-label-secondary)',
-                boxShadow: isActive ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none',
-                border: isActive ? '1px solid var(--color-accent)' : '1px solid var(--color-separator-opaque)'
-              }}
+              type="button"
+              className="kds-back-btn"
+              onClick={() => navigate('/pos')}
+              title="Return to POS register"
             >
-              <span>{station}</span>
-              {count > 0 && (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 18,
-                  height: 18,
-                  padding: '0 5px',
-                  borderRadius: '9999px',
-                  fontSize: '10.5px',
-                  fontWeight: 700,
-                  background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--color-fill)',
-                  color: isActive ? '#ffffff' : 'var(--color-label)'
-                }}>
-                  {count}
-                </span>
-              )}
+              <ArrowLeft size={14} />
+              <span className="desktop-only">POS</span>
             </button>
-          );
-        })}
+          )}
+
+          {/* Station Logout */}
+          <button
+            type="button"
+            className="kds-logout-btn"
+            onClick={() => signOut()}
+            title="Logout from Kitchen station"
+          >
+            <LogOut size={14} />
+            <span className="desktop-only">Logout</span>
+          </button>
+        </div>
       </div>
 
       {/* Grid Content */}

@@ -6858,15 +6858,278 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   font-weight: var(--weight-semibold);
 }
 
-/* ============================================================
-   KDS (Kitchen Display System) - Theme-Adaptive Modern UI
-   ============================================================ */
+/* KDS (Kitchen Display System) - 100% Fullscreen Appliance Layout */
+.kds-app-shell {
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.kds-main-content {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+}
+
 .kds-layout {
   min-height: 100%;
   background: var(--color-bg);
   padding: 0;
   font-family: var(--font-family);
   color: var(--color-label);
+}
+
+/* Ultra-Compact Unified KDS Header */
+.kds-compact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator-opaque);
+  border-radius: var(--radius-lg);
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.kds-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.kds-queue-tabs {
+  display: inline-flex;
+  background: var(--color-bg);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-separator-opaque);
+  flex-shrink: 0;
+}
+
+.kds-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-label-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kds-tab-btn.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kds-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--color-separator-opaque);
+  color: var(--color-label-secondary);
+}
+
+.kds-count-badge.badge-has-orders {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--color-yellow);
+}
+
+.kds-sort-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator-opaque);
+  color: var(--color-label);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.kds-header-stations {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.kds-station-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-label-secondary);
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator-opaque);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.kds-station-chip.active {
+  background: var(--color-green);
+  color: #ffffff;
+  border-color: var(--color-green);
+  font-weight: 700;
+}
+
+.kds-station-count {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+}
+
+.kds-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.kds-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator-opaque);
+  color: var(--color-label);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kds-icon-btn.kds-btn-active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--color-green);
+}
+
+.kds-icon-btn.kds-btn-accent {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.kds-clock-box {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-label);
+  background: var(--color-bg);
+  padding: 0 9px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-separator-opaque);
+  letter-spacing: 0.04em;
+}
+
+.kds-sync-beacon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.kds-sync-beacon.online {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--color-green);
+}
+
+.kds-sync-beacon.offline {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--color-red);
+}
+
+.kds-sync-beacon .kds-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.kds-back-btn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator-opaque);
+  color: var(--color-label);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+.kds-logout-btn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--color-red);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+@media (max-width: 900px) {
+  .kds-compact-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .kds-header-left {
+    flex-wrap: wrap;
+  }
 }
 
 .kds-header {

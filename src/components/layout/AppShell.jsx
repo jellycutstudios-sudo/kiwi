@@ -213,6 +213,7 @@ export default function AppShell() {
 
   // POS page uses its own full-height layout
   const isPOS = location.pathname === '/pos';
+  const isKDS = location.pathname === '/kds';
 
   useEffect(() => {
     if (isPOS) {
@@ -226,15 +227,17 @@ export default function AppShell() {
   }, [isPOS]);
 
   return (
-    <div className="app-shell">
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
-        setCollapsed={setSidebarCollapsed} 
-        mobileOpen={mobileSidebarOpen}
-        setMobileOpen={setMobileSidebarOpen}
-      />
+    <div className={`app-shell ${isKDS ? 'kds-app-shell' : ''}`}>
+      {!isKDS && (
+        <Sidebar 
+          collapsed={sidebarCollapsed} 
+          setCollapsed={setSidebarCollapsed} 
+          mobileOpen={mobileSidebarOpen}
+          setMobileOpen={setMobileSidebarOpen}
+        />
+      )}
       
-      {mobileSidebarOpen && (
+      {!isKDS && mobileSidebarOpen && (
         <div 
           className="mobile-sidebar-overlay" 
           onClick={() => setMobileSidebarOpen(false)}
@@ -253,8 +256,9 @@ export default function AppShell() {
         />
       )}
 
-      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        {/* Top Bar */}
+      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isKDS ? 'kds-main-content' : ''}`}>
+        {/* Top Bar - hidden on KDS to eliminate duplicate headers and maximize kitchen screen width */}
+        {!isKDS && (
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
           {/* Burger menu button visible only on mobile/tablet */}
           <button
@@ -530,9 +534,10 @@ export default function AppShell() {
             </button>
           </div>
         </header>
+        )}
 
         {/* Page content */}
-        <main className={isPOS ? '' : 'page-content'} style={isPOS ? { flex: 1, overflow: 'hidden' } : {}}>
+        <main className={isPOS || isKDS ? '' : 'page-content'} style={isPOS ? { flex: 1, overflow: 'hidden' } : (isKDS ? { flex: 1, overflow: 'auto', padding: '12px 16px' } : {})}>
           <ErrorBoundary isPageLevel resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>

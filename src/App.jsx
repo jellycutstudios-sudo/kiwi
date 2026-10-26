@@ -133,19 +133,23 @@ export default function App() {
                 <Route path="/online-orders"   element={<OnlineOrders />} />
               </Route>
 
-              {/* Admin-only routes — require 'admin' or 'super_admin' role */}
-              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin']} userRole={userRole} />}>
+              {/* Operational & Manager routes — require 'admin', 'super_admin', or 'manager' */}
+              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin', 'manager']} userRole={userRole} />}>
                 <Route path="/reports"            element={<Reports />} />
-                <Route path="/admin/staff"        element={<StaffManager />} />
-                <Route path="/admin/payroll"      element={<Payroll />} />
                 <Route path="/admin/menu"         element={<MenuEditor />} />
                 <Route path="/admin/inventory"    element={<Inventory />} />
                 <Route path="/admin/customers"    element={<Customers />} />
                 <Route path="/admin/reservations" element={<Reservations />} />
                 <Route path="/admin/floor"        element={<Navigate to="/tables?edit=true" replace />} />
                 <Route path="/admin/transactions" element={<Transactions />} />
-                <Route path="/admin/settings"     element={<Settings />} />
                 <Route path="/admin/delivery-hub" element={<DeliveryHub />} />
+              </Route>
+
+              {/* Strict Admin-only routes — require 'admin' or 'super_admin' role */}
+              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin']} userRole={userRole} />}>
+                <Route path="/admin/staff"        element={<StaffManager />} />
+                <Route path="/admin/payroll"      element={<Payroll />} />
+                <Route path="/admin/settings"     element={<Settings />} />
                 <Route path="/admin/posters"      element={<PosterManager />} />
               </Route>
 

@@ -19,25 +19,25 @@ import { useUpdateStore } from '../../stores/updateStore';
 import ThemeToggle from '../shared/ThemeToggle';
 
 const NAV = [
-  { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
-  { key: 'pos',            path: '/pos',                  icon: Utensils,        label: 'pos',          roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
-  { key: 'tables',         path: '/tables',               icon: Armchair,        label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'], requiredMode: 'table' },
-  { key: 'online_orders',  path: '/online-orders',        icon: Smartphone,      label: 'onlineOrders', roles: ['admin', 'super_admin', 'cashier'], badgeType: 'onlineOrders', requiredMode: 'online' },
-  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Bike,            label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'], requiredMode: 'delivery_hub' },
-  { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen', 'cashier'], requiredMode: 'kds' },
-  { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin'] },
+  { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'manager', 'cashier'] },
+  { key: 'pos',            path: '/pos',                  icon: Utensils,        label: 'pos',          roles: ['admin', 'super_admin', 'manager', 'cashier', 'waiter'] },
+  { key: 'tables',         path: '/tables',               icon: Armchair,        label: 'tables',       roles: ['admin', 'super_admin', 'manager', 'cashier', 'waiter'], requiredMode: 'table' },
+  { key: 'online_orders',  path: '/online-orders',        icon: Smartphone,      label: 'onlineOrders', roles: ['admin', 'super_admin', 'manager', 'cashier'], badgeType: 'onlineOrders', requiredMode: 'online' },
+  { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Bike,            label: 'deliveryHub',  roles: ['admin', 'super_admin', 'manager'], requiredMode: 'delivery_hub' },
+  { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'manager', 'kitchen'], requiredMode: 'kds' },
+  { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin', 'manager'] },
 ];
 
 const ADMIN_NAV = [
-  { key: 'staff',       path: '/admin/staff',       icon: Users,            label: 'staff' },
-  { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll', requiredMode: 'payroll' },
-  { key: 'menu',        path: '/admin/menu',         icon: UtensilsCrossed,  label: 'menu' },
-  { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory', requiredMode: 'inventory' },
-  { key: 'customers',   path: '/admin/customers',    icon: HeartHandshake,   label: 'customers', requiredMode: 'customers' },
-  { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', requiredMode: 'reservations' },
-  { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions' },
-  { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters', requiredMode: 'posters' },
-  { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
+  { key: 'staff',       path: '/admin/staff',       icon: Users,            label: 'staff', roles: ['admin', 'super_admin'] },
+  { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll', roles: ['admin', 'super_admin'], requiredMode: 'payroll' },
+  { key: 'menu',        path: '/admin/menu',         icon: UtensilsCrossed,  label: 'menu', roles: ['admin', 'super_admin', 'manager'] },
+  { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory', roles: ['admin', 'super_admin', 'manager'], requiredMode: 'inventory' },
+  { key: 'customers',   path: '/admin/customers',    icon: HeartHandshake,   label: 'customers', roles: ['admin', 'super_admin', 'manager'], requiredMode: 'customers' },
+  { key: 'reservations', path: '/admin/reservations',  icon: Calendar,         label: 'reservations', roles: ['admin', 'super_admin', 'manager'], requiredMode: 'reservations' },
+  { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions', roles: ['admin', 'super_admin', 'manager'] },
+  { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters', roles: ['admin', 'super_admin'], requiredMode: 'posters' },
+  { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings', roles: ['admin', 'super_admin'] },
   { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];
 
@@ -205,7 +205,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     }
   };
 
-  const isAdmin = ['admin', 'super_admin'].includes(role);
+  const isAdmin = ['admin', 'super_admin', 'manager'].includes(role);
   const isSuperAdmin = role === 'super_admin';
 
   const handleSignOut = async () => {
@@ -229,6 +229,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
   const filteredAdminNav = ADMIN_NAV.filter(n => {
     if (n.superAdmin && !isSuperAdmin) return false;
+    if (n.roles && !n.roles.includes(role)) return false;
     if (n.requiredMode) {
       return hasMode(n.requiredMode);
     }

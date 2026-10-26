@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   // Role access control: Only admin/super_admin and explicitly permitted cashiers may access turnover analytics
   const staffRole = staffDoc?.role ?? (user ? 'admin' : 'cashier');
-  const canAccessDashboard = ['admin', 'super_admin'].includes(staffRole) || 
+  const canAccessDashboard = ['admin', 'super_admin', 'manager'].includes(staffRole) || 
     (staffRole === 'cashier' && Boolean(restaurant?.allowCashierDashboard));
 
   const activeOrders = useOrderStore(s => s.activeOrders);

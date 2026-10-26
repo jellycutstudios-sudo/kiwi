@@ -1038,7 +1038,7 @@ export default function POS() {
 
       const managerDoc = staffSnap.docs[0];
       const managerData = managerDoc.data();
-      if (!['admin', 'super_admin'].includes(managerData.role)) {
+      if (!['admin', 'super_admin', 'manager'].includes(managerData.role)) {
         toast.error('Insufficient permissions — manager or admin PIN required');
         return;
       }
@@ -1650,8 +1650,8 @@ export default function POS() {
         <div className="pos-category-bar" role="tablist" aria-label="Menu Categories and Filters">
           {/* Dietary Quick Filters (Icon-only across UI) */}
           <div className="pos-dietary-strip" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            {/* Handheld mode switcher: only shown for admin/cashier to test mobile mode, NEVER for floor staff */}
-            {!isFloorStaff && !isEffectiveHandheld && (
+            {/* Handheld mode switcher: only shown for admin to test mobile mode, never for cashier or floor staff */}
+            {['admin', 'super_admin'].includes(userRole) && !isEffectiveHandheld && (
               <button
                 type="button"
                 id="toggle-handheld-mode-btn"
