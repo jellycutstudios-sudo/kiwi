@@ -160,4 +160,37 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     // Bottom cart reflects subtotal and item price both show $12.00
     expect(screen.getAllByText('$12.00').length).toBe(2);
   });
+
+  it('allows adding overall table instructions and item cooking notes', () => {
+    const store = useOrderStore.getState();
+    store.addItem({ id: 'm1', name: 'Ribeye Steak', price: 42 });
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="USD"
+        menuItems={sampleMenuItems}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // Open cart sheet
+    const viewCartBtn = screen.getByTitle('View Cart & Actions');
+    fireEvent.click(viewCartBtn);
+
+    // Table instructions section is rendered
+    expect(screen.getByText('Table / Kitchen Instructions:')).toBeTruthy();
+    expect(screen.getByText('🔥 Rush Order')).toBeTruthy();
+    expect(screen.getByText('⭐ VIP Table')).toBeTruthy();
+
+    // Tap Rush Order preset
+    fireEvent.click(screen.getByText('🔥 Rush Order'));
+    expect(useOrderStore.getState().note).toContain('🔥 Rush Order');
+  });
 });

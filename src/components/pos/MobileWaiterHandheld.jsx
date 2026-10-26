@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   Search, X, Plus, Minus, Check, Flame, Clock, 
   ChevronUp, ChevronDown, UtensilsCrossed, Printer, CreditCard, 
-  Split, AlertTriangle, ArrowLeft, Trash2, SlidersHorizontal 
+  Split, AlertTriangle, ArrowLeft, Trash2, SlidersHorizontal, FileText 
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useOrderStore } from '../../stores/orderStore';
@@ -20,6 +20,25 @@ const COMMON_ALLERGIES = [
   { id: 'mild', label: '🍃 Mild / Non-Spicy' },
   { id: 'less_oil', label: '🥗 Less Oil' },
   { id: 'kids_meal', label: '👶 Kids Meal' },
+];
+
+const COMMON_COOKING_NOTES = [
+  'Extra Spicy 🌶️',
+  'Mild / Non-Spicy 🍃',
+  'Less Oil / Low Salt',
+  'Dressing on Side',
+  'No Ice 🧊',
+  'Extra Crispy',
+  'Well Done'
+];
+
+const ORDER_NOTE_PRESETS = [
+  '🔥 Rush Order',
+  '⭐ VIP Table',
+  '🎂 Birthday / Cake',
+  '🪑 High Chair Needed',
+  '🌿 Bring All Together',
+  '👶 Kids Meal First'
 ];
 
 const COURSES = [
@@ -47,7 +66,8 @@ export default function MobileWaiterHandheld({
   const { 
     items, addItem, updateQty, removeItem, clearCart,
     tableId, tableName, setTable, setOrderType, orderType,
-    loadOrderToCart, editingOrderId, setItemDetails, fireHeldItems
+    loadOrderToCart, editingOrderId, setItemDetails, fireHeldItems,
+    note, setNote
   } = useOrderStore();
 
   const [activeCategory, setActiveCategory] = useState('all');
@@ -515,6 +535,68 @@ export default function MobileWaiterHandheld({
                 </div>
               )}
 
+              {/* Overall Table / Kitchen Order Note */}
+              {items.length > 0 && (
+                <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 10, border: '1px solid var(--color-separator)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <FileText size={12} /> Table / Kitchen Instructions:
+                    </span>
+                    {note && (
+                      <button 
+                        type="button" 
+                        onClick={() => setNote('')} 
+                        style={{ fontSize: 10, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Quick Presets */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                    {ORDER_NOTE_PRESETS.map(preset => {
+                      const isActive = (note || '').includes(preset);
+                      return (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            hapticTap('light');
+                            if (isActive) {
+                              setNote((note || '').replace(preset, '').replace(/^,\s*|,\s*$/g, '').trim());
+                            } else {
+                              setNote(note ? `${note}, ${preset}` : preset);
+                            }
+                          }}
+                          style={{
+                            fontSize: 10.5,
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            background: isActive ? 'rgba(56, 189, 248, 0.15)' : 'var(--color-bg)',
+                            border: isActive ? '1px solid #38bdf8' : '1px solid var(--color-separator)',
+                            color: isActive ? '#38bdf8' : 'var(--color-label)',
+                            cursor: 'pointer',
+                            fontWeight: 600
+                          }}
+                        >
+                          {preset}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Add special instructions for kitchen/bar..."
+                    value={note || ''}
+                    onChange={e => setNote(e.target.value)}
+                    style={{ height: 34, fontSize: 12, borderRadius: 6 }}
+                  />
+                </div>
+              )}
+
               {/* Tableside Quick Actions */}
               {items.length > 0 && (
                 <div className="handheld-sheet-quick-actions">
@@ -718,6 +800,43 @@ export default function MobileWaiterHandheld({
               {/* Note */}
               <div>
                 <div className="handheld-form-label">Custom Cooking Note:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                  {COMMON_COOKING_NOTES.map(preset => {
+                    const isSelected = (itemCustomForm.itemNote || '').includes(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          hapticTap('light');
+                          if (isSelected) {
+                            setItemCustomForm(prev => ({
+                              ...prev,
+                              itemNote: (prev.itemNote || '').replace(preset, '').replace(/^,\s*|,\s*$/g, '').trim()
+                            }));
+                          } else {
+                            setItemCustomForm(prev => ({
+                              ...prev,
+                              itemNote: prev.itemNote ? `${prev.itemNote}, ${preset}` : preset
+                            }));
+                          }
+                        }}
+                        style={{
+                          fontSize: 10.5,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'var(--color-bg-secondary)',
+                          border: isSelected ? '1px solid #f59e0b' : '1px solid var(--color-separator)',
+                          color: isSelected ? '#f59e0b' : 'var(--color-label)',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        {preset}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   type="text"
                   className="form-input"
