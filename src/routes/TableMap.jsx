@@ -150,6 +150,21 @@ export default function TableMap() {
     );
   }, [floorTables]);
 
+  // Listen for external table selection events (e.g. from Food Ready notification banner)
+  useEffect(() => {
+    const handleSelectTable = (e) => {
+      if (e.detail?.tableId) {
+        setSelected(e.detail.tableId);
+        const targetTable = tables.find(t => t.id === e.detail.tableId);
+        if (targetTable?.floor && targetTable.floor !== activeFloor) {
+          setActiveFloor(targetTable.floor);
+        }
+      }
+    };
+    window.addEventListener('kiwi:select-table', handleSelectTable);
+    return () => window.removeEventListener('kiwi:select-table', handleSelectTable);
+  }, [tables, activeFloor]);
+
   const resolvedTables = useMemo(() => {
     return floorTables.map((t, idx) => {
       const isThisDragging = isEditingLayout && dragTablePos && dragTablePos.id === t.id;
@@ -1085,58 +1100,48 @@ export default function TableMap() {
                     )}
                   </div>
 
-                  {/* Bottom Row: Financial / Active Status info */}
-                  <div className="tm-card-footer">
-                    {effectiveStatus === 'occupied' && order ? (
-                      <>
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span className="tm-card-total">
-                            {formatCurrency(order.total ?? 0, currency)}
-                          </span>
-                          {(order.assignedWaiterName || order.staffName) && (
-                            <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
-                              👤 {order.assignedWaiterName || order.staffName}
-                            </span>
-                          )}
-                          {order.note && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: '#d97706',
-                                background: 'rgba(245, 158, 11, 0.12)',
-                                borderRadius: 4,
-                                padding: '1px 5px',
-                                marginTop: 3,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '100%',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3
-                              }}
-                              title={`Table Note: ${order.note}`}
-                            >
-                              📝 {order.note}
-                            </span>
-                          )}
-                        </div>
-                        <span className="tm-card-meta">
+                  {/* Card Body: Structured Rows (No Overlap) */}
+                  {effectiveStatus === 'occupied' && order ? (
+                    <div className="tm-card-body">
+                      {/* Metric Row: Total Amount & Item Count */}
+                      <div className="tm-card-metrics-row">
+                        <span className="tm-card-total">
+                          {formatCurrency(order.total ?? 0, currency)}
+                        </span>
+                        <span className="tm-card-items-chip">
                           {(order.items ?? []).length} itm
                         </span>
-                      </>
-                    ) : isReserved ? (
+                      </div>
+
+                      {/* Server Attribution */}
+                      {(order.assignedWaiterName || order.staffName) && (
+                        <div className="tm-card-server-row">
+                          👤 {order.assignedWaiterName || order.staffName}
+                        </div>
+                      )}
+
+                      {/* Order Note (Dedicated full width line, never colliding with items) */}
+                      {order.note && (
+                        <div className="tm-card-note-chip" title={`Table Note: ${order.note}`}>
+                          <span style={{ flexShrink: 0, fontSize: 10 }}>📝</span>
+                          <span className="tm-card-note-text">{order.note}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : isReserved ? (
+                    <div className="tm-card-body">
                       <span className="tm-card-reserved-info">
                         {resForTable?.name || 'Reserved'}
                       </span>
-                    ) : (
+                    </div>
+                  ) : (
+                    <div className="tm-card-body">
                       <div className="tm-card-vacant-indicator">
                         <span className="tm-vacant-dot" />
                         <span>Available</span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

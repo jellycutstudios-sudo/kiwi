@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -364,6 +365,7 @@ function CartCoursePicker({ currentCourse, onSelectCourse }) {
 
 export default function POS() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { restaurant, staffDoc, ensureAnonymousAuth } = useAuthStore();
   const {
     items, addItem, removeItem, updateQty, clearCart,
@@ -517,6 +519,9 @@ export default function POS() {
 
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const userRole = staffDoc?.role ?? 'admin';
+  const isFloorStaff = ['waiter', 'server', 'runner', 'captain'].includes(userRole);
+
   const [handheldMode, setHandheldMode] = useState(() => {
     try {
       const saved = localStorage.getItem('kiwi_handheld_mode');
@@ -527,11 +532,23 @@ export default function POS() {
     }
   });
 
+  // Floor staff (waiters/servers/runners) are always locked into Waiter Mode
+  const isEffectiveHandheld = isFloorStaff || handheldMode;
+
   const toggleHandheldMode = (enable) => {
     setHandheldMode(enable);
     try {
       localStorage.setItem('kiwi_handheld_mode', enable ? 'true' : 'false');
     } catch {}
+  };
+
+  const handleCloseHandheld = () => {
+    if (isFloorStaff) {
+      // Floor staff always return to their floor map
+      navigate('/tables');
+    } else {
+      toggleHandheldMode(false);
+    }
   };
 
   const allMenuItems = useMemo(() => {
@@ -1222,7 +1239,7 @@ export default function POS() {
       return { error: 'Cart is empty' };
     }
     if (orderType === 'dine-in' && !tableId && modes.includes('table')) {
-      if (handheldMode) {
+      if (isEffectiveHandheld) {
         toast('Please select a table to send order to kitchen', { icon: '🪑' });
         return { needsTable: true };
       }
@@ -1571,7 +1588,7 @@ export default function POS() {
     );
   }
 
-  if (handheldMode) {
+  if (isEffectiveHandheld) {
     return (
       <>
         <MobileWaiterHandheld
@@ -1581,7 +1598,8 @@ export default function POS() {
           categories={categories}
           tableOrders={tableOrders}
           staffName={staffDoc?.name || 'Server'}
-          onCloseHandheld={() => toggleHandheldMode(false)}
+          isFloorStaff={isFloorStaff}
+          onCloseHandheld={handleCloseHandheld}
           onSendToKitchen={handleSendToKitchen}
           onPrintPreBill={handlePrintPreBill}
           onOpenSplitModal={() => setShowSplitBillModal(true)}
@@ -1632,26 +1650,29 @@ export default function POS() {
         <div className="pos-category-bar" role="tablist" aria-label="Menu Categories and Filters">
           {/* Dietary Quick Filters (Icon-only across UI) */}
           <div className="pos-dietary-strip" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <button
-              type="button"
-              id="toggle-handheld-mode-btn"
-              className="dietary-chip"
-              onClick={() => toggleHandheldMode(true)}
-              title="Switch to Mobile Waiter Handheld Mode"
-              style={{
-                background: 'rgba(56, 189, 248, 0.12)',
-                borderColor: 'rgba(56, 189, 248, 0.3)',
-                color: '#38bdf8',
-                fontWeight: 800,
-                fontSize: 11,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 8px'
-              }}
-            >
-              <span>📱 Waiter Mode</span>
-            </button>
+            {/* Handheld mode switcher: only shown for admin/cashier to test mobile mode, NEVER for floor staff */}
+            {!isFloorStaff && !isEffectiveHandheld && (
+              <button
+                type="button"
+                id="toggle-handheld-mode-btn"
+                className="dietary-chip"
+                onClick={() => toggleHandheldMode(true)}
+                title="Switch to Mobile Waiter Handheld Mode"
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  borderColor: 'rgba(56, 189, 248, 0.3)',
+                  color: '#38bdf8',
+                  fontWeight: 800,
+                  fontSize: 11,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 8px'
+                }}
+              >
+                <span>📱 Waiter Mode</span>
+              </button>
+            )}
             <button
               type="button"
               role="tab"

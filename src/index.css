@@ -5896,11 +5896,11 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-separator);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 94px;
+  min-height: 104px;
   cursor: pointer;
   position: relative;
   transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
@@ -5908,6 +5908,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  gap: 6px;
 }
 .tm-card:active {
   transform: scale(0.97);
@@ -5953,22 +5954,22 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .tm-card-title-group {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   overflow: hidden;
 }
 
 .tm-card-name {
-  font-size: 21px;
-  font-weight: 900;
+  font-size: 19px;
+  font-weight: 800;
   color: var(--color-label);
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .tm-card-cap {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--color-label-tertiary);
   font-weight: 600;
   white-space: nowrap;
@@ -5977,7 +5978,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .tm-badge {
   font-size: 10px;
   font-weight: 800;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -6017,28 +6018,81 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   color: #f59e0b;
 }
 
-.tm-card-footer {
-  margin-top: 8px;
+.tm-card-body {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.tm-card-metrics-row {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: flex-end;
-  min-height: 18px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .tm-card-total {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--color-label);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.4px;
-  line-height: 1;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.tm-card-meta {
-  font-size: 11px;
-  color: var(--color-label-tertiary);
-  font-weight: 600;
+.tm-card-items-chip {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-label-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 1px 5px;
   white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.tm-card-server-row {
+  font-size: 10.5px;
+  color: var(--color-label-tertiary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.tm-card-note-chip {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 6px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 1px;
+}
+
+.tm-card-note-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .tm-card-vacant-indicator {

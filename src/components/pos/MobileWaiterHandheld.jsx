@@ -55,6 +55,7 @@ export default function MobileWaiterHandheld({
   categories = [],
   tableOrders = {},
   staffName = 'Server',
+  isFloorStaff = false,
   onCloseHandheld,
   onSendToKitchen,
   onPrintPreBill,
@@ -263,10 +264,10 @@ export default function MobileWaiterHandheld({
             type="button"
             className="handheld-exit-btn"
             onClick={() => { hapticTap('light'); onCloseHandheld(); }}
-            title="Switch back to Standard POS Register"
+            title={isFloorStaff ? "Return to Floor Plan" : "Switch back to Standard POS Register"}
           >
             <ArrowLeft size={13} />
-            <span>POS</span>
+            <span>{isFloorStaff ? "Tables" : "POS"}</span>
           </button>
         </div>
       </header>

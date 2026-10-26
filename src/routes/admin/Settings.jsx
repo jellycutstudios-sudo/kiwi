@@ -3175,9 +3175,9 @@ export default function Settings() {
                     cursor: 'pointer'
                   }}>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>Assigned Waiter Slide-to-Serve Popup</div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Food Ready Pass Notification Banner</div>
                       <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Exclusively shows interactive slide-to-serve card on the assigned waiter's device
+                        Displays ambient floating banner with 1-tap serve action, chime sound, and table pulse
                       </div>
                     </div>
                     <input
@@ -3188,7 +3188,7 @@ export default function Settings() {
                     />
                   </label>
 
-                  {/* Slide Popup Audience Mode */}
+                  {/* Pass Banner Audience Mode */}
                   {(settings.notifications?.waiterSlidePopupEnabled ?? true) && (
                     <div style={{
                       padding: '12px 14px',
@@ -3199,10 +3199,10 @@ export default function Settings() {
                       gap: 6
                     }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-label)' }}>
-                        Slide Popup Target Audience
+                        Food-Ready Alert Target Audience
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
-                        Choose who receives the interactive slide-to-serve card when food is marked ready
+                        Choose who receives the floating pass notification when food is marked ready by the kitchen
                       </div>
                       <select
                         value={settings.notifications?.slidePopupAudienceMode ?? 'smart_hybrid'}
