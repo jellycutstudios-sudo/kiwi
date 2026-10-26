@@ -41,6 +41,7 @@ const savePersistedCart = (state) => {
     }
     const cartSnapshot = {
       items: state.items,
+      activeSeat: state.activeSeat,
       orderType: state.orderType,
       tableId: state.tableId,
       tableName: state.tableName,
@@ -69,6 +70,8 @@ const initialCart = loadPersistedCart();
 export const useOrderStore = create((set, get) => ({
   // Cart
   items: initialCart?.items || [],
+  activeSeat: initialCart?.activeSeat || null,
+  settledChecks: [],
   orderType: initialCart?.orderType || 'dine-in',   // 'dine-in' | 'takeaway' | 'online'
   tableId: initialCart?.tableId || null,
   tableName: initialCart?.tableName || null,
@@ -103,19 +106,26 @@ export const useOrderStore = create((set, get) => ({
   tipAmount: 0,
 
   // ── Cart Operations ──────────────────────────────────────
+  setActiveSeat: (seatNumber) => set({ activeSeat: seatNumber ? Number(seatNumber) : null }),
+
   addItem: (item) => {
     if (useGiftCardStore.getState().giftCardCode) {
       useGiftCardStore.getState().clearGiftCard();
     }
     const items = get().items;
+    const activeSeat = get().activeSeat;
+    const itemSeat = item.seatNumber !== undefined ? item.seatNumber : (activeSeat ?? null);
     const existing = items.find(i => 
       i.id === item.id && 
-      JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
+      JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? []) &&
+      (i.seatNumber ?? null) === (itemSeat ?? null)
     );
     if (existing) {
       set({ 
         items: items.map(i => 
-          (i.id === item.id && JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])) 
+          (i.id === item.id && 
+           JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? []) &&
+           (i.seatNumber ?? null) === (itemSeat ?? null)) 
             ? { ...i, qty: i.qty + 1 } 
             : i
         ) 
@@ -125,7 +135,8 @@ export const useOrderStore = create((set, get) => ({
         ...item, 
         qty: 1, 
         course: item.course ?? 'Mains', 
-        prepState: item.prepState ?? 'fired' 
+        prepState: item.prepState ?? 'fired',
+        seatNumber: itemSeat
       }] });
     }
   },
@@ -175,7 +186,8 @@ export const useOrderStore = create((set, get) => ({
         course: i.course ?? 'Mains',
         prepState: i.prepState ?? 'fired',
         station: i.station ?? 'Kitchen',
-        status: i.status ?? 'pending'
+        status: i.status ?? 'pending',
+        seatNumber: i.seatNumber ?? null
       })),
       orderType: order.type,
       tableId: order.tableId,
@@ -188,6 +200,7 @@ export const useOrderStore = create((set, get) => ({
       discount: Number(order.discount) || 0,
       discountType: order.discountType ?? 'fixed',
       splitPayments: order.splitPayments ?? [],
+      settledChecks: Array.isArray(order.settledChecks) ? order.settledChecks : [],
       upiRef: order.upiRef ?? '',
       tokenNumber: order.token ?? null,
       assignedWaiterId: order.assignedWaiterId ?? null,
@@ -198,7 +211,7 @@ export const useOrderStore = create((set, get) => ({
   clearCart: () => {
     clearPersistedCart();
     set({
-      items: [], orderType: 'dine-in', tokenNumber: null, tableId: null, tableName: null,
+      items: [], activeSeat: null, settledChecks: [], orderType: 'dine-in', tokenNumber: null, tableId: null, tableName: null,
       customerName: '', customerPhone: '', note: '', editingOrderId: null,
       discount: 0, discountType: 'fixed', splitPayments: [],
       customer: null, redeemingPoints: false,
@@ -206,6 +219,163 @@ export const useOrderStore = create((set, get) => ({
       assignedWaiterId: null, assignedWaiterName: null
     });
     useGiftCardStore.getState().clearGiftCard();
+  },
+
+  setItemSeat: (id, seatNumber, selectedModifiers) => {
+    const modKey = selectedModifiers !== undefined ? JSON.stringify(selectedModifiers ?? []) : null;
+    const seatVal = (seatNumber !== undefined && seatNumber !== null && Number(seatNumber) > 0) ? Number(seatNumber) : null;
+    set({
+      items: get().items.map(i => {
+        if (i.id === id && (modKey === null || JSON.stringify(i.selectedModifiers ?? []) === modKey)) {
+          return { ...i, seatNumber: seatVal };
+        }
+        return i;
+      })
+    });
+  },
+
+  splitItemQty: (id, moveQty, targetSeat, selectedModifiers) => {
+    const items = get().items;
+    const modKey = selectedModifiers !== undefined ? JSON.stringify(selectedModifiers ?? []) : null;
+    const targetIdx = items.findIndex(i => i.id === id && (modKey === null || JSON.stringify(i.selectedModifiers ?? []) === modKey));
+    if (targetIdx === -1) return;
+
+    const currentItem = items[targetIdx];
+    const totalQty = currentItem.qty || 1;
+    const qtyToMove = Math.max(1, Math.min(totalQty - 1, Number(moveQty) || 1));
+    if (qtyToMove <= 0 || totalQty <= 1) return;
+
+    const targetSeatVal = (targetSeat !== undefined && targetSeat !== null && Number(targetSeat) > 0) ? Number(targetSeat) : null;
+    const updatedRemaining = { ...currentItem, qty: totalQty - qtyToMove };
+    const newItem = {
+      ...currentItem,
+      qty: qtyToMove,
+      seatNumber: targetSeatVal
+    };
+
+    const newItems = [...items];
+    newItems.splice(targetIdx, 1, updatedRemaining, newItem);
+    set({ items: newItems });
+  },
+
+  setItemDetails: (id, updates = {}, selectedModifiers) => {
+    const modKey = selectedModifiers !== undefined ? JSON.stringify(selectedModifiers ?? []) : null;
+    set({
+      items: get().items.map(i => {
+        if (i.id === id && (modKey === null || JSON.stringify(i.selectedModifiers ?? []) === modKey)) {
+          return {
+            ...i,
+            course: updates.course !== undefined ? updates.course : i.course,
+            prepState: updates.prepState !== undefined ? updates.prepState : i.prepState,
+            seatNumber: updates.seatNumber !== undefined ? updates.seatNumber : i.seatNumber,
+            allergies: updates.allergies !== undefined ? updates.allergies : i.allergies,
+            itemNote: updates.itemNote !== undefined ? updates.itemNote : (updates.notes !== undefined ? updates.notes : i.itemNote)
+          };
+        }
+        return i;
+      })
+    });
+  },
+
+  fireHeldItems: async (restaurant, course = 'all') => {
+    const state = get();
+    let updatedCount = 0;
+    const newItems = state.items.map(item => {
+      const matchCourse = course === 'all' || (item.course && item.course.toLowerCase() === course.toLowerCase());
+      if (item.prepState === 'hold' && matchCourse) {
+        updatedCount++;
+        return { ...item, prepState: 'fired' };
+      }
+      return item;
+    });
+
+    if (updatedCount === 0) return { firedCount: 0 };
+
+    set({ items: newItems });
+
+    // If an existing order is active in Firestore, sync the updated prepState
+    if (state.editingOrderId && restaurant?.id) {
+      try {
+        const orderRef = doc(db, 'restaurants', restaurant.id, 'orders', state.editingOrderId);
+        await updateDoc(orderRef, {
+          items: newItems,
+          updatedAt: serverTimestamp(),
+          lastFiredAt: serverTimestamp(),
+          lastFiredCourse: course
+        });
+      } catch (err) {
+        console.warn('Failed to update fired course in Firestore:', err);
+      }
+    }
+
+    return { firedCount: updatedCount, course };
+  },
+
+  settleSubCheck: async (restaurant, check, paymentMethod, paymentDetails = {}) => {
+    const state = get();
+    const orderId = state.editingOrderId;
+    const restaurantId = restaurant?.id;
+    const staffDoc = useAuthStore.getState().staffDoc;
+
+    const settledEntry = {
+      checkId: check.id,
+      checkNumber: check.checkNumber,
+      title: check.title,
+      seatNumber: check.seatNumber ?? null,
+      items: (check.items || []).map(i => ({
+        id: i.id,
+        name: i.name,
+        price: i.price,
+        qty: i.qty,
+        selectedModifiers: i.selectedModifiers ?? [],
+        seatNumber: i.seatNumber ?? null
+      })),
+      subtotal: check.subtotal,
+      taxTotal: check.taxTotal || 0,
+      serviceChargeAmount: check.serviceChargeAmount || 0,
+      discountAmount: check.discountAmount || 0,
+      total: check.total,
+      paymentMethod,
+      paidAt: new Date().toISOString(),
+      staffId: staffDoc?.id || null,
+      staffName: staffDoc?.name || 'Staff',
+      ...paymentDetails
+    };
+
+    const updatedSettled = [...(state.settledChecks || []), settledEntry];
+    set({ settledChecks: updatedSettled });
+
+    if (paymentMethod !== 'unpaid') {
+      useShiftStore.getState().applySaleToActiveShift({
+        total: check.total,
+        method: paymentMethod
+      });
+    }
+
+    if (orderId && restaurantId) {
+      try {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+        await updateDoc(orderRef, {
+          settledChecks: updatedSettled,
+          updatedAt: serverTimestamp()
+        });
+
+        set(s => ({
+          activeOrders: (s.activeOrders || []).map(o => o.id === orderId ? { ...o, settledChecks: updatedSettled } : o)
+        }));
+
+        localSyncChannel.broadcast('LOCAL_ORDER_UPDATED', {
+          orderId,
+          partial: { settledChecks: updatedSettled },
+          restaurantId
+        });
+      } catch (e) {
+        console.warn('[settleSubCheck] Remote sync deferred:', e?.message);
+      }
+    }
+
+    return { ok: true, settledEntry, settledChecks: updatedSettled };
   },
 
   setOrderType:    (t) => set({ orderType: t }),
@@ -624,8 +794,10 @@ export const useOrderStore = create((set, get) => ({
         station: i.station ?? 'Kitchen',
         status: i.status ?? 'pending',
         course: i.course ?? 'Mains',
-        prepState: i.prepState ?? 'fired'
+        prepState: i.prepState ?? 'fired',
+        seatNumber: i.seatNumber ?? null
       })),
+      settledChecks: get().settledChecks ?? [],
       subtotal,
       discount,
       discountType,

@@ -18,14 +18,17 @@ import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Flame, Clock, LayoutGrid,
-  Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake
+  Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
+  Split, Armchair
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
+import SplitBillModal from '../components/pos/SplitBillModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
 import ModifierModal from '../components/pos/ModifierModal';
 import QuickPayBar from '../components/pos/QuickPayBar';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
+import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
@@ -376,7 +379,9 @@ export default function POS() {
     discount, discountType, setDiscount, getDiscountAmount,
     customer, setCustomerProfile, setRedeemingPoints,
     loadOrderToCart,
-    tokenNumber, setToken
+    tokenNumber, setToken,
+    activeSeat, setActiveSeat, setItemSeat, splitItemQty,
+    settleSubCheck, settledChecks
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -410,7 +415,13 @@ export default function POS() {
       setRedeemingPoints: state.setRedeemingPoints,
       loadOrderToCart: state.loadOrderToCart,
       tokenNumber: state.tokenNumber,
-      setToken: state.setToken
+      setToken: state.setToken,
+      activeSeat: state.activeSeat,
+      setActiveSeat: state.setActiveSeat,
+      setItemSeat: state.setItemSeat,
+      splitItemQty: state.splitItemQty,
+      settleSubCheck: state.settleSubCheck,
+      settledChecks: state.settledChecks
     }))
   );
 
@@ -472,6 +483,7 @@ export default function POS() {
   }, [items.length]);
 
   const [showPayment, setShowPayment] = useState(false);
+  const [showSplitBillModal, setShowSplitBillModal] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   // Cache original order items when editing — avoids a Firestore getDoc on every cart tap
@@ -505,6 +517,30 @@ export default function POS() {
 
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [handheldMode, setHandheldMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kiwi_handheld_mode');
+      if (saved !== null) return saved === 'true';
+      return typeof window !== 'undefined' && window.innerWidth <= 767;
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleHandheldMode = (enable) => {
+    setHandheldMode(enable);
+    try {
+      localStorage.setItem('kiwi_handheld_mode', enable ? 'true' : 'false');
+    } catch {}
+  };
+
+  const allMenuItems = useMemo(() => {
+    return categories.flatMap(c => (c.items ?? []).map(i => ({
+      ...i,
+      categoryId: i.categoryId || c.id,
+      categoryName: i.categoryName || c.name
+    })));
+  }, [categories]);
 
   // Live active orders in store
   const activeOrders = useOrderStore(s => s.activeOrders);
@@ -1521,6 +1557,57 @@ export default function POS() {
     );
   }
 
+  if (handheldMode) {
+    return (
+      <>
+        <MobileWaiterHandheld
+          restaurant={restaurant}
+          currency={currency}
+          menuItems={allMenuItems}
+          categories={categories}
+          tableOrders={tableOrders}
+          staffName={staffDoc?.name || 'Server'}
+          onCloseHandheld={() => toggleHandheldMode(false)}
+          onSendToKitchen={handleSendToKitchen}
+          onPrintPreBill={handlePrintPreBill}
+          onOpenSplitModal={() => setShowSplitBillModal(true)}
+          onOpenPayment={() => setShowPayment(true)}
+        />
+
+        {showPayment && (
+          <PaymentModal
+            total={total}
+            currency={currency}
+            onConfirm={handlePaymentConfirm}
+            onClose={() => setShowPayment(false)}
+            onOpenSplitManager={() => {
+              setShowPayment(false);
+              setShowSplitBillModal(true);
+            }}
+          />
+        )}
+        {showSplitBillModal && (
+          <SplitBillModal
+            isOpen={showSplitBillModal}
+            onClose={() => setShowSplitBillModal(false)}
+            items={items}
+            tableName={tableName}
+            tableId={tableId}
+            restaurant={restaurant}
+            currency={currency}
+            orderDiscount={discount}
+            orderDiscountType={discountType}
+            editingOrderId={editingOrderId}
+            settledChecks={settledChecks}
+            onSettleCheck={async (check, method, details) => {
+              await settleSubCheck(restaurant, check, method, details);
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="pos-layout">
       {/* ── Menu Panel ─────────────────────────────── */}
@@ -1531,6 +1618,26 @@ export default function POS() {
         <div className="pos-category-bar" role="tablist" aria-label="Menu Categories and Filters">
           {/* Dietary Quick Filters (Icon-only across UI) */}
           <div className="pos-dietary-strip" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <button
+              type="button"
+              id="toggle-handheld-mode-btn"
+              className="dietary-chip"
+              onClick={() => toggleHandheldMode(true)}
+              title="Switch to Mobile Waiter Handheld Mode"
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+                color: '#38bdf8',
+                fontWeight: 800,
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 8px'
+              }}
+            >
+              <span>📱 Waiter Mode</span>
+            </button>
             <button
               type="button"
               role="tab"
@@ -1884,6 +1991,15 @@ export default function POS() {
               >
                 🖨️ Bill
               </button>
+              <button 
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
+                title="Split Guest Checks by Seat or Item"
+                style={{ color: '#047857', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(209,250,229,0.85)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+              >
+                <Split size={11} /> Split
+              </button>
               {tableId && (
                 <button 
                   type="button"
@@ -2125,6 +2241,46 @@ export default function POS() {
           </div>
         )}
 
+        {/* Active Seats Bar for Dine-In */}
+        {orderType === 'dine-in' && items.length > 0 && (
+          <div className="cart-seats-bar">
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <Armchair size={12} /> Seat:
+            </span>
+            <button
+              type="button"
+              className={`cart-seat-chip ${activeSeat === null ? 'active' : ''}`}
+              onClick={() => { hapticTap('light'); setActiveSeat(null); }}
+              title="Items added will be assigned to Shared Table"
+            >
+              All / Table
+            </button>
+            {Array.from(new Set([1, 2, ...(items.map(i => i.seatNumber).filter(Boolean))])).sort((a,b)=>a-b).map(seatNum => (
+              <button
+                key={seatNum}
+                type="button"
+                className={`cart-seat-chip ${activeSeat === seatNum ? 'active' : ''}`}
+                onClick={() => { hapticTap('light'); setActiveSeat(seatNum); }}
+                title={`Items added will be tagged for Seat ${seatNum}`}
+              >
+                Seat {seatNum}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="cart-seat-chip add-seat"
+              onClick={() => {
+                hapticTap('light');
+                const maxSeat = Math.max(0, ...(items.map(i => i.seatNumber).filter(Boolean)));
+                setActiveSeat(maxSeat + 1);
+              }}
+              title="Add next seat"
+            >
+              + Seat
+            </button>
+          </div>
+        )}
+
         {/* Cart Items */}
         <div className="cart-items">
           {items.length === 0 ? (
@@ -2199,7 +2355,7 @@ export default function POS() {
                           </div>
                         )}
 
-                        {/* Row 2: Status + Course | → Stepper + Far-Right Delete */}
+                        {/* Row 2: Status + Course + Seat | → Stepper + Far-Right Delete */}
                         <div className="cart-item-card-bottom">
                           {/* Status Badge */}
                           <button
@@ -2220,6 +2376,23 @@ export default function POS() {
                             currentCourse={i.course}
                             onSelectCourse={(course) => useOrderStore.getState().setItemCourse(i.id, course)}
                           />
+
+                          {/* Seat Badge for Dine-In */}
+                          {orderType === 'dine-in' && (
+                            <button
+                              type="button"
+                              className="cart-item-seat-badge"
+                              onClick={() => {
+                                hapticTap('light');
+                                const nextSeat = i.seatNumber ? (i.seatNumber >= 4 ? null : i.seatNumber + 1) : 1;
+                                setItemSeat(i.id, nextSeat, i.selectedModifiers);
+                                toast.success(nextSeat ? `Assigned to Seat ${nextSeat}` : 'Set to Table / Shared', { duration: 1000, icon: '🪑' });
+                              }}
+                              title="Click to cycle seat assignment (Seat 1 → 2 → 3 → 4 → Table)"
+                            >
+                              🪑 {i.seatNumber ? `S${i.seatNumber}` : 'Table'}
+                            </button>
+                          )}
 
                           {/* Spacer pushes stepper and delete to far right */}
                           <span style={{ flex: 1 }} />
@@ -2540,7 +2713,38 @@ export default function POS() {
             onQuickPay={handleQuickPay}
             isProcessing={isQuickPaying}
             hasUpi={Boolean(restaurant?.upiConfig?.vpa)}
+            terminalProvider={restaurant?.terminalConfig?.provider}
           />
+        )}
+
+        {/* Quick Split Check Button for Dine-in */}
+        {orderType === 'dine-in' && items.length > 0 && (
+          <div style={{ padding: '0 var(--space-3) 8px', display: 'flex' }}>
+            <button
+              type="button"
+              id="pos-split-check-btn"
+              onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                color: '#10b981',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                borderRadius: 10,
+                padding: '7px 12px',
+                cursor: 'pointer'
+              }}
+              title="Split table bill by seat, equal fraction, or custom item checks"
+            >
+              <Split size={14} />
+              <span>Split Check (by Seat / Items)</span>
+            </button>
+          </div>
         )}
 
         {/* Actions */}
@@ -2694,6 +2898,35 @@ export default function POS() {
           currency={currency}
           onConfirm={handlePaymentConfirm}
           onClose={() => setShowPayment(false)}
+          onOpenSplitManager={() => {
+            setShowPayment(false);
+            setShowSplitBillModal(true);
+          }}
+        />
+      )}
+      {showSplitBillModal && (
+        <SplitBillModal
+          isOpen={showSplitBillModal}
+          onClose={() => setShowSplitBillModal(false)}
+          items={items}
+          tableName={tableName}
+          tableId={tableId}
+          restaurant={restaurant}
+          currency={currency}
+          orderDiscount={discount}
+          orderDiscountType={discountType}
+          editingOrderId={editingOrderId}
+          settledChecks={settledChecks}
+          onSettleCheck={async (check, method, details) => {
+            await settleSubCheck(restaurant, check, method, details);
+          }}
+          onCompleteOrder={async () => {
+            setShowSplitBillModal(false);
+            if (tableId) {
+              useTableStore.getState().setTableStatus(restaurant?.id, tableId, 'free', null);
+            }
+            clearCart();
+          }}
         />
       )}
       {activeModifierItem && (
