@@ -38,7 +38,7 @@ const ADMIN_NAV = [
   { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions' },
   { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters', requiredMode: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
-  { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
+  { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants' },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
@@ -173,7 +173,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     .toUpperCase();
 
   const filteredAdminNav = ADMIN_NAV.filter(n => {
-    if (n.superAdmin && !isSuperAdmin && role !== 'admin') return false;
+    if (n.superAdmin && !isSuperAdmin) return false;
     if (n.requiredMode) {
       return hasMode(n.requiredMode);
     }

@@ -18,7 +18,7 @@ import {
 } from '../../utils/enterpriseMenuSync';
 
 export default function Restaurants() {
-  const { staffDoc } = useAuthStore();
+  const { staffDoc, restaurant: currentRestaurant } = useAuthStore();
   const [restaurants, setRestaurants] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name:'', address:'', phone:'', currency:'INR' });
@@ -55,12 +55,18 @@ export default function Restaurants() {
   const [loadingAllStaff, setLoadingAllStaff] = useState(false);
 
   useEffect(() => {
-    // Super admin can see all restaurants linked to their uid
+    // Admin & Super admin can see franchise branches
     const q = collection(db, 'restaurants');
     return onSnapshot(q, snap => {
-      setRestaurants(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setRestaurants(list.length > 0 ? list : (currentRestaurant ? [currentRestaurant] : []));
+    }, err => {
+      console.warn("Restaurants snapshot listener:", err);
+      if (currentRestaurant) {
+        setRestaurants([currentRestaurant]);
+      }
     });
-  }, []);
+  }, [currentRestaurant]);
 
   const fetchConsolidatedData = useCallback(async () => {
     if (restaurants.length === 0) return;
@@ -443,6 +449,18 @@ export default function Restaurants() {
               </div>
             </div>
           ))}
+          {restaurants.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '48px 24px', gridColumn: '1 / -1', background: 'var(--color-bg-secondary)', borderRadius: '16px', border: '1px dashed var(--color-separator)' }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>🏢</div>
+              <h4 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--color-label)' }}>No Outlets Registered Yet</h4>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--color-label-secondary)' }}>
+                Register your brand's branch locations or franchise stores to enable centralized menu sync and analytics.
+              </p>
+              <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 auto' }}>
+                <Plus size={16} /> Register First Outlet
+              </button>
+            </div>
+          )}
         </div>
       )}
 
