@@ -1120,10 +1120,10 @@ export default function TableMap() {
                         </div>
                       )}
 
-                      {/* Order Note (Dedicated full width line, never colliding with items) */}
+                      {/* Order Note (Clean typography line, matching card flow without stretching) */}
                       {order.note && (
-                        <div className="tm-card-note-chip" title={`Table Note: ${order.note}`}>
-                          <span style={{ flexShrink: 0, fontSize: 10 }}>📝</span>
+                        <div className="tm-card-note-row" title={`Table Note: ${order.note}`}>
+                          <span className="tm-card-note-icon">📝</span>
                           <span className="tm-card-note-text">{order.note}</span>
                         </div>
                       )}

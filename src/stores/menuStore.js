@@ -55,6 +55,26 @@ export const useMenuStore = create((set, get) => {
     search: '',
     setSearch: (search) => set({ search }),
 
+    catFirstOverview: true,
+    setCatFirstOverview: (catFirstOverview) => set({ catFirstOverview }),
+
+    dietaryFilter: (typeof localStorage !== 'undefined' ? localStorage.getItem('kiwi_pos_dietary') : null) || 'all',
+    setDietaryFilter: (valOrFn) => {
+      set((state) => {
+        const next = typeof valOrFn === 'function' ? valOrFn(state.dietaryFilter) : valOrFn;
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('kiwi_pos_dietary', next);
+          }
+        } catch {}
+        const shouldOpenItems = next !== 'all' && state.catFirstOverview;
+        return { 
+          dietaryFilter: next,
+          ...(shouldOpenItems ? { catFirstOverview: false } : {})
+        };
+      });
+    },
+
     menuDensity: initialDensity,
     hasImages: checkHasMenuImages(initialCats),
 

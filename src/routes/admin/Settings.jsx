@@ -1476,6 +1476,171 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* POS Terminal Layout Template Card */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '22px' }}>🖥️</span>
+                      <h3 className="text-title3" style={{ margin: 0 }}>POS Terminal Layout Template</h3>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 'var(--weight-bold)',
+                        background: 'var(--color-accent-light)',
+                        color: 'var(--color-accent)',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)'
+                      }}>
+                        {settings.posTemplate === 'category_first' ? 'Template 3: Hybrid Category Cards' : settings.posTemplate === 'bistro_sidebar' ? 'Template 2: Left Category Sidebar' : 'Template 1: Modern Grid (Default)'}
+                      </span>
+                    </div>
+                    <p className="text-secondary text-footnote" style={{ marginTop: '4px' }}>
+                      Choose the active layout template for the ordering terminal. The selected template is active across all cashier and staff terminals. Table ordering staff continue using their dedicated mobile waiter flow.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
+                  {/* Option 1: Modern Grid */}
+                  <div
+                    id="template-option-modern-grid"
+                    onClick={async () => {
+                      updateField('posTemplate', 'modern_grid');
+                      const updatedRest = { ...(restaurant || {}), posTemplate: 'modern_grid' };
+                      useAuthStore.setState({ restaurant: updatedRest });
+                      if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', 'modern_grid');
+                      window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: 'modern_grid' } }));
+                      try {
+                        if (restaurant?.id) {
+                          await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: 'modern_grid' });
+                        }
+                      } catch (e) {
+                        console.warn('[Settings] Failed to save posTemplate:', e);
+                      }
+                      toast.success('Active POS template set to Template 1: Modern Grid');
+                    }}
+                    style={{
+                      border: `2px solid ${(!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 'var(--space-4)',
+                      background: (!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
+                        📱 Template 1: Modern Grid
+                      </span>
+                      {(!settings.posTemplate || settings.posTemplate === 'modern_grid') && (
+                        <Check size={16} color="var(--color-accent)" strokeWidth={3} />
+                      )}
+                    </div>
+                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-accent)' }}>
+                      Categories on Top (Horizontal Rail)
+                    </span>
+                    <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Full-width food grid, horizontal scrolling category pills, and floating action drawers. Ideal for fast casual, QSR counters, and compact screens.
+                    </p>
+                  </div>
+
+                  {/* Option 2: Left Category Sidebar */}
+                  <div
+                    id="template-option-bistro-sidebar"
+                    onClick={async () => {
+                      updateField('posTemplate', 'bistro_sidebar');
+                      const updatedRest = { ...(restaurant || {}), posTemplate: 'bistro_sidebar' };
+                      useAuthStore.setState({ restaurant: updatedRest });
+                      if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', 'bistro_sidebar');
+                      window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: 'bistro_sidebar' } }));
+                      try {
+                        if (restaurant?.id) {
+                          await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: 'bistro_sidebar' });
+                        }
+                      } catch (e) {
+                        console.warn('[Settings] Failed to save posTemplate:', e);
+                      }
+                      toast.success('Active POS template set to Template 2: Left Category Sidebar');
+                    }}
+                    style={{
+                      border: `2px solid ${settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 'var(--space-4)',
+                      background: settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
+                        🍽️ Template 2: Left Category Sidebar
+                      </span>
+                      {settings.posTemplate === 'bistro_sidebar' && (
+                        <Check size={16} color="var(--color-accent)" strokeWidth={3} />
+                      )}
+                    </div>
+                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-accent)' }}>
+                      Categories on Left (Vertical Rail)
+                    </span>
+                    <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Exact same POS features with categories arranged as a vertical rail on the left, enlarged text, and emoji-free clean labels for quick fingertip navigation.
+                    </p>
+                  </div>
+
+                  {/* Option 3: Hybrid Category Cards */}
+                  <div
+                    id="template-option-category-first"
+                    onClick={async () => {
+                      updateField('posTemplate', 'category_first');
+                      const updatedRest = { ...(restaurant || {}), posTemplate: 'category_first' };
+                      useAuthStore.setState({ restaurant: updatedRest });
+                      if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', 'category_first');
+                      window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: 'category_first' } }));
+                      try {
+                        if (restaurant?.id) {
+                          await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: 'category_first' });
+                        }
+                      } catch (e) {
+                        console.warn('[Settings] Failed to save posTemplate:', e);
+                      }
+                      toast.success('Active POS template set to Template 3: Hybrid Category Cards');
+                    }}
+                    style={{
+                      border: `2px solid ${settings.posTemplate === 'category_first' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 'var(--space-4)',
+                      background: settings.posTemplate === 'category_first' ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
+                        🗂️ Template 3: Hybrid Category Cards
+                      </span>
+                      {settings.posTemplate === 'category_first' && (
+                        <Check size={16} color="var(--color-accent)" strokeWidth={3} />
+                      )}
+                    </div>
+                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-accent)' }}>
+                      Category Cards Grid + Persistent Quick Switcher
+                    </span>
+                    <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Touch-friendly large category cards for intuitive visual discovery, with a persistent top category bar once opened so staff never have to repeatedly tap Back.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* The 6 Modular Pillars */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 {MODULE_PILLARS.map(pillar => (

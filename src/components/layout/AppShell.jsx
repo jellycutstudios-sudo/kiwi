@@ -11,8 +11,9 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { 
   Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid 
+  RefreshCw, LayoutGrid, ArrowLeft, Flame 
 } from 'lucide-react';
+import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
 import ErrorBoundary from '../shared/ErrorBoundary';
@@ -62,6 +63,11 @@ export default function AppShell() {
   const setMenuDensity = useMenuStore(s => s.setMenuDensity);
   const isFocusMode = useMenuStore(s => s.isFocusMode);
   const setIsFocusMode = useMenuStore(s => s.setIsFocusMode);
+  const catFirstOverview = useMenuStore(s => s.catFirstOverview);
+  const setCatFirstOverview = useMenuStore(s => s.setCatFirstOverview);
+  const dietaryFilter = useMenuStore(s => s.dietaryFilter);
+  const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
+  const { isCategoryFirst } = usePosTemplate();
   const subscribeStaff = useStaffStore(s => s.subscribeStaff);
   const subscribeTables = useTableStore(s => s.subscribe);
   const isOnline = useOfflineQueueStore(s => s.isOnline);
@@ -211,7 +217,6 @@ export default function AppShell() {
     () => window.innerWidth <= 1366
   );
 
-  // POS page uses its own full-height layout
   const isPOS = location.pathname === '/pos';
   const isKDS = location.pathname === '/kds';
 
@@ -223,7 +228,6 @@ export default function AppShell() {
       return () => clearTimeout(id);
     }
     // On other pages we respect whatever state the user has set (or the screen-size default above).
-    // No forced restore — if they manually expanded on a small screen, honour that choice.
   }, [isPOS]);
 
   return (
@@ -237,7 +241,7 @@ export default function AppShell() {
         />
       )}
       
-      {!isKDS && mobileSidebarOpen && (
+      {mobileSidebarOpen && (
         <div 
           className="mobile-sidebar-overlay" 
           onClick={() => setMobileSidebarOpen(false)}
@@ -257,7 +261,7 @@ export default function AppShell() {
       )}
 
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isKDS ? 'kds-main-content' : ''}`}>
-        {/* Top Bar - hidden on KDS to eliminate duplicate headers and maximize kitchen screen width */}
+        {/* Top Bar - hidden on KDS to eliminate duplicate headers */}
         {!isKDS && (
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
           {/* Burger menu button visible only on mobile/tablet */}
@@ -276,6 +280,24 @@ export default function AppShell() {
           
           {isPOS && (
             <div className="pos-topbar-center">
+              {/* Back to All Categories button for Template 3 (Category Cards) */}
+              {isCategoryFirst && !catFirstOverview && (
+                <button
+                  type="button"
+                  id="topbar-back-to-categories-btn"
+                  className="pos-topbar-all-categories-btn"
+                  onClick={() => {
+                    setCatFirstOverview(true);
+                    setSearch('');
+                    setDietaryFilter('all');
+                  }}
+                  title="Back to all Category Cards"
+                >
+                  <ArrowLeft size={15} strokeWidth={2.5} />
+                  <span>All Categories</span>
+                </button>
+              )}
+
               {/* Search Bar */}
               <div className="pos-search-wrapper">
                 <Search size={14} className="pos-search-icon" />
@@ -298,6 +320,46 @@ export default function AppShell() {
                     <X size={13} />
                   </button>
                 )}
+              </div>
+
+              {/* Single-line Dietary Quick Filters (Veg, Non-Veg, Popular) right after search */}
+              <div className="pos-topbar-dietary-strip" role="tablist" aria-label="Dietary filters">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={dietaryFilter === 'veg'}
+                  className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
+                  onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+                  title="Pure Veg (Filter vegetarian items)"
+                  aria-label="Pure Veg"
+                >
+                  <span className="food-badge-veg" />
+                  <span className="dietary-chip-text">Veg</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={dietaryFilter === 'non-veg'}
+                  className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+                  onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+                  title="Non-Veg (Filter non-vegetarian items)"
+                  aria-label="Non-Veg"
+                >
+                  <span className="food-badge-nonveg" />
+                  <span className="dietary-chip-text">Non-Veg</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={dietaryFilter === 'bestseller'}
+                  className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+                  onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+                  title="Popular (Filter bestsellers)"
+                  aria-label="Popular"
+                >
+                  <Flame size={13} className="dietary-flame-icon" />
+                  <span className="dietary-chip-text">Popular</span>
+                </button>
               </div>
 
               {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}

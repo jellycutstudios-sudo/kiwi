@@ -20,7 +20,7 @@ import {
   ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Flame, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair
+  Split, Armchair, ArrowLeft, Layers
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -30,6 +30,8 @@ import QuickPayBar from '../components/pos/QuickPayBar';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
+import { usePosTemplate } from '../utils/posTemplate';
+import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
@@ -42,6 +44,21 @@ const COURSE_ICONS = {
 };
 
 const POS_COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
+
+const POS_CATEGORY_THEMES = [
+  'pos-cat-theme-amber',
+  'pos-cat-theme-crimson',
+  'pos-cat-theme-blue',
+  'pos-cat-theme-purple',
+  'pos-cat-theme-orange',
+  'pos-cat-theme-teal',
+  'pos-cat-theme-rose',
+  'pos-cat-theme-indigo',
+  'pos-cat-theme-cyan',
+  'pos-cat-theme-lime',
+  'pos-cat-theme-fuchsia',
+  'pos-cat-theme-emerald',
+];
 
 const KITCHEN_DISPATCHES = [
   { tag: "READY", text: "Pass is clear · Standing by for next ticket", icon: "🛎️" },
@@ -440,36 +457,33 @@ export default function POS() {
   );
   const { issueToken } = useTokenStore();
   useWakeLock(true);
-  const { categories, loading: loadingMenu, search, setSearch, menuDensity } = useMenuStore(
+  const { categories, loading: loadingMenu, search, setSearch, menuDensity, catFirstOverview, setCatFirstOverview } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
       loading: state.loading,
       search: state.search,
       setSearch: state.setSearch,
-      menuDensity: state.menuDensity
+      menuDensity: state.menuDensity,
+      catFirstOverview: state.catFirstOverview,
+      setCatFirstOverview: state.setCatFirstOverview
     }))
   );
 
+  const { template: posTemplate, setTemplate: setPosTemplate, isBistro, isCategoryFirst } = usePosTemplate();
+
+  useEffect(() => {
+    if (isCategoryFirst) {
+      setCatFirstOverview(true);
+    }
+  }, [isCategoryFirst]);
+
+  const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !search.trim();
+  const isOnline = useOfflineQueueStore(s => s.isOnline);
+  const [guestCount, setGuestCount] = useState(2);
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
-  const [dietaryFilter, setDietaryFilterState] = useState(() => {
-    if (typeof localStorage === 'undefined') return 'all';
-    try {
-      return localStorage.getItem('kiwi_pos_dietary') || 'all';
-    } catch {
-      return 'all';
-    }
-  });
-
-  const setDietaryFilter = (valOrFn) => {
-    setDietaryFilterState(prev => {
-      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
-      try {
-        localStorage.setItem('kiwi_pos_dietary', next);
-      } catch {}
-      return next;
-    });
-  };
+  const dietaryFilter = useMenuStore(s => s.dietaryFilter);
+  const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const prevItemCountRef = useRef(0);
@@ -1641,115 +1655,134 @@ export default function POS() {
   }
 
   return (
-    <div className="pos-layout">
-      {/* ── Menu Panel ─────────────────────────────── */}
-      <div className="pos-menu-panel">
+    <>
+      <div className="pos-layout">
+        {/* ── Menu Panel ─────────────────────────────── */}
+        <div className={`pos-menu-panel ${isBistro ? 'categories-left' : ''}`}>
 
 
-        {/* ── Unified Category & Dietary Filter Bar (Row 2) ─────────── */}
-        <div className="pos-category-bar" role="tablist" aria-label="Menu Categories and Filters">
-          {/* Dietary Quick Filters (Icon-only across UI) */}
-          <div className="pos-dietary-strip" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            {/* Handheld mode switcher: only shown for admin to test mobile mode, never for cashier or floor staff */}
-            {['admin', 'super_admin'].includes(userRole) && !isEffectiveHandheld && (
+        {/* ── Category Chips Bar (Hidden on Category Cards Overview) ─────────── */}
+        {!isShowingCategoryCards && (
+          <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
+            <div className="pos-category-scroll">
+              {/* Category Chips - Clean & Emoji-Free */}
+              <button
+                id="cat-all"
+                role="tab"
+                aria-selected={activeCat === 'all'}
+                className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
+                onClick={() => { setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+              >
+                <span className="category-chip-name">All Items</span>
+                <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
+              </button>
+              {categories.map(c => (
+                <button
+                  key={c.id}
+                  id={`cat-${c.id}`}
+                  role="tab"
+                  aria-selected={activeCat === c.id}
+                  className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
+                  onClick={() => { setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                >
+                  <span className="category-chip-name">{c.name}</span>
+                  {c.items?.length > 0 && (
+                    <span className="category-chip-count">{c.items.length}</span>
+                  )}
+                </button>
+              ))}
               <button
                 type="button"
-                id="toggle-handheld-mode-btn"
-                className="dietary-chip"
-                onClick={() => toggleHandheldMode(true)}
-                title="Switch to Mobile Waiter Handheld Mode"
-                style={{
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  borderColor: 'rgba(56, 189, 248, 0.3)',
-                  color: '#38bdf8',
-                  fontWeight: 800,
-                  fontSize: 11,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 8px'
-                }}
+                id="add-custom-item-chip"
+                className="category-chip category-chip--custom"
+                onClick={() => setShowOpenItemModal(true)}
+                title="Add off-menu daily special or custom priced item"
               >
-                <span>📱 Waiter Mode</span>
+                <span className="category-chip-name">+ Custom Item</span>
               </button>
-            )}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'veg'}
-              className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
-              title="Pure Veg (Filter vegetarian items)"
-              aria-label="Pure Veg"
-            >
-              <span className="food-badge-veg" />
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'non-veg'}
-              className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
-              title="Non-Veg (Filter non-vegetarian items)"
-              aria-label="Non-Veg"
-            >
-              <span className="food-badge-nonveg" />
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dietaryFilter === 'bestseller'}
-              className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-              onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-              title="Bestsellers (Filter popular & high-selling items)"
-              aria-label="Bestsellers"
-            >
-              <Flame size={14} color="#f59e0b" />
-            </button>
+            </div>
           </div>
+        )}
 
-          <div className="pos-bar-divider" />
+        {/* Menu Content Area */}
+        <div className="pos-menu-content-area">
+        {isShowingCategoryCards ? (
+          <div className="pos-category-cards-container">
+            <div className="pos-category-cards-header">
+              <div>
+                <h2 className="pos-category-cards-title">Menu Categories</h2>
+                <p className="pos-category-cards-subtitle">
+                  Select a category to view items · Quick switching remains persistent on top
+                </p>
+              </div>
+            </div>
 
-          {/* Category Chips */}
-          <button
-            id="cat-all"
-            role="tab"
-            aria-selected={activeCat === 'all'}
-            className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-            onClick={() => { setActiveCat('all'); setSearch(''); }}
-          >
-            <span>🍽️</span> All Items
-            <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
-          </button>
-          {categories.map(c => (
-            <button
-              key={c.id}
-              id={`cat-${c.id}`}
-              role="tab"
-              aria-selected={activeCat === c.id}
-              className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
-              onClick={() => { setActiveCat(c.id); setSearch(''); }}
-            >
-              {c.emoji && <span>{c.emoji}</span>}
-              <span>{c.name}</span>
-              {c.items?.length > 0 && (
-                <span className="category-chip-count">{c.items.length}</span>
-              )}
-            </button>
-          ))}
-          <button
-            type="button"
-            id="add-custom-item-chip"
-            className="category-chip category-chip--custom"
-            onClick={() => setShowOpenItemModal(true)}
-            title="Add off-menu daily special or custom priced item"
-          >
-            <span>✨</span> + Custom Item
-          </button>
-        </div>
+            <div className="pos-category-cards-grid">
+              {/* All Items Card */}
+              <div
+                className="pos-category-card pos-cat-theme-emerald"
+                id="cat-card-all"
+                onClick={() => { setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="pos-cat-card-body">
+                  <div className="pos-cat-card-name">All Items</div>
+                </div>
+                <div className="pos-cat-card-footer">
+                  <span className="pos-cat-card-count">
+                    {categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)} items
+                  </span>
+                  <span className="pos-cat-card-arrow">→</span>
+                </div>
+              </div>
 
-        {/* Menu grid */}
-        {loadingMenu ? (
+              {/* Each Category Card */}
+              {categories.map((c, idx) => {
+                const themeClass = POS_CATEGORY_THEMES[idx % POS_CATEGORY_THEMES.length];
+                return (
+                  <div
+                    key={c.id}
+                    id={`cat-card-${c.id}`}
+                    className={`pos-category-card ${themeClass}`}
+                    onClick={() => { setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="pos-cat-card-body">
+                      <div className="pos-cat-card-name">{c.name}</div>
+                    </div>
+                    <div className="pos-cat-card-footer">
+                      <span className="pos-cat-card-count">
+                        {c.items?.length || 0} items
+                      </span>
+                      <span className="pos-cat-card-arrow">→</span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* + Custom Item Card */}
+              <div
+                className="pos-category-card pos-cat-card--custom pos-cat-theme-amber"
+                id="cat-card-custom"
+                onClick={() => setShowOpenItemModal(true)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="pos-cat-card-body">
+                  <div className="pos-cat-card-name">+ Custom Item</div>
+                </div>
+                <div className="pos-cat-card-footer">
+                  <span className="pos-cat-card-count">Off-menu daily special</span>
+                  <span className="pos-cat-card-arrow">+</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {loadingMenu ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 'var(--space-3)', padding: 'var(--space-4)' }}>
             {Array.from({length:12}).map((_,i) => (
               <div key={i} className="skeleton" style={{ aspectRatio: '3/4', borderRadius: 'var(--radius-lg)' }} />
@@ -1915,6 +1948,9 @@ export default function POS() {
             })}
           </div>
         )}
+          </>
+        )}
+        </div>
 
         {/* Floating Cart Button for mobile/tablet */}
         <div 
@@ -2849,6 +2885,7 @@ export default function POS() {
             </div>
           </button>
         )}
+      </div>
       </div>
 
       {/* Modals */}
@@ -4036,6 +4073,6 @@ export default function POS() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
