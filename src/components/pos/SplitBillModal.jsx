@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { 
   X, Split, Users, Armchair, Check, CheckCircle2, 
   Printer, CreditCard, Banknote, Smartphone, Plus, Minus, 
-  ArrowRightLeft, Receipt, Coins, ChevronRight, AlertCircle, Sparkles
+  ArrowRightLeft, Coins, Sparkles
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { 
@@ -12,7 +12,6 @@ import {
   areAllChecksSettled, 
   getRemainingBalance, 
   getTotalPaid,
-  splitItemQuantity,
   computeCheckTotals
 } from '../../utils/splitCheckEngine';
 import { printReceipt } from '../../utils/print';
@@ -25,7 +24,7 @@ export default function SplitBillModal({
   onClose,
   items = [],
   tableName,
-  tableId,
+  tableId: _tableId,
   restaurant,
   currency = 'INR',
   orderDiscount = 0,
@@ -35,7 +34,6 @@ export default function SplitBillModal({
   onSettleCheck,
   onCompleteOrder
 }) {
-  if (!isOpen) return null;
 
   // Split Modes: 'seat' | 'even' | 'custom'
   const [splitMode, setSplitMode] = useState('seat');
@@ -113,6 +111,8 @@ export default function SplitBillModal({
   const totalPaid = useMemo(() => getTotalPaid(currentChecks), [currentChecks]);
   const remainingDue = useMemo(() => getRemainingBalance(currentChecks), [currentChecks]);
   const isOrderFullyPaid = useMemo(() => areAllChecksSettled(currentChecks), [currentChecks]);
+
+  if (!isOpen) return null;
 
   // Handle switching shared items rule in seat mode
   const handleToggleSharedHandling = (mode) => {
