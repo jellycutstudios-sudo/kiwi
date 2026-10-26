@@ -2560,6 +2560,100 @@ export default function Settings() {
                     </div>
                   )}
 
+                  {settings.terminalConfig?.provider === 'pax' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                      <div style={{ padding: 'var(--space-3)', background: 'rgba(56, 189, 248, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                        <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600 }}>📟 Pax A920 / A35 Smart POS (GCC & Global)</div>
+                        <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
+                          Standard across Qatar (QAR), UAE (AED), Saudi Arabia, and Europe. Automatically wakes up the Pax screen with the exact bill amount via POSLink protocol.
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 'var(--space-3)' }}>
+                        <div>
+                          <label className="text-caption font-semibold" style={{ display: 'block', marginBottom: 4 }}>Pax Terminal IP Address</label>
+                          <input
+                            type="text"
+                            className="input input-sm"
+                            style={{ width: '100%' }}
+                            placeholder="e.g. 192.168.1.150"
+                            value={settings.terminalConfig?.terminalIp ?? ''}
+                            onChange={e => updateField('terminalConfig.terminalIp', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-caption font-semibold" style={{ display: 'block', marginBottom: 4 }}>POSLink Port</label>
+                          <input
+                            type="number"
+                            className="input input-sm"
+                            style={{ width: '100%' }}
+                            placeholder="10009"
+                            value={settings.terminalConfig?.terminalPort ?? 10009}
+                            onChange={e => updateField('terminalConfig.terminalPort', Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                        <div>
+                          <label className="text-caption font-semibold" style={{ display: 'block', marginBottom: 4 }}>Terminal ID (TID)</label>
+                          <input
+                            type="text"
+                            className="input input-sm"
+                            style={{ width: '100%' }}
+                            placeholder="e.g. PAX-A920-01"
+                            value={settings.terminalConfig?.terminalId ?? ''}
+                            onChange={e => updateField('terminalConfig.terminalId', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-caption font-semibold" style={{ display: 'block', marginBottom: 4 }}>ECR Terminal Identifier</label>
+                          <input
+                            type="text"
+                            className="input input-sm"
+                            style={{ width: '100%' }}
+                            placeholder="KIWI_POS_01"
+                            value={settings.terminalConfig?.ecrId ?? 'KIWI_POS_01'}
+                            onChange={e => updateField('terminalConfig.ecrId', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.terminalConfig?.provider === 'adyen' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                      <div style={{ padding: 'var(--space-3)', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>🌐 Adyen Cloud Smart Terminal</div>
+                        <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
+                          Cloud Terminal API triggers Adyen Smart Terminals (Castles Saturn, S1F2, e285) worldwide with zero local server setup.
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                        <div>
+                          <label className="text-caption font-semibold" style={{ display: 'block', marginBottom: 4 }}>Adyen Merchant Account</label>
+                          <input
+                            type="text"
+                            className="input input-sm"
+                            style={{ width: '100%' }}
+                            placeholder="e.g. MyRestaurantPOS"
+                            value={settings.terminalConfig?.merchantAccount ?? ''}
+                            onChange={e => updateField('terminalConfig.merchantAccount', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-caption font-semibold" style={{ display: 'block', marginBottom: 4 }}>Terminal POIID (Reader ID)</label>
+                          <input
+                            type="text"
+                            className="input input-sm"
+                            style={{ width: '100%' }}
+                            placeholder="e.g. V400m-123456789"
+                            value={settings.terminalConfig?.terminalId ?? ''}
+                            onChange={e => updateField('terminalConfig.terminalId', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {settings.terminalConfig?.provider === 'manual' && (
                     <div style={{ padding: 'var(--space-3)', background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                       <div style={{ fontSize: 13, color: '#93c5fd', fontWeight: 600 }}>💡 Standalone Bank Machine Mode Active</div>

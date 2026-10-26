@@ -717,4 +717,35 @@ exports.sendDailySalesReportEmail = onCall(async (request) => {
   return { success: true, ordersCount: ordersSnap.size, totalRevenue };
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Stripe Terminal: Generate Connection Token for WisePOS E / S700 Smart Readers
+// ─────────────────────────────────────────────────────────────────────────────
+exports.createTerminalConnectionToken = onCall(async (request) => {
+  const { restaurantId } = request.data || {};
+  if (!restaurantId) {
+    throw new HttpsError('invalid-argument', 'restaurantId is required');
+  }
 
+  try {
+    const restDoc = await admin.firestore().collection('restaurants').doc(restaurantId).get();
+    const restData = restDoc.data() || {};
+    const stripeSecretKey = restData.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeSecretKey) {
+      return {
+        secret: `simulated_connection_token_${Date.now()}`,
+        isSimulated: true
+      };
+    }
+
+    const stripe = require('stripe')(stripeSecretKey);
+    const connectionToken = await stripe.terminal.connectionTokens.create();
+    return {
+      secret: connectionToken.secret,
+      isSimulated: false
+    };
+  } catch (err) {
+    console.error('[createTerminalConnectionToken] Error:', err.message);
+    throw new HttpsError('internal', err.message);
+  }
+});

@@ -4,6 +4,8 @@ import { PaytmEdcAdapter } from './adapters/PaytmEdcAdapter';
 import { PineLabsAdapter } from './adapters/PineLabsAdapter';
 import { RazorpayPosAdapter } from './adapters/RazorpayPosAdapter';
 import { StripeTerminalAdapter } from './adapters/StripeTerminalAdapter';
+import { PaxTerminalAdapter } from './adapters/PaxTerminalAdapter';
+import { AdyenTerminalAdapter } from './adapters/AdyenTerminalAdapter';
 
 export const TERMINAL_PROVIDERS = [
   {
@@ -19,6 +21,27 @@ export const TERMINAL_PROVIDERS = [
     description: 'Simulate card tap, chip insert, UPI scan, and decline without physical hardware.',
     features: ['debit_card', 'credit_card', 'upi_qr', 'tap_to_pay'],
     icon: 'Terminal'
+  },
+  {
+    id: 'pax',
+    name: 'Pax A920 / A35 Smart POS (GCC & Global)',
+    description: 'Wireless Android smart reader standard in Qatar (QAR), UAE (AED), Saudi Arabia, and Europe via POSLink protocol.',
+    features: ['apple_pay', 'contactless_tap', 'chip_pin', 'poslink'],
+    icon: 'Smartphone'
+  },
+  {
+    id: 'adyen',
+    name: 'Adyen Cloud Smart Terminal',
+    description: 'Enterprise cloud-connected smart readers (Castles Saturn 1000, S1F2, e285) via Adyen Terminal API.',
+    features: ['apple_pay', 'google_pay', 'contactless_tap', 'chip_pin'],
+    icon: 'CreditCard'
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe Terminal (Global)',
+    description: 'Stripe Smart Readers (WisePOS E, Stripe Reader S700) for US, EU, UK, and international venues.',
+    features: ['debit_card', 'credit_card', 'apple_pay', 'google_pay'],
+    icon: 'CreditCard'
   },
   {
     id: 'paytm',
@@ -40,13 +63,6 @@ export const TERMINAL_PROVIDERS = [
     description: 'Cloud-connected Android smart card readers accepting all cards and UPI.',
     features: ['debit_card', 'credit_card', 'tap_to_pay', 'upi_qr'],
     icon: 'Smartphone'
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe Terminal (Global)',
-    description: 'Stripe Smart Readers (WisePOS E, Stripe Reader S700) for US, EU, UK, and international venues.',
-    features: ['debit_card', 'credit_card', 'apple_pay', 'google_pay'],
-    icon: 'CreditCard'
   }
 ];
 
@@ -59,6 +75,10 @@ export function getTerminalAdapter(terminalConfig = {}) {
   const provider = terminalConfig.provider || (terminalConfig.enabled ? 'simulator' : 'manual');
 
   switch (provider) {
+    case 'pax':
+      return new PaxTerminalAdapter(terminalConfig);
+    case 'adyen':
+      return new AdyenTerminalAdapter(terminalConfig);
     case 'paytm':
       return new PaytmEdcAdapter(terminalConfig);
     case 'pinelabs':
@@ -74,3 +94,4 @@ export function getTerminalAdapter(terminalConfig = {}) {
       return new ManualAdapter(terminalConfig);
   }
 }
+

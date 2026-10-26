@@ -7,7 +7,8 @@ export default function QuickPayBar({
   currency,
   onQuickPay,
   isProcessing = false,
-  hasUpi = false
+  hasUpi = false,
+  terminalProvider = null
 }) {
   const [activeBtn, setActiveBtn] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -93,6 +94,8 @@ export default function QuickPayBar({
     );
   }
 
+  const hasSmartTerminal = Boolean(terminalProvider && terminalProvider !== 'manual');
+
   return (
     <div className="quickpay-card">
       <div className="quickpay-grid-wrap">
@@ -134,14 +137,19 @@ export default function QuickPayBar({
             disabled={isProcessing}
             onClick={() => handlePay('card', total, 'card')}
             className="quickpay-btn quickpay-btn-card"
-            title="Card Tap / POS Terminal"
+            title={hasSmartTerminal ? `Smart Terminal Tap (${terminalProvider.toUpperCase()})` : "Card Tap / POS Terminal"}
           >
             {activeBtn === 'card' ? (
               <Loader2 size={13} className="animate-spin" />
             ) : (
-              <div className="quickpay-btn-main">
+              <div className="quickpay-btn-main" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                 <CreditCard size={11.5} />
                 <span>Card</span>
+                {hasSmartTerminal && (
+                  <span style={{ fontSize: '8px', opacity: 0.9, background: 'rgba(255,255,255,0.22)', padding: '0.5px 3px', borderRadius: '3px', fontWeight: 700 }}>
+                    {terminalProvider === 'pax' ? 'Pax' : terminalProvider === 'adyen' ? 'Adyen' : 'Tap'}
+                  </span>
+                )}
               </div>
             )}
           </button>

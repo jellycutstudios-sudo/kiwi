@@ -20,7 +20,7 @@ const METHODS = [
   { key: 'split',    label: 'Split',    icon: Split,        color: 'var(--color-label)' },
 ];
 
-export default function PaymentModal({ total, currency, onConfirm, onClose }) {
+export default function PaymentModal({ total, currency, onConfirm, onClose, onOpenSplitManager }) {
   const { t } = useTranslation();
   const { restaurant } = useAuthStore();
   const modalRef = useRef(null);
@@ -962,6 +962,37 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           {/* Split Bill section */}
           {paymentMethod === 'split' && (
             <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {onOpenSplitManager && (
+                <button
+                  type="button"
+                  onClick={onOpenSplitManager}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(56, 189, 248, 0.15) 100%)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    color: 'var(--color-label, #ffffff)',
+                    cursor: 'pointer',
+                    marginBottom: '4px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '8px', background: 'var(--color-accent, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                      <Split size={17} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px' }}>Seat & Itemized Check Manager</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-secondary, #94a3b8)' }}>Split by seat numbers or drag-and-drop items</div>
+                    </div>
+                  </div>
+                  <ChevronDown size={16} style={{ transform: 'rotate(-90deg)', color: 'var(--color-accent, #10b981)' }} />
+                </button>
+              )}
+
               {/* Tab Selector */}
               <div style={{ display: 'flex', borderBottom: '1px solid var(--color-separator)', marginBottom: 'var(--space-2)' }}>
                 <button
@@ -1378,28 +1409,49 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
               borderRadius: 14,
               border: '1px solid var(--color-separator)'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <div style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
-                }}>
-                  <CreditCard size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-label)' }}>
-                    External Card Machine / EDC POS
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                  }}>
+                    <CreditCard size={18} />
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                    Swipe, insert chip, or tap contactless card on your reader
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-label)' }}>
+                      External Card Machine / EDC POS
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                      Swipe, insert chip, or tap contactless card on your reader
+                    </div>
                   </div>
                 </div>
+
+                {restaurant?.terminalConfig?.provider && restaurant?.terminalConfig?.provider !== 'manual' && (
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentMethod('terminal'); startTerminalSimulation(); }}
+                    style={{
+                      background: 'rgba(99, 102, 241, 0.12)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      color: '#6366f1',
+                      borderRadius: 8,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⚡ Wake Smart Reader
+                  </button>
+                )}
               </div>
 
               <div className="payment-info-box">
@@ -1426,50 +1478,70 @@ export default function PaymentModal({ total, currency, onConfirm, onClose }) {
           )}
 
           {/* Terminal section */}
-          {paymentMethod === 'terminal' && (
-            <div style={{
-              marginTop: 12,
-              padding: '16px 18px',
-              background: 'var(--color-bg-secondary)',
-              borderRadius: 14,
-              border: '1px solid var(--color-separator)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <div style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
-                }}>
-                  <CreditCard size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-label)' }}>
-                    Smart Reader / Stripe Terminal
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                    {restaurant?.stripeReaderId ? `Connected to Reader: ${restaurant.stripeReaderId}` : 'Interactive reader simulation mode'}
-                  </div>
-                </div>
-              </div>
+          {paymentMethod === 'terminal' && (() => {
+            const termProvider = restaurant?.terminalConfig?.provider || (restaurant?.stripePublishableKey ? 'stripe' : 'simulator');
+            const provMeta = TERMINAL_PROVIDERS.find(p => p.id === termProvider) || { name: 'Smart Reader' };
+            const readerIdent = restaurant?.terminalConfig?.terminalId || restaurant?.terminalConfig?.terminalIp || restaurant?.stripeReaderId || 'Virtual Reader #1';
 
-              <div className="payment-info-box">
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Ready for Customer Tap:</span>
-                <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>
-                  {formatCurrency(total, currency)}
-                </span>
-              </div>
+            return (
+              <div style={{
+                marginTop: 12,
+                padding: '16px 18px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 14,
+                border: '1px solid var(--color-separator)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
+                    }}>
+                      <CreditCard size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{provMeta.name}</span>
+                        <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#10b98122', color: '#10b981', fontWeight: 800 }}>
+                          ● Online
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                        Paired Device: <strong style={{ color: 'var(--color-label)' }}>{readerIdent}</strong>
+                      </div>
+                    </div>
+                  </div>
 
-              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
-                Clicking <strong>Complete Payment</strong> will prompt the reader to accept Apple Pay, Google Wallet, or physical cards.
+                  <button
+                    type="button"
+                    onClick={startTerminalSimulation}
+                    className="btn btn-primary btn-sm"
+                    style={{ fontSize: 11.5, fontWeight: 700, padding: '5px 12px', borderRadius: 8 }}
+                  >
+                    ⚡ Wake Reader
+                  </button>
+                </div>
+
+                <div className="payment-info-box">
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Ready for Customer Tap:</span>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(total, currency)}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
+                  Supports <strong>Apple Pay, Google Pay, Contactless NFC Tap, and EMV Chip &amp; PIN</strong> with automatic transaction reconciliation.
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* UPI scan to pay section */}
           {paymentMethod === 'upi' && (
