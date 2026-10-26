@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import {
   LayoutDashboard, Utensils, Armchair,
@@ -57,9 +57,64 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const isUpdating = useUpdateStore(s => s.isUpdating);
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
 
+  const switchRestaurant = useAuthStore(s => s.switchRestaurant);
   const [anyPlatformPaused, setAnyPlatformPaused] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+
+  // Multi-Branch Outlet Switcher State
+  const [availableOutlets, setAvailableOutlets] = useState([]);
+  const [outletMenuOpen, setOutletMenuOpen] = useState(false);
+  const outletDropdownRef = useRef(null);
+
+  // Close outlet switcher on click outside
+  useEffect(() => {
+    if (!outletMenuOpen) return;
+    const handleOutside = (e) => {
+      if (outletDropdownRef.current && !outletDropdownRef.current.contains(e.target)) {
+        setOutletMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [outletMenuOpen]);
+
+  // Query sibling branches for franchise owner or super admin
+  useEffect(() => {
+    if (!restaurant?.id) {
+      setAvailableOutlets([]);
+      return;
+    }
+
+    let q = null;
+    if (role === 'super_admin') {
+      q = collection(db, 'restaurants');
+    } else if (restaurant.brandId) {
+      q = query(collection(db, 'restaurants'), where('brandId', '==', restaurant.brandId));
+    } else if (restaurant.ownerUid) {
+      q = query(collection(db, 'restaurants'), where('ownerUid', '==', restaurant.ownerUid));
+    } else if (user?.uid) {
+      q = query(collection(db, 'restaurants'), where('ownerUid', '==', user.uid));
+    }
+
+    if (!q) {
+      setAvailableOutlets([restaurant]);
+      return;
+    }
+
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const filtered = role === 'super_admin'
+        ? list
+        : list.filter(r => r.id === restaurant.id || r.status === 'approved');
+      setAvailableOutlets(filtered.length > 0 ? filtered : [restaurant]);
+    }, (err) => {
+      console.warn('Sidebar availableOutlets listener:', err);
+      setAvailableOutlets([restaurant]);
+    });
+
+    return unsub;
+  }, [restaurant?.id, restaurant?.brandId, restaurant?.ownerUid, user?.uid, role]);
 
   // Check if current route is in Admin section so it auto-expands
   const isCurrentRouteAdmin = location.pathname.startsWith('/admin');
@@ -215,7 +270,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         )}
       </div>
 
-      {/* Restaurant Info Pill */}
+      {/* Restaurant Info Pill & Multi-Branch Switcher */}
       {!isCollapsed && restaurant?.name && (
         <div style={{
           margin: '10px 12px 4px',
@@ -225,7 +280,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           borderRadius: '12px',
           display: 'flex',
           alignItems: 'center',
-          gap: '10px'
+          gap: '10px',
+          position: 'relative'
         }}>
           <div style={{
             width: '28px',
@@ -242,16 +298,52 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             📍
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: 'var(--color-label)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
-              {restaurant.name}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '6px',
+                cursor: availableOutlets.length > 1 ? 'pointer' : 'default',
+                userSelect: 'none'
+              }}
+              onClick={() => {
+                if (availableOutlets.length > 1) {
+                  setOutletMenuOpen(v => !v);
+                }
+              }}
+              title={availableOutlets.length > 1 ? "Click to switch branch location" : undefined}
+            >
+              <div style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--color-label)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {restaurant.name}
+              </div>
+              {availableOutlets.length > 1 && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  color: 'var(--color-accent, #3b82f6)',
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  padding: '1px 5px',
+                  borderRadius: '6px',
+                  flexShrink: 0
+                }}>
+                  <span>{availableOutlets.length}</span>
+                  <ChevronDown size={10} style={{ transform: outletMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                </div>
+              )}
             </div>
+
             <button
               type="button"
               onClick={(e) => {
@@ -291,6 +383,92 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               {copiedId ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
             </button>
           </div>
+
+          {/* Floating Outlet Switcher Dropdown */}
+          {outletMenuOpen && availableOutlets.length > 1 && (
+            <div
+              ref={outletDropdownRef}
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-separator)',
+                borderRadius: '12px',
+                boxShadow: 'var(--shadow-xl, 0 12px 32px rgba(0,0,0,0.35))',
+                zIndex: 100,
+                padding: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                maxHeight: '260px',
+                overflowY: 'auto'
+              }}
+            >
+              <div style={{
+                fontSize: '9px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.6px',
+                color: 'var(--color-label-tertiary)',
+                padding: '4px 8px 2px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span>Switch Outlet</span>
+                <span>{availableOutlets.length} Locations</span>
+              </div>
+              {availableOutlets.map(out => {
+                const isActive = out.id === restaurant.id;
+                return (
+                  <button
+                    key={out.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      switchRestaurant(out);
+                      setOutletMenuOpen(false);
+                      toast.success(`Switched to ${out.name}`, { icon: '📍' });
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      background: isActive ? 'var(--color-fill, rgba(255,255,255,0.08))' : 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      width: '100%',
+                      textAlign: 'left',
+                      transition: 'all 0.12s ease'
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? 'var(--color-accent, #38bdf8)' : 'var(--color-label)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {out.name}
+                      </span>
+                      {out.address && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          📍 {out.address}
+                        </span>
+                      )}
+                    </div>
+                    {isActive && <Check size={14} color="#10b981" style={{ flexShrink: 0, marginLeft: 6 }} />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

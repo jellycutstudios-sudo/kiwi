@@ -399,6 +399,15 @@ export const useAuthStore = create(
 
       clearError: () => set({ error: null }),
 
+      switchRestaurant: (newRestaurant) => {
+        if (!newRestaurant || !newRestaurant.id) return;
+        try {
+          useOrderStore.getState().clearCart?.();
+          useOrderStore.setState({ activeOrders: [], onlineOrders: [] });
+        } catch {}
+        set({ restaurant: newRestaurant });
+      },
+
       updateRestaurantState: (updates) => {
         set(state => ({
           restaurant: state.restaurant ? { ...state.restaurant, ...updates } : updates
