@@ -22,7 +22,7 @@ const NAV = [
   { key: 'dashboard',      path: '/dashboard',           icon: LayoutDashboard, label: 'dashboard',    roles: ['admin', 'super_admin', 'cashier'] },
   { key: 'pos',            path: '/pos',                  icon: Utensils,        label: 'pos',          roles: ['admin', 'super_admin', 'cashier', 'waiter'] },
   { key: 'tables',         path: '/tables',               icon: Armchair,        label: 'tables',       roles: ['admin', 'super_admin', 'cashier', 'waiter'], requiredMode: 'table' },
-  { key: 'online_orders',  path: '/online-orders',        icon: Smartphone,      label: 'onlineOrders', roles: ['admin', 'super_admin', 'cashier', 'waiter'], badgeType: 'onlineOrders', requiredMode: 'online' },
+  { key: 'online_orders',  path: '/online-orders',        icon: Smartphone,      label: 'onlineOrders', roles: ['admin', 'super_admin', 'cashier'], badgeType: 'onlineOrders', requiredMode: 'online' },
   { key: 'delivery_hub',   path: '/admin/delivery-hub',  icon: Bike,            label: 'deliveryHub',  roles: ['admin', 'super_admin', 'cashier'], requiredMode: 'delivery_hub' },
   { key: 'kds',            path: '/kds',                  icon: ChefHat,         label: 'kitchen',      roles: ['admin', 'super_admin', 'kitchen', 'cashier'], requiredMode: 'kds' },
   { key: 'reports',        path: '/reports',              icon: BarChart3,       label: 'reports',      roles: ['admin', 'super_admin'] },

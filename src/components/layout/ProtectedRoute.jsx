@@ -16,8 +16,9 @@ export default function ProtectedRoute({ isAuth, isApproved, requiredRole, userR
   if (requiredRole) {
     const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (!allowed.includes(userRole)) {
-      // Authenticated but insufficient role — redirect to dashboard
-      return <Navigate to="/dashboard" replace />;
+      // Authenticated but insufficient role — redirect to role's home view
+      const fallback = ['waiter', 'server', 'runner'].includes(userRole) ? '/tables' : '/dashboard';
+      return <Navigate to={fallback} replace />;
     }
   }
 

@@ -125,9 +125,13 @@ export default function App() {
               <Route path="/dashboard"       element={<Dashboard />} />
               <Route path="/pos"             element={<POS />} />
               <Route path="/tables"          element={<TableMap />} />
-              <Route path="/orders"          element={<ActiveOrders />} />
-              <Route path="/online-orders"   element={<OnlineOrders />} />
               <Route path="/kds"             element={<KDS />} />
+
+              {/* Online orders & counter active orders — cashiers, managers, and admins only */}
+              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin', 'cashier', 'manager']} userRole={userRole} />}>
+                <Route path="/orders"          element={<ActiveOrders />} />
+                <Route path="/online-orders"   element={<OnlineOrders />} />
+              </Route>
 
               {/* Admin-only routes — require 'admin' or 'super_admin' role */}
               <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin']} userRole={userRole} />}>

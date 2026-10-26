@@ -37,6 +37,8 @@ export default function OnlineOrders() {
   const { t } = useTranslation();
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
+  const userRole = staffDoc?.role ?? 'admin';
+  const canManageSettings = ['admin', 'super_admin', 'manager', 'owner'].includes(userRole);
 
   const activeOrders = useOrderStore(s => s.activeOrders);
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
@@ -961,16 +963,18 @@ export default function OnlineOrders() {
 
         {/* Share & Customer Store Action Group */}
         <div className="online-orders-action-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowSettingsModal(true)}
-            title="Configure delivery radius, delivery fee, offers & online menu exclusions"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
-          >
-            <SlidersHorizontal size={14} color="var(--color-accent)" />
-            <span>Store Settings</span>
-          </button>
+          {canManageSettings && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowSettingsModal(true)}
+              title="Configure delivery radius, delivery fee, offers & online menu exclusions"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
+            >
+              <SlidersHorizontal size={14} color="var(--color-accent)" />
+              <span>Store Settings</span>
+            </button>
+          )}
 
           <button
             type="button"
