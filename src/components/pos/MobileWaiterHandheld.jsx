@@ -137,13 +137,57 @@ export default function MobileWaiterHandheld({
     hapticTap('medium');
     setShowTableSheet(false);
     const activeOrder = tableOrders[tbl.id];
-    if (activeOrder && items.length === 0) {
-      loadOrderToCart(activeOrder);
-      toast.success(`Loaded active order for Table ${tbl.name}`, { icon: '🍽️' });
+    if (activeOrder) {
+      if (items.length === 0) {
+        loadOrderToCart(activeOrder);
+        toast.success(`Loaded active order for Table ${tbl.name}`, { icon: '🍽️' });
+      } else {
+        const existingItems = activeOrder.items || [];
+        const currentCartItems = [...items];
+        const merged = [...existingItems];
+
+        currentCartItems.forEach(cartItem => {
+          const match = merged.find(m => 
+            m.id === cartItem.id && 
+            JSON.stringify(m.selectedModifiers || []) === JSON.stringify(cartItem.selectedModifiers || []) &&
+            m.seatNumber === cartItem.seatNumber
+          );
+          if (match) {
+            match.qty += cartItem.qty;
+          } else {
+            merged.push({ ...cartItem });
+          }
+        });
+
+        loadOrderToCart({
+          ...activeOrder,
+          items: merged
+        });
+        toast.success(`Added items to Table ${tbl.name}'s active order`, { icon: '🍽️' });
+      }
     } else {
       setTable(tbl.id, tbl.name);
       setOrderType('dine-in');
       toast.success(`Table ${tbl.name} assigned`, { icon: '🪑' });
+    }
+  };
+
+  const handleSendKitchenClick = async () => {
+    hapticTap('success');
+    if (!items.length) {
+      toast.error('Add items to cart first');
+      return;
+    }
+    if (orderType === 'dine-in' && !tableId) {
+      setShowTableSheet(true);
+      toast('Please select a table to send order to kitchen', { icon: '🪑' });
+      return;
+    }
+    const res = await onSendToKitchen();
+    if (res?.needsTable) {
+      setShowTableSheet(true);
+    } else if (res?.ok !== false && !res?.error) {
+      setShowCartSheet(false);
     }
   };
 
@@ -411,10 +455,7 @@ export default function MobileWaiterHandheld({
             <button
               type="button"
               className="btn btn-primary handheld-fire-btn"
-              onClick={() => {
-                hapticTap('success');
-                onSendToKitchen();
-              }}
+              onClick={handleSendKitchenClick}
             >
               <Flame size={15} />
               <span>Send Kitchen</span>
@@ -595,6 +636,31 @@ export default function MobileWaiterHandheld({
                     style={{ height: 34, fontSize: 12, borderRadius: 6 }}
                   />
                 </div>
+              )}
+
+              {/* Primary Fire Button Inside Sheet */}
+              {items.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    borderRadius: 10,
+                    marginTop: 10,
+                    fontSize: 14,
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                  }}
+                  onClick={handleSendKitchenClick}
+                >
+                  <Flame size={17} />
+                  <span>Send Order to Kitchen</span>
+                </button>
               )}
 
               {/* Tableside Quick Actions */}

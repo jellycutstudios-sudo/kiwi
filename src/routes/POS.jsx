@@ -1217,11 +1217,18 @@ export default function POS() {
   };
 
   const handleSendToKitchen = async () => {
-    if (!items.length) return;
+    if (!items.length) {
+      toast.error('Cart is empty');
+      return { error: 'Cart is empty' };
+    }
     if (orderType === 'dine-in' && !tableId && modes.includes('table')) {
+      if (handheldMode) {
+        toast('Please select a table to send order to kitchen', { icon: '🪑' });
+        return { needsTable: true };
+      }
       setTableSelAction('kitchen');
       setShowTableSel(true);
-      return;
+      return { needsTable: true };
     }
 
     let token = modes.includes('token') ? tokenNumber : null;
@@ -1243,7 +1250,10 @@ export default function POS() {
 
     setPaymentMethod('unpaid');
     const res = await submitOrder(restaurant, staffDoc?.id);
-    if (!res.ok) { toast.error(res.error); return; }
+    if (!res.ok) { 
+      toast.error(res.error || 'Failed to send to kitchen'); 
+      return { error: res.error }; 
+    }
 
     if (res.isOffline) {
       toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Ticket printing...` : `Order buffered offline! Ticket printing...`, { icon: '⚡', duration: 4500 });
