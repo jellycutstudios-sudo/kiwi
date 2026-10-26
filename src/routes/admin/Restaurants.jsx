@@ -1,10 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, ExternalLink, Building2, BarChart3, TrendingUp, ShoppingCart, AlertTriangle, RefreshCw } from 'lucide-react';
+import { 
+  Plus, ExternalLink, Building2, BarChart3, TrendingUp, ShoppingCart, 
+  AlertTriangle, RefreshCw, Layers, ShieldCheck, ArrowRight, CheckCircle2, 
+  Globe, Sparkles, Sliders, Users, Flame, Lock
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
+import { 
+  calculateLocalizedPrice, 
+  prepareMasterMenuPayload, 
+  applyGlobal86, 
+  ENTERPRISE_ROLES, 
+  checkEnterprisePermission 
+} from '../../utils/enterpriseMenuSync';
 
 export default function Restaurants() {
   const { staffDoc } = useAuthStore();
@@ -13,8 +24,8 @@ export default function Restaurants() {
   const [form, setForm] = useState({ name:'', address:'', phone:'', currency:'INR' });
   const [saving, setSaving] = useState(false);
 
-  // Tabs layout
-  const [activeTab, setActiveTab] = useState('outlets'); // 'outlets' | 'analytics'
+  // Tabs layout: 'outlets' | 'analytics' | 'menu_hub' | 'staff_roles'
+  const [activeTab, setActiveTab] = useState('outlets');
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [analyticsData, setAnalyticsData] = useState({
     outletsData: [],
@@ -25,6 +36,23 @@ export default function Restaurants() {
     lowStockList: []
   });
   const [analyticsDays, setAnalyticsDays] = useState(30);
+
+  // Master Menu Hub States
+  const [sourceOutletId, setSourceOutletId] = useState('');
+  const [targetOutletIds, setTargetOutletIds] = useState([]);
+  const [markupType, setMarkupType] = useState('percent'); // 'percent' | 'fixed'
+  const [markupValue, setMarkupValue] = useState(10);
+  const [roundTo, setRoundTo] = useState(0.5);
+  const [sourceCategories, setSourceCategories] = useState([]);
+  const [loadingSourceMenu, setLoadingSourceMenu] = useState(false);
+  const [pushingMenu, setPushingMenu] = useState(false);
+  const [global86Dish, setGlobal86Dish] = useState('');
+  const [global86Status, setGlobal86Status] = useState(false); // false = 86'd, true = in-stock
+  const [running86, setRunning86] = useState(false);
+
+  // Enterprise Staff Directory State
+  const [allStaffList, setAllStaffList] = useState([]);
+  const [loadingAllStaff, setLoadingAllStaff] = useState(false);
 
   useEffect(() => {
     // Super admin can see all restaurants linked to their uid
@@ -114,6 +142,148 @@ export default function Restaurants() {
     }
   }, [activeTab, restaurants.length, fetchConsolidatedData]);
 
+  // Master Menu fetch for source outlet
+  const fetchSourceMenu = useCallback(async (outletId) => {
+    if (!outletId) return;
+    setLoadingSourceMenu(true);
+    try {
+      const snap = await getDocs(collection(db, 'restaurants', outletId, 'menu'));
+      const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSourceCategories(cats);
+    } catch (e) {
+      console.warn("Could not load source menu:", e);
+      toast.error("Failed to load source outlet menu");
+    } finally {
+      setLoadingSourceMenu(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (sourceOutletId) {
+      fetchSourceMenu(sourceOutletId);
+    } else if (restaurants.length > 0) {
+      setSourceOutletId(restaurants[0].id);
+    }
+  }, [sourceOutletId, restaurants, fetchSourceMenu]);
+
+  // Push master menu to selected target outlets with localized pricing
+  const handlePushMasterMenu = async () => {
+    if (!sourceOutletId) { toast.error("Select a source master outlet"); return; }
+    if (targetOutletIds.length === 0) { toast.error("Select at least one target branch"); return; }
+    if (sourceCategories.length === 0) { toast.error("Source outlet has no menu categories to push"); return; }
+
+    setPushingMenu(true);
+    const toastId = toast.loading(`Propagating master menu across ${targetOutletIds.length} branches...`);
+
+    try {
+      const adjustment = {
+        type: markupType,
+        value: Number(markupValue) || 0,
+        roundTo: Number(roundTo) || null
+      };
+
+      const payload = prepareMasterMenuPayload(sourceCategories, { adjustment });
+
+      for (const targetId of targetOutletIds) {
+        for (const cat of payload) {
+          await addDoc(collection(db, 'restaurants', targetId, 'menu'), {
+            name: cat.name,
+            emoji: cat.emoji || '🍽️',
+            items: cat.items,
+            taxRate: cat.taxRate ?? null,
+            updatedAt: serverTimestamp(),
+            pushedFromMaster: sourceOutletId
+          });
+        }
+      }
+
+      toast.success(`Master menu successfully pushed to ${targetOutletIds.length} outlet(s)!`, { id: toastId, icon: '🚀' });
+    } catch (err) {
+      console.error("Master menu push error:", err);
+      toast.error(`Push failed: ${err.message}`, { id: toastId });
+    } finally {
+      setPushingMenu(false);
+    }
+  };
+
+  // Global 86'ing tool across all outlets
+  const handleGlobal86 = async () => {
+    if (!global86Dish.trim()) { toast.error("Enter a dish name to 86/restore"); return; }
+    setRunning86(true);
+    const toastId = toast.loading(`Updating ${global86Dish} across all outlets...`);
+
+    try {
+      let updatedBranches = 0;
+      const targetDishNorm = global86Dish.trim().toLowerCase();
+
+      for (const r of restaurants) {
+        const snap = await getDocs(collection(db, 'restaurants', r.id, 'menu'));
+        let branchHadItem = false;
+
+        for (const catDoc of snap.docs) {
+          const catData = catDoc.data();
+          const items = catData.items || [];
+          let catModified = false;
+
+          const updatedItems = items.map(item => {
+            if (item.name && item.name.toLowerCase().includes(targetDishNorm)) {
+              catModified = true;
+              branchHadItem = true;
+              return { ...item, available: global86Status, eightySixedAt: global86Status ? null : new Date().toISOString() };
+            }
+            return item;
+          });
+
+          if (catModified) {
+            await updateDoc(doc(db, 'restaurants', r.id, 'menu', catDoc.id), {
+              items: updatedItems,
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
+        if (branchHadItem) updatedBranches++;
+      }
+
+      toast.success(`${global86Dish} marked as ${global86Status ? 'Available' : '86\'d (Sold Out)'} across ${updatedBranches} branch(es)!`, { id: toastId, icon: global86Status ? '✅' : '🚫' });
+      setGlobal86Dish('');
+    } catch (e) {
+      console.error("Global 86 error:", e);
+      toast.error(`Global 86 failed: ${e.message}`, { id: toastId });
+    } finally {
+      setRunning86(false);
+    }
+  };
+
+  // Fetch all staff across branches for staff_roles tab
+  const fetchAllStaff = useCallback(async () => {
+    if (restaurants.length === 0) return;
+    setLoadingAllStaff(true);
+    try {
+      const results = await Promise.all(
+        restaurants.map(async (r) => {
+          const snap = await getDocs(collection(db, 'restaurants', r.id, 'staff'));
+          return snap.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            restaurantId: r.id,
+            restaurantName: r.name
+          }));
+        })
+      );
+      setAllStaffList(results.flat());
+    } catch (e) {
+      console.warn("Could not load all staff:", e);
+    } finally {
+      setLoadingAllStaff(false);
+    }
+  }, [restaurants]);
+
+  useEffect(() => {
+    if (activeTab === 'staff_roles') {
+      fetchAllStaff();
+    }
+  }, [activeTab, fetchAllStaff]);
+
   const createRestaurant = async () => {
     if (!form.name.trim()) { toast.error('Enter restaurant name'); return; }
     setSaving(true);
@@ -188,7 +358,9 @@ export default function Restaurants() {
       <div className="nav-tabs no-scrollbar touch-scroll-x">
         {[
           { key: 'outlets', label: 'Outlets Directory', icon: Building2 },
-          { key: 'analytics', label: 'Consolidated Analytics', icon: BarChart3 }
+          { key: 'analytics', label: 'Consolidated Analytics & P&L', icon: BarChart3 },
+          { key: 'menu_hub', label: 'Master Menu Hub & Push', icon: Layers },
+          { key: 'staff_roles', label: 'Franchise Staff & Roles', icon: ShieldCheck }
         ].map(tab => (
           <button
             key={tab.key}
@@ -578,6 +750,450 @@ export default function Restaurants() {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Content: Master Menu Hub & Cross-Store Push ── */}
+      {activeTab === 'menu_hub' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {/* Header Card */}
+          <div className="card card-padded" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--color-accent)', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Layers size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Franchise Master Menu Hub</h3>
+                  <p style={{ fontSize: 12, color: 'var(--color-label-secondary)', margin: '2px 0 0' }}>
+                    Push standardized dishes, categories, and localized pricing tiers across branches from a single master menu.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                id="push-master-menu-btn"
+                disabled={pushingMenu || targetOutletIds.length === 0}
+                onClick={handlePushMasterMenu}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, height: 38 }}
+              >
+                <Sparkles size={15} />
+                <span>{pushingMenu ? 'Pushing Menu...' : `Push to ${targetOutletIds.length} Outlet(s)`}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sync Configuration Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
+            {/* Step 1: Source & Targets */}
+            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--color-separator)', paddingBottom: 8 }}>
+                <Globe size={16} color="var(--color-accent)" />
+                <span style={{ fontWeight: 800, fontSize: 13.5 }}>1. Select Source &amp; Target Outlets</span>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Source Master Outlet</label>
+                <select
+                  className="form-select"
+                  id="source-outlet-select"
+                  value={sourceOutletId}
+                  onChange={e => setSourceOutletId(e.target.value)}
+                  style={{ height: 36, fontSize: 12.5 }}
+                >
+                  {restaurants.map(r => (
+                    <option key={r.id} value={r.id}>{r.name} ({r.id.slice(0, 8)}...)</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label className="form-label" style={{ fontSize: 11, margin: 0 }}>Target Branches ({targetOutletIds.length} selected)</label>
+                  <button
+                    type="button"
+                    className="btn btn-link btn-xs"
+                    style={{ fontSize: 11, padding: 0 }}
+                    onClick={() => {
+                      const otherIds = restaurants.filter(r => r.id !== sourceOutletId).map(r => r.id);
+                      setTargetOutletIds(targetOutletIds.length === otherIds.length ? [] : otherIds);
+                    }}
+                  >
+                    {targetOutletIds.length === restaurants.filter(r => r.id !== sourceOutletId).length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', paddingRight: 4 }}>
+                  {restaurants.filter(r => r.id !== sourceOutletId).map(r => {
+                    const isChecked = targetOutletIds.includes(r.id);
+                    return (
+                      <label 
+                        key={r.id} 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 8, 
+                          fontSize: 12, 
+                          padding: '6px 10px', 
+                          borderRadius: 8, 
+                          background: isChecked ? 'rgba(56, 189, 248, 0.08)' : 'var(--color-bg-secondary)',
+                          border: isChecked ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid var(--color-separator)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={e => {
+                            if (e.target.checked) setTargetOutletIds([...targetOutletIds, r.id]);
+                            else setTargetOutletIds(targetOutletIds.filter(id => id !== r.id));
+                          }}
+                        />
+                        <span style={{ fontWeight: 600 }}>{r.name}</span>
+                        <span style={{ fontSize: 10, color: 'var(--color-label-secondary)', marginLeft: 'auto' }}>{r.currency || 'INR'}</span>
+                      </label>
+                    );
+                  })}
+                  {restaurants.length <= 1 && (
+                    <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', padding: 8 }}>
+                      Create additional branch outlets in Outlets Directory to push master menus.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Localized Pricing Tiers */}
+            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--color-separator)', paddingBottom: 8 }}>
+                <Sliders size={16} color="var(--color-accent)" />
+                <span style={{ fontWeight: 800, fontSize: 13.5 }}>2. Localized Pricing Tiers</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Adjustment Type</label>
+                  <select
+                    className="form-select"
+                    value={markupType}
+                    onChange={e => setMarkupType(e.target.value)}
+                    style={{ height: 36, fontSize: 12.5 }}
+                  >
+                    <option value="percent">Percentage Markup (%)</option>
+                    <option value="fixed">Fixed Surcharge (+Flat)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>
+                    {markupType === 'percent' ? 'Rate (+ / - %)' : 'Amount (+Flat)'}
+                  </label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={markupValue}
+                    onChange={e => setMarkupValue(e.target.value)}
+                    placeholder="e.g. 10"
+                    style={{ height: 36, fontSize: 12.5 }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Smart Price Rounding</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {[
+                    { label: 'Exact (0.01)', val: null },
+                    { label: 'Nearest 0.50', val: 0.5 },
+                    { label: 'Nearest 1.00', val: 1.0 }
+                  ].map(opt => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      className={`btn btn-xs ${roundTo === opt.val ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setRoundTo(opt.val)}
+                      style={{ fontSize: 11, height: 30 }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sample Calculation Preview */}
+              <div style={{ background: 'var(--color-bg-secondary)', padding: '10px 12px', borderRadius: 8, fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                Sample Dish ($20.00 base): Target outlet price will be{' '}
+                <strong style={{ color: 'var(--color-label)', fontSize: 12 }}>
+                  ${calculateLocalizedPrice(20, { type: markupType, value: markupValue, roundTo }).toFixed(2)}
+                </strong>
+                {markupType === 'percent' && markupValue !== 0 && ` (${markupValue > 0 ? `+${markupValue}%` : `${markupValue}%`})`}
+              </div>
+            </div>
+
+            {/* Step 3: Global 86'ing Across Branches */}
+            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--color-separator)', paddingBottom: 8 }}>
+                <Flame size={16} color="#ef4444" />
+                <span style={{ fontWeight: 800, fontSize: 13.5 }}>3. Global 86'ing Across All Outlets</span>
+              </div>
+
+              <p style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', margin: 0 }}>
+                Instant supply-chain emergency control: 86 a dish across all franchise outlets in 1 click.
+              </p>
+
+              <div>
+                <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Dish Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Avocado Toast or Salmon"
+                  value={global86Dish}
+                  onChange={e => setGlobal86Dish(e.target.value)}
+                  style={{ height: 36, fontSize: 12.5 }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${!global86Status ? 'btn-danger' : 'btn-secondary'}`}
+                  onClick={() => setGlobal86Status(false)}
+                  style={{ fontSize: 11.5 }}
+                >
+                  🚫 86 (Sold Out)
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${global86Status ? 'btn-success' : 'btn-secondary'}`}
+                  onClick={() => setGlobal86Status(true)}
+                  style={{ fontSize: 11.5 }}
+                >
+                  ✅ Available
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                id="apply-global-86-btn"
+                disabled={running86 || !global86Dish.trim()}
+                onClick={handleGlobal86}
+                style={{ fontWeight: 700, height: 34 }}
+              >
+                {running86 ? 'Applying...' : 'Apply Across All Outlets'}
+              </button>
+            </div>
+          </div>
+
+          {/* Master Menu Preview Table */}
+          <div className="card card-padded">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>
+                Master Menu Preview ({sourceCategories.reduce((sum, c) => sum + (c.items?.length || 0), 0)} dishes loaded)
+              </h4>
+              <span className="badge badge-blue">
+                Live Pricing Preview
+              </span>
+            </div>
+
+            {loadingSourceMenu ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-label-secondary)' }}>
+                Loading source menu dishes...
+              </div>
+            ) : sourceCategories.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                No dishes found in source outlet. Add items in Menu Editor to populate the master catalog.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1.5px solid var(--color-separator)', textAlign: 'left', color: 'var(--color-label-secondary)' }}>
+                      <th style={{ padding: '8px 10px' }}>Dish Name</th>
+                      <th style={{ padding: '8px 10px' }}>Category</th>
+                      <th style={{ padding: '8px 10px' }}>Master Base Price</th>
+                      <th style={{ padding: '8px 10px' }}>Target Localized Price</th>
+                      <th style={{ padding: '8px 10px' }}>Dietary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sourceCategories.flatMap(c => (c.items || []).map(i => {
+                      const locPrice = calculateLocalizedPrice(i.price, { type: markupType, value: markupValue, roundTo });
+                      return (
+                        <tr key={i.id || i.name} style={{ borderBottom: '1px solid var(--color-separator-opaque, rgba(255,255,255,0.04))' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700 }}>{i.name}</td>
+                          <td style={{ padding: '8px 10px', color: 'var(--color-label-secondary)' }}>{c.name}</td>
+                          <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>${Number(i.price || 0).toFixed(2)}</td>
+                          <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: 'var(--color-accent)', fontWeight: 800 }}>
+                            ${locPrice.toFixed(2)}
+                            {markupValue !== 0 && (
+                              <span style={{ fontSize: 10, opacity: 0.75, marginLeft: 4 }}>
+                                ({markupValue > 0 ? `+${markupValue}%` : `${markupValue}%`})
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <span className={i.isVeg ? "food-badge-veg" : "food-badge-nonveg"} />
+                          </td>
+                        </tr>
+                      );
+                    }))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Content: Enterprise Roles & Staff Hierarchy ── */}
+      {activeTab === 'staff_roles' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {/* Header Card */}
+          <div className="card card-padded" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#8b5cf6', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldCheck size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Franchise Roles &amp; Staff Hierarchy</h3>
+                <p style={{ fontSize: 12, color: 'var(--color-label-secondary)', margin: '2px 0 0' }}>
+                  Centralized multi-store permission tiers and cross-branch staff assignment.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Tier Role Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-4)' }}>
+            {Object.values(ENTERPRISE_ROLES).map(role => (
+              <div 
+                key={role.id} 
+                className="card card-padded"
+                style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: `3px solid ${role.badgeColor}` }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-label)' }}>{role.title}</span>
+                  <span style={{ fontSize: 10, background: `${role.badgeColor}22`, color: role.badgeColor, padding: '2px 7px', borderRadius: 6, fontWeight: 800 }}>
+                    {role.id.toUpperCase()}
+                  </span>
+                </div>
+
+                <p style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', margin: 0, minHeight: 36, lineHeight: 1.4 }}>
+                  {role.description}
+                </p>
+
+                <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label-secondary)', marginBottom: 6 }}>
+                    Granted Capabilities ({role.permissions.length}):
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {role.permissions.map(perm => (
+                      <span 
+                        key={perm}
+                        style={{ 
+                          fontSize: 9.5, 
+                          padding: '2px 6px', 
+                          borderRadius: 4, 
+                          background: 'var(--color-bg-secondary)', 
+                          border: '1px solid var(--color-separator)',
+                          fontWeight: 600,
+                          color: 'var(--color-label)'
+                        }}
+                      >
+                        ✓ {perm.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Cross-Store Staff Overview Directory */}
+          <div className="card card-padded">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Users size={16} color="var(--color-accent)" />
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>
+                  Cross-Branch Staff Directory ({allStaffList.length} employees)
+                </h4>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={fetchAllStaff}
+                disabled={loadingAllStaff}
+                style={{ fontSize: 11 }}
+              >
+                {loadingAllStaff ? 'Refreshing...' : 'Refresh Staff'}
+              </button>
+            </div>
+
+            {loadingAllStaff ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-label-secondary)' }}>
+                Loading staff across all branches...
+              </div>
+            ) : allStaffList.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                No branch staff registered yet. Add employees in Staff Manager.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1.5px solid var(--color-separator)', textAlign: 'left', color: 'var(--color-label-secondary)' }}>
+                      <th style={{ padding: '8px 10px' }}>Staff Name</th>
+                      <th style={{ padding: '8px 10px' }}>Assigned Role</th>
+                      <th style={{ padding: '8px 10px' }}>Home Branch</th>
+                      <th style={{ padding: '8px 10px' }}>Multi-Outlet Scope</th>
+                      <th style={{ padding: '8px 10px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allStaffList.map((emp, i) => {
+                      const isOwner = emp.role === 'admin' || emp.role === 'franchise_owner';
+                      return (
+                        <tr key={emp.id || i} style={{ borderBottom: '1px solid var(--color-separator-opaque, rgba(255,255,255,0.04))' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700 }}>
+                            👤 {emp.name || 'Staff Member'}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <span 
+                              style={{ 
+                                fontSize: 10, 
+                                padding: '2px 7px', 
+                                borderRadius: 5, 
+                                background: isOwner ? '#8b5cf622' : 'var(--color-bg-tertiary)',
+                                color: isOwner ? '#8b5cf6' : 'var(--color-label)',
+                                fontWeight: 800,
+                                textTransform: 'uppercase'
+                              }}
+                            >
+                              {emp.role || 'Cashier'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px 10px', color: 'var(--color-label-secondary)' }}>
+                            🏢 {emp.restaurantName}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <span className={`badge ${isOwner ? 'badge-blue' : 'badge-green'}`} style={{ fontSize: 10 }}>
+                              {isOwner ? 'Global (All Stores)' : 'Branch Dedicated'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <span style={{ color: '#10b981', fontWeight: 700, fontSize: 11 }}>● Active</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
