@@ -54,9 +54,27 @@ export default function Restaurants() {
   const [allStaffList, setAllStaffList] = useState([]);
   const [loadingAllStaff, setLoadingAllStaff] = useState(false);
 
+  const isSuperAdmin = staffDoc?.role === 'super_admin';
+
   useEffect(() => {
-    // Admin & Super admin can see franchise branches
-    const q = collection(db, 'restaurants');
+    let q;
+    if (isSuperAdmin) {
+      // Super admin can see all restaurants across the SaaS platform
+      q = collection(db, 'restaurants');
+    } else if (currentRestaurant?.brandId) {
+      // Franchise owner: only see branches belonging to their brand
+      q = query(collection(db, 'restaurants'), where('brandId', '==', currentRestaurant.brandId));
+    } else if (currentRestaurant?.ownerUid) {
+      // Restaurant owner: only see branches registered under their owner UID
+      q = query(collection(db, 'restaurants'), where('ownerUid', '==', currentRestaurant.ownerUid));
+    } else if (currentRestaurant?.id) {
+      // Fallback: only view the currently active restaurant
+      q = query(collection(db, 'restaurants'), where('__name__', '==', currentRestaurant.id));
+    } else {
+      setRestaurants([]);
+      return;
+    }
+
     return onSnapshot(q, snap => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setRestaurants(list.length > 0 ? list : (currentRestaurant ? [currentRestaurant] : []));
@@ -66,7 +84,7 @@ export default function Restaurants() {
         setRestaurants([currentRestaurant]);
       }
     });
-  }, [currentRestaurant]);
+  }, [isSuperAdmin, currentRestaurant]);
 
   const fetchConsolidatedData = useCallback(async () => {
     if (restaurants.length === 0) return;
@@ -428,25 +446,27 @@ export default function Restaurants() {
                   <ExternalLink size={12}/>
                 </a>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '4px' }}>
-                {r.status !== 'approved' ? (
-                  <button
-                    className="btn btn-success btn-sm"
-                    style={{ flex: 1 }}
-                    onClick={() => updateRestaurantStatus(r.id, 'approved')}
-                  >
-                    Approve & Mark Paid
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-danger btn-sm"
-                    style={{ flex: 1, background: 'transparent', color: 'var(--color-red)', borderColor: 'var(--color-red)' }}
-                    onClick={() => updateRestaurantStatus(r.id, 'suspended')}
-                  >
-                    Suspend Outlet
-                  </button>
-                )}
-              </div>
+              {isSuperAdmin && (
+                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '4px' }}>
+                  {r.status !== 'approved' ? (
+                    <button
+                      className="btn btn-success btn-sm"
+                      style={{ flex: 1 }}
+                      onClick={() => updateRestaurantStatus(r.id, 'approved')}
+                    >
+                      Approve & Mark Paid
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-danger btn-sm"
+                      style={{ flex: 1, background: 'transparent', color: 'var(--color-red)', borderColor: 'var(--color-red)' }}
+                      onClick={() => updateRestaurantStatus(r.id, 'suspended')}
+                    >
+                      Suspend Outlet
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {restaurants.length === 0 && (

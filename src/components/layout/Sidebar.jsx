@@ -38,7 +38,7 @@ const ADMIN_NAV = [
   { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions' },
   { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters', requiredMode: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings' },
-  { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants' },
+  { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
