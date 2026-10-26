@@ -1098,6 +1098,29 @@ export default function TableMap() {
                               👤 {order.assignedWaiterName || order.staffName}
                             </span>
                           )}
+                          {order.note && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: '#d97706',
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                borderRadius: 4,
+                                padding: '1px 5px',
+                                marginTop: 3,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100%',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3
+                              }}
+                              title={`Table Note: ${order.note}`}
+                            >
+                              📝 {order.note}
+                            </span>
+                          )}
                         </div>
                         <span className="tm-card-meta">
                           {(order.items ?? []).length} itm
@@ -1289,6 +1312,28 @@ export default function TableMap() {
                       {!isEditingLayout && hasOrder && (
                         <span style={{ fontSize: '10px', fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)', padding: '2px 7px', borderRadius: '999px', marginTop: '4px', boxShadow: '0 2px 6px rgba(220,38,38,0.35)', letterSpacing: '-0.2px', fontVariantNumeric: 'tabular-nums' }}>
                           {formatCurrency(order.total ?? 0, currency)}
+                        </span>
+                      )}
+
+                      {!isEditingLayout && hasOrder && order?.note && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            color: '#b45309',
+                            background: '#fef3c7',
+                            padding: '1px 6px',
+                            borderRadius: '999px',
+                            marginTop: '3px',
+                            maxWidth: '90%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}
+                          title={`Table Note: ${order.note}`}
+                        >
+                          📝 {order.note}
                         </span>
                       )}
 
@@ -1549,6 +1594,29 @@ export default function TableMap() {
                       <Printer size={16} /> Print Bill
                     </button>
                   </div>
+
+                  {/* Special Instructions / Table Note Banner */}
+                  {selOrder.note && (
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      borderRadius: '12px',
+                      padding: '10px 14px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10
+                    }}>
+                      <span style={{ fontSize: 16, lineHeight: 1 }}>📝</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#b45309' }}>
+                          Table Note / Instructions
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-label)' }}>
+                          {selOrder.note}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Order Items Breakdown Box */}
                   <div style={{
