@@ -9,32 +9,26 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { collection, query, where, orderBy, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
-  ShoppingCart, TrendingUp, Globe, Clock, CheckCircle2,
+  ShoppingCart, TrendingUp, Clock, CheckCircle2,
   Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle,
-  Zap, X, Check, ArrowUp, ArrowDown, CalendarClock, XCircle, Bot
+  Zap, X, Check, ArrowUp, ArrowDown, CalendarClock, XCircle, Bot,
+  Wallet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
-import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   Cell,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid
+  Tooltip
 } from 'recharts';
 
 export default function Dashboard() {
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const user = useAuthStore(s => s.user);
-  const { hasMode } = useBusinessConfig();
 
   // Role access control: Only admin/super_admin and explicitly permitted cashiers may access turnover analytics
   const staffRole = staffDoc?.role ?? (user ? 'admin' : 'cashier');
@@ -42,7 +36,6 @@ export default function Dashboard() {
     (staffRole === 'cashier' && Boolean(restaurant?.allowCashierDashboard));
 
   const activeOrders = useOrderStore(s => s.activeOrders);
-  const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
 
   // Auto-filter out completed orders: an order is done if it is billed OR (paid AND food is ready)
   const displayedActiveOrders = useMemo(() => {
@@ -56,7 +49,6 @@ export default function Dashboard() {
   }, [activeOrders]);
   const categories = useMenuStore(s => s.categories);
   const settleOrder = useOrderStore(s => s.settleOrder);
-  const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const [todayStats, setTodayStats] = useState({ 
     sales: 0, 
     orders: 0, 
@@ -66,11 +58,15 @@ export default function Dashboard() {
     settledOrders: 0, 
     openOrders: 0, 
     totalOrders: 0, 
+    dineInOrders: 0,
+    takeawayOrders: 0,
+    onlineOrders: 0,
     avg: 0, 
     avgCookTime: 0, 
     tableTurnover: 0, 
     topItem: null, 
-    paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 } 
+    paymentSplit: { cash: 0, card: 0, upi: 0, split: 0 },
+    paymentAmountSplit: { cash: 0, card: 0, upi: 0 }
   });
   const [salesViewMode, setSalesViewMode] = useState('settled'); // 'settled' | 'pipeline'
   const [settleOrderModal, setSettleOrderModal] = useState(null);
@@ -254,14 +250,6 @@ export default function Dashboard() {
     return days;
   }, [analyticsOrders, salesViewMode, todayStats.totalSales, todayStats.settledSales]);
 
-  // End-of-day revenue projection based on current hourly pace
-  const eodProjection = useMemo(() => {
-    const now = new Date();
-    const hoursElapsed = Math.max(0.5, now.getHours() - 9 + now.getMinutes() / 60);
-    const targetSales = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
-    if (targetSales === 0 || hoursElapsed >= 14) return null;
-    return Math.round((targetSales / hoursElapsed) * 14);
-  }, [salesViewMode, todayStats.totalSales, todayStats.settledSales]);
 
   // Dynamic Growth Insights / Tips
   const growthTips = useMemo(() => {
@@ -436,17 +424,38 @@ export default function Dashboard() {
         ? Math.round(ordersWithPrep.reduce((s, d) => s + d.prepDuration, 0) / ordersWithPrep.length / 60) 
         : 0;
 
-      // Calculate Payment Split directly from today's billed orders without double-counting
-      const paymentSplit = { cash: 0, card: 0, upi: 0, split: 0 };
+      // Calculate Channel Breakdown
+      let dineInOrders = 0;
+      let takeawayOrders = 0;
+      let onlineOrders = 0;
       todayBilled.forEach(d => {
+        if (d.type === 'dine-in' || d.tableName) dineInOrders++;
+        else if (d.type === 'online') onlineOrders++;
+        else takeawayOrders++;
+      });
+
+      // Calculate Payment Split & Amounts directly from today's billed orders without double-counting
+      const paymentSplit = { cash: 0, card: 0, upi: 0, split: 0 };
+      const paymentAmountSplit = { cash: 0, card: 0, upi: 0 };
+      todayBilled.forEach(d => {
+        const orderTotal = Number(d.total) || 0;
         if (d.paymentMethod === 'split' && Array.isArray(d.splitPayments)) {
+          paymentSplit.split = (paymentSplit.split || 0) + 1;
           d.splitPayments.forEach(p => {
             const m = (p.method === 'terminal') ? 'card' : (p.method || 'cash');
+            const amt = Number(p.amount) || 0;
             paymentSplit[m] = (paymentSplit[m] || 0) + 1;
+            if (paymentAmountSplit[m] !== undefined) paymentAmountSplit[m] += amt;
+            else paymentAmountSplit.cash += amt;
           });
         } else if (d.paymentMethod) {
           const methodKey = d.paymentMethod === 'terminal' ? 'card' : d.paymentMethod;
           paymentSplit[methodKey] = (paymentSplit[methodKey] || 0) + 1;
+          if (paymentAmountSplit[methodKey] !== undefined) paymentAmountSplit[methodKey] += orderTotal;
+          else paymentAmountSplit.cash += orderTotal;
+        } else {
+          paymentSplit.cash = (paymentSplit.cash || 0) + 1;
+          paymentAmountSplit.cash += orderTotal;
         }
       });
 
@@ -472,11 +481,15 @@ export default function Dashboard() {
         settledOrders: billedOrders,
         openOrders,
         totalOrders,
+        dineInOrders,
+        takeawayOrders,
+        onlineOrders,
         avg: billedOrders ? billedSales / billedOrders : (totalOrders ? totalSales / totalOrders : 0),
         avgCookTime,
         paymentSplit,
+        paymentAmountSplit,
         topItem,
-        tableTurnover: 0
+        tableTurnover: tablesCount > 0 ? Number((billedOrders / tablesCount).toFixed(1)) : 0
       });
     };
 
@@ -518,59 +531,52 @@ export default function Dashboard() {
     ? Number(((displayedSales - yesterdayStats.sales) / yesterdayStats.sales * 100).toFixed(1))
     : null;
 
-  const stats = [
-    { 
-      label: "Today's Sales", 
-      value: formatCurrency(displayedSales, currency), 
-      icon: TrendingUp, 
-      color: '#10b981', 
-      bg: 'rgba(16, 185, 129, 0.1)', 
-      desc: todayStats.openSales > 0
-        ? (salesViewMode === 'pipeline'
-            ? `${formatCurrency(todayStats.settledSales, currency)} billed · ${formatCurrency(todayStats.openSales, currency)} live dining`
-            : `${formatCurrency(todayStats.settledSales, currency)} billed (+ ${formatCurrency(todayStats.openSales, currency)} live dining)`)
-        : 'Gross revenue today', 
-      highlight: true,
-      hasToggle: todayStats.openSales > 0
-    },
-    { 
-      label: 'Orders Today', 
-      value: displayedOrders, 
-      icon: ShoppingCart, 
-      color: '#3b82f6', 
-      bg: 'rgba(59, 130, 246, 0.1)', 
-      desc: todayStats.openOrders > 0 
-        ? `${todayStats.settledOrders} completed · ${todayStats.openOrders} dining`
-        : 'Completed orders' 
-    },
-    { 
-      label: 'Avg. Bill Size',   
-      value: formatCurrency(displayedAvg, currency), 
-      icon: CheckCircle2, 
-      color: '#f59e0b', 
-      bg: 'rgba(245, 158, 11, 0.1)', 
-      desc: 'Order ticket average', 
-      tooltip: 'The typical amount a customer spends per order' 
-    },
-    ...((hasMode('kds') && restaurant?.kitchenConfig?.mode !== 'disabled') ? [{
-      label: 'Orders Cooking',   
-      value: activeOrders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status)).length, 
-      icon: Clock, 
-      color: '#8b5cf6', 
-      bg: 'rgba(139, 92, 246, 0.1)', 
-      desc: 'POS orders in progress', 
-      tooltip: 'Orders currently being prepared in the kitchen' 
-    }] : []),
-    ...((hasMode('online') || hasMode('delivery_hub')) ? [{
-      label: 'Waiting Online Orders', 
-      value: unreadOnlineCount, 
-      icon: Globe, 
-      color: '#06b6d4', 
-      bg: 'rgba(6, 182, 212, 0.1)', 
-      desc: 'Unread online orders', 
-      tooltip: 'Orders from Zomato/Swiggy waiting to be accepted' 
-    }] : []),
-  ];
+  // Dynamic Sales Assistant Executive Summary
+  const salesAssistantSummary = useMemo(() => {
+    const ordersCount = salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders;
+    const salesTotal = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
+
+    if (ordersCount === 0 && todayStats.openOrders === 0) {
+      return {
+        headline: "Ready for Service",
+        message: "No orders have been placed yet today. As soon as orders are punched or settled, I'll track live revenue velocity, top dishes, and kitchen efficiency right here."
+      };
+    }
+
+    const deltaText = salesDelta !== null
+      ? (salesDelta >= 0 ? ` (+${salesDelta}% vs yesterday)` : ` (${salesDelta}% vs yesterday)`)
+      : '';
+
+    const topItemText = todayStats.topItem
+      ? ` Top item is ${todayStats.topItem.name} (${todayStats.topItem.qty} sold).`
+      : '';
+
+    const activeDiningText = todayStats.openOrders > 0
+      ? ` ${todayStats.openOrders} dining table${todayStats.openOrders > 1 ? 's' : ''} currently active (${formatCurrency(todayStats.openSales, currency)} in pipeline).`
+      : ' All active dining tables are settled and closed.';
+
+    return {
+      headline: "Today's Pulse",
+      message: `Net sales stand at ${formatCurrency(salesTotal, currency)} across ${ordersCount} order${ordersCount !== 1 ? 's' : ''}${deltaText}.${topItemText}${activeDiningText}`
+    };
+  }, [salesViewMode, todayStats, salesDelta, currency]);
+
+  // Payment Reconciliation Percentages & Totals
+  const paymentReconciliation = useMemo(() => {
+    const amt = todayStats.paymentAmountSplit || { cash: 0, card: 0, upi: 0 };
+    const totalAmt = (amt.cash + amt.card + amt.upi) || 1;
+    const upiPct = Math.round((amt.upi / totalAmt) * 100);
+    const cashPct = Math.round((amt.cash / totalAmt) * 100);
+    const cardPct = Math.max(0, 100 - upiPct - cashPct);
+
+    return {
+      amt,
+      upiPct: amt.upi > 0 ? upiPct : 0,
+      cashPct: amt.cash > 0 ? cashPct : 0,
+      cardPct: amt.card > 0 ? cardPct : 0,
+      totalAmt: todayStats.settledSales
+    };
+  }, [todayStats.paymentAmountSplit, todayStats.settledSales]);
 
   const orderStatusColors = {
     pending:   'badge-yellow',
@@ -586,26 +592,6 @@ export default function Dashboard() {
     ready:     'Ready',
     served:    'Served',
     billed:    'Completed',
-  };
-
-  const CustomChartTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div style={{
-          background: 'var(--color-bg-elevated)',
-          border: '1px solid var(--color-separator)',
-          padding: '10px 14px',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-lg)'
-        }}>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: '13px' }}>{payload[0].payload.label}</p>
-          <p style={{ margin: '4px 0 0 0', color: 'var(--color-accent)', fontWeight: 700, fontSize: '12px' }}>
-            {payload[0].value} Order{payload[0].value !== 1 ? 's' : ''}
-          </p>
-        </div>
-      );
-    }
-    return null;
   };
 
   if (!canAccessDashboard) {
@@ -642,715 +628,349 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Stat Cards — 2-column compact grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: '10px'
-      }}>
-        {stats.map((s, i) => (
-          <div
-            key={i}
-            className="animate-fade-in"
+      {/* 1. Executive Sales Assistant Hero Briefing */}
+      <div className="sales-assistant-hero animate-fade-in">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 360px', minWidth: 0 }}>
+          <div className="sales-assistant-avatar-wrap">
+            <Bot size={22} />
+            <div className="sales-assistant-pulse-dot" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#10b981' }}>
+                Sales Assistant
+              </span>
+              <span className="badge badge-teal" style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px' }}>
+                {salesAssistantSummary.headline}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.45', color: 'var(--color-label)', fontWeight: 500 }}>
+              {salesAssistantSummary.message}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
+          {todayStats.openSales > 0 && (
+            <button
+              type="button"
+              title={salesViewMode === 'pipeline' ? 'Showing live pipeline. Click to view settled sales only.' : 'Showing settled sales. Click to include live open orders.'}
+              onClick={() => setSalesViewMode(v => v === 'pipeline' ? 'settled' : 'pipeline')}
+              className="btn btn-secondary btn-sm"
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-md)'
+              }}
+            >
+              <Zap size={12} color={salesViewMode === 'pipeline' ? '#10b981' : 'var(--color-label-secondary)'} fill={salesViewMode === 'pipeline' ? '#10b981' : 'none'} />
+              {salesViewMode === 'pipeline' ? 'Live Pipeline' : 'Settled Only'}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowAiAdvisor(true)}
+            className="btn btn-primary btn-sm"
             style={{
-              animationDelay: `${i * 50}ms`,
-              gridColumn: i === 0 ? '1 / -1' : 'auto',
-              background: s.highlight
-                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                : 'var(--color-bg-elevated)',
-              color: s.highlight ? '#fff' : 'inherit',
-              borderRadius: '14px',
-              padding: i === 0 ? '16px 18px' : '13px 14px',
-              boxShadow: s.highlight
-                ? '0 8px 20px -4px rgba(5, 150, 105, 0.32)'
-                : '0 1px 3px rgba(0,0,0,0.06)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-              transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-              cursor: 'default',
-              border: s.highlight ? 'none' : '1px solid var(--color-separator)'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = s.highlight
-                ? '0 12px 24px -4px rgba(5, 150, 105, 0.42)'
-                : '0 4px 12px rgba(0,0,0,0.1)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = s.highlight
-                ? '0 8px 20px -4px rgba(5, 150, 105, 0.32)'
-                : '0 1px 3px rgba(0,0,0,0.06)';
+              fontSize: '12px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.6px',
-                color: s.highlight ? 'rgba(255,255,255,0.75)' : 'var(--color-label-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                {s.label}
-                {s.tooltip && <InfoTooltip text={s.tooltip} size={11} />}
-              </span>
-              <div style={{
-                background: s.highlight ? 'rgba(255,255,255,0.18)' : s.bg,
-                padding: '5px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <s.icon size={14} color={s.highlight ? '#fff' : s.color} strokeWidth={2.5} />
-              </div>
-            </div>
-
-            <div style={{
-              fontSize: i === 0 ? '26px' : '20px',
-              fontWeight: 800,
-              lineHeight: 1.1,
-              marginTop: '2px',
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '6px'
-            }}>
-              <span>{loading ? <div className="skeleton" style={{ height: i === 0 ? 26 : 20, width: 72, borderRadius: 5, background: s.highlight ? 'rgba(255,255,255,0.2)' : undefined }} /> : s.value}</span>
-              {s.hasToggle && (
-                <button
-                  type="button"
-                  title={salesViewMode === 'pipeline' ? 'Showing live pipeline. Click to view settled sales only.' : 'Showing settled sales. Click to include live open orders.'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSalesViewMode(v => v === 'pipeline' ? 'settled' : 'pipeline');
-                  }}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '1px solid rgba(255,255,255,0.35)',
-                    borderRadius: '999px',
-                    padding: '2px 7px',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    color: '#fff',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  <Zap size={10} fill="#fff" />
-                  {salesViewMode === 'pipeline' ? 'Live' : 'Settled'}
-                </button>
-              )}
-            </div>
-
-            <span style={{
-              fontSize: '10px',
-              color: s.highlight ? 'rgba(255,255,255,0.8)' : 'var(--color-label-tertiary)',
-              marginTop: '1px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              {s.desc}
-            </span>
-          </div>
-        ))}
+            <Sparkles size={13} fill="#fff" /> Ask Assistant
+          </button>
+        </div>
       </div>
 
-      {/* ── Owner Intelligence Row ── */}
-      {(salesDelta !== null || eodProjection !== null || cancellations > 0 || reservationsToday.count > 0 || weeklySparkline.some(d => d.rev > 0)) && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
-
-          {/* Yesterday delta */}
-          {salesDelta !== null && (
-            <div style={{
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-separator)',
-              borderRadius: '12px',
-              padding: '12px 14px'
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {salesDelta >= 0 ? <ArrowUp size={11} color="#10b981" /> : <ArrowDown size={11} color="#ef4444" />}
-                vs Yesterday
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: salesDelta >= 0 ? '#10b981' : '#ef4444', lineHeight: 1.2, marginTop: '4px' }}>
-                {salesDelta >= 0 ? '+' : ''}{salesDelta}%
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>{formatCurrency(yesterdayStats.sales, currency)}</div>
+      {/* 2. Core 4 Sales Vitals Grid */}
+      <div className="sales-vitals-grid">
+        {/* Vital 1: Net Sales */}
+        <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '0ms' }}>
+          <div className="sales-vital-head">
+            <span className="sales-vital-label">
+              Net Sales
+              <InfoTooltip text="Gross sales for today based on current view mode." size={11} />
+            </span>
+            <div className="sales-vital-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+              <TrendingUp size={16} strokeWidth={2.5} />
             </div>
-          )}
+          </div>
+          <div className="sales-vital-value">
+            {loading ? <div className="skeleton" style={{ height: 26, width: 90, borderRadius: 6 }} /> : formatCurrency(displayedSales, currency)}
+          </div>
+          <div className="sales-vital-sub">
+            {salesDelta !== null ? (
+              <span style={{ color: salesDelta >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                {salesDelta >= 0 ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
+                {salesDelta >= 0 ? '+' : ''}{salesDelta}% vs yday ({formatCurrency(yesterdayStats.sales, currency)})
+              </span>
+            ) : (
+              <span>{todayStats.openSales > 0 ? `${formatCurrency(todayStats.openSales, currency)} in pipeline` : 'Real-time billing'}</span>
+            )}
+          </div>
+        </div>
 
-          {/* EOD projection */}
-          {eodProjection !== null && (
-            <div style={{
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-separator)',
-              borderRadius: '12px',
-              padding: '12px 14px'
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <TrendingUp size={11} color="#8b5cf6" /> Projected
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#8b5cf6', lineHeight: 1.2, marginTop: '4px' }}>{formatCurrency(eodProjection, currency)}</div>
-              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>at current pace</div>
+        {/* Vital 2: Total Orders */}
+        <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '50ms' }}>
+          <div className="sales-vital-head">
+            <span className="sales-vital-label">
+              Total Orders
+              <InfoTooltip text="Total volume of guest orders placed today." size={11} />
+            </span>
+            <div className="sales-vital-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
+              <ShoppingCart size={16} strokeWidth={2.5} />
             </div>
-          )}
+          </div>
+          <div className="sales-vital-value">
+            {loading ? <div className="skeleton" style={{ height: 26, width: 60, borderRadius: 6 }} /> : displayedOrders}
+          </div>
+          <div className="sales-vital-sub">
+            <span>{todayStats.dineInOrders || 0} Dine-in · {todayStats.takeawayOrders || 0} Takeaway{todayStats.onlineOrders > 0 ? ` · ${todayStats.onlineOrders} Online` : ''}</span>
+          </div>
+        </div>
 
-          {/* Cancellations */}
-          {cancellations > 0 && (
-            <div style={{
-              background: 'rgba(239,68,68,0.05)',
-              border: '1px solid rgba(239,68,68,0.15)',
-              borderRadius: '12px',
-              padding: '12px 14px'
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <XCircle size={11} color="#ef4444" /> Cancelled
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#ef4444', lineHeight: 1.2, marginTop: '4px' }}>{cancellations}</div>
-              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px' }}>today</div>
+        {/* Vital 3: Average Order Value */}
+        <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <div className="sales-vital-head">
+            <span className="sales-vital-label">
+              Avg. Ticket (AOV)
+              <InfoTooltip text="Average amount spent per bill today." size={11} />
+            </span>
+            <div className="sales-vital-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
+              <CheckCircle2 size={16} strokeWidth={2.5} />
             </div>
-          )}
+          </div>
+          <div className="sales-vital-value">
+            {loading ? <div className="skeleton" style={{ height: 26, width: 80, borderRadius: 6 }} /> : formatCurrency(displayedAvg, currency)}
+          </div>
+          <div className="sales-vital-sub">
+            <span>{todayStats.avgCookTime > 0 ? `${todayStats.avgCookTime}m kitchen turnaround` : 'Average customer spend'}</span>
+          </div>
+        </div>
 
-          {/* Reservations */}
-          {reservationsToday.count > 0 && (
-            <div style={{
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-separator)',
-              borderRadius: '12px',
-              padding: '12px 14px'
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CalendarClock size={11} color="#3b82f6" /> Reservations
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#3b82f6', lineHeight: 1.2, marginTop: '4px' }}>{reservationsToday.count}</div>
-              {reservationsToday.next && (
-                <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}{reservationsToday.next.time ? ` @ ${reservationsToday.next.time}` : ''}
-                </div>
-              )}
+        {/* Vital 4: Payment Reconciliation */}
+        <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '150ms' }}>
+          <div className="sales-vital-head">
+            <span className="sales-vital-label">
+              Reconciliation
+              <InfoTooltip text="Settled revenue segmented by payment method." size={11} />
+            </span>
+            <div className="sales-vital-icon" style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6' }}>
+              <Wallet size={16} strokeWidth={2.5} />
             </div>
-          )}
+          </div>
+          <div className="sales-vital-value">
+            {loading ? <div className="skeleton" style={{ height: 26, width: 90, borderRadius: 6 }} /> : formatCurrency(todayStats.settledSales, currency)}
+          </div>
+          {/* Segmented Reconciliation Bar */}
+          <div className="sales-reconciliation-bar">
+            {paymentReconciliation.upiPct > 0 && (
+              <div className="sales-rec-segment" style={{ width: `${paymentReconciliation.upiPct}%`, background: '#8b5cf6' }} title={`UPI: ${formatCurrency(paymentReconciliation.amt.upi, currency)} (${paymentReconciliation.upiPct}%)`} />
+            )}
+            {paymentReconciliation.cashPct > 0 && (
+              <div className="sales-rec-segment" style={{ width: `${paymentReconciliation.cashPct}%`, background: '#10b981' }} title={`Cash: ${formatCurrency(paymentReconciliation.amt.cash, currency)} (${paymentReconciliation.cashPct}%)`} />
+            )}
+            {paymentReconciliation.cardPct > 0 && (
+              <div className="sales-rec-segment" style={{ width: `${paymentReconciliation.cardPct}%`, background: '#38bdf8' }} title={`Card: ${formatCurrency(paymentReconciliation.amt.card, currency)} (${paymentReconciliation.cardPct}%)`} />
+            )}
+          </div>
+          <div className="sales-rec-legend">
+            <span><span className="sales-rec-dot" style={{ background: '#8b5cf6' }} />UPI {paymentReconciliation.upiPct}%</span>
+            <span><span className="sales-rec-dot" style={{ background: '#10b981' }} />Cash {paymentReconciliation.cashPct}%</span>
+            <span><span className="sales-rec-dot" style={{ background: '#38bdf8' }} />Card {paymentReconciliation.cardPct}%</span>
+          </div>
+        </div>
+      </div>
 
-          {/* 7-day sparkline */}
-          {weeklySparkline.some(d => d.rev > 0) && (
-            <div style={{
-              gridColumn: '1 / -1',
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-separator)',
-              borderRadius: '12px',
-              padding: '12px 14px'
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>7-Day Revenue</div>
-              <ResponsiveContainer width="100%" height={36}>
-                <BarChart data={weeklySparkline} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                  <Bar dataKey="rev" radius={[3, 3, 0, 0]}>
-                    {weeklySparkline.map((entry, index) => (
-                      <Cell key={index} fill={entry.isToday ? '#10b981' : 'var(--color-fill-secondary)'} />
-                    ))}
-                  </Bar>
-                  <Tooltip
-                    cursor={false}
-                    content={({ active, payload }) => {
-                      if (active && payload?.[0]) {
-                        return (
-                          <div style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-separator)', padding: '4px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
-                            {payload[0].payload.label}: {formatCurrency(payload[0].value, currency)}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                {weeklySparkline.map((d, i) => (
-                  <span key={i} style={{ fontSize: '9px', color: d.isToday ? '#10b981' : 'var(--color-label-tertiary)', fontWeight: d.isToday ? 700 : 400 }}>{d.label}</span>
+      {/* 3. Live Active Dining Orders (ONLY renders when orders are active) */}
+      {displayedActiveOrders.length > 0 && (
+        <div className="card" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-sm)', borderRadius: '16px', overflow: 'hidden' }}>
+          <div className="card-header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="card-title" style={{ fontSize: '15px', fontWeight: 800 }}>Live Active Dining</span>
+              <span className="badge badge-blue" style={{ fontSize: '11px', fontWeight: 700 }}>{displayedActiveOrders.length}</span>
+            </div>
+            <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+              Open: {formatCurrency(todayStats.openSales, currency)}
+            </span>
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="desktop-only" style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
+                  {['Order ID', 'Type', 'Table / Token', 'Items', 'Total', 'Status', 'Action'].map(h => (
+                    <th key={h} style={{
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      color: 'var(--color-label-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {displayedActiveOrders.slice(0, 10).map((o) => (
+                  <tr key={o.id} style={{
+                    borderBottom: '1px solid var(--color-separator)',
+                    transition: 'background var(--duration-fast)',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}
+                  >
+                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                      #{o.id.slice(-6).toUpperCase()}
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`}>
+                        {o.type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>
+                      {o.tableName ?? (o.token ? `#${o.token}` : '—')}
+                    </td>
+                    <td style={{ padding: '10px 16px', fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                      {(o.items ?? []).length} item(s)
+                    </td>
+                    <td style={{ padding: '10px 16px', fontWeight: 700, fontSize: '13px' }}>
+                      {formatCurrency(o.total ?? 0, o.currency ?? currency)}
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`}>
+                        {orderStatusLabels[o.status] ?? o.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
+                        <button
+                          onClick={() => setSettleOrderModal(o)}
+                          className="btn btn-sm"
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            background: '#10b981',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: 'var(--radius-md)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
+                          }}
+                        >
+                          <Zap size={11} fill="#fff" /> Settle
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Check size={12} color="#10b981" /> Paid
+                        </span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="mobile-only" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {displayedActiveOrders.slice(0, 10).map(o => (
+              <div 
+                key={o.id}
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-separator)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700 }}>
+                      #{o.id.slice(-6).toUpperCase()}
+                    </span>
+                    <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`} style={{ fontSize: '10px' }}>
+                      {o.type}
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 600 }}>
+                      {o.tableName ?? (o.token ? `#${o.token}` : '—')}
+                    </span>
+                  </div>
+                  <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`} style={{ fontSize: '10px' }}>
+                    {orderStatusLabels[o.status] ?? o.status}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 800 }}>{formatCurrency(o.total ?? 0, o.currency ?? currency)}</span>
+                  {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
+                    <button
+                      onClick={() => setSettleOrderModal(o)}
+                      className="btn btn-sm"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        height: 32,
+                        padding: '0 12px',
+                        background: '#10b981',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Zap size={11} fill="#fff" /> Settle
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>✓ Paid</span>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Today's 3 Action Items */}
-      <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', border: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label)' }}>
-          <Lightbulb size={16} color="var(--color-orange)" /> Today's Action Items
-          <InfoTooltip text="Smart tips based on your live restaurant data today." />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {todayStats.openOrders > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', fontSize: '13px', padding: '10px 12px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #f59e0b', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <Zap size={16} color="#f59e0b" style={{ flexShrink: 0 }} />
-                <div>
-                  <strong>{todayStats.openOrders} dining orders active ({formatCurrency(todayStats.openSales, currency)}):</strong> 
-                  {' '}Kitchen in progress. Quick Settle is available when guests request the bill.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const firstOpen = activeOrders.find(o => o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid'));
-                  if (firstOpen) setSettleOrderModal(firstOpen);
-                  else window.location.href = '/orders';
-                }}
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px' }}
-              >
-                <Zap size={12} /> Settle Order
-              </button>
-            </div>
-          )}
-          {todayStats.avgCookTime > 20 && (
-            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-red)' }}>
-              <AlertCircle size={16} color="var(--color-red)" style={{ flexShrink: 0, marginTop: 2 }} />
-              <div><strong>Kitchen is slow:</strong> Average kitchen time is {todayStats.avgCookTime} mins. Your target should be under 20 mins. Check if any station is backed up.</div>
-            </div>
-          )}
-          {todayStats.paymentSplit.upi > (todayStats.orders * 0.5) && (
-            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-green)' }}>
-              <Sparkles size={16} color="var(--color-green)" style={{ flexShrink: 0, marginTop: 2 }} />
-              <div><strong>UPI is popular today:</strong> Over half your orders are paid via UPI. Consider putting a QR code stand right on the tables to speed up checkout.</div>
-            </div>
-          )}
-          {cancellations > 1 && (
-            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #dc2626' }}>
-              <XCircle size={16} color="#dc2626" style={{ flexShrink: 0, marginTop: 2 }} />
-              <div><strong>{cancellations} cancellations today ({Math.round(cancellations / Math.max(1, todayStats.totalOrders + cancellations) * 100)}%):</strong> Review if wait times, out-of-stock items, or payment issues are causing drops.</div>
-            </div>
-          )}
-          {todayStats.tableTurnover < 2 && tablesCount > 0 && todayStats.orders > 5 && (
-            <div style={{ display: 'flex', gap: '10px', fontSize: '13px', padding: '10px', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-orange)' }}>
-              <Clock size={16} color="var(--color-orange)" style={{ flexShrink: 0, marginTop: 2 }} />
-              <div><strong>Tables are turning slowly:</strong> Customers are staying longer. Ask staff to clear empty plates faster to free up tables for new walk-ins.</div>
-            </div>
-          )}
-          {todayStats.openOrders === 0 && cancellations <= 1 && (!todayStats.avgCookTime || todayStats.avgCookTime <= 20) && (!todayStats.paymentSplit.upi || todayStats.paymentSplit.upi <= (todayStats.orders * 0.5)) && (todayStats.tableTurnover >= 2 || tablesCount === 0 || todayStats.orders <= 5) && (
-            <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontStyle: 'italic', padding: '4px' }}>
-              Everything looks good so far today! Keep it up.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Restaurant Performance Section */}
-      <div>
-        <h3 className="text-title3" style={{ marginBottom: 'var(--space-3)', fontWeight: 700, color: 'var(--color-label)' }}>
-          Restaurant Performance
-        </h3>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-          gap: '10px'
-        }}>
-          {/* Avg Kitchen Time */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <Clock size={13} /> Avg Kitchen Time
-              <InfoTooltip text="How long it takes the kitchen to prepare an order on average today" />
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-label)' }}>
-              {todayStats.avgCookTime > 0 ? `${todayStats.avgCookTime} mins` : 'N/A'}
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Based on today's kitchen workflow</div>
-          </div>
-
-          {/* Times per Table (only for businesses with table mode active) */}
-          {hasMode('table') && (
-            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-                <TrendingUp size={13} /> Times per Table
-                <InfoTooltip text="How many groups of customers sat at each table today on average" />
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-label)' }}>
-                {tablesCount > 0 ? (todayStats.orders / tablesCount).toFixed(1) : '0'} 
-                <span style={{ fontSize: '13px', color: 'var(--color-label-secondary)', fontWeight: 600, marginLeft: 4 }}>orders/table</span>
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>Average turns per table today</div>
-            </div>
-          )}
-
-          {/* How Customers Paid */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <Percent size={13} /> How Customers Paid
-              <InfoTooltip text="Percentage breakdown of payment methods used today" />
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              {(() => {
-                const total = todayStats.orders || 1;
-                const p = todayStats.paymentSplit || { cash: 0, card: 0, upi: 0 };
-                return (
-                  <>
-                    <div style={{ flex: 1, textAlign: 'center', background: 'var(--color-bg-secondary)', padding: '6px 4px', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#10b981' }}>{Math.round((p.cash / total) * 100)}%</div>
-                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-label-secondary)', marginTop: '2px' }}>CASH</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center', background: 'var(--color-bg-secondary)', padding: '6px 4px', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#38bdf8' }}>{Math.round((p.card / total) * 100)}%</div>
-                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-label-secondary)', marginTop: '2px' }}>CARD</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center', background: 'var(--color-bg-secondary)', padding: '6px 4px', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#a855f7' }}>{Math.round((p.upi / total) * 100)}%</div>
-                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-label-secondary)', marginTop: '2px' }}>UPI</div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Top Item Today */}
-          <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-              <Flame size={13} color="#f59e0b" /> Top Item Today
-            </div>
-            {todayStats.topItem ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
-                <div style={{ fontSize: '24px' }}>{todayStats.topItem.emoji}</div>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-label)' }}>{todayStats.topItem.name}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>{todayStats.topItem.qty} orders today</div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ fontSize: '13px', color: 'var(--color-label-tertiary)', marginTop: '6px' }}>No items sold yet</div>
-            )}
-          </div>
-
-          {/* Today's Reservations — surfaces data from Reservations module */}
-          {reservationsToday.count > 0 && (
-            <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--color-separator)', color: 'var(--color-label)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-                <CalendarClock size={13} color="#38bdf8" /> Reservations Today
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: '#38bdf8' }}>{reservationsToday.count}</div>
-              {reservationsToday.next ? (
-                <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>
-                  Next: <strong>{reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}</strong>
-                  {reservationsToday.next.guests && ` · ${reservationsToday.next.guests} guests`}
-                  {reservationsToday.next.time && ` @ ${reservationsToday.next.time}`}
-                </div>
-              ) : (
-                <div style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>All reservations for today</div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Two Column Layout: Main Ops vs Insights */}
+      {/* 4. Two Column Layout: Executive Recommendations & Menu Velocity */}
       <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
         gap: 'var(--space-5)',
-        alignItems: 'start',
-        minWidth: 0,
-        width: '100%'
+        alignItems: 'start'
       }}>
-        
-        {/* Left Column (Main POS details: Active Orders + Peak Hours) */}
-        <div style={{ flex: '1 1 360px', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-          
-          {/* Active Orders Card */}
-          <div className="card" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-xl)', minWidth: 0 }}>
-            <div className="card-header" style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--color-separator)' }}>
-              <span className="card-title" style={{ fontSize: 'var(--text-title3)', fontWeight: 700 }}>Active Orders</span>
-              <span className="badge badge-blue" style={{ fontSize: '11px', fontWeight: 700 }}>{displayedActiveOrders.length}</span>
-            </div>
-            {displayedActiveOrders.length === 0 ? (
-              <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
-                <div style={{ fontSize: 32, marginBottom: 'var(--space-2)' }}>🎉</div>
-                <div style={{ fontWeight: 600, fontSize: '14px' }}>All caught up!</div>
-                <div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--color-label-tertiary)' }}>No active orders in progress right now.</div>
-              </div>
-            ) : (
-              <>
-                {/* Desktop Table View */}
-                <div className="desktop-only" style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--color-separator)', background: 'var(--color-bg-secondary)' }}>
-                        {['Order ID', 'Type', 'Table/Token', 'Items', 'Total', 'Kitchen Status', 'Action'].map(h => (
-                          <th key={h} style={{
-                            padding: 'var(--space-3) var(--space-5)',
-                            textAlign: 'left',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            color: 'var(--color-label-secondary)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                          }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedActiveOrders.slice(0, 15).map((o) => (
-                        <tr key={o.id} style={{
-                          borderBottom: '1px solid var(--color-separator)',
-                          transition: 'background var(--duration-fast)',
-                        }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-secondary)'}
-                          onMouseLeave={e => e.currentTarget.style.background = ''}
-                        >
-                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)' }}>
-                            #{o.id.slice(-6).toUpperCase()}
-                          </td>
-                          <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
-                            <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`}>
-                              {o.type}
-                            </span>
-                          </td>
-                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--text-footnote)', fontWeight: 600 }}>
-                            {o.tableName ?? (o.token ? `#${o.token}` : '—')}
-                          </td>
-                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
-                            {(o.items ?? []).length} item(s)
-                          </td>
-                          <td style={{ padding: 'var(--space-3) var(--space-5)', fontWeight: 700 }}>
-                            {formatCurrency(o.total ?? 0, o.currency ?? currency)}
-                          </td>
-                          <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
-                            <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`}>
-                              {orderStatusLabels[o.status] ?? o.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: 'var(--space-3) var(--space-5)' }}>
-                            {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
-                              <button
-                                onClick={() => setSettleOrderModal(o)}
-                                className="btn btn-sm"
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  padding: '4px 10px',
-                                  background: '#10b981',
-                                  color: '#fff',
-                                  border: 'none',
-                                  borderRadius: 'var(--radius-md)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
-                                }}
-                              >
-                                <Zap size={11} fill="#fff" /> Settle
-                              </button>
-                            ) : (
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  <Check size={12} color="#10b981" /> Paid
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    try {
-                                      await updateOrderStatus(restaurant.id, o.id, 'billed');
-                                      toast.success(`Order #${o.id.slice(-6).toUpperCase()} marked complete!`);
-                                    } catch (err) {
-                                      toast.error('Failed to complete order: ' + err.message);
-                                    }
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    padding: '2px 8px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px'
-                                  }}
-                                  title="Mark order complete and close"
-                                >
-                                  Complete ✓
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Cards View */}
-                <div className="mobile-only" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                  {displayedActiveOrders.slice(0, 15).map(o => (
-                    <div 
-                      key={o.id}
-                      style={{
-                        padding: 'var(--space-3)',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--color-bg-secondary)',
-                        border: '1px solid var(--color-separator)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 'var(--space-2)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700 }}>
-                            #{o.id.slice(-6).toUpperCase()}
-                          </span>
-                          <span className={`badge ${o.type === 'online' ? 'badge-purple' : o.type === 'dine-in' ? 'badge-blue' : 'badge-orange'}`} style={{ fontSize: '10px' }}>
-                            {o.type}
-                          </span>
-                          <span style={{ fontSize: '12px', fontWeight: 600 }}>
-                            {o.tableName ?? (o.token ? `#${o.token}` : '—')}
-                          </span>
-                        </div>
-                        <span className={`badge ${orderStatusColors[o.status] ?? 'badge-gray'}`} style={{ fontSize: '10px' }}>
-                          {orderStatusLabels[o.status] ?? o.status}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>{(o.items ?? []).length} item(s) • </span>
-                          <span style={{ fontSize: '14px', fontWeight: 800 }}>{formatCurrency(o.total ?? 0, o.currency ?? currency)}</span>
-                        </div>
-                        {o.status !== 'billed' && (!o.paymentMethod || o.paymentMethod === 'unpaid') ? (
-                          <button
-                            onClick={() => setSettleOrderModal(o)}
-                            className="btn btn-sm"
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              height: 34,
-                              padding: '0 12px',
-                              background: '#10b981',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: 'var(--radius-md)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
-                            }}
-                          >
-                            <Zap size={11} fill="#fff" /> Settle
-                          </button>
-                        ) : (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              <Check size={12} color="#10b981" /> Paid
-                            </span>
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  await updateOrderStatus(restaurant.id, o.id, 'billed');
-                                  toast.success(`Order #${o.id.slice(-6).toUpperCase()} marked complete!`);
-                                } catch (err) {
-                                  toast.error('Failed to complete order: ' + err.message);
-                                }
-                              }}
-                              className="btn btn-secondary btn-sm"
-                              style={{
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                padding: '4px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px'
-                              }}
-                            >
-                              Complete ✓
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Hourly Traffic Peaks Chart Card */}
-          <div className="card card-padded" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-xl)' }}>
-            <h3 className="text-title3" style={{ marginBottom: 'var(--space-1)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
-              🕒 Customer Traffic Peak Hours
+        {/* Left Column: Actionable Recommendations */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="card card-padded dashboard-insights-card">
+            <h3 className="text-title3 dashboard-insights-title" style={{ marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+              <Lightbulb size={18} strokeWidth={2.5} />
+              <span>Sales & Operational Recommendations</span>
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--color-label-tertiary)', marginBottom: 'var(--space-5)' }}>
-              Hourly distribution based on sales logs from the last 7 days
-            </p>
-
-            <div style={{ width: '100%', height: 260, position: 'relative' }}>
-              {analyticsOrders.length === 0 ? (
-                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-label-tertiary)', gap: '8px' }}>
-                  <Clock size={36} style={{ opacity: 0.3 }} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>No order traffic logs available for the last 7 days.</span>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={peakHours} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.35}/>
-                        <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-separator)" />
-                    <XAxis 
-                      dataKey="label" 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: 'var(--color-label-tertiary)', fontSize: 10, fontWeight: 600 }}
-                    />
-                    <YAxis 
-                      tickLine={false} 
-                      axisLine={false} 
-                      allowDecimals={false}
-                      tick={{ fill: 'var(--color-label-tertiary)', fontSize: 10, fontWeight: 600 }}
-                    />
-                    <Tooltip content={<CustomChartTooltip />} />
-                    <Area 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="var(--color-accent)" 
-                      strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorCount)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-        {/* Right Column (Insights & Performance Metrics) */}
-        <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-          
-          {/* Growth Insights Card */}
-          <div 
-            className="card card-padded dashboard-insights-card"
-          >
-            <h3 className="text-title3 dashboard-insights-title" style={{ marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-              <Lightbulb size={20} strokeWidth={2.5} />
-              <span>Business Growth Insights</span>
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               {growthTips.map((tip, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
                   <div className="dashboard-insights-icon-box" style={{
@@ -1371,71 +991,157 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+
+              {/* Kitchen Turnaround alert */}
+              {todayStats.avgCookTime > 20 && (
+                <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
+                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(239, 68, 68, 0.1)' }}>
+                    <AlertCircle size={16} color="#ef4444" strokeWidth={2.5} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>Kitchen Bottleneck Alert</h4>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45' }}>
+                      Average prep duration is <strong>{todayStats.avgCookTime} mins</strong> today (target is under 20 mins). Check for order backlogs.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Cancellations warning */}
+              {cancellations > 1 && (
+                <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
+                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(239, 68, 68, 0.1)' }}>
+                    <XCircle size={16} color="#ef4444" strokeWidth={2.5} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>{cancellations} Cancellations Logged</h4>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45' }}>
+                      Review void logs to verify if kitchen delays or item stockouts caused cancellations.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Reservations Advisory */}
+              {reservationsToday.count > 0 && (
+                <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
+                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(56, 189, 248, 0.12)' }}>
+                    <CalendarClock size={16} color="#0284c7" strokeWidth={2.5} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 className="dashboard-insights-tip-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0369a1' }}>
+                      {reservationsToday.count} Reservation{reservationsToday.count > 1 ? 's' : ''} Today
+                    </h4>
+                    <p className="dashboard-insights-tip-desc" style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45' }}>
+                      {reservationsToday.next ? (
+                        <>Next seating: <strong>{reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}</strong> ({reservationsToday.next.guests || 2} guests){reservationsToday.next.time ? ` at ${reservationsToday.next.time}` : ''}.</>
+                      ) : (
+                        'Ensure reserved tables are tagged and prepared.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          {/* Menu Performance card */}
-          <div className="card card-padded" style={{ border: '1px solid var(--color-separator)', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-xl)' }}>
-            <h3 className="text-title3" style={{ marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
-              📊 Menu Performance (Last 7 Days)
+        {/* Right Column: Menu Velocity & 7-Day Sparkline */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {/* Menu Velocity Card */}
+          <div className="card card-padded" style={{ border: '1px solid var(--color-separator)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }}>
+            <h3 className="text-title3" style={{ marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+              <Flame size={18} color="#f59e0b" /> Menu Velocity (7-Day Performance)
             </h3>
-            
-            {/* Top Sellers */}
-            <div style={{ marginBottom: 'var(--space-5)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: '#16a34a', marginBottom: 'var(--space-3)', letterSpacing: '0.8px' }}>
-                <Flame size={13} fill="#16a34a" /> Bestsellers
+
+            {/* Bestsellers */}
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: '#10b981', marginBottom: '8px', letterSpacing: '0.6px' }}>
+                <Flame size={12} fill="#10b981" /> Top Movers
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {bestSellers.map((item, idx) => {
                   const maxQty = bestSellers[0]?.qty || 1;
-                  const pct = (item.qty / maxQty) * 100;
+                  const pct = Math.round((item.qty / maxQty) * 100);
                   return (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '15px' }}>{item.emoji}</span>
+                          <span style={{ fontSize: '14px' }}>{item.emoji}</span>
                           {item.name}
                         </span>
-                        <span style={{ fontSize: '12px', fontWeight: 700 }}>{item.qty} sold</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)' }}>{item.qty} sold</span>
                       </div>
-                      {/* Visual progress bar */}
                       <div style={{ width: '100%', height: '6px', background: 'var(--color-bg-secondary)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: '#10b981', borderRadius: '3px' }} />
+                        <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '3px' }} />
                       </div>
                     </div>
                   );
                 })}
                 {bestSellers.length === 0 && (
-                  <span style={{ fontSize: 12, color: 'var(--color-label-tertiary)', fontStyle: 'italic', paddingLeft: 4 }}>No items sold yet.</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-label-tertiary)', fontStyle: 'italic' }}>No sales data recorded yet.</span>
                 )}
               </div>
             </div>
 
             {/* Slow Movers */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: '#dc2626', marginBottom: 'var(--space-3)', letterSpacing: '0.8px' }}>
-                <Snowflake size={13} /> Slow Movers / Zero Sales
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: '#ef4444', marginBottom: '8px', letterSpacing: '0.6px' }}>
+                <Snowflake size={12} /> Underperforming Items to Bundle
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {slowMovers.map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '15px' }}>{item.emoji}</span>
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '13px' }}>{item.emoji}</span>
                       {item.name}
                     </span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-tertiary)' }}>{item.qty} sold</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-label-tertiary)' }}>{item.qty} sold</span>
                   </div>
                 ))}
                 {slowMovers.length === 0 && (
-                  <span style={{ fontSize: 12, color: 'var(--color-label-tertiary)', fontStyle: 'italic', paddingLeft: 4 }}>All items have active sales!</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-label-tertiary)', fontStyle: 'italic' }}>All items have active sales!</span>
                 )}
               </div>
             </div>
-
           </div>
 
+          {/* 7-Day Revenue Trend Bar Chart */}
+          {weeklySparkline.some(d => d.rev > 0) && (
+            <div className="card card-padded" style={{ border: '1px solid var(--color-separator)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>
+                7-Day Revenue Trajectory
+              </div>
+              <ResponsiveContainer width="100%" height={48}>
+                <BarChart data={weeklySparkline} barSize={14} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <Bar dataKey="rev" radius={[3, 3, 0, 0]}>
+                    {weeklySparkline.map((entry, index) => (
+                      <Cell key={index} fill={entry.isToday ? '#10b981' : 'var(--color-fill-secondary)'} />
+                    ))}
+                  </Bar>
+                  <Tooltip
+                    cursor={false}
+                    content={({ active, payload }) => {
+                      if (active && payload?.[0]) {
+                        return (
+                          <div style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-separator)', padding: '4px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
+                            {payload[0].payload.label}: {formatCurrency(payload[0].value, currency)}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                {weeklySparkline.map((d, i) => (
+                  <span key={i} style={{ fontSize: '10px', color: d.isToday ? '#10b981' : 'var(--color-label-tertiary)', fontWeight: d.isToday ? 700 : 500 }}>{d.label}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-
       </div>
 
       {/* Quick Settle Modal */}

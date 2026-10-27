@@ -12929,6 +12929,171 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   background: rgba(245, 158, 11, 0.16) !important;
 }
 
+/* ── Executive Sales Assistant Dashboard System ── */
+.sales-assistant-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 18px 22px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%), var(--color-bg-elevated);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  box-shadow: 0 4px 20px -4px rgba(16, 185, 129, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+[data-theme="dark"] .sales-assistant-hero {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.08) 60%, rgba(15, 23, 42, 0.85) 100%), #111318;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.5);
+}
+
+.sales-assistant-avatar-wrap {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+  flex-shrink: 0;
+}
+
+.sales-assistant-pulse-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--color-bg-elevated);
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.sales-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .sales-vitals-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 580px) {
+  .sales-vitals-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sales-vital-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.sales-vital-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .sales-vital-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.sales-vital-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sales-vital-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-label-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sales-vital-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sales-vital-value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  color: var(--color-label);
+}
+
+.sales-vital-sub {
+  font-size: 11px;
+  color: var(--color-label-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sales-reconciliation-bar {
+  display: flex;
+  height: 8px;
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.sales-rec-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.sales-rec-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sales-rec-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
 /* Table Management Screen */
 [data-theme="dark"] .table-canvas-wrapper {
   background: #0c0d11;
