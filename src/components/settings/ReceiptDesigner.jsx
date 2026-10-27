@@ -417,6 +417,18 @@ export default function ReceiptDesigner({ settings, updateField }) {
               onChange={e => updateField('receiptConfig.showQrCode', e.target.checked)}
             />
           </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+            <div>
+              <span style={{ fontSize: '13px' }}>Auto-Print Receipt on Checkout</span>
+              <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Automatically prints customer receipt when payment is finalized</div>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings?.receiptConfig?.autoPrintReceipt ?? false}
+              onChange={e => updateField('receiptConfig.autoPrintReceipt', e.target.checked)}
+            />
+          </label>
         </div>
 
         <div style={{ marginTop: 'auto', paddingTop: 'var(--space-2)' }}>

@@ -23,13 +23,26 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
     return unsub;
   }, [restaurantId, subscribe]);
 
-  // Overall counts
-  const counts = useMemo(() => ({
-    all: tables.length,
-    free: tables.filter(t => t.status === 'free').length,
-    occupied: tables.filter(t => t.status === 'occupied').length,
-    reserved: tables.filter(t => t.status === 'reserved').length,
-  }), [tables]);
+  // Derive effective status to guarantee 100% sync with active orders
+  const getEffectiveStatus = (tbl) => {
+    const activeOrder = tableOrders[tbl.id];
+    const hasActiveOrder = activeOrder && !['billed', 'cancelled'].includes(activeOrder.status);
+    if (hasActiveOrder) return 'occupied';
+    if (tbl.status === 'reserved') return 'reserved';
+    return tbl.status || 'free';
+  };
+
+  // Overall counts based on real-time operational status
+  const counts = useMemo(() => {
+    let free = 0, occupied = 0, reserved = 0;
+    tables.forEach(t => {
+      const st = getEffectiveStatus(t);
+      if (st === 'occupied') occupied++;
+      else if (st === 'reserved') reserved++;
+      else free++;
+    });
+    return { all: tables.length, free, occupied, reserved };
+  }, [tables, tableOrders]);
 
   // Auto-detect zones/sections or table prefix clusters (e.g. 'T', 'G', 'B')
   const zones = useMemo(() => {
@@ -60,8 +73,9 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
   const filteredTables = useMemo(() => {
     return tables
       .filter(tbl => {
+        const effectiveStatus = getEffectiveStatus(tbl);
         // Status filter
-        if (filterStatus !== 'all' && tbl.status !== filterStatus) return false;
+        if (filterStatus !== 'all' && effectiveStatus !== filterStatus) return false;
         
         // Party size / capacity filter
         if (minSeats > 0 && (tbl.capacity || 2) < minSeats) return false;
@@ -81,15 +95,15 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
       .sort((a, b) => {
         // Priority 1: Free First (if enabled)
         if (freeFirst) {
-          const aRank = a.status === 'free' ? 0 : 1;
-          const bRank = b.status === 'free' ? 0 : 1;
+          const aRank = getEffectiveStatus(a) === 'free' ? 0 : 1;
+          const bRank = getEffectiveStatus(b) === 'free' ? 0 : 1;
           if (aRank !== bRank) return aRank - bRank;
         }
 
         // Priority 2: Natural alphanumeric sorting (T1, T2, T3... instead of T1, T10, T2)
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
-  }, [tables, filterStatus, minSeats, selectedZone, search, freeFirst]);
+  }, [tables, filterStatus, minSeats, selectedZone, search, freeFirst, tableOrders]);
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -305,15 +319,18 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
             <div className="table-compact-grid">
               {filteredTables.map(table => {
                 const activeOrder = tableOrders[table.id];
+                const baseStatus = getEffectiveStatus(table);
+                const isFoodReady = activeOrder?.status === 'ready';
+                const status = isFoodReady ? 'ready' : baseStatus;
 
                 return (
                   <button
                     key={table.id}
                     id={`table-select-${table.id}`}
                     type="button"
-                    className={`table-compact-card ${table.status}`}
+                    className={`table-compact-card ${status}`}
                     onClick={() => onSelect(table.id, table.name, activeOrder, table)}
-                    title={`${table.name} · ${table.capacity || 4} seats · ${table.status}`}
+                    title={`${table.name} · ${table.capacity || 4} seats · ${isFoodReady ? 'Food Ready' : status}`}
                   >
                     <div className="table-compact-card-top">
                       <span className="table-compact-name">{table.name}</span>
@@ -324,16 +341,17 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
 
                     <div className="table-compact-bottom">
                       <span className="table-compact-status-badge">
-                        <span className={`table-compact-status-dot ${table.status}`} />
+                        <span className={`table-compact-status-dot ${status}`} />
                         <span style={{
                           textTransform: 'capitalize',
-                          color: table.status === 'free' ? '#15803d' : (table.status === 'occupied' ? '#be123c' : '#b45309'),
+                          color: isFoodReady ? '#047857' : (status === 'free' ? '#15803d' : (status === 'occupied' ? '#be123c' : '#b45309')),
+                          fontWeight: isFoodReady ? 800 : undefined,
                         }}>
-                          {table.status}
+                          {isFoodReady ? '🔔 Ready' : status}
                         </span>
                       </span>
 
-                      {table.status === 'occupied' && activeOrder?.total ? (
+                      {activeOrder?.total ? (
                         <span className="table-compact-order-total">
                           {formatCurrency(activeOrder.total, currency)}
                         </span>
@@ -349,6 +367,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               {filteredTables.map(table => {
                 const isRound = table.shape === 'round';
                 const activeOrder = tableOrders[table.id];
+                const status = getEffectiveStatus(table);
 
                 return (
                   <div key={table.id} className="table-3d-item-wrapper">
@@ -362,15 +381,15 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                     <button
                       id={`table-select-${table.id}`}
                       type="button"
-                      className={`table-3d-card ${isRound ? 'round' : ''} ${table.status}`}
+                      className={`table-3d-card ${isRound ? 'round' : ''} ${status}`}
                       onClick={() => onSelect(table.id, table.name, activeOrder, table)}
-                      title={`${table.name} · ${table.capacity} seats · ${table.status}`}
+                      title={`${table.name} · ${table.capacity} seats · ${status}`}
                     >
                       {/* Status Pill Badge */}
-                      <span className={`table-3d-status-pill ${table.status}`}>
-                        {table.status === 'free' && '🟢 Free'}
-                        {table.status === 'occupied' && '🔴 Occupied'}
-                        {table.status === 'reserved' && '⭐ Reserved'}
+                      <span className={`table-3d-status-pill ${status}`}>
+                        {status === 'free' && '🟢 Free'}
+                        {status === 'occupied' && '🔴 Occupied'}
+                        {status === 'reserved' && '⭐ Reserved'}
                       </span>
 
                       {/* Bold Table Code */}

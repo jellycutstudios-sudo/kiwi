@@ -615,24 +615,58 @@ async function sendToSerialPrinter(buffer) {
 }
 
 async function sendToNetworkPrinter(ipAddress, buffer) {
+  if (!ipAddress) return;
   toast.success(`Sending print job to network printer ${ipAddress}...`);
   try {
+    // 1. Prepare base64 payload for Epson ePOS-Print XML / WebPRNT printers
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64Data = btoa(binary);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const eposXml = `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print"><command>${base64Data}</command></epos-print></s:Body></s:Envelope>`;
+
+    const res = await fetch(`http://${ipAddress}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=5000`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
+      body: eposXml,
+      signal: controller.signal
+    }).catch(() => null);
+
+    clearTimeout(timeoutId);
+
+    if (res && res.ok) {
+      toast.success('Dispatched to network printer! 🖨️');
+      return;
+    }
+
+    // 2. Direct octet-stream POST fallback (used by local CUPS / raw print bridges)
     await fetch(`http://${ipAddress}/print`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: buffer
     });
+    toast.success('Dispatched to network printer! 🖨️');
   } catch (e) {
     console.warn('[ESC/POS Network Error]', e.message);
   }
 }
 
 // Loop through all receipt printers and execute print
-export function printReceipt({ restaurant, order, items, taxInfo, staffName }) {
+export function printReceipt({ restaurant, order, items, taxInfo, staffName, isManual = false }) {
   const printers = restaurant?.peripheralConfig?.printers ?? [];
   const receiptPrinters = printers.filter(p => p.type === 'receipt');
 
   if (receiptPrinters.length === 0) {
+    // If not a manual on-demand button click and autoPrintReceipt is explicitly false, do not popup browser
+    if (!isManual && restaurant?.receiptConfig?.autoPrintReceipt === false) {
+      return;
+    }
     const defaultPaper = restaurant?.receiptConfig?.paperSize || '80mm';
     if (defaultPaper === 'a4') {
       printInvoiceA4({ restaurant, order, items, taxInfo, staffName });
@@ -687,15 +721,19 @@ export function printReceiptSingle({ restaurant, order, items, taxInfo, staffNam
 export function printKitchenTickets({ restaurant, order, items, staffName }) {
   if (restaurant?.businessType === 'bill_only' || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service') return;
   const kitchenConfig = restaurant?.kitchenConfig;
-  // If mode is explicitly set to display_only or disabled, do not physically print tickets
-  const hasKds = restaurant?.modes?.includes('kds');
-  const kitchenMode = kitchenConfig?.mode || (hasKds ? 'both' : (restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen') ? 'printer_only' : 'disabled'));
+  const activeModes = getActiveModes(restaurant);
+  const hasKds = activeModes.includes('kds');
+  const printers = restaurant?.peripheralConfig?.printers ?? [];
+  const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
+  const defaultMode = hasKds
+    ? (kitchenPrinters.length > 0 ? 'both' : 'display_only')
+    : (kitchenPrinters.length > 0 ? 'printer_only' : 'disabled');
+  const kitchenMode = kitchenConfig?.mode || defaultMode;
+
   if (kitchenMode === 'display_only' || kitchenMode === 'disabled') {
     return;
   }
 
-  const printers = restaurant?.peripheralConfig?.printers ?? [];
-  const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
   const paperSize = kitchenConfig?.paperSize || '80mm';
   const ticketTitle = kitchenConfig?.ticketTitle || 'KITCHEN TICKET';
 
@@ -807,6 +845,155 @@ export function printSingleKitchenTicket({ restaurant, order, items, staffName, 
   } else if (targetPrinter.mode === 'network') {
     sendToNetworkPrinter(targetPrinter.ipAddress, buffer);
   }
+}
+
+// Compile kitchen VOID/cancel ticket for ESC/POS
+export function compileEscPosVoidTicket({ restaurant, order, items, reason, staffName, managerName, printerConfig }) {
+  const lineWidth = getPrinterLineWidth(printerConfig);
+  const is58mm = lineWidth === 32;
+
+  const ESC = 27;
+  const GS = 29;
+  const LF = 10;
+  
+  const INIT = [ESC, 64];
+  const ALIGN_CENTER = [ESC, 97, 1];
+  const ALIGN_LEFT = [ESC, 97, 0];
+  const BOLD_ON = [ESC, 69, 1];
+  const BOLD_OFF = [ESC, 69, 0];
+  const CUT = [GS, 86, 65, 0];
+  const BUZZER_BELL = [7, 7, 7]; // 3 audible buzzer beeps to alert line cook of void
+  const DOUBLE_SIZE = [GS, 33, 17];
+  const NORMAL_SIZE = [GS, 33, 0];
+
+  let buffer = [];
+  const writeBytes = (bytes) => buffer.push(...bytes);
+  const writeTextLine = (text) => {
+    writeBytes(unicodeToEscPosBytes(text));
+    writeBytes([LF]);
+  };
+  const divider = '='.repeat(lineWidth);
+
+  writeBytes(INIT);
+  writeBytes(BUZZER_BELL);
+  writeBytes(ALIGN_CENTER);
+  writeBytes(DOUBLE_SIZE);
+  writeBytes(BOLD_ON);
+  writeTextLine('*** CANCEL / VOID ***');
+  writeBytes(NORMAL_SIZE);
+  writeBytes(BOLD_OFF);
+  
+  writeTextLine(divider);
+  writeBytes(ALIGN_LEFT);
+  if (restaurant?.name) writeTextLine(restaurant.name);
+  writeTextLine(`Station: ${printerConfig?.name || 'Kitchen'}`);
+  writeTextLine(`Time: ${new Date().toLocaleTimeString()}`);
+  
+  const orderTypeLabel = order?.type === 'dine-in'
+    ? (order?.tableName ? `Table: ${order.tableName}` : 'Dine-In')
+    : (order?.token ? `Token: #${order.token}` : 'Takeaway');
+  
+  writeBytes(BOLD_ON);
+  writeTextLine(orderTypeLabel);
+  writeBytes(BOLD_OFF);
+  
+  if (order?.customerName) writeTextLine(`Customer: ${order.customerName}`);
+  if (staffName) writeTextLine(`Staff: ${staffName}`);
+  if (managerName) writeTextLine(`Auth By: ${managerName}`);
+  
+  writeTextLine(divider);
+  writeBytes(BOLD_ON);
+  writeTextLine('*** DO NOT PREP / CANCEL ***');
+  writeBytes(BOLD_OFF);
+
+  (items || []).forEach(i => {
+    writeBytes(BOLD_ON);
+    const maxLen = is58mm ? 22 : 36;
+    const itemLine = `CANCEL x${i.qty || 1} ${i.name.slice(0, maxLen)}`;
+    writeTextLine(itemLine.slice(0, lineWidth));
+    writeBytes(BOLD_OFF);
+    if (i.selectedModifiers?.length) {
+      writeTextLine(`  ${i.selectedModifiers.map(m => m.name).join(', ')}`);
+    }
+  });
+
+  if (reason) {
+    writeTextLine(`Reason: ${reason}`);
+  }
+  
+  writeTextLine(divider);
+  writeTextLine(`Order ID: ${order?.id?.slice(-8) ?? ''}`);
+  writeBytes([LF, LF]);
+  writeBytes(CUT);
+
+  return new Uint8Array(buffer);
+}
+
+// Dispatches void ticket to relevant kitchen printers
+export function printKitchenVoidTicket({ restaurant, order, items, reason, staffName, managerName }) {
+  if (restaurant?.businessType === 'bill_only' || restaurant?.businessType === 'retail' || restaurant?.businessType === 'service') return;
+  const kitchenConfig = restaurant?.kitchenConfig;
+  const activeModes = getActiveModes(restaurant);
+  const hasKds = activeModes.includes('kds');
+  const printers = restaurant?.peripheralConfig?.printers ?? [];
+  const kitchenPrinters = printers.filter(p => p.type === 'kitchen');
+  const defaultMode = hasKds
+    ? (kitchenPrinters.length > 0 ? 'both' : 'display_only')
+    : (kitchenPrinters.length > 0 ? 'printer_only' : 'disabled');
+  const kitchenMode = kitchenConfig?.mode || defaultMode;
+
+  if (kitchenMode === 'display_only' || kitchenMode === 'disabled') {
+    return;
+  }
+
+  const voidItems = Array.isArray(items) ? items : [items];
+  if (voidItems.length === 0) return;
+
+  if (kitchenPrinters.length === 0) {
+    if (kitchenMode === 'printer_only') {
+      printKitchenBrowser({
+        order,
+        items: voidItems.map(i => ({ ...i, name: `[CANCEL] ${i.name}` })),
+        printerName: 'Kitchen (3" Thermal)',
+        paperSize: kitchenConfig?.paperSize || '80mm',
+        title: '*** CANCEL / VOID ***'
+      });
+    }
+    return;
+  }
+
+  kitchenPrinters.forEach(printer => {
+    const printerCats = printer.categories ?? [];
+    const routedItems = voidItems.filter(item => {
+      if (printerCats.length === 0) return true;
+      const itemCatId = getCategoryForMenuItem(item.menuItemId || item.id);
+      return itemCatId && printerCats.includes(itemCatId);
+    });
+
+    if (routedItems.length === 0) return;
+
+    const effectivePaperSize = printer.paperSize || kitchenConfig?.paperSize || '80mm';
+    const buffer = compileEscPosVoidTicket({
+      restaurant,
+      order,
+      items: routedItems,
+      reason,
+      staffName,
+      managerName,
+      printerConfig: {
+        ...printer,
+        paperSize: effectivePaperSize
+      }
+    });
+
+    if (printer.mode === 'bluetooth') {
+      sendToBluetoothPrinter(buffer);
+    } else if (printer.mode === 'serial') {
+      sendToSerialPrinter(buffer);
+    } else if (printer.mode === 'network') {
+      sendToNetworkPrinter(printer.ipAddress, buffer);
+    }
+  });
 }
 
 export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffName, paperSize = '80mm' }) {

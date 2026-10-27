@@ -431,6 +431,7 @@ export default function OnlineOrderPage() {
         const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
         batch.update(tableRef, {
           status: 'occupied',
+          currentOrderId: orderDocRef.id,
           activeOrderId: orderDocRef.id
         });
       }

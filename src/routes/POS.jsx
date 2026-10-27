@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
@@ -13,37 +12,28 @@ import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
-import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printInvoiceA4 } from '../utils/print';
+import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printKitchenVoidTicket, printInvoiceA4 } from '../utils/print';
 import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
-  ChevronRight, ChevronDown, ChevronUp, Tag, Banknote, Search, 
-  FileText, Check, Flame, Clock, LayoutGrid,
+  ChevronDown, ChevronUp, Tag, Banknote, Search, 
+  FileText, Check, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, ArrowLeft, Layers
+  Split, Armchair
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
 import TableSelectModal from '../components/pos/TableSelectModal';
 import ModifierModal from '../components/pos/ModifierModal';
-import QuickPayBar from '../components/pos/QuickPayBar';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
+import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
 import { usePosTemplate } from '../utils/posTemplate';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
-
-const COURSE_ICONS = {
-  'Appetizers': '🥗',
-  'Mains': '🍲',
-  'Desserts': '🍰',
-  'Beverages': '🥤',
-};
-
-const POS_COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
 
 const POS_CATEGORY_THEMES = [
   'pos-cat-theme-amber',
@@ -60,325 +50,34 @@ const POS_CATEGORY_THEMES = [
   'pos-cat-theme-emerald',
 ];
 
-const KITCHEN_DISPATCHES = [
-  { tag: "READY", text: "Pass is clear · Standing by for next ticket", icon: "🛎️" },
-  { tag: "TIP", text: "Tap '+ Custom Item' to ring off-menu specials", icon: "💡" },
-  { tag: "SHIFT", text: "Fast keys (⚡) enabled for top 10 speed items", icon: "⚡" },
-  { tag: "SERVICE", text: "Pre-assign courses for seamless kitchen pacing", icon: "🍽️" },
-  { tag: "SPEED", text: "Press '/' anywhere to quickly search the menu", icon: "⌨️" },
-  { tag: "HUMOR", text: "Kitchen reports: Knives sharp, energy 100%", icon: "🔪" },
-  { tag: "PRO TIP", text: "Split-bill tables can be partitioned before checkout", icon: "🧾" },
-  { tag: "RUSH", text: "Wok & grill fired up. Bring on the orders!", icon: "🔥" },
-];
-
-function EmptyCartState({ 
-  onAddCustomItem, 
-  onSelectTable, 
-  isBestsellerActive, 
-  onToggleBestsellers, 
-  search, 
-  setSearch 
-}) {
-  const [showSearchInput, setShowSearchInput] = useState(false);
-  const [dispatchIdx, setDispatchIdx] = useState(0);
-  const [isChanging, setIsChanging] = useState(false);
-  const searchInputRef = useRef(null);
-
-  const nextDispatch = (e) => {
-    if (e) e.stopPropagation();
-    hapticTap('light');
-    setIsChanging(true);
-    setTimeout(() => {
-      setDispatchIdx((prev) => (prev + 1) % KITCHEN_DISPATCHES.length);
-      setIsChanging(false);
-    }, 150);
-  };
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIsChanging(true);
-      setTimeout(() => {
-        setDispatchIdx((prev) => (prev + 1) % KITCHEN_DISPATCHES.length);
-        setIsChanging(false);
-      }, 150);
-    }, 20000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleSearchClick = (e) => {
-    if (e) e.stopPropagation();
-    hapticTap('light');
-    setShowSearchInput(v => !v);
-    setTimeout(() => {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-        searchInputRef.current.select();
-      }
-    }, 50);
-    const topSearch = document.getElementById('menu-search-input');
-    if (topSearch) {
-      topSearch.focus();
-      topSearch.select();
-    }
-  };
-
-  const dispatch = KITCHEN_DISPATCHES[dispatchIdx];
-
+function EmptyCartState({ onAddCustomItem }) {
   return (
-    <div className="pos-empty-cart">
-      {/* Premium Service Badge */}
-      <div className="pos-empty-hero">
-        <div className="pos-empty-badge">
-          <span className="pos-empty-status-beacon" />
-          <span className="pos-empty-badge-text">Terminal Ready</span>
-        </div>
-
-        <div className="pos-empty-icon-capsule">
-          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="6" y="8" width="32" height="28" rx="8" fill="url(#ticketGrad)" stroke="rgba(255,255,255,0.18)" strokeWidth="1.2" />
-            <path d="M14 17H30" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
-            <path d="M14 23H24" stroke="rgba(255,255,255,0.7)" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M14 29H20" stroke="rgba(255,255,255,0.4)" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="30" cy="27" r="3.5" fill="#10b981" />
-            <defs>
-              <linearGradient id="ticketGrad" x1="6" y1="8" x2="38" y2="36" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#1e293b" />
-                <stop offset="1" stopColor="#0f172a" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        <div className="pos-empty-title">Ready for Order</div>
-        <div className="pos-empty-subtitle">Select items from menu, scan barcode, or use fast actions</div>
+    <div className="pos-empty-cart-minimal">
+      <div className="pos-empty-cart-icon-wrap">
+        <ShoppingBag size={34} strokeWidth={1.5} />
       </div>
-
-      {/* Inline Search Bar (Auto-expanded when active or user types) */}
-      {(showSearchInput || search) && (
-        <div className="pos-empty-search-box">
-          <Search size={15} className="pos-empty-search-icon" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="pos-empty-search-input"
-            placeholder="Search items by name or code..."
-            value={search || ''}
-            onChange={(e) => setSearch(e.target.value)}
-            autoFocus
-          />
-          {search && (
-            <button
-              type="button"
-              className="pos-empty-search-clear"
-              onClick={() => setSearch('')}
-              title="Clear search"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* High-Utility 2x2 Action Tiles (Generous touch targets) */}
-      <div className="pos-empty-tiles-grid">
-        {/* Tile 1: Custom Item */}
+      <div className="pos-empty-cart-title">Your cart is empty</div>
+      <div className="pos-empty-cart-subtitle">Select items from the menu to start order</div>
+      {onAddCustomItem && (
         <button
           type="button"
-          className="pos-action-tile tile--custom"
+          className="pos-empty-custom-item-btn"
           onClick={(e) => {
             e.stopPropagation();
             hapticTap('light');
             onAddCustomItem();
           }}
-          title="Add a custom off-menu item"
+          title="Add a custom or off-menu item"
         >
-          <div className="tile-icon-wrap icon-wrap--emerald">
-            <Plus size={17} strokeWidth={2.5} />
-          </div>
-          <div className="tile-info">
-            <span className="tile-title">Custom Item</span>
-            <span className="tile-hint">Off-menu item</span>
-          </div>
+          <Plus size={13} strokeWidth={2.5} />
+          <span>Add Custom Item</span>
         </button>
-
-        {/* Tile 2: Table Selection */}
-        <button
-          type="button"
-          className="pos-action-tile tile--table"
-          onClick={(e) => {
-            e.stopPropagation();
-            hapticTap('light');
-            onSelectTable();
-          }}
-          title="Choose dining table"
-        >
-          <div className="tile-icon-wrap icon-wrap--sky">
-            <LayoutGrid size={17} strokeWidth={2.2} />
-          </div>
-          <div className="tile-info">
-            <span className="tile-title">Select Table</span>
-            <span className="tile-hint">Dine-in map</span>
-          </div>
-        </button>
-
-        {/* Tile 3: Bestsellers */}
-        <button
-          type="button"
-          className={`pos-action-tile tile--bestseller ${isBestsellerActive ? 'active' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            hapticTap('light');
-            onToggleBestsellers();
-          }}
-          title="Filter to top selling items"
-        >
-          <div className="tile-icon-wrap icon-wrap--amber">
-            <Flame size={17} strokeWidth={2.2} />
-          </div>
-          <div className="tile-info">
-            <span className="tile-title">Bestsellers</span>
-            <span className="tile-hint">{isBestsellerActive ? 'Filtering active' : 'Top rush items'}</span>
-          </div>
-        </button>
-
-        {/* Tile 4: Search Menu */}
-        <button
-          type="button"
-          className={`pos-action-tile tile--search ${showSearchInput ? 'active' : ''}`}
-          onClick={handleSearchClick}
-          title="Search menu items"
-        >
-          <div className="tile-icon-wrap icon-wrap--purple">
-            <Search size={17} strokeWidth={2.2} />
-          </div>
-          <div className="tile-info">
-            <span className="tile-title">Find Item</span>
-            <span className="tile-hint">Name / barcode</span>
-          </div>
-        </button>
-      </div>
-
-      {/* Discrete Apple-Style Kitchen Dispatch Widget */}
-      <div 
-        className={`pos-empty-dispatch ${isChanging ? 'fading' : ''}`}
-        onClick={nextDispatch}
-        role="button"
-        tabIndex={0}
-        title="Tap for next dispatch"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            nextDispatch(e);
-          }
-        }}
-      >
-        <div className="dispatch-header">
-          <span className="dispatch-beacon" />
-          <span className="dispatch-tag">{dispatch.tag}</span>
-          <span className="dispatch-icon">{dispatch.icon}</span>
-        </div>
-        <div className="dispatch-text">{dispatch.text}</div>
-      </div>
-    </div>
-  );
-}
-
-function CartCoursePicker({ currentCourse, onSelectCourse }) {
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef(null);
-  const popoverRef = useRef(null);
-
-  const toggle = (e) => {
-    e.stopPropagation();
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const popoverWidth = 142;
-      const popoverHeight = 152;
-      
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const top = spaceBelow >= popoverHeight ? rect.bottom + 4 : rect.top - popoverHeight - 4;
-      const left = Math.max(8, rect.right - popoverWidth);
-      setCoords({ top, left });
-    }
-    setOpen(v => !v);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const handlePointerDown = (e) => {
-      if (
-        triggerRef.current && !triggerRef.current.contains(e.target) &&
-        popoverRef.current && !popoverRef.current.contains(e.target)
-      ) {
-        setOpen(false);
-      }
-    };
-    const handleScrollOrResize = () => setOpen(false);
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [open]);
-
-  const activeCourse = currentCourse ?? 'Mains';
-
-  return (
-    <div className="cart-course-picker-wrapper">
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`cart-course-btn ${open ? 'active' : ''}`}
-        onClick={toggle}
-        title="Change course"
-      >
-        <span className="cart-course-btn-icon">{COURSE_ICONS[activeCourse] || '🍽️'}</span>
-        <span className="cart-course-btn-text">{activeCourse}</span>
-        <ChevronDown size={10} className={`cart-course-btn-chevron ${open ? 'open' : ''}`} />
-      </button>
-
-      {open && createPortal(
-        <div
-          ref={popoverRef}
-          className="cart-course-popover"
-          style={{
-            position: 'fixed',
-            top: coords.top,
-            left: coords.left,
-            zIndex: 99999,
-          }}
-        >
-          <div className="cart-course-popover-title">Course Stage</div>
-          {POS_COURSES.map(c => {
-            const isSelected = c === activeCourse;
-            return (
-              <button
-                key={c}
-                type="button"
-                className={`cart-course-popover-item ${isSelected ? 'selected' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectCourse(c);
-                  setOpen(false);
-                }}
-              >
-                <span className="cart-course-popover-icon">{COURSE_ICONS[c] || '🍽️'}</span>
-                <span className="cart-course-popover-label">{c}</span>
-                {isSelected && <Check size={13} className="cart-course-popover-check" />}
-              </button>
-            );
-          })}
-        </div>,
-        document.body
       )}
     </div>
   );
 }
+
+
 
 export default function POS() {
   const { t } = useTranslation();
@@ -575,6 +274,15 @@ export default function POS() {
 
   // Live active orders in store
   const activeOrders = useOrderStore(s => s.activeOrders);
+  const [showActiveOrdersModal, setShowActiveOrdersModal] = useState(false);
+
+  const runningOrders = useMemo(() => {
+    return (activeOrders || []).filter(o => o.status !== 'billed' && o.status !== 'cancelled');
+  }, [activeOrders]);
+
+  const readyOrdersCount = useMemo(() => {
+    return runningOrders.filter(o => o.status === 'ready').length;
+  }, [runningOrders]);
 
   // Historical sales counts for calculating Bestsellers dynamically
   const [historicalSalesMap, setHistoricalSalesMap] = useState(() => {
@@ -669,19 +377,26 @@ export default function POS() {
   const [managerPin, setManagerPin] = useState('');
 
   const currency  = restaurant?.currency ?? 'INR';
-  const { isRetail, isBillOnly, isService, enableQuickPay, enableBarcode, modes, hasMode } = useBusinessConfig();
+  const { isRetail, isBillOnly, isService, enableBarcode, modes, hasMode } = useBusinessConfig();
   const kitchenConfig = restaurant?.kitchenConfig;
   const hasKdsMode = hasMode('kds');
 
   // When kitchen mode is explicitly enabled via hasMode('kds'), kitchen operations are active even if businessType preset was bill_only/retail/service
   const hasNoKitchen = !hasKdsMode && (isBillOnly || isRetail || isService);
+  const hasKitchenPrinters = restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen');
   const isKitchenActive = !hasNoKitchen && (
     kitchenConfig?.mode === 'disabled'
       ? false
-      : (hasKdsMode || (restaurant?.peripheralConfig?.printers?.some(p => p.type === 'kitchen') && kitchenConfig?.mode === 'printer_only'))
+      : (hasKdsMode || (hasKitchenPrinters && kitchenConfig?.mode === 'printer_only'))
   );
+  const defaultKitchenMode = hasKdsMode
+    ? (hasKitchenPrinters ? 'both' : 'display_only')
+    : (hasKitchenPrinters ? 'printer_only' : 'disabled');
+  const effectiveKitchenMode = (hasKdsMode && !hasKitchenPrinters)
+    ? 'display_only'
+    : (kitchenConfig?.mode || defaultKitchenMode);
   const kitchenMode = isKitchenActive
-    ? (kitchenConfig?.mode || (hasKdsMode ? 'both' : 'printer_only'))
+    ? effectiveKitchenMode
     : 'disabled';
 
   const subtotal  = getSubtotal();
@@ -694,7 +409,6 @@ export default function POS() {
   const remainingTotal = settledTotal > 0 ? Math.max(0, Math.round((total - settledTotal) * 100) / 100) : total;
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
-  const [isQuickPaying, setIsQuickPaying] = useState(false);
 
 
   // Global Hardware Barcode Scanner Listener (HID Keyboard Event)
@@ -741,115 +455,7 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [categories, enableBarcode, isRetail, restaurant?.barcodeEnabled, addItem]);
 
-  const handleQuickPay = async (method, tenderedAmount) => {
-    if (!items.length || isQuickPaying) return;
 
-    // For UPI: Launch dynamic QR code modal immediately for customer to scan
-    if (method === 'upi') {
-      setPaymentMethod('upi');
-      setShowPayment(true);
-      return;
-    }
-
-    setIsQuickPaying(true);
-    setPaymentMethod(method);
-    const toastId = toast.loading(`Processing 1-tap ${method.toUpperCase()} payment...`);
-
-    try {
-      let token = modes.includes('token') ? tokenNumber : null;
-      if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
-        token = await issueToken(restaurant.id);
-        setToken(token);
-      }
-
-      const snapItems = [...items];
-      const snapOrderType = orderType;
-      const snapTableName = tableName;
-      const snapCustomerName = customerName || (customer?.name ?? '');
-      const snapCustomerPhone = customerPhone || (customer?.phone ?? '');
-      const snapSubtotal = subtotal;
-      const snapDiscount = discount;
-      const snapDiscountType = discountType;
-      const snapDiscountAmount = discountAmount;
-      const snapTotal = settledTotal > 0 ? remainingTotal : total;
-      const snapPaymentMethod = method;
-      const snapTaxInfo = taxInfo;
-      const snapStaffName = staffDoc?.name || 'Cashier';
-      const snapNote = note;
-
-      const change = tenderedAmount > snapTotal ? tenderedAmount - snapTotal : 0;
-
-      const res = await submitOrder(restaurant, staffDoc?.id);
-      if (!res.ok) {
-        toast.error(res.error || 'Failed to place order', { id: toastId });
-        return;
-      }
-
-      const printOrder = {
-        id: res.orderId,
-        type: snapOrderType,
-        tableName: snapTableName,
-        token: modes.includes('token') ? (res.token || token) : null,
-        isOffline: Boolean(res.isOffline),
-        customerName: snapCustomerName,
-        customerPhone: snapCustomerPhone,
-        subtotal: snapSubtotal,
-        discount: snapDiscount,
-        discountType: snapDiscountType,
-        discountAmount: snapDiscountAmount,
-        total: snapTotal,
-        paymentMethod: snapPaymentMethod,
-        cashTendered: tenderedAmount,
-        change,
-        currency,
-        note: snapNote,
-      };
-
-      if (res.isOffline) {
-        toast.success(change > 0 
-          ? `Offline payment buffered! Return Change: ${formatCurrency(change, currency)}` 
-          : (modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Will sync when online.` : `Order buffered offline! Will sync when online.`), 
-          { id: toastId, icon: '⚡', duration: 5000 }
-        );
-      } else if (change > 0) {
-        toast.success(`Payment settled! Return Change: ${formatCurrency(change, currency)}`, { id: toastId, icon: '💵', duration: 5000 });
-      } else {
-        toast.success(`Payment complete! Order #${res.orderId.slice(-4)} placed.`, { id: toastId, icon: '⚡' });
-      }
-
-      // Background print
-      setTimeout(() => {
-        printReceipt({
-          restaurant,
-          order: printOrder,
-          items: snapItems,
-          taxInfo: snapTaxInfo,
-          staffName: snapStaffName,
-        });
-
-        if (isKitchenActive && kitchenConfig?.autoPrintOnQuickPay !== false) {
-          printKitchenTickets({
-            restaurant,
-            order: printOrder,
-            items: snapItems,
-            staffName: snapStaffName,
-          });
-        }
-
-        if (modes.includes('token') && token) {
-          printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
-        }
-      }, 50);
-
-      if (restaurant?.receiptConfig?.showDigitalReceiptAfterPay || !restaurant?.peripheralConfig?.printers?.length) {
-        setDigitalReceiptOrder({ ...printOrder, items: snapItems });
-      }
-    } catch (err) {
-      toast.error(err.message || 'Error processing quick payment', { id: toastId });
-    } finally {
-      setIsQuickPaying(false);
-    }
-  };
 
   const itemQtyMap = useMemo(() => {
     const map = {};
@@ -1078,6 +684,24 @@ export default function POS() {
 
       await addDoc(collection(db, 'restaurants', restaurant.id, 'void_logs'), voidLog);
 
+      // Dispatch Kitchen Void Ticket so cooks immediately stop preparing voided items
+      printKitchenVoidTicket({
+        restaurant,
+        order: {
+          id: editingOrderId,
+          type: orderType,
+          tableName,
+          token: modes.includes('token') ? tokenNumber : null
+        },
+        items: [{
+          ...voidAction.item,
+          qty: qtyReduced
+        }],
+        reason: voidReason,
+        staffName: staffDoc?.name || 'Cashier',
+        managerName: managerData.name
+      });
+
       if (voidAction.type === 'remove') {
         // Pass selectedModifiers so the correct variant is removed (not all items with same id)
         removeItem(voidAction.item.id, voidAction.item.selectedModifiers);
@@ -1222,16 +846,12 @@ export default function POS() {
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
-  // Default to 'dine-in' for fresh orders unless pure non-food retail or service
+  // Default non-food retail or service modes to 'takeaway'
   useEffect(() => {
-    if (!isRetail && !isService) {
-      if (!editingOrderId && items.length === 0 && orderType !== 'dine-in') {
-        setOrderType('dine-in');
-      }
-    } else if (orderType === 'dine-in') {
+    if ((isRetail || isService) && orderType === 'dine-in') {
       setOrderType('takeaway');
     }
-  }, [isRetail, isService, editingOrderId, items.length, orderType, setOrderType]);
+  }, [isRetail, isService, orderType, setOrderType]);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
 
@@ -1292,27 +912,35 @@ export default function POS() {
       toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
     }
     
-    // Print kitchen tickets (KOT)
-    setTimeout(() => {
-      printKitchenTickets({
-        restaurant,
-        order: {
-          id: res.orderId || snapEditingOrderId,
-          type: snapOrderType,
-          tableName: snapTableName,
-          tableId: snapTableId,
-          token: modes.includes('token') ? (res.token || token) : null,
-          isOffline: Boolean(res.isOffline),
-          customerName: snapCustomerName,
-          note: snapNote,
-        },
-        items: snapItems,
-        staffName: snapStaffName
-      });
-      if (modes.includes('token') && (token || res.token)) {
+    // Print kitchen tickets (KOT) only when not in display-only (KDS paperless) mode
+    const shouldPrintKot = snapOrderType === 'dine-in'
+      ? (kitchenConfig?.autoPrintOnDineIn !== false)
+      : Boolean(kitchenConfig?.autoPrintOnTakeaway);
+
+    if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && shouldPrintKot) {
+      setTimeout(() => {
+        printKitchenTickets({
+          restaurant,
+          order: {
+            id: res.orderId || snapEditingOrderId,
+            type: snapOrderType,
+            tableName: snapTableName,
+            tableId: snapTableId,
+            token: modes.includes('token') ? (res.token || token) : null,
+            isOffline: Boolean(res.isOffline),
+            customerName: snapCustomerName,
+            note: snapNote,
+          },
+          items: snapItems,
+          staffName: snapStaffName
+        });
+      }, 100);
+    }
+    if (modes.includes('token') && (token || res.token)) {
+      setTimeout(() => {
         printTokenTicket({ token: res.token || token, orderType: snapOrderType, customerName: snapCustomerName, restaurant, isOffline: Boolean(res.isOffline) });
-      }
-    }, 100);
+      }, 100);
+    }
   };
 
   const handlePrintPreBill = () => {
@@ -1337,7 +965,8 @@ export default function POS() {
       order: printOrder,
       items,
       taxInfo,
-      staffName: staffDoc?.name || 'Cashier'
+      staffName: staffDoc?.name || 'Cashier',
+      isManual: true
     });
     toast.success(`Guest check printed for Table ${tableName || ''}!`, { icon: '🖨️' });
   };
@@ -1455,12 +1084,18 @@ export default function POS() {
           staffName: snapStaffName,
         });
 
-        printKitchenTickets({
-          restaurant,
-          order: printOrder,
-          items: snapItems,
-          staffName: snapStaffName,
-        });
+        const shouldPrintKot = snapOrderType === 'dine-in'
+          ? (kitchenConfig?.autoPrintOnDineIn !== false)
+          : Boolean(kitchenConfig?.autoPrintOnQuickPay);
+
+        if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && shouldPrintKot) {
+          printKitchenTickets({
+            restaurant,
+            order: printOrder,
+            items: snapItems,
+            staffName: snapStaffName,
+          });
+        }
 
         if (modes.includes('token') && token) {
           printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
@@ -1676,6 +1311,23 @@ export default function POS() {
                 <span className="category-chip-name">All Items</span>
                 <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
               </button>
+              {runningOrders.length > 0 && (
+                <button
+                  type="button"
+                  className="category-chip"
+                  onClick={() => setShowActiveOrdersModal(true)}
+                  style={{
+                    background: readyOrdersCount > 0 ? '#10b981' : 'rgba(59, 130, 246, 0.12)',
+                    color: readyOrdersCount > 0 ? '#fff' : '#2563eb',
+                    borderColor: readyOrdersCount > 0 ? '#10b981' : 'rgba(59, 130, 246, 0.3)',
+                    fontWeight: 800
+                  }}
+                  title="View active kitchen tickets & ready orders"
+                >
+                  <span>{readyOrdersCount > 0 ? '🔔' : '📋'}</span>
+                  <span className="category-chip-name">{readyOrdersCount > 0 ? `${readyOrdersCount} Ready` : `${runningOrders.length} Orders`}</span>
+                </button>
+              )}
               {categories.map(c => (
                 <button
                   key={c.id}
@@ -2004,6 +1656,30 @@ export default function POS() {
             )}
           </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            {runningOrders.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setShowActiveOrdersModal(true)}
+                title="View active kitchen orders, reprint bills, or settle payments"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  height: '26px',
+                  padding: '0 8px',
+                  fontSize: '11px',
+                  borderRadius: 'var(--radius-full)',
+                  background: readyOrdersCount > 0 ? 'rgba(16, 185, 129, 0.16)' : 'var(--color-bg-secondary)',
+                  color: readyOrdersCount > 0 ? '#10b981' : 'var(--color-label)',
+                  border: readyOrdersCount > 0 ? '1px solid #10b981' : '1px solid var(--color-separator)',
+                  fontWeight: 700
+                }}
+              >
+                <span>{readyOrdersCount > 0 ? '🔔' : '📋'}</span>
+                <span>{runningOrders.length} Order{runningOrders.length > 1 ? 's' : ''}</span>
+              </button>
+            )}
             <button 
               className="btn btn-secondary btn-sm desktop-only" 
               onClick={() => setShowTillModal(true)} 
@@ -2058,9 +1734,10 @@ export default function POS() {
                 className="btn btn-ghost btn-xs"
                 onClick={handlePrintPreBill}
                 title="Print Guest Bill / Pre-Bill Check"
-                style={{ color: '#1e40af', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(255,255,255,0.7)', borderRadius: 6, border: '1px solid rgba(30,64,175,0.2)' }}
+                style={{ color: '#1e40af', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(255,255,255,0.7)', borderRadius: 6, border: '1px solid rgba(30,64,175,0.2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
               >
-                🖨️ Bill
+                <Printer size={12} />
+                <span>Bill</span>
               </button>
               <button 
                 type="button"
@@ -2173,56 +1850,142 @@ export default function POS() {
               </div>
             )}
 
-            {/* Service Details: Table and Customer/Loyalty (Unified Segmented Card) */}
-            <div className={`cart-service-details ${orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
-              {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
-                <div className="cart-service-row cart-service-table-row">
-                  <button
-                    type="button"
-                    onClick={() => setShowTableSel(true)}
-                    className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
-                    id="select-table-dropdown"
-                    title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
-                  >
-                    <span className="cart-table-select-content">
-                      <span className="cart-table-icon">🪑</span>
-                      <span className="cart-table-label">
-                        {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
-                      </span>
-                    </span>
-                    <span className="cart-table-chevron-wrap">
-                      {tableId ? (
-                        <span className="cart-table-badge-active">Assigned</span>
-                      ) : (
-                        <span className="cart-table-badge-choose">Floor Map ▾</span>
-                      )}
-                    </span>
-                  </button>
-                  {tableId && (
+            {/* Service Details: Table for Dine-In, or Clean Customer inputs for Takeaway */}
+            {orderType === 'dine-in' ? (
+              <div className={`cart-service-details ${(restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
+                {(restaurant?.features?.table || modes.includes('table')) && (
+                  <div className="cart-service-row cart-service-table-row">
                     <button
                       type="button"
-                      className="cart-table-unassign-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTable(null, null);
-                      }}
-                      title="Clear table assignment"
+                      onClick={() => setShowTableSel(true)}
+                      className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
+                      id="select-table-dropdown"
+                      title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
                     >
-                      <X size={12} />
+                      <span className="cart-table-select-content">
+                        <span className="cart-table-icon">🪑</span>
+                        <span className="cart-table-label">
+                          {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                        </span>
+                      </span>
+                      <span className="cart-table-chevron-wrap">
+                        {tableId ? (
+                          <span className="cart-table-badge-active">Assigned</span>
+                        ) : (
+                          <span className="cart-table-badge-choose">Floor Map ▾</span>
+                        )}
+                      </span>
                     </button>
+                    {tableId && (
+                      <button
+                        type="button"
+                        className="cart-table-unassign-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTable(null, null);
+                        }}
+                        title="Clear table assignment"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer / Loyalty Info row */}
+                <div className="cart-service-row cart-service-customer-row">
+                  {customer ? (
+                    <div className="cart-customer-vip-card">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          👤 {customer.name}
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                          ⭐ {customer.points} pts
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerProfile(null);
+                          setCustomer('', '');
+                          setRedeemingPoints(false);
+                        }}
+                        style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                        title="Remove customer"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : showQuickRegister ? (
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px' }}>
+                      <input
+                        className="form-input"
+                        placeholder="Customer name"
+                        value={newCustName}
+                        onChange={e => setNewCustName(e.target.value)}
+                        style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-success btn-xs"
+                        onClick={handleQuickRegister}
+                        style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                      >
+                        ✓
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => setShowQuickRegister(false)}
+                        style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="cart-customer-search-wrap">
+                      <Search size={13} className="cart-customer-search-icon" />
+                      <input
+                        className="cart-customer-search-input"
+                        placeholder="Customer phone or loyalty #..."
+                        value={custSearch}
+                        onChange={e => {
+                          setCustSearch(e.target.value);
+                          if (e.target.value.replace(/\D/g, '').length >= 8) {
+                            handleCustomerLookup(e.target.value);
+                          }
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            handleCustomerLookup(custSearch);
+                          }
+                        }}
+                      />
+                      {custSearch && (
+                        <button
+                          type="button"
+                          className="cart-customer-search-clear"
+                          onClick={() => setCustSearch('')}
+                          title="Clear search"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-
-              {/* Customer / Loyalty Info row */}
-              <div className="cart-service-row cart-service-customer-row">
+              </div>
+            ) : (
+              /* Takeaway: Sleek single line (Customer + Phone) */
+              <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-separator)', display: 'flex', gap: '8px', background: 'var(--color-bg-secondary)', alignItems: 'center' }}>
                 {customer ? (
-                  <div className="cart-customer-vip-card">
+                  <div className="cart-customer-vip-card" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                       <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         👤 {customer.name}
                       </span>
-                      <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
                         ⭐ {customer.points} pts
                       </span>
                     </div>
@@ -2233,87 +1996,45 @@ export default function POS() {
                         setCustomer('', '');
                         setRedeemingPoints(false);
                       }}
-                      style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                      title="Remove customer"
+                      style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                      title="Clear customer"
                     >
                       <X size={12} />
                     </button>
                   </div>
-                ) : showQuickRegister ? (
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px' }}>
+                ) : (
+                  <>
                     <input
                       className="form-input"
-                      placeholder="Customer name"
-                      value={newCustName}
-                      onChange={e => setNewCustName(e.target.value)}
-                      style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1 }}
+                      placeholder="Customer name (optional)"
+                      value={customerName}
+                      onChange={e => setCustomer(e.target.value, customerPhone)}
+                      id="customer-name-input"
+                      style={{ fontSize: '12px', height: '30px', padding: '2px 8px', flex: 1, borderRadius: '6px' }}
                     />
-                    <button
-                      type="button"
-                      className="btn btn-success btn-xs"
-                      onClick={handleQuickRegister}
-                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
-                    >
-                      ✓
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-xs"
-                      onClick={() => setShowQuickRegister(false)}
-                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <div className="cart-customer-search-wrap">
-                    <Search size={13} className="cart-customer-search-icon" />
                     <input
-                      className="cart-customer-search-input"
-                      placeholder="Customer phone or loyalty #..."
-                      value={custSearch}
+                      className="form-input"
+                      placeholder="Phone # (optional)"
+                      value={customerPhone}
                       onChange={e => {
-                        setCustSearch(e.target.value);
-                        if (e.target.value.replace(/\D/g, '').length >= 8) {
-                          handleCustomerLookup(e.target.value);
+                        const val = e.target.value;
+                        setCustomer(customerName, val);
+                        if (val.replace(/\D/g, '').length >= 8) {
+                          handleCustomerLookup(val);
                         }
                       }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          handleCustomerLookup(custSearch);
-                        }
-                      }}
+                      id="customer-phone-input"
+                      style={{ fontSize: '12px', height: '30px', padding: '2px 8px', width: '125px', borderRadius: '6px' }}
                     />
-                    {custSearch && (
-                      <button
-                        type="button"
-                        className="cart-customer-search-clear"
-                        onClick={() => setCustSearch('')}
-                        title="Clear search"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
+                  </>
                 )}
-              </div>
-            </div>
-
-            {orderType === 'takeaway' && !customer && !showQuickRegister && (
-              <div style={{ padding: '6px var(--space-4)', borderBottom: '1px solid var(--color-separator)', display:'flex', gap:'var(--space-2)', background: 'var(--color-bg-secondary)' }}>
-                <input className="form-input" placeholder="Customer name" value={customerName}
-                  onChange={e => setCustomer(e.target.value, customerPhone)}
-                  id="customer-name-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', flex: 1 }} />
-                <input className="form-input" placeholder="Phone" value={customerPhone}
-                  onChange={e => setCustomer(customerName, e.target.value)}
-                  id="customer-phone-input" style={{ fontSize: '12px', height: '30px', padding: '4px 8px', width: 115 }} />
               </div>
             )}
           </div>
         )}
 
-        {/* Active Seats Bar for Dine-In */}
-        {orderType === 'dine-in' && items.length > 0 && (
+        {/* Active Seats Bar for Dine-In (only when seats are actively being tagged) */}
+        {orderType === 'dine-in' && items.length > 0 && (items.some(i => i.seatNumber) || activeSeat !== null) && (
           <div className="cart-seats-bar">
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <Armchair size={12} /> Seat:
@@ -2357,11 +2078,6 @@ export default function POS() {
           {items.length === 0 ? (
             <EmptyCartState
               onAddCustomItem={() => setShowOpenItemModal(true)}
-              onSelectTable={() => setShowTableSel(true)}
-              isBestsellerActive={dietaryFilter === 'bestseller'}
-              onToggleBestsellers={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-              search={search}
-              setSearch={setSearch}
             />
           ) : (
             (() => {
@@ -2372,34 +2088,39 @@ export default function POS() {
                 Desserts: '#8b5cf6',
                 Beverages: '#f59e0b',
               };
+              const activeCoursesWithItems = COURSES.filter(c => items.some(i => (i.course ?? 'Mains') === c));
+              const showCourseHeaders = activeCoursesWithItems.length > 1;
+
               return COURSES.map(courseName => {
                 const courseItems = items.filter(i => (i.course ?? 'Mains') === courseName);
                 if (courseItems.length === 0) return null;
                 return (
                   <div key={courseName} className="cart-course-section">
-                    {/* Course Header */}
-                    <div className="cart-course-header">
-                      <span className="cart-course-pill">
-                        <span className="cart-course-dot" style={{ background: courseColors[courseName] || 'var(--color-accent)' }} />
-                        {courseName}
-                      </span>
-                      <span className="cart-course-count">({courseItems.length})</span>
-                      <div className="cart-course-header-line" />
-                      {editingOrderId && courseItems.some(i => i.prepState === 'hold') && (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-xs"
-                          onClick={async () => {
-                            const res = await useOrderStore.getState().fireCourse(restaurant.id, editingOrderId, courseName);
-                            if (res.ok) toast.success(`Fired ${courseName}!`);
-                            else toast.error(`Fire failed: ${res.error}`);
-                          }}
-                          style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0 }}
-                        >
-                          🔥 Fire
-                        </button>
-                      )}
-                    </div>
+                    {/* Course Header — only displayed when multiple courses are in cart */}
+                    {showCourseHeaders && (
+                      <div className="cart-course-header">
+                        <span className="cart-course-pill">
+                          <span className="cart-course-dot" style={{ background: courseColors[courseName] || 'var(--color-accent)' }} />
+                          {courseName}
+                        </span>
+                        <span className="cart-course-count">({courseItems.length})</span>
+                        <div className="cart-course-header-line" />
+                        {editingOrderId && courseItems.some(i => i.prepState === 'hold') && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-xs"
+                            onClick={async () => {
+                              const res = await useOrderStore.getState().fireCourse(restaurant.id, editingOrderId, courseName);
+                              if (res.ok) toast.success(`Fired ${courseName}!`);
+                              else toast.error(`Fire failed: ${res.error}`);
+                            }}
+                            style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0 }}
+                          >
+                            🔥 Fire
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Course Items */}
                     <div className="cart-course-cards">
@@ -2426,42 +2147,33 @@ export default function POS() {
                           </div>
                         )}
 
-                        {/* Row 2: Status + Course + Seat | → Stepper + Far-Right Delete */}
+                        {/* Row 2: Clean action row: special badges only when set → Stepper + Delete */}
                         <div className="cart-item-card-bottom">
-                          {/* Status Badge */}
-                          <button
-                            type="button"
-                            className={`cart-status-badge ${i.prepState === 'hold' ? 'hold' : 'fired'}`}
-                            onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
-                            title={i.prepState === 'hold' ? 'On hold - click to fire' : 'Fired - click to hold'}
-                          >
-                            {i.prepState === 'hold' ? (
-                              <><Clock size={10} /> Hold</>
-                            ) : (
-                              <><Flame size={10} /> Fired</>
-                            )}
-                          </button>
+                          {/* Hold Badge — only visible if explicitly on hold */}
+                          {i.prepState === 'hold' && (
+                            <button
+                              type="button"
+                              className="cart-status-badge hold"
+                              onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
+                              title="On hold - click to fire"
+                            >
+                              <Clock size={10} /> Hold
+                            </button>
+                          )}
 
-                          {/* Course Picker */}
-                          <CartCoursePicker
-                            currentCourse={i.course}
-                            onSelectCourse={(course) => useOrderStore.getState().setItemCourse(i.id, course)}
-                          />
-
-                          {/* Seat Badge for Dine-In */}
-                          {orderType === 'dine-in' && (
+                          {/* Seat Badge — only visible if item is specifically tagged to a seat */}
+                          {orderType === 'dine-in' && i.seatNumber && (
                             <button
                               type="button"
                               className="cart-item-seat-badge"
                               onClick={() => {
                                 hapticTap('light');
-                                const nextSeat = i.seatNumber ? (i.seatNumber >= 4 ? null : i.seatNumber + 1) : 1;
+                                const nextSeat = i.seatNumber >= 4 ? null : i.seatNumber + 1;
                                 setItemSeat(i.id, nextSeat, i.selectedModifiers);
-                                toast.success(nextSeat ? `Assigned to Seat ${nextSeat}` : 'Set to Table / Shared', { duration: 1000, icon: '🪑' });
                               }}
-                              title="Click to cycle seat assignment (Seat 1 → 2 → 3 → 4 → Table)"
+                              title={`Seat ${i.seatNumber} - click to change`}
                             >
-                              🪑 {i.seatNumber ? `S${i.seatNumber}` : 'Table'}
+                              🪑 S{i.seatNumber}
                             </button>
                           )}
 
@@ -2686,85 +2398,100 @@ export default function POS() {
               </div>
             )}
 
-            {/* Grand Total Row with Inlined Addons */}
-            <div className="cart-total-row grand-total">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            {/* Quick Addons Micro-Bar: Discount · Note · Split */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '0 0 6px 0' }}>
+              {/* Discount Pill / Micro-Button */}
+              {discount > 0 ? (
+                <div className="cart-addon-micro-chip">
+                  <Tag size={10} />
+                  <span 
+                    onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to edit discount"
+                  >
+                    {discountType === 'percent' ? `${discount}% OFF` : formatCurrency(discount, currency)}
+                  </span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
+                    title="Remove discount"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                  className="cart-breakdown-toggle-btn"
-                  title="Click to toggle tax breakdown details"
+                  className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
+                  onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                  title="Add discount"
                 >
-                  <span>{t('total')}</span>
-                  <span className="cart-tax-indicator">
-                    {showTotalsBreakdown ? '▲' : '▼'}
-                  </span>
+                  <Tag size={10} /> +Disc
                 </button>
+              )}
 
-                {/* Inline Discount Pill / Micro-Button */}
-                {discount > 0 ? (
-                  <div className="cart-addon-micro-chip">
-                    <Tag size={10} />
-                    <span 
-                      onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                      style={{ cursor: 'pointer' }}
-                      title="Click to edit discount"
-                    >
-                      {discountType === 'percent' ? `${discount}%` : formatCurrency(discount, currency)}
-                    </span>
-                    <button
-                      type="button"
-                      className="cart-addon-remove"
-                      onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
-                      title="Remove discount"
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
-                    onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                    title="Add discount"
-                  >
-                    <Tag size={10} /> +Disc
-                  </button>
-                )}
-
-                {/* Inline Note Pill / Micro-Button */}
-                {note ? (
-                  <div className="cart-addon-micro-chip note-chip">
-                    <FileText size={10} />
-                    <span 
-                      onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
-                      style={{ cursor: 'pointer', maxWidth: '75px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={note}
-                    >
-                      "{note}"
-                    </span>
-                    <button
-                      type="button"
-                      className="cart-addon-remove"
-                      onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
-                      title="Clear note"
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className={`cart-addon-micro-btn ${activeAddon === 'note' ? 'active' : ''}`}
+              {/* Note Pill / Micro-Button */}
+              {note ? (
+                <div className="cart-addon-micro-chip note-chip">
+                  <FileText size={10} />
+                  <span 
                     onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
-                    title="Add note"
+                    style={{ cursor: 'pointer', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={note}
                   >
-                    <FileText size={10} /> +Note
+                    "{note}"
+                  </span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
+                    title="Clear note"
+                  >
+                    <X size={10} />
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`cart-addon-micro-btn ${activeAddon === 'note' ? 'active' : ''}`}
+                  onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
+                  title="Add note"
+                >
+                  <FileText size={10} /> +Note
+                </button>
+              )}
 
-              {/* Total Value */}
+              {/* Split Check Button (Dine-In only) */}
+              {orderType === 'dine-in' && (
+                <button
+                  type="button"
+                  id="pos-split-check-btn"
+                  className="cart-addon-micro-btn"
+                  onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
+                  title="Split table bill by seat, fraction, or items"
+                  style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.08)' }}
+                >
+                  <Split size={10} /> Split
+                </button>
+              )}
+            </div>
+
+            {/* Grand Total Line */}
+            <div className="cart-total-row grand-total" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '6px 0 2px', borderTop: '1px solid var(--color-separator)' }}>
+              <button
+                type="button"
+                onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                className="cart-breakdown-toggle-btn"
+                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-label-primary)', fontWeight: 700, fontSize: 13 }}
+                title="Click to toggle tax breakdown details"
+              >
+                <span>{t('total')}</span>
+                <span className="cart-tax-indicator" style={{ fontSize: 9, opacity: 0.7 }}>
+                  {showTotalsBreakdown ? '▲' : '▼'}
+                </span>
+              </button>
+
               {settledTotal > 0 ? (
                 <div 
                   onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
@@ -2774,14 +2501,14 @@ export default function POS() {
                   <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', textDecoration: 'line-through' }}>
                     {formatCurrency(total, currency)}
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: 16, color: '#10b981' }}>
+                  <div style={{ fontWeight: 800, fontSize: 17, color: '#10b981' }}>
                     Due {formatCurrency(remainingTotal, currency)}
                   </div>
                 </div>
               ) : (
                 <span 
                   onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                  style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 16 }}
+                  style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--color-label-primary)' }}
                   title="Click to toggle tax breakdown details"
                 >
                   {formatCurrency(total, currency)}
@@ -2791,61 +2518,40 @@ export default function POS() {
           </div>
         )}
 
-        {/* Quick Pay Bar for Instant 1-Tap Queue Busting */}
-        {items.length > 0 && enableQuickPay && (
-          <QuickPayBar
-            total={remainingTotal}
-            currency={currency}
-            onQuickPay={handleQuickPay}
-            isProcessing={isQuickPaying}
-            hasUpi={Boolean(restaurant?.upiConfig?.vpa)}
-            terminalProvider={restaurant?.terminalConfig?.provider}
-          />
-        )}
-
-        {/* Quick Split Check Button for Dine-in */}
-        {orderType === 'dine-in' && items.length > 0 && (
-          <div style={{ padding: '0 var(--space-3) 8px', display: 'flex' }}>
-            <button
-              type="button"
-              id="pos-split-check-btn"
-              onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#10b981',
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: 10,
-                padding: '7px 12px',
-                cursor: 'pointer'
-              }}
-              title="Split table bill by seat, equal fraction, or custom item checks"
-            >
-              <Split size={14} />
-              <span>Split Check (by Seat / Items)</span>
-            </button>
-          </div>
-        )}
-
-        {/* Actions */}
+        {/* Action Buttons */}
         {isKitchenActive ? (
-          <div className="cart-action-buttons">
+          <div 
+            className="cart-action-buttons" 
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: orderType === 'dine-in' ? '44px 1fr 1.35fr' : '1fr 1.35fr', 
+              gap: 8,
+              padding: '10px 12px 14px'
+            }}
+          >
+            {orderType === 'dine-in' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                id="print-prebill-btn"
+                onClick={handlePrintPreBill}
+                disabled={!items.length}
+                type="button"
+                style={{ width: 44, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                title="Print Customer Bill / Pre-Bill Check"
+                aria-label="Print Customer Bill"
+              >
+                <Printer size={18} />
+              </button>
+            )}
             <button
               className="cart-action-btn-kitchen"
               id="send-to-kitchen-btn"
               onClick={handleSendToKitchen}
               disabled={!items.length}
               type="button"
-              style={{ opacity: items.length ? 1 : 0.4 }}
+              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               title={kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)"}
             >
-              <span className="btn-3d-emoji">🍳</span>
               <span>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
             </button>
             <button
@@ -2854,36 +2560,37 @@ export default function POS() {
               onClick={handleCheckout}
               disabled={!items.length}
               type="button"
-              style={{ opacity: items.length ? 1 : 0.4 }}
+              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               title="Proceed to payment & checkout"
             >
-              <span className="btn-3d-emoji">⚡</span>
-              <span>Checkout</span>
+              <span>Pay {formatCurrency(remainingTotal, currency)}</span>
             </button>
           </div>
         ) : (
-          <button
-            className="cart-checkout-btn"
-            id="checkout-btn"
-            onClick={handleCheckout}
-            disabled={!items.length}
-            type="button"
-            style={{ opacity: items.length ? 1 : 0.4 }}
-          >
-            <div className="cart-checkout-btn-left">
-              <span className="cart-checkout-icon">⚡</span>
-              <span className="cart-checkout-title">{t('checkout')}</span>
-              {items.length > 0 && (
-                <span className="cart-checkout-badge">
-                  {items.reduce((s, i) => s + i.qty, 0)}
-                </span>
-              )}
-            </div>
-            <div className="cart-checkout-btn-right">
-              <span className="cart-checkout-amount">{formatCurrency(total, currency)}</span>
-              <ChevronRight size={18} className="cart-checkout-arrow" />
-            </div>
-          </button>
+          <div style={{ display: 'flex', gap: 8, padding: '10px 12px 14px' }}>
+            <button
+              className="btn btn-secondary"
+              id="print-prebill-btn"
+              onClick={handlePrintPreBill}
+              disabled={!items.length}
+              type="button"
+              style={{ width: 44, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              title="Print Customer Bill / Pre-Bill Check"
+              aria-label="Print Customer Bill"
+            >
+              <Printer size={18} />
+            </button>
+            <button
+              className="cart-checkout-btn"
+              id="checkout-btn"
+              onClick={handleCheckout}
+              disabled={!items.length}
+              type="button"
+              style={{ flex: 1, height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <span className="cart-checkout-title" style={{ fontSize: 14, fontWeight: 800 }}>Pay {formatCurrency(total, currency)}</span>
+            </button>
+          </div>
         )}
       </div>
       </div>
@@ -2939,14 +2646,16 @@ export default function POS() {
                   const res = await submitOrder(restaurant, staffDoc?.id);
                   if (!res.ok) { toast.error(res.error); return; }
                   toast.success('New items sent to kitchen!', { icon: '🍳' });
-                  setTimeout(() => {
-                    printKitchenTickets({
-                      restaurant,
-                      order: { id: activeOrder.id, tableName: name, tableId: id, type: 'dine-in' },
-                      items: currentCartItems,
-                      staffName: staffDoc?.name || 'Waiter'
-                    });
-                  }, 100);
+                  if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
+                    setTimeout(() => {
+                      printKitchenTickets({
+                        restaurant,
+                        order: { id: activeOrder.id, tableName: name, tableId: id, type: 'dine-in' },
+                        items: currentCartItems,
+                        staffName: staffDoc?.name || 'Waiter'
+                      });
+                    }, 100);
+                  }
                 }
                 return;
               }
@@ -2963,14 +2672,16 @@ export default function POS() {
                 const res = await submitOrder(restaurant, staffDoc?.id);
                 if (!res.ok) { toast.error(res.error); return; }
                 toast.success('Order sent to kitchen!', { icon: '🍳' });
-                setTimeout(() => {
-                  printKitchenTickets({
-                    restaurant,
-                    order: { id: res.orderId, tableName: name, tableId: id, type: 'dine-in' },
-                    items: currentItems,
-                    staffName: staffDoc?.name || 'Waiter'
-                  });
-                }, 100);
+                if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
+                  setTimeout(() => {
+                    printKitchenTickets({
+                      restaurant,
+                      order: { id: res.orderId, tableName: name, tableId: id, type: 'dine-in' },
+                      items: currentItems,
+                      staffName: staffDoc?.name || 'Waiter'
+                    });
+                  }, 100);
+                }
               }
             } else {
               toast.success(`Assigned to Table ${name}`, { icon: '🪑' });
@@ -3079,6 +2790,23 @@ export default function POS() {
               items: digitalReceiptOrder.items || [],
               staffName: staffDoc?.name || 'Cashier'
             });
+          }}
+        />
+      )}
+
+      {/* Active Kitchen & Takeaway Orders Modal */}
+      {showActiveOrdersModal && (
+        <ActiveOrdersModal
+          isOpen={showActiveOrdersModal}
+          onClose={() => setShowActiveOrdersModal(false)}
+          restaurant={restaurant}
+          currency={currency}
+          staffName={staffDoc?.name || 'Cashier'}
+          onLoadOrderToCart={(order) => {
+            loadOrderToCart(order);
+          }}
+          onOpenPayment={() => {
+            setShowPayment(true);
           }}
         />
       )}

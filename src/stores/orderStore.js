@@ -1403,6 +1403,11 @@ export const useOrderStore = create((set, get) => ({
   },
 
   updateOrderStatus: async (restaurantId, orderId, status) => {
+    // 0. Resolve order and its tableId BEFORE filtering from activeOrders
+    const active = get().activeOrders || [];
+    const queue = useOfflineQueueStore.getState().queue || [];
+    const targetOrder = active.find(o => o.id === orderId) || queue.find(o => o.id === orderId);
+
     // 1. Immediately update active order status locally for zero UI lag
     set(s => ({
       activeOrders: ['billed', 'cancelled'].includes(status)
@@ -1420,7 +1425,6 @@ export const useOrderStore = create((set, get) => ({
     }
 
     // 2. If present in offline queue, update status in offline queue as well
-    const queue = useOfflineQueueStore.getState().queue || [];
     if (queue.some(o => o.id === orderId)) {
       const updatedQueue = queue.map(o => o.id === orderId ? {
         ...o,
@@ -1435,8 +1439,6 @@ export const useOrderStore = create((set, get) => ({
 
     // 3. If cancelling or completing an order on a table, free the table in tableStore
     if (['cancelled', 'billed'].includes(status)) {
-      const active = get().activeOrders || [];
-      const targetOrder = active.find(o => o.id === orderId) || queue.find(o => o.id === orderId);
       if (targetOrder?.tableId) {
         try {
           useTableStore.getState().freeTable(restaurantId, targetOrder.tableId);

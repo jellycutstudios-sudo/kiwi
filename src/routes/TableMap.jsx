@@ -12,7 +12,8 @@ import QRCode from 'qrcode';
 import {
   ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
-  Users, Banknote, CreditCard, QrCode, Layers, Trash2, Sliders, Download, BarChart3
+  Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
+  Copy, Wand2, Sparkles
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds } from '../utils/timezoneUtils';
@@ -42,6 +43,7 @@ export default function TableMap() {
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const canEditLayout = !staffDoc || ['admin', 'super_admin', 'manager', 'owner'].includes(staffDoc?.role);
+  const isOwnerOrAdmin = !staffDoc || ['admin', 'super_admin', 'owner'].includes(staffDoc?.role);
 
   const tables = useTableStore(s => s.tables);
   const subscribe = useTableStore(s => s.subscribe);
@@ -96,15 +98,39 @@ export default function TableMap() {
   const [newFloorName, setNewFloorName] = useState('');
   const [autoAddFirstTable, setAutoAddFirstTable] = useState(true);
 
+  // Bulk Table Generator & Presets State
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkCount, setBulkCount] = useState(8);
+  const [bulkPrefix, setBulkPrefix] = useState('T');
+  const [bulkCapacity, setBulkCapacity] = useState(4);
+  const [bulkShape, setBulkShape] = useState('rect');
+  const [bulkFloor, setBulkFloor] = useState('Ground Floor');
+  const [showPresetsMenu, setShowPresetsMenu] = useState(false);
+
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // View mode: 'grid' (clean, organized Petpooja-style table cards) or 'map' (2D layout)
-  const [viewMode, setViewMode] = useState(() => (searchParams.get('edit') === 'true' ? 'map' : 'grid'));
+  // View mode: 'grid' (fast, clutter-free operations) or 'map' (2D layout canvas)
+  const [viewMode, setViewMode] = useState(() => {
+    if (searchParams.get('edit') === 'true') return 'map';
+    try {
+      return localStorage.getItem('kiwi_table_view_mode') || 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const handleSwitchView = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('kiwi_table_view_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
 
   // Ensure map mode when edit parameter is present
   useEffect(() => {
@@ -171,12 +197,16 @@ export default function TableMap() {
       // Default to neat grid slot if table has no saved coordinates
       const defaultX = 70 + (idx % 4) * 200;
       const defaultY = 60 + Math.floor(idx / 4) * 170;
+      const isRect = (t.shape || 'rect') === 'rect';
+      const cap = Number(t.capacity) || 4;
+      const defaultW = isRect ? (cap > 6 ? 140 : (cap > 4 ? 120 : (cap <= 2 ? 80 : 105))) : (cap > 6 ? 110 : (cap <= 2 ? 75 : 90));
+      const defaultH = isRect ? (cap > 6 ? 80 : (cap <= 2 ? 75 : 75)) : (cap > 6 ? 110 : (cap <= 2 ? 75 : 90));
       return {
         ...t,
         renderX: isThisDragging ? dragTablePos.x : (t.x ?? defaultX),
         renderY: isThisDragging ? dragTablePos.y : (t.y ?? defaultY),
-        renderW: t.w ?? ((Number(t.capacity) || 4) > 6 ? 110 : 90),
-        renderH: t.h ?? ((Number(t.capacity) || 4) > 6 ? 110 : 90),
+        renderW: t.w ?? defaultW,
+        renderH: t.h ?? defaultH,
       };
     });
   }, [floorTables, isEditingLayout, dragTablePos]);
@@ -271,46 +301,221 @@ export default function TableMap() {
     }
   };
 
+  const exitEditLayout = () => {
+    setIsEditingLayout(false);
+    setSelectedEditTableId(null);
+    setDragging(null);
+    setSearchParams({});
+    const preferredView = (() => {
+      try {
+        return localStorage.getItem('kiwi_table_view_mode') || 'grid';
+      } catch {
+        return 'grid';
+      }
+    })();
+    setViewMode(preferredView);
+  };
+
   const toggleEditLayout = () => {
-    const next = !isEditingLayout;
-    setIsEditingLayout(next);
-    if (next) {
+    if (isEditingLayout) {
+      exitEditLayout();
+    } else {
+      setIsEditingLayout(true);
       setViewMode('map');
       setSelected(null);
       setSearchParams({ edit: 'true' });
-    } else {
-      setSelectedEditTableId(null);
-      setDragging(null);
-      setSearchParams({});
     }
   };
 
   const handleAddTable = async () => {
     if (!restaurant?.id) return;
     const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
-    const count = currentFloorTables.length;
-    const prefix = activeFloor === 'Ground Floor' ? 'T' : activeFloor[0].toUpperCase();
+    const prefix = activeFloor === 'Ground Floor' ? 'T' : (activeFloor[0]?.toUpperCase() || 'T');
+
+    // Find highest existing numeric suffix across ALL tables on this floor to eliminate duplicate names
+    const existingNums = currentFloorTables
+      .map(t => {
+        const m = (t.name || '').match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
+        return m ? parseInt(m[1], 10) : null;
+      })
+      .filter(n => n !== null && !isNaN(n));
+
+    const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : currentFloorTables.length + 1;
+    const nextName = `${prefix}${nextNum}`;
 
     // Calculate smart grid position so newly added tables don't stack on top of each other
+    const count = currentFloorTables.length;
     const col = count % 4;
     const row = Math.floor(count / 4);
-    const posX = 60 + col * 180;
-    const posY = 60 + row * 160;
+    const posX = 70 + col * 200;
+    const posY = 60 + row * 170;
 
     try {
       await addTable(restaurant.id, {
-        name: `${prefix}${count + 1}`,
+        name: nextName,
         capacity: 4,
         shape: 'rect',
-        x: Math.min(posX, 800),
+        x: Math.min(posX, 750),
         y: Math.min(posY, 500),
-        w: 90,
-        h: 90,
+        w: 105,
+        h: 75,
         floor: activeFloor,
+        section: activeFloor,
       });
-      toast.success(`Table ${prefix}${count + 1} added to ${activeFloor}! Drag to position it.`, { icon: '🍽️' });
+      toast.success(`Table ${nextName} added to ${activeFloor}! Drag to position it.`, { icon: '🍽️' });
     } catch (err) {
       toast.error('Failed to add table: ' + err.message);
+    }
+  };
+
+  const handleOpenBulkModal = () => {
+    const prefix = activeFloor === 'Ground Floor' ? 'T' : (activeFloor[0]?.toUpperCase() || 'T');
+    setBulkPrefix(prefix);
+    setBulkFloor(activeFloor);
+    setShowBulkModal(true);
+  };
+
+  const handleExecuteBulkCreate = async (e) => {
+    if (e) e.preventDefault();
+    if (!restaurant?.id) return;
+    const count = Math.min(Math.max(parseInt(bulkCount, 10) || 1, 1), 30);
+    const cap = parseInt(bulkCapacity, 10) || 4;
+    const shape = bulkShape || 'rect';
+    const floor = bulkFloor || activeFloor;
+    const prefix = (bulkPrefix || 'T').trim().toUpperCase() || 'T';
+
+    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === floor);
+    const existingNums = currentFloorTables
+      .map(t => {
+        const m = (t.name || '').match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
+        return m ? parseInt(m[1], 10) : null;
+      })
+      .filter(n => n !== null && !isNaN(n));
+
+    const startNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
+
+    const isRect = shape === 'rect';
+    const w = isRect ? (cap > 6 ? 140 : (cap > 4 ? 120 : (cap <= 2 ? 80 : 105))) : (cap > 6 ? 110 : (cap <= 2 ? 75 : 90));
+    const h = isRect ? (cap > 6 ? 80 : (cap <= 2 ? 75 : 75)) : (cap > 6 ? 110 : (cap <= 2 ? 75 : 90));
+
+    const existingCount = currentFloorTables.length;
+    const COLS = 4;
+    const COL_W = 200;
+    const ROW_H = 170;
+    const MX = 70;
+    const MY = 60;
+
+    toast.loading(`Creating ${count} tables on ${floor}…`, { id: 'bulk-create' });
+
+    try {
+      for (let i = 0; i < count; i++) {
+        const slotIdx = existingCount + i;
+        const col = slotIdx % COLS;
+        const row = Math.floor(slotIdx / COLS);
+        const posX = MX + col * COL_W;
+        const posY = MY + row * ROW_H;
+        const tableName = `${prefix}${startNum + i}`;
+
+        await addTable(restaurant.id, {
+          name: tableName,
+          capacity: cap,
+          shape,
+          x: Math.min(posX, 750),
+          y: Math.min(posY, 1200),
+          w,
+          h,
+          floor,
+          section: floor,
+        });
+      }
+
+      setActiveFloor(floor);
+      setViewMode('map');
+      setShowBulkModal(false);
+      toast.success(`Created ${count} tables (${prefix}${startNum}–${prefix}${startNum + count - 1})!`, { id: 'bulk-create', icon: '✨' });
+    } catch (err) {
+      toast.error('Bulk creation error: ' + err.message, { id: 'bulk-create' });
+    }
+  };
+
+  const handleAddPresetTable = async (preset) => {
+    if (!restaurant?.id) return;
+    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
+    const prefix = activeFloor === 'Ground Floor' ? 'T' : (activeFloor[0]?.toUpperCase() || 'T');
+
+    const existingNums = currentFloorTables
+      .map(t => {
+        const m = (t.name || '').match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
+        return m ? parseInt(m[1], 10) : null;
+      })
+      .filter(n => n !== null && !isNaN(n));
+
+    const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : currentFloorTables.length + 1;
+    const nextName = `${prefix}${nextNum}`;
+
+    const count = currentFloorTables.length;
+    const col = count % 4;
+    const row = Math.floor(count / 4);
+    const posX = 70 + col * 200;
+    const posY = 60 + row * 170;
+
+    try {
+      await addTable(restaurant.id, {
+        name: nextName,
+        capacity: preset.capacity,
+        shape: preset.shape,
+        x: Math.min(posX, 750),
+        y: Math.min(posY, 500),
+        w: preset.w,
+        h: preset.h,
+        floor: activeFloor,
+        section: activeFloor,
+      });
+      setShowPresetsMenu(false);
+      toast.success(`${preset.label} (${nextName}) added!`, { icon: preset.icon || '🍽️' });
+    } catch (err) {
+      toast.error('Failed to add preset table: ' + err.message);
+    }
+  };
+
+  const handleDuplicateTable = async (sourceTable) => {
+    if (!sourceTable || !restaurant?.id) return;
+    const floor = sourceTable.floor || activeFloor || 'Ground Floor';
+    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === floor);
+
+    const prefixMatch = (sourceTable.name || '').match(/^[A-Za-z]+/);
+    const prefix = prefixMatch ? prefixMatch[0].toUpperCase() : 'T';
+
+    const existingNums = currentFloorTables
+      .map(t => {
+        const m = (t.name || '').match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
+        return m ? parseInt(m[1], 10) : null;
+      })
+      .filter(n => n !== null && !isNaN(n));
+
+    const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : currentFloorTables.length + 1;
+    const nextName = `${prefix}${nextNum}`;
+
+    const newX = Math.min((sourceTable.x || 70) + 40, 750);
+    const newY = Math.min((sourceTable.y || 60) + 40, 500);
+
+    try {
+      const duplicated = await addTable(restaurant.id, {
+        name: nextName,
+        capacity: sourceTable.capacity || 4,
+        shape: sourceTable.shape || 'rect',
+        x: newX,
+        y: newY,
+        w: sourceTable.w || 105,
+        h: sourceTable.h || 75,
+        floor,
+        section: sourceTable.section || floor,
+      });
+
+      setSelectedEditTableId(duplicated.id);
+      toast.success(`Duplicated ${sourceTable.name} into ${nextName}!`, { icon: '📋' });
+    } catch (err) {
+      toast.error('Failed to duplicate table: ' + err.message);
     }
   };
 
@@ -819,7 +1024,7 @@ export default function TableMap() {
               <button
                 type="button"
                 className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
-                onClick={() => setViewMode('grid')}
+                onClick={() => handleSwitchView('grid')}
                 title="Table Grid"
               >
                 <LayoutGrid size={13} />
@@ -828,7 +1033,7 @@ export default function TableMap() {
               <button
                 type="button"
                 className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
-                onClick={() => setViewMode('map')}
+                onClick={() => handleSwitchView('map')}
                 title="Floor Map"
               >
                 <MapIcon size={13} />
@@ -872,16 +1077,17 @@ export default function TableMap() {
           </div>
 
           <div className="tm-actions-row2-right">
-            {/* Quick Stats / Revenue Pill - Tapping opens Floor & Shift Stats Modal */}
-            <button
-              type="button"
-              className="tm-stats-trigger-pill"
-              onClick={() => setShowStatsModal(true)}
-              title="View floor metrics, occupancy & sales breakdown"
-            >
-              <TrendingUp size={11} className="tm-stats-icon" />
-              <span>{floorMetrics.liveRevenue > 0 ? formatCurrency(floorMetrics.liveRevenue, currency) : 'Stats'}</span>
-            </button>
+            {/* Live Active Dining Revenue Badge */}
+            {floorMetrics.liveRevenue > 0 && (
+              <div
+                className="tm-stats-trigger-pill"
+                style={{ cursor: 'default' }}
+                title={`Active dining sales on ${activeFloor}`}
+              >
+                <TrendingUp size={11} className="tm-stats-icon" />
+                <span>{formatCurrency(floorMetrics.liveRevenue, currency)}</span>
+              </div>
+            )}
 
             {/* Expandable Search on Right */}
             <div className={`tm-search ${isSearchOpen || searchQuery ? 'tm-search--expanded' : ''}`}>
@@ -970,12 +1176,62 @@ export default function TableMap() {
             </button>
             <button
               type="button"
-              className="btn btn-xs btn-secondary"
-              onClick={handleAddFloor}
-              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
+              className="btn btn-xs btn-primary"
+              onClick={handleOpenBulkModal}
+              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none' }}
+              title="Auto-generate multiple tables in 1 click"
             >
-              <Layers size={13} /> Add Floor
+              <Wand2 size={13} /> Bulk Generator
             </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="btn btn-xs btn-secondary"
+                onClick={() => setShowPresetsMenu(v => !v)}
+                style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
+                title="Add standard 2-top, 4-top, 6-top, booth, or bar stool"
+              >
+                <Sparkles size={13} /> Presets
+              </button>
+              {showPresetsMenu && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: 6,
+                  background: 'var(--color-bg-elevated)',
+                  border: '1px solid var(--color-separator-opaque)',
+                  borderRadius: 12,
+                  boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  zIndex: 1200,
+                  minWidth: 160
+                }}>
+                  {[
+                    { label: '2-Top Bistro', capacity: 2, shape: 'rect', w: 80, h: 75, icon: '🪑' },
+                    { label: '4-Top Family', capacity: 4, shape: 'rect', w: 105, h: 75, icon: '🍽️' },
+                    { label: '6-Top Banquet', capacity: 6, shape: 'rect', w: 140, h: 80, icon: '🥘' },
+                    { label: 'Round Booth', capacity: 4, shape: 'round', w: 95, h: 95, icon: '⭕' },
+                    { label: 'Bar Stool', capacity: 1, shape: 'round', w: 60, h: 60, icon: '🍸' },
+                  ].map(p => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => handleAddPresetTable(p)}
+                      style={{ justifyContent: 'flex-start', gap: 8, padding: '6px 10px', fontSize: 12, borderRadius: 8 }}
+                    >
+                      <span>{p.icon}</span>
+                      <span style={{ fontWeight: 600 }}>{p.label}</span>
+                      <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', marginLeft: 'auto' }}>{p.capacity}p</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               className="btn btn-xs btn-secondary"
@@ -997,7 +1253,7 @@ export default function TableMap() {
             <button
               type="button"
               className="btn btn-xs"
-              onClick={() => setIsEditingLayout(false)}
+              onClick={exitEditLayout}
               style={{
                 height: 30,
                 fontSize: 11,
@@ -1160,30 +1416,6 @@ export default function TableMap() {
             <span className="zoom-val">{Math.round(zoom * 100)}%</span>
             <button type="button" className="zoom-btn" onClick={() => setZoom(z => Math.min(2.0, Math.round((z + 0.1) * 10) / 10))} disabled={zoom >= 2.0} title="Zoom In"><ZoomIn size={16} /></button>
             <button type="button" className="zoom-btn fit-btn" onClick={() => { if (wrapperRef.current) setZoom(Math.min((wrapperRef.current.clientWidth - 24) / 1000, 1)); }} title="Fit Screen"><Maximize2 size={12} /> Fit</button>
-            <button type="button" className="zoom-btn align-btn" onClick={handleAutoAlign} title="Auto-align grid" style={{ borderLeft: '1px solid var(--color-separator)', padding: '0 10px', width: 'auto', gap: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
-              <LayoutGrid size={13} /><span>Auto-Align</span>
-            </button>
-            {canEditLayout && (
-              <button
-                type="button"
-                className="zoom-btn edit-layout-btn"
-                onClick={toggleEditLayout}
-                title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
-                style={{
-                  borderLeft: '1px solid var(--color-separator)',
-                  padding: '0 12px',
-                  width: 'auto',
-                  gap: '5px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  color: isEditingLayout ? '#fff' : 'var(--color-accent)',
-                  background: isEditingLayout ? 'var(--color-accent)' : 'transparent'
-                }}
-              >
-                {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
-                <span>{isEditingLayout ? 'Done' : 'Edit Layout'}</span>
-              </button>
-            )}
           </div>
 
           {/* Legend overlay */}
@@ -1938,18 +2170,36 @@ export default function TableMap() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button
                     type="button"
-                    className="btn btn-danger btn-xs"
-                    onClick={() => {
-                      if (window.confirm(`Delete Table ${selectedEditTable.name}?`)) {
-                        deleteTable(restaurant.id, selectedEditTable.id);
-                        setSelectedEditTableId(null);
-                        toast.success(`Table ${selectedEditTable.name} removed`);
-                      }
-                    }}
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => handleDuplicateTable(selectedEditTable)}
                     style={{ height: 28, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
+                    title="Clone this table and its seats"
                   >
-                    <Trash2 size={12} /> Delete
+                    <Copy size={12} /> Duplicate
                   </button>
+                  {isOwnerOrAdmin && (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-xs"
+                      onClick={() => {
+                        const activeOrder = tableOrders[selectedEditTable.id];
+                        const hasActiveOrder = (activeOrder && !['billed', 'cancelled'].includes(activeOrder.status)) || selectedEditTable.status === 'occupied';
+                        if (hasActiveOrder) {
+                          toast.error(`Cannot delete Table ${selectedEditTable.name} while an order is active. Please settle or move the order first.`, { duration: 5000, icon: '⚠️' });
+                          return;
+                        }
+                        if (window.confirm(`Permanently delete Table ${selectedEditTable.name}? This cannot be undone.`)) {
+                          deleteTable(restaurant.id, selectedEditTable.id);
+                          setSelectedEditTableId(null);
+                          toast.success(`Table ${selectedEditTable.name} permanently removed`);
+                        }
+                      }}
+                      style={{ height: 28, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
+                      title="Permanently remove this table (Owner/Admin only)"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn-ghost btn-xs"
@@ -1970,6 +2220,17 @@ export default function TableMap() {
                     className="fpe-input"
                     value={selectedEditTable.name}
                     onChange={e => updateTable(restaurant.id, selectedEditTable.id, { name: e.target.value })}
+                    onBlur={e => {
+                      const trimmed = (e.target.value || '').trim();
+                      if (!trimmed) {
+                        updateTable(restaurant.id, selectedEditTable.id, { name: selectedEditTable.name || 'T1' });
+                        return;
+                      }
+                      const duplicate = tables.find(t => t.id !== selectedEditTable.id && (t.floor || 'Ground Floor') === (selectedEditTable.floor || 'Ground Floor') && (t.name || '').trim().toLowerCase() === trimmed.toLowerCase());
+                      if (duplicate) {
+                        toast.error(`A table named "${trimmed}" already exists on this floor!`, { icon: '⚠️' });
+                      }
+                    }}
                     placeholder="e.g. T1, Bar 2, Patio 4"
                   />
                 </div>
@@ -2009,36 +2270,106 @@ export default function TableMap() {
                     <button
                       type="button"
                       className={`fpe-segment-btn ${selectedEditTable.shape !== 'round' ? 'active' : ''}`}
-                      onClick={() => updateTable(restaurant.id, selectedEditTable.id, { shape: 'rect' })}
+                      onClick={() => {
+                        const isWider = (selectedEditTable.w || 105) >= (selectedEditTable.h || 75);
+                        updateTable(restaurant.id, selectedEditTable.id, {
+                          shape: 'rect',
+                          w: isWider ? 105 : 75,
+                          h: isWider ? 75 : 105
+                        });
+                      }}
                     >
                       <span>▭</span> Rectangle
                     </button>
                     <button
                       type="button"
                       className={`fpe-segment-btn ${selectedEditTable.shape === 'round' ? 'active' : ''}`}
-                      onClick={() => updateTable(restaurant.id, selectedEditTable.id, { shape: 'round' })}
+                      onClick={() => {
+                        const s = Math.max(selectedEditTable.w || 90, selectedEditTable.h || 90);
+                        updateTable(restaurant.id, selectedEditTable.id, {
+                          shape: 'round',
+                          w: s,
+                          h: s
+                        });
+                      }}
                     >
                       <span>⭕</span> Circle
                     </button>
                   </div>
                 </div>
 
-                {/* Size */}
+                {/* Orientation for Rectangular Tables */}
+                {selectedEditTable.shape !== 'round' && (
+                  <div className="fpe-form-group">
+                    <label className="fpe-label">Orientation</label>
+                    <div className="fpe-segmented">
+                      <button
+                        type="button"
+                        className={`fpe-segment-btn ${(selectedEditTable.w ?? 105) >= (selectedEditTable.h ?? 75) ? 'active' : ''}`}
+                        onClick={() => {
+                          const curW = selectedEditTable.w ?? 105;
+                          const curH = selectedEditTable.h ?? 75;
+                          if (curW < curH) {
+                            updateTable(restaurant.id, selectedEditTable.id, { w: curH, h: curW });
+                          }
+                        }}
+                      >
+                        <span>▭</span> Horizontal
+                      </button>
+                      <button
+                        type="button"
+                        className={`fpe-segment-btn ${(selectedEditTable.w ?? 105) < (selectedEditTable.h ?? 75) ? 'active' : ''}`}
+                        onClick={() => {
+                          const curW = selectedEditTable.w ?? 105;
+                          const curH = selectedEditTable.h ?? 75;
+                          if (curW > curH) {
+                            updateTable(restaurant.id, selectedEditTable.id, { w: curH, h: curW });
+                          }
+                        }}
+                      >
+                        <span>▯</span> Vertical
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Table Size Presets */}
                 <div className="fpe-form-group">
-                  <label className="fpe-label">Display Size</label>
-                  <div className="fpe-range-container">
-                    <input
-                      type="range"
-                      min={60}
-                      max={150}
-                      className="fpe-range"
-                      value={selectedEditTable.w ?? 90}
-                      onChange={e => {
-                        const s = parseInt(e.target.value, 10);
-                        updateTable(restaurant.id, selectedEditTable.id, { w: s, h: s });
-                      }}
-                    />
-                    <span className="fpe-range-val">{selectedEditTable.w ?? 90}px</span>
+                  <label className="fpe-label">Table Size</label>
+                  <div className="fpe-segmented" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+                    {[
+                      { label: 'Compact', size: 75 },
+                      { label: 'Regular', size: 95 },
+                      { label: 'Large', size: 115 },
+                      { label: 'Banquet', size: 140 },
+                    ].map(preset => {
+                      const curMax = Math.max(selectedEditTable.w ?? 90, selectedEditTable.h ?? 90);
+                      const isSelected = Math.abs(curMax - preset.size) <= 10;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          className={`fpe-segment-btn ${isSelected ? 'active' : ''}`}
+                          style={{ fontSize: 11, padding: '6px 2px', justifyContent: 'center' }}
+                          onClick={() => {
+                            const s = preset.size;
+                            if (selectedEditTable.shape === 'round') {
+                              updateTable(restaurant.id, selectedEditTable.id, { w: s, h: s });
+                            } else {
+                              const isHorizontal = (selectedEditTable.w ?? 105) >= (selectedEditTable.h ?? 75);
+                              const major = s;
+                              const minor = Math.round(s * 0.72);
+                              updateTable(restaurant.id, selectedEditTable.id, {
+                                w: isHorizontal ? major : minor,
+                                h: isHorizontal ? minor : major,
+                              });
+                            }
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -2322,152 +2653,6 @@ export default function TableMap() {
           </div>
         </div>
       )}
-      {/* ═══ FLOOR & SHIFT STATS MODAL ═══ */}
-      {showStatsModal && (
-        <div className="tm-stats-modal-backdrop" onClick={() => setShowStatsModal(false)}>
-          <div
-            className="tm-stats-modal"
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            {/* Modal Header */}
-            <div className="tm-stats-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="tm-stats-modal-icon-badge">
-                  <BarChart3 size={18} />
-                </div>
-                <div>
-                  <h3 className="tm-stats-modal-title">{activeFloor} Overview</h3>
-                  <p className="tm-stats-modal-subtitle">Live occupancy, revenue & section actions</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="tm-stats-modal-close"
-                onClick={() => setShowStatsModal(false)}
-                aria-label="Close stats modal"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Modal Body: Metrics Grid */}
-            <div className="tm-stats-grid">
-              <div className="tm-stat-card tm-stat-card--revenue">
-                <div className="tm-stat-card-label">
-                  <TrendingUp size={12} />
-                  <span>Active Dining Revenue</span>
-                </div>
-                <div className="tm-stat-card-value">{formatCurrency(floorMetrics.liveRevenue, currency)}</div>
-                <div className="tm-stat-card-sub">Current unsettled table bills on {activeFloor}</div>
-              </div>
-
-              <div className="tm-stat-card">
-                <div className="tm-stat-card-label">
-                  <Utensils size={12} />
-                  <span>Table Occupancy</span>
-                </div>
-                <div className="tm-stat-card-value">
-                  {floorMetrics.occupied} <span className="tm-stat-card-denom">/ {floorTables.length}</span>
-                </div>
-                <div className="tm-stat-card-sub">
-                  {floorTables.length ? Math.round((floorMetrics.occupied / floorTables.length) * 100) : 0}% occupied ({floorMetrics.free} free)
-                </div>
-              </div>
-
-              <div className="tm-stat-card">
-                <div className="tm-stat-card-label">
-                  <Users size={12} />
-                  <span>Seating Capacity</span>
-                </div>
-                <div className="tm-stat-card-value">
-                  {floorTables.reduce((sum, t) => sum + (Number(t.capacity) || 4), 0)}
-                </div>
-                <div className="tm-stat-card-sub">Total seats across {floorTables.length} tables</div>
-              </div>
-
-              <div className="tm-stat-card">
-                <div className="tm-stat-card-label">
-                  <Clock size={12} />
-                  <span>Floor Status</span>
-                </div>
-                <div className="tm-stat-card-value" style={{ fontSize: 16, color: '#10b981' }}>
-                  {floorMetrics.free > 0 ? `${floorMetrics.free} Free Tables` : 'Full House'}
-                </div>
-                <div className="tm-stat-card-sub">{floorMetrics.reserved} reserved tables</div>
-              </div>
-            </div>
-
-            {/* Modal Actions: Quick Management Buttons */}
-            {canEditLayout && (
-              <div className="tm-stats-actions-section">
-                <div className="tm-stats-section-title">Floor Management</div>
-                <div className="tm-stats-actions-grid">
-                  <button
-                    type="button"
-                    className="tm-stats-action-btn tm-stats-action-btn--primary"
-                    onClick={() => {
-                      setShowStatsModal(false);
-                      handleAddTable();
-                    }}
-                  >
-                    <Plus size={14} />
-                    <span>Add Table</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="tm-stats-action-btn"
-                    onClick={() => {
-                      setShowStatsModal(false);
-                      handleAddFloor();
-                    }}
-                  >
-                    <Layers size={14} />
-                    <span>Add Floor</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="tm-stats-action-btn"
-                    onClick={() => {
-                      setShowStatsModal(false);
-                      toggleEditLayout();
-                    }}
-                  >
-                    <Sliders size={14} />
-                    <span>{isEditingLayout ? 'Exit Studio' : 'Edit Layout'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="tm-stats-action-btn"
-                    onClick={() => {
-                      setShowStatsModal(false);
-                      handleAutoAlign();
-                    }}
-                    disabled={floorTables.length === 0}
-                  >
-                    <LayoutGrid size={14} />
-                    <span>Auto-Align</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Modal Footer */}
-            <div className="tm-stats-modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary w-full"
-                onClick={() => setShowStatsModal(false)}
-                style={{ height: 40, borderRadius: 12, fontWeight: 700 }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ═══ ADD FLOOR MODAL ═══ */}
       {showAddFloorModal && (
         <div
@@ -2607,6 +2792,225 @@ export default function TableMap() {
                   disabled={!newFloorName.trim()}
                 >
                   Create Floor
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ BULK TABLE GENERATOR MODAL ═══ */}
+      {showBulkModal && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1200,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            backdropFilter: 'blur(5px)'
+          }}
+          onClick={() => setShowBulkModal(false)}
+        >
+          <div
+            className="animate-scale-in"
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: 480,
+              background: 'var(--color-bg-elevated)',
+              border: '1.5px solid var(--color-separator-opaque)',
+              borderRadius: 22,
+              boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '18px 22px 14px',
+              borderBottom: '1px solid var(--color-separator)',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04))'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 24 }}>⚡</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--color-label)' }}>
+                    Bulk Table Generator
+                  </h3>
+                  <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                    Set up your entire floor plan in seconds
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => setShowBulkModal(false)}
+                style={{ width: 30, height: 30, padding: 0, borderRadius: '50%' }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleExecuteBulkCreate} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Floor Selection */}
+              <div className="fpe-form-group">
+                <label className="fpe-label">Target Floor / Area</label>
+                <select
+                  className="fpe-input"
+                  value={bulkFloor}
+                  onChange={e => setBulkFloor(e.target.value)}
+                >
+                  {allFloors.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Number of Tables */}
+              <div className="fpe-form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label className="fpe-label" style={{ margin: 0 }}>Number of Tables to Create</label>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#6366f1' }}>{bulkCount} Tables</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {[4, 6, 8, 10, 12, 16, 20].map(cnt => (
+                    <button
+                      key={cnt}
+                      type="button"
+                      className="btn btn-xs btn-ghost"
+                      onClick={() => setBulkCount(cnt)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 8,
+                        fontSize: 11,
+                        fontWeight: bulkCount === cnt ? 800 : 500,
+                        background: bulkCount === cnt ? '#6366f1' : 'var(--color-bg-secondary)',
+                        color: bulkCount === cnt ? '#fff' : 'var(--color-label)',
+                        border: '1px solid var(--color-separator)'
+                      }}
+                    >
+                      {cnt} Tables
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  className="fpe-input"
+                  value={bulkCount}
+                  onChange={e => setBulkCount(Math.min(30, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                />
+              </div>
+
+              {/* Prefix & Seating Capacity Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Table Prefix</label>
+                  <input
+                    className="fpe-input"
+                    value={bulkPrefix}
+                    onChange={e => setBulkPrefix(e.target.value.toUpperCase())}
+                    placeholder="e.g. T, B, G"
+                    maxLength={6}
+                  />
+                </div>
+
+                <div className="fpe-form-group">
+                  <label className="fpe-label">Seats per Table</label>
+                  <select
+                    className="fpe-input"
+                    value={bulkCapacity}
+                    onChange={e => setBulkCapacity(parseInt(e.target.value, 10) || 4)}
+                  >
+                    <option value={2}>2 Guests (Bistro)</option>
+                    <option value={4}>4 Guests (Standard)</option>
+                    <option value={6}>6 Guests (Family)</option>
+                    <option value={8}>8 Guests (Banquet)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Table Shape */}
+              <div className="fpe-form-group">
+                <label className="fpe-label">Table Shape</label>
+                <div className="fpe-segmented">
+                  <button
+                    type="button"
+                    className={`fpe-segment-btn ${bulkShape === 'rect' ? 'active' : ''}`}
+                    onClick={() => setBulkShape('rect')}
+                  >
+                    <span>▭</span> Rectangle
+                  </button>
+                  <button
+                    type="button"
+                    className={`fpe-segment-btn ${bulkShape === 'round' ? 'active' : ''}`}
+                    onClick={() => setBulkShape('round')}
+                  >
+                    <span>⭕</span> Circle
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Preview Summary Box */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04))',
+                border: '1px dashed rgba(99, 102, 241, 0.35)',
+                borderRadius: 14,
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12
+              }}>
+                <span style={{ fontSize: 24 }}>✨</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Instant Creation Preview
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>
+                    {bulkCount} {bulkShape === 'rect' ? 'Rectangular' : 'Circular'} Tables ({bulkPrefix}1 to {bulkPrefix}{bulkCount})
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                    {bulkCapacity} seats each • Auto-aligned in neat 4-column rows on {bulkFloor}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setShowBulkModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    padding: '0 20px',
+                    fontWeight: 800,
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <Wand2 size={13} /> Generate {bulkCount} Tables
                 </button>
               </div>
             </form>

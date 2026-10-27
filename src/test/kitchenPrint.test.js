@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { printKitchenTickets, printSingleKitchenTicket } from '../utils/print';
+import { printKitchenTickets, printSingleKitchenTicket, compileEscPosVoidTicket, printKitchenVoidTicket } from '../utils/print';
 
 describe('Kitchen Printing & Routing Suite', () => {
   let mockWindowOpen;
@@ -160,5 +160,37 @@ describe('Kitchen Printing & Routing Suite', () => {
     expect(mockWindowOpen).toHaveBeenCalled();
     const html = mockDocumentWrite.mock.calls[0][0];
     expect(html).toContain('REPRINT KOT');
+  });
+
+  it('compiles ESC/POS void ticket bytes correctly with reason and manager name', () => {
+    const bytes = compileEscPosVoidTicket({
+      restaurant: { id: 'rest-1' },
+      order: { id: 'ORD-1234', tableName: 'Table 4', type: 'dine-in' },
+      items: [{ name: 'Ribeye Steak', qty: 1 }],
+      reason: 'Burnt/Kitchen Error',
+      staffName: 'Sam',
+      managerName: 'Alex',
+      printerConfig: { paperSize: '80mm', name: 'Grill' }
+    });
+
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    const decoded = String.fromCharCode(...bytes);
+    expect(decoded).toContain('CANCEL / VOID');
+    expect(decoded).toContain('Ribeye Steak');
+    expect(decoded).toContain('Burnt/Kitchen Error');
+    expect(decoded).toContain('Alex');
+  });
+
+  it('skips void ticket printing when kitchen mode is display_only', () => {
+    printKitchenVoidTicket({
+      restaurant: { id: 'rest-1', kitchenConfig: { mode: 'display_only' } },
+      order: sampleOrder,
+      items: sampleOrder.items,
+      reason: 'Wrong Item',
+      staffName: 'Sam',
+      managerName: 'Alex'
+    });
+
+    expect(mockWindowOpen).not.toHaveBeenCalled();
   });
 });

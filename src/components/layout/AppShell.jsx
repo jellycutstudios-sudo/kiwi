@@ -683,8 +683,8 @@ export default function AppShell() {
         </div>
       )}
 
-      {/* Interactive Waiter Ready Slide Popup - only shown on waiter tab in service mode */}
-      {location.pathname === '/tables' && !location.search.includes('edit=true') && <WaiterReadySlidePopup />}
+      {/* Interactive Food Ready Alert Banner - shown on /tables and /pos for fast pass pickup */}
+      {(location.pathname === '/tables' || location.pathname === '/pos') && !location.search.includes('edit=true') && <WaiterReadySlidePopup />}
 
       {/* Zero-Downtime Offline Buffer & Cloud Sync Modal */}
       <OfflineSyncModal isOpen={showOfflineModal} onClose={() => setShowOfflineModal(false)} />
