@@ -977,16 +977,19 @@ export default function TableMap() {
     <div className="tm-root">
       {/* ═══ TOUCH-FIRST CONTROLS BAR ═══ */}
       <div className="tm-controls-bar">
-        {/* Row 1: Floor Tabs (Left) + View Switcher & Edit Button (Right) */}
-        <div className="tm-floor-tabs-bar">
-          <div className="tm-floor-tabs">
+        {/* Left Side: Floor Tabs & Status Filters */}
+        <div className="tm-controls-left">
+          {/* Floor Navigation Tabs */}
+          <div className="tm-floor-tabs-group" role="tablist" aria-label="Floors">
             {allFloors.map(floor => {
               const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
               const isCanDelete = isEditingLayout && floor !== 'Ground Floor' && floorCount === 0;
               return (
-                <div key={floor} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                <div key={floor} className="tm-floor-tab-wrapper">
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected={activeFloor === floor}
                     className={`tm-floor-tab ${activeFloor === floor ? 'tm-floor-tab--active' : ''}`}
                     onClick={() => { setActiveFloor(floor); setSelected(null); }}
                   >
@@ -1018,115 +1021,138 @@ export default function TableMap() {
             )}
           </div>
 
-          {/* Header Actions: View Switcher (Grid/Map) + Edit Layout Button */}
-          <div className="tm-header-actions-right">
-            <div className="tm-segmented-control">
-              <button
-                type="button"
-                className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
-                onClick={() => handleSwitchView('grid')}
-                title="Table Grid"
-              >
-                <LayoutGrid size={13} />
-                <span className="tm-switcher-label">Grid</span>
-              </button>
-              <button
-                type="button"
-                className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
-                onClick={() => handleSwitchView('map')}
-                title="Floor Map"
-              >
-                <MapIcon size={13} />
-                <span className="tm-switcher-label">Map</span>
-              </button>
-            </div>
+          <div className="tm-toolbar-divider" />
 
-            {canEditLayout && (
+          {/* Status Filter Chips */}
+          <div className="tm-filter-pills" role="toolbar" aria-label="Filter tables by status">
+            <button
+              type="button"
+              className={`tm-pill ${statusFilter === 'all' ? 'tm-pill--active tm-pill--all' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              <span>All</span>
+              <span className="tm-pill-count">({floorTables.length})</span>
+            </button>
+            <button
+              type="button"
+              className={`tm-pill ${statusFilter === 'free' ? 'tm-pill--active tm-pill--free' : ''}`}
+              onClick={() => setStatusFilter(statusFilter === 'free' ? 'all' : 'free')}
+            >
+              <span className="tm-pill-dot tm-pill-dot--free" />
+              <span>Free</span>
+              <span className="tm-pill-count">({floorMetrics.free})</span>
+            </button>
+            <button
+              type="button"
+              className={`tm-pill ${statusFilter === 'occupied' ? 'tm-pill--active tm-pill--occupied' : ''}`}
+              onClick={() => setStatusFilter(statusFilter === 'occupied' ? 'all' : 'occupied')}
+            >
+              <span className="tm-pill-dot tm-pill-dot--occupied" />
+              <span>Seated</span>
+              <span className="tm-pill-count">({floorMetrics.occupied})</span>
+            </button>
+            {floorMetrics.reserved > 0 && (
               <button
                 type="button"
-                className={`tm-edit-layout-trigger ${isEditingLayout ? 'tm-edit-layout-trigger--active' : ''}`}
-                onClick={toggleEditLayout}
-                title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
-                aria-label={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+                className={`tm-pill ${statusFilter === 'reserved' ? 'tm-pill--active tm-pill--reserved' : ''}`}
+                onClick={() => setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved')}
               >
-                {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
-                <span className="tm-switcher-label">{isEditingLayout ? 'Done' : 'Edit'}</span>
+                <span className="tm-pill-dot tm-pill-dot--reserved">⭐</span>
+                <span>Reserved</span>
+                <span className="tm-pill-count">({floorMetrics.reserved})</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Row 2: Status Filter Pills (Left) + Stats Modal Trigger & Search (Right) */}
-        <div className="tm-actions-bar">
-          <div className="tm-filter-pills">
-            {[
-              { key: 'all', label: `All (${floorTables.length})` },
-              { key: 'free', label: `🟢 Free (${floorMetrics.free})` },
-              { key: 'occupied', label: `🔴 Seated (${floorMetrics.occupied})` },
-              ...(floorMetrics.reserved > 0 ? [{ key: 'reserved', label: `⭐ Reserved (${floorMetrics.reserved})` }] : []),
-            ].map(p => (
-              <button
-                key={p.key}
-                type="button"
-                className={`tm-pill ${statusFilter === p.key ? 'tm-pill--active tm-pill--' + p.key : ''}`}
-                onClick={() => setStatusFilter(statusFilter === p.key && p.key !== 'all' ? 'all' : p.key)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        {/* Right Side: Live Revenue, Search, View Switcher & Edit Mode */}
+        <div className="tm-controls-right">
+          {/* Live Active Dining Revenue Badge */}
+          {floorMetrics.liveRevenue > 0 && (
+            <div
+              className="tm-revenue-badge"
+              title={`Active dining sales on ${activeFloor}`}
+            >
+              <TrendingUp size={12} className="tm-revenue-icon" />
+              <span className="tm-revenue-amount">{formatCurrency(floorMetrics.liveRevenue, currency)}</span>
+            </div>
+          )}
 
-          <div className="tm-actions-row2-right">
-            {/* Live Active Dining Revenue Badge */}
-            {floorMetrics.liveRevenue > 0 && (
-              <div
-                className="tm-stats-trigger-pill"
-                style={{ cursor: 'default' }}
-                title={`Active dining sales on ${activeFloor}`}
-              >
-                <TrendingUp size={11} className="tm-stats-icon" />
-                <span>{formatCurrency(floorMetrics.liveRevenue, currency)}</span>
-              </div>
-            )}
-
-            {/* Expandable Search on Right */}
-            <div className={`tm-search ${isSearchOpen || searchQuery ? 'tm-search--expanded' : ''}`}>
-              {(isSearchOpen || searchQuery) ? (
-                <>
-                  <Search size={13} className="tm-search-icon" />
-                  <input
-                    type="text"
-                    placeholder="Find table…"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="tm-search-input"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    className="tm-search-clear"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setIsSearchOpen(false);
-                    }}
-                    title="Close search"
-                  >
-                    <X size={12} />
-                  </button>
-                </>
-              ) : (
+          {/* Search Table */}
+          <div className={`tm-search ${isSearchOpen || searchQuery ? 'tm-search--expanded' : ''}`}>
+            {(isSearchOpen || searchQuery) ? (
+              <>
+                <Search size={13} className="tm-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Find table…"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="tm-search-input"
+                  autoFocus
+                />
                 <button
                   type="button"
-                  className="tm-search-trigger-btn"
-                  onClick={() => setIsSearchOpen(true)}
-                  title="Search tables"
-                  aria-label="Search tables"
+                  className="tm-search-clear"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsSearchOpen(false);
+                  }}
+                  title="Close search"
                 >
-                  <Search size={14} />
+                  <X size={12} />
                 </button>
-              )}
-            </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="tm-search-trigger-btn"
+                onClick={() => setIsSearchOpen(true)}
+                title="Search tables"
+                aria-label="Search tables"
+              >
+                <Search size={14} />
+              </button>
+            )}
           </div>
+
+          <div className="tm-toolbar-divider" />
+
+          {/* View Switcher: Grid vs Map */}
+          <div className="tm-segmented-control" role="group" aria-label="View mode">
+            <button
+              type="button"
+              className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
+              onClick={() => handleSwitchView('grid')}
+              title="Table Grid View"
+            >
+              <LayoutGrid size={13} />
+              <span className="tm-switcher-label">Grid</span>
+            </button>
+            <button
+              type="button"
+              className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
+              onClick={() => handleSwitchView('map')}
+              title="Floor Map View"
+            >
+              <MapIcon size={13} />
+              <span className="tm-switcher-label">Map</span>
+            </button>
+          </div>
+
+          {/* Customize / Edit Layout */}
+          {canEditLayout && (
+            <button
+              type="button"
+              className={`tm-edit-layout-trigger ${isEditingLayout ? 'tm-edit-layout-trigger--active' : ''}`}
+              onClick={toggleEditLayout}
+              title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+              aria-label={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+            >
+              {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
+              <span className="tm-switcher-label">{isEditingLayout ? 'Done' : 'Edit'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2064,6 +2090,22 @@ export default function TableMap() {
                       onClick={() => setShowMerge(true)}
                     >
                       <GitMerge size={13} /> Merge Tables
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: '#ef4444' }}
+                      onClick={async () => {
+                        if (window.confirm(`Release and free ${selectedTable.name}? The active order will be closed.`)) {
+                          await updateOrderStatus(restaurant.id, selOrder.id, 'cancelled');
+                          await freeTable(restaurant.id, selectedTable.id);
+                          setSelected(null);
+                          toast.success(`${selectedTable.name} freed ✓`);
+                        }
+                      }}
+                      title="Clear order and immediately free table"
+                    >
+                      <DoorOpen size={13} /> Free Table
                     </button>
                   </div>
                 </div>

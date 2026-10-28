@@ -551,81 +551,122 @@ export default function Reports() {
   };
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
-      {/* Page Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'var(--space-3)' }}>
-        <div>
-          <h2 className="text-title2">Reports & Analytics</h2>
-          <p className="text-secondary text-subhead" style={{ marginTop: 2 }}>
-            Real-time business insights, best-selling menus, heatmaps, and staff leaderboards.
-          </p>
+    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
+      {/* ── Modern Frosted Header Bar ── */}
+      <div className="reports-header-bar">
+        <div className="reports-header-left">
+          <div className="reports-header-icon">
+            <BarChart3 size={15} />
+          </div>
+          <div className="reports-header-title-wrap">
+            <h2 className="reports-header-title">Reports & Analytics</h2>
+            <span className="reports-live-badge">
+              <span className="reports-live-dot" />
+              Live Insights
+            </span>
+          </div>
         </div>
-        <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap', alignItems: 'center' }}>
-          {/* Period Segmented Control */}
-          <div style={{ display: 'flex', background: 'var(--color-bg-secondary)', padding: '3px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-separator)' }}>
-            {['today','week','month'].map(p => (
-              <button 
-                key={p} 
-                id={`report-period-${p}`} 
-                className={`btn btn-sm ${period===p?'btn-primary':'btn-ghost'}`} 
-                style={{ height: 32, padding: '0 12px', fontSize: '12px', fontWeight: period === p ? 700 : 500 }}
-                onClick={()=>setPeriod(p)}
-              >
-                {p.charAt(0).toUpperCase()+p.slice(1)}
-              </button>
-            ))}
-          </div>
 
-          {/* Export & Advisor Actions */}
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Export & AI Advisor Action Group */}
+        <div className="reports-header-actions">
+          <button 
+            type="button" 
+            className="reports-advisor-btn" 
+            onClick={() => setShowAiAdvisor(true)}
+            title="Analyze business with AI Advisor"
+          >
+            <Bot size={13} />
+            <span>Advisor</span>
+          </button>
+          <button 
+            type="button"
+            className="reports-action-btn" 
+            onClick={handleExportPDF}
+            title="Export reports as PDF"
+          >
+            <Download size={13} />
+            <span>PDF</span>
+          </button>
+          <button 
+            type="button"
+            className="reports-action-btn" 
+            onClick={handleExportCSV}
+            title="Export reports as CSV spreadsheet"
+          >
+            <FileSpreadsheet size={13} />
+            <span>CSV</span>
+          </button>
+          {hasMode('tax_reconcile') && (
             <button 
-              type="button" 
-              className="advisor-trigger-btn advisor-trigger-btn-sm" 
-              onClick={() => setShowAiAdvisor(true)}
-              title="Analyze with AI Advisor"
+              type="button"
+              className="reports-action-btn" 
+              onClick={handleExportTally} 
+              title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML"
             >
-              <span className="advisor-btn-icon">
-                <Bot size={13} />
-              </span>
-              <span>Advisor</span>
+              <FileCode size={13} />
+              <span>Tally</span>
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
-              <Download size={14} /> PDF
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
-              <FileSpreadsheet size={14} /> CSV
-            </button>
-            {hasMode('tax_reconcile') && (
-              <button className="btn btn-secondary btn-sm" onClick={handleExportTally} title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML" style={{ display: 'flex', alignItems: 'center', gap: 5, height: 36 }}>
-                <FileCode size={14} /> Tally
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Dashboard Sub-navigation Tabs */}
-      <div className="reports-tabs no-scrollbar touch-scroll-x">
-        {[
-          { key: 'overview', label: 'Sales Overview', icon: Activity, enabled: true },
-          { key: 'menu', label: 'Menu Performance', icon: PieChart, enabled: true },
-          { key: 'staff', label: 'Staff Leaderboard', icon: Users, enabled: true },
-          { key: 'tips', label: 'Tips & Gratuities', icon: HeartHandshake, enabled: !isRetail && !isBillOnly },
-          { key: 'till_shifts', label: 'Cash Shift History', icon: Receipt, enabled: hasMode('till_shift') },
-          { key: 'void_audits', label: 'Cancelled Items Log', icon: FileText, enabled: hasMode('audit_shield') }
-        ].filter(t => t.enabled).map(t => (
-          <button
-            key={t.key}
-            onClick={(e) => {
-              setActiveTab(t.key);
-              e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            }}
-            className={`reports-tab-btn ${activeTab === t.key ? 'active' : ''}`}
-          >
-            <t.icon size={15} />
-            <span style={{ whiteSpace: 'nowrap' }}>{t.label}</span>
-          </button>
-        ))}
+      {/* ── Unified Modern Controls Toolbar ── */}
+      <div className="reports-controls-bar">
+        {/* Left Side: Report Navigation Tabs */}
+        <div className="reports-controls-left">
+          <div className="reports-nav-tabs" role="tablist" aria-label="Report sections">
+            {[
+              { key: 'overview', label: 'Sales Overview', icon: Activity, enabled: true },
+              { key: 'menu', label: 'Menu Performance', icon: PieChart, enabled: true },
+              { key: 'staff', label: 'Staff Leaderboard', icon: Users, enabled: true },
+              { key: 'tips', label: 'Tips & Gratuities', icon: HeartHandshake, enabled: !isRetail && !isBillOnly },
+              { key: 'till_shifts', label: 'Cash Shift History', icon: Receipt, enabled: hasMode('till_shift') },
+              { key: 'void_audits', label: 'Cancelled Items Log', icon: FileText, enabled: hasMode('audit_shield') }
+            ].filter(t => t.enabled).map(t => {
+              const Icon = t.icon;
+              const active = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={(e) => {
+                    setActiveTab(t.key);
+                    e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                  }}
+                  className={`reports-nav-tab ${active ? 'reports-nav-tab--active' : ''}`}
+                >
+                  <Icon size={13} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Side: Period Segmented Switcher */}
+        <div className="reports-controls-right">
+          <div className="reports-toolbar-divider" />
+          <div className="reports-period-control" role="radiogroup" aria-label="Time period">
+            {['today', 'week', 'month'].map(p => {
+              const active = period === p;
+              return (
+                <button 
+                  key={p} 
+                  id={`report-period-${p}`} 
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  className={`reports-period-btn ${active ? 'reports-period-btn--active' : ''}`} 
+                  onClick={() => setPeriod(p)}
+                >
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* TAB CONTENTS */}

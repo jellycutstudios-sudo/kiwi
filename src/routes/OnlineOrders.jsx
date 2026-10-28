@@ -905,96 +905,55 @@ export default function OnlineOrders() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', height: '100%' }}>
-      {/* ── Top Header / Online Ordering Hub ── */}
-      <div className="online-orders-hero-header" style={{
-        background: 'var(--color-bg-elevated)',
-        border: '1px solid var(--color-separator-opaque)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '16px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.18))',
-            border: '1px solid rgba(16,185,129,0.3)',
-            color: 'var(--color-accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <Globe size={20} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', height: '100%' }}>
+      {/* ── Modern Frosted Header Bar ── */}
+      <div className="oo-header-bar">
+        <div className="oo-header-left">
+          <div className="oo-header-icon">
+            <Globe size={15} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h2 className="text-title3" style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--color-label)' }}>
-                {t('onlineOrders')} & Live Tracker
-              </h2>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                fontSize: '11px',
-                fontWeight: 600,
-                background: 'rgba(16, 185, 129, 0.12)',
-                color: 'var(--color-green)',
-                border: '1px solid rgba(16, 185, 129, 0.25)'
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-green)', boxShadow: '0 0 6px var(--color-green)' }} />
-                Live Sync
-              </span>
-            </div>
-            <p className="text-caption1 text-secondary" style={{ margin: 0, marginTop: 2 }}>
-              Accept incoming orders & manage live tracking.
-            </p>
+          <div className="oo-header-title-wrap">
+            <h2 className="oo-header-title">
+              {t('onlineOrders')} & Live Tracker
+            </h2>
+            <span className="oo-live-badge">
+              <span className="oo-live-dot" />
+              Live Sync
+            </span>
           </div>
         </div>
 
         {/* Share & Customer Store Action Group */}
-        <div className="online-orders-action-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="oo-header-actions">
           {canManageSettings && (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="oo-action-btn"
               onClick={() => setShowSettingsModal(true)}
               title="Configure delivery radius, delivery fee, offers & online menu exclusions"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
             >
-              <SlidersHorizontal size={14} color="var(--color-accent)" />
+              <SlidersHorizontal size={13} />
               <span>Store Settings</span>
             </button>
           )}
 
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="oo-action-btn"
             onClick={() => setShowQrModal(true)}
             title="Show Store QR Code to scan or download"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
           >
-            <QrCode size={14} />
+            <QrCode size={13} />
             <span>Store QR</span>
           </button>
 
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="oo-action-btn"
             onClick={handleCopyStoreLink}
             title="Copy digital store link"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
           >
-            {copiedLink ? <Check size={14} color="var(--color-green)" /> : <Copy size={14} />}
+            {copiedLink ? <Check size={13} color="var(--color-green)" /> : <Copy size={13} />}
             <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
           </button>
 
@@ -1002,46 +961,21 @@ export default function OnlineOrders() {
             href={storeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary btn-sm"
+            className="oo-primary-btn"
             title="Open customer ordering experience in a new tab"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', minHeight: 36, borderRadius: 'var(--radius-md)', textDecoration: 'none' }}
           >
-            <ExternalLink size={14} />
+            <ExternalLink size={13} />
             <span>Customer Page</span>
           </a>
         </div>
       </div>
 
-      {/* ── Filter & Search Control Center ── */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        background: 'var(--color-bg-elevated)',
-        padding: '12px 16px',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--color-separator-opaque)',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
-        {/* Tier 1: Channels Pills + Search + View Switcher */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '10px'
-        }}>
-          {/* Channel selector as sleek pill tabs */}
-          <div className="no-scrollbar touch-scroll-x" style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'var(--color-bg)',
-            padding: '3px',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--color-separator-opaque)',
-            maxWidth: '100%'
-          }}>
+      {/* ── Unified Modern Controls Toolbar ── */}
+      <div className="oo-controls-bar">
+        {/* Left Side: Channel Tabs & Status Filter Chips */}
+        <div className="oo-controls-left">
+          {/* Channel selector as sleek segmented control */}
+          <div className="oo-channel-tabs" role="tablist" aria-label="Order channels">
             {[
               { id: 'online',   label: 'Online & Delivery', icon: Globe },
               { id: 'all',      label: 'All Channels',      icon: Filter },
@@ -1054,279 +988,149 @@ export default function OnlineOrders() {
                 <button
                   key={tab.id}
                   id={`channel-filter-${tab.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setChannelFilter(tab.id)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '12px',
-                    fontWeight: active ? 600 : 500,
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    background: active ? 'var(--color-bg-elevated)' : 'transparent',
-                    color: active ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`oo-channel-tab ${active ? 'oo-channel-tab--active' : ''}`}
                 >
-                  <Icon size={13} style={{ color: active ? 'var(--color-accent)' : 'inherit' }} />
+                  <Icon size={12} />
                   <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Right side: Search Input + View Toggle */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            flex: '1 1 auto',
-            justifyContent: 'flex-end',
-            minWidth: 200
-          }}>
-            {/* Search Input */}
-            <div style={{ position: 'relative', width: '100%', maxWidth: 280, minWidth: 150 }}>
-              <Search
-                size={14}
-                style={{
-                  position: 'absolute',
-                  left: 10,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--color-label-tertiary)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Search orders, phone, ID..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  paddingLeft: 32,
-                  paddingRight: search ? 30 : 12,
-                  height: 36,
-                  fontSize: '12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-bg)',
-                  border: '1px solid var(--color-separator-opaque)',
-                  color: 'var(--color-label)',
-                  outline: 'none',
-                  transition: 'border-color 0.15s ease'
-                }}
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--color-label-tertiary)',
-                    padding: 4,
-                    display: 'flex'
-                  }}
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+          <div className="oo-toolbar-divider" />
 
-            {/* View Mode Toggle: List vs Kanban Board */}
-            <div style={{
-              display: 'inline-flex',
-              background: 'var(--color-bg)',
-              padding: '3px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-separator-opaque)'
-            }}>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                title="Detailed List Feed"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 32,
-                  height: 30,
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: viewMode === 'list' ? 'var(--color-bg-elevated)' : 'transparent',
-                  color: viewMode === 'list' ? 'var(--color-label)' : 'var(--color-label-tertiary)',
-                  boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <LayoutList size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('board')}
-                title="Kanban Board View"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 32,
-                  height: 30,
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: viewMode === 'board' ? 'var(--color-bg-elevated)' : 'transparent',
-                  color: viewMode === 'board' ? 'var(--color-label)' : 'var(--color-label-tertiary)',
-                  boxShadow: viewMode === 'board' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <Columns size={15} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Tier 2: Order Lifecycle Status Tabs + Rush Actions */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '10px',
-          borderTop: '1px solid var(--color-separator-opaque)',
-          paddingTop: '10px'
-        }}>
-          {/* Status Tabs with clean pill styling and non-wrapping horizontal scroll */}
-          <div className="no-scrollbar touch-scroll-x" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            maxWidth: '100%',
-            paddingBottom: '2px'
-          }}>
+          {/* Order Lifecycle Status Filters with glowing micro-indicators */}
+          <div className="oo-status-pills" role="toolbar" aria-label="Filter orders by status">
             {[
-              { id: 'all',       label: 'All Active', count: counts.total, icon: null },
-              { id: 'pending',   label: 'Pending',    count: counts.pending, emoji: '⏳', isPending: true },
-              { id: 'preparing', label: 'Cooking',    count: counts.preparing, emoji: '🍳' },
-              { id: 'ready',     label: 'Out / Ready', count: counts.ready, emoji: '🛵' },
+              { id: 'all',       label: 'All Active',  count: counts.total,     dotClass: 'oo-dot--all' },
+              { id: 'pending',   label: 'Pending',     count: counts.pending,   dotClass: 'oo-dot--pending', hasAlert: counts.pending > 0 },
+              { id: 'preparing', label: 'Cooking',     count: counts.preparing, dotClass: 'oo-dot--cooking' },
+              { id: 'ready',     label: 'Out / Ready', count: counts.ready,     dotClass: 'oo-dot--ready' },
             ].map(tab => {
               const active = statusFilter === tab.id;
-              const hasAlert = tab.isPending && tab.count > 0;
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '12px',
-                    fontWeight: active ? 600 : 500,
-                    whiteSpace: 'nowrap',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    background: active
-                      ? (hasAlert ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-fill-secondary)')
-                      : 'var(--color-bg)',
-                    color: active ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                    border: active
-                      ? (hasAlert ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--color-separator-opaque)')
-                      : '1px solid transparent'
-                  }}
+                  className={`oo-pill ${active ? 'oo-pill--active' : ''} ${tab.hasAlert ? 'oo-pill--alert' : ''}`}
                 >
-                  {tab.emoji && <span>{tab.emoji}</span>}
+                  <span className={`oo-pill-dot ${tab.dotClass} ${tab.hasAlert ? 'oo-dot--pulse' : ''}`} />
                   <span>{tab.label}</span>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: 18,
-                    height: 18,
-                    padding: '0 5px',
-                    borderRadius: '9999px',
-                    fontSize: '10.5px',
-                    fontWeight: 700,
-                    background: hasAlert
-                      ? 'var(--color-yellow)'
-                      : (active ? 'var(--color-label)' : 'var(--color-fill)'),
-                    color: hasAlert
-                      ? '#000000'
-                      : (active ? 'var(--color-bg)' : 'var(--color-label-secondary)')
-                  }}>
-                    {tab.count}
-                  </span>
+                  <span className="oo-pill-count">({tab.count})</span>
                 </button>
               );
             })}
           </div>
+        </div>
 
+        {/* Right Side: Rush Hour Actions, Search & View Switcher */}
+        <div className="oo-controls-right">
           {/* Quick Rush Hour Batch Action Buttons */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {counts.preparing > 0 && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  const preparing = baseOrders.filter(o => o.status === 'preparing');
-                  toast((tItem) => (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span style={{ fontWeight: 600, fontSize: '13px' }}>Mark all {preparing.length} cooking orders as Ready?</span>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button className="btn btn-secondary btn-xs" onClick={() => toast.dismiss(tItem.id)}>Cancel</button>
-                        <button className="btn btn-primary btn-xs" onClick={async () => {
-                          toast.dismiss(tItem.id);
-                          await Promise.all(preparing.map(o => updateOrderStatus(restaurant.id, o.id, 'ready')));
-                          toast.success(`Advanced ${preparing.length} orders to Ready!`, { icon: '⚡' });
-                        }}>Confirm</button>
-                      </div>
+          {counts.preparing > 0 && (
+            <button
+              type="button"
+              className="oo-rush-btn"
+              onClick={() => {
+                const preparing = baseOrders.filter(o => o.status === 'preparing');
+                toast((tItem) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontWeight: 600, fontSize: '13px' }}>Mark all {preparing.length} cooking orders as Ready?</span>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button className="btn btn-secondary btn-xs" onClick={() => toast.dismiss(tItem.id)}>Cancel</button>
+                      <button className="btn btn-primary btn-xs" onClick={async () => {
+                        toast.dismiss(tItem.id);
+                        await Promise.all(preparing.map(o => updateOrderStatus(restaurant.id, o.id, 'ready')));
+                        toast.success(`Advanced ${preparing.length} orders to Ready!`, { icon: '⚡' });
+                      }}>Confirm</button>
                     </div>
-                  ));
-                }}
-                style={{ fontSize: '12px', minHeight: 32, padding: '0 10px', display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 'var(--radius-md)' }}
-              >
-                <Zap size={13} color="var(--color-accent)" />
-                <span>Mark All Ready ({counts.preparing})</span>
-              </button>
-            )}
+                  </div>
+                ));
+              }}
+              title="Mark all cooking orders as ready"
+            >
+              <Zap size={12} />
+              <span>Mark All Ready ({counts.preparing})</span>
+            </button>
+          )}
 
-            {counts.ready > 0 && (
+          {counts.ready > 0 && (
+            <button
+              type="button"
+              className="oo-rush-btn oo-rush-btn--success"
+              onClick={() => {
+                const ready = baseOrders.filter(o => o.status === 'ready');
+                toast((tItem) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontWeight: 600, fontSize: '13px' }}>Complete / Settle all {ready.length} ready orders?</span>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button className="btn btn-secondary btn-xs" onClick={() => toast.dismiss(tItem.id)}>Cancel</button>
+                      <button className="btn btn-success btn-xs" onClick={async () => {
+                        toast.dismiss(tItem.id);
+                        await Promise.all(ready.map(o => settleOrder(restaurant.id, o.id, 'cash', o.total)));
+                        toast.success(`Completed ${ready.length} orders!`, { icon: '🎉' });
+                      }}>Confirm</button>
+                    </div>
+                  </div>
+                ));
+              }}
+              title="Complete and settle all ready orders"
+            >
+              <CheckCircle2 size={12} />
+              <span>Batch Settle ({counts.ready})</span>
+            </button>
+          )}
+
+          {/* Search Input */}
+          <div className="oo-search-box">
+            <Search size={13} className="oo-search-icon" />
+            <input
+              type="text"
+              placeholder="Search orders, phone, ID..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="oo-search-input"
+            />
+            {search && (
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  const ready = baseOrders.filter(o => o.status === 'ready');
-                  toast((tItem) => (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span style={{ fontWeight: 600, fontSize: '13px' }}>Complete / Settle all {ready.length} ready orders?</span>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button className="btn btn-secondary btn-xs" onClick={() => toast.dismiss(tItem.id)}>Cancel</button>
-                        <button className="btn btn-success btn-xs" onClick={async () => {
-                          toast.dismiss(tItem.id);
-                          await Promise.all(ready.map(o => settleOrder(restaurant.id, o.id, 'cash', o.total)));
-                          toast.success(`Completed ${ready.length} orders!`, { icon: '🎉' });
-                        }}>Confirm</button>
-                      </div>
-                    </div>
-                  ));
-                }}
-                style={{ fontSize: '12px', minHeight: 32, padding: '0 10px', display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 'var(--radius-md)' }}
+                onClick={() => setSearch('')}
+                className="oo-search-clear"
+                title="Clear search"
               >
-                <CheckCircle2 size={13} color="var(--color-green)" />
-                <span>Batch Settle ({counts.ready})</span>
+                <X size={13} />
               </button>
             )}
+          </div>
+
+          <div className="oo-toolbar-divider" />
+
+          {/* View Mode Toggle: List vs Kanban Board */}
+          <div className="oo-view-switcher" role="radiogroup" aria-label="View mode">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+              title="Detailed List Feed"
+              className={`oo-view-btn ${viewMode === 'list' ? 'oo-view-btn--active' : ''}`}
+            >
+              <LayoutList size={14} />
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={viewMode === 'board'}
+              onClick={() => setViewMode('board')}
+              title="Kanban Board View"
+              className={`oo-view-btn ${viewMode === 'board' ? 'oo-view-btn--active' : ''}`}
+            >
+              <Columns size={14} />
+            </button>
           </div>
         </div>
       </div>

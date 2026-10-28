@@ -107,3 +107,73 @@ describe('POS Bestseller Filter Logic', () => {
     expect(result.map(i => i.id)).toEqual(['plain-1', 'plain-2', 'plain-4', 'plain-5']);
   });
 });
+
+describe('POS Dynamic Dietary Search', () => {
+  function filterDisplayItems(rawItems, search = '', dietaryFilter = 'all') {
+    let filtered = rawItems;
+    let effectiveDietary = dietaryFilter;
+
+    if (search.trim()) {
+      let query = search.toLowerCase().trim();
+
+      if (/\b(non[\s-]?veg|nv)\b/i.test(query)) {
+        effectiveDietary = 'non-veg';
+        query = query.replace(/\b(non[\s-]?veg|nv)\b/gi, '').trim();
+      } else if (/\b(pure[\s-]?veg|vegetarian|veg)\b/i.test(query)) {
+        effectiveDietary = 'veg';
+        query = query.replace(/\b(pure[\s-]?veg|vegetarian|veg)\b/gi, '').trim();
+      } else if (/\b(bestseller|popular|favorite|trending)\b/i.test(query)) {
+        effectiveDietary = 'bestseller';
+        query = query.replace(/\b(bestseller|popular|favorite|trending)\b/gi, '').trim();
+      }
+
+      if (query) {
+        filtered = filtered.filter(i => 
+          i.name?.toLowerCase().includes(query) ||
+          i.code?.toLowerCase().includes(query) ||
+          i.sku?.toLowerCase().includes(query) ||
+          i.categoryName?.toLowerCase().includes(query)
+        );
+      }
+    }
+
+    if (effectiveDietary === 'veg') {
+      filtered = filtered.filter(i => i.isVeg === true || i.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(i.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(i.name)));
+    } else if (effectiveDietary === 'non-veg') {
+      filtered = filtered.filter(i => i.isVeg === false || i.veg === false || /chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon|carbonara/i.test(i.name));
+    }
+
+    return filtered;
+  }
+
+  const sampleItems = [
+    { id: '1', name: 'Margherita Pizza', isVeg: true },
+    { id: '2', name: 'Chicken Pepperoni Pizza', isVeg: false },
+    { id: '3', name: 'Paneer Butter Masala', isVeg: true },
+    { id: '4', name: 'Butter Chicken', isVeg: false },
+    { id: '5', name: 'Veg Hakka Noodles', isVeg: true },
+  ];
+
+  it('filters all veg items when user types "veg"', () => {
+    const res = filterDisplayItems(sampleItems, 'veg');
+    expect(res.map(i => i.id)).toEqual(['1', '3', '5']);
+  });
+
+  it('filters all non-veg items when user types "non-veg" or "non veg"', () => {
+    const res1 = filterDisplayItems(sampleItems, 'non-veg');
+    expect(res1.map(i => i.id)).toEqual(['2', '4']);
+
+    const res2 = filterDisplayItems(sampleItems, 'non veg');
+    expect(res2.map(i => i.id)).toEqual(['2', '4']);
+  });
+
+  it('filters combined dynamic search "veg pizza"', () => {
+    const res = filterDisplayItems(sampleItems, 'veg pizza');
+    expect(res.map(i => i.id)).toEqual(['1']);
+  });
+
+  it('filters combined dynamic search "non veg pizza"', () => {
+    const res = filterDisplayItems(sampleItems, 'non veg pizza');
+    expect(res.map(i => i.id)).toEqual(['2']);
+  });
+});

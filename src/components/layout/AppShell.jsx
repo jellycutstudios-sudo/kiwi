@@ -11,7 +11,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { 
   Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid, ArrowLeft, Flame 
+  RefreshCw, LayoutGrid, ArrowLeft 
 } from 'lucide-react';
 import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
@@ -65,7 +65,6 @@ export default function AppShell() {
   const setIsFocusMode = useMenuStore(s => s.setIsFocusMode);
   const catFirstOverview = useMenuStore(s => s.catFirstOverview);
   const setCatFirstOverview = useMenuStore(s => s.setCatFirstOverview);
-  const dietaryFilter = useMenuStore(s => s.dietaryFilter);
   const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const { isCategoryFirst } = usePosTemplate();
   const subscribeStaff = useStaffStore(s => s.subscribeStaff);
@@ -74,6 +73,7 @@ export default function AppShell() {
   const offlineQueue = useOfflineQueueStore(s => s.queue);
   const isSyncingQueue = useOfflineQueueStore(s => s.isSyncing);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Initialize network monitoring listeners
   useEffect(() => {
@@ -298,14 +298,16 @@ export default function AppShell() {
                 </button>
               )}
 
-              {/* Search Bar */}
+              {/* Search Bar with Dynamic Search Suggestions */}
               <div className="pos-search-wrapper">
                 <Search size={14} className="pos-search-icon" />
                 <input
                   className="form-input pos-search-input"
-                  placeholder="Search..."
+                  placeholder="Search menu, 'veg', 'non-veg'..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                   id="menu-search-input"
                   aria-label="Search menu"
                 />
@@ -320,46 +322,48 @@ export default function AppShell() {
                     <X size={13} />
                   </button>
                 )}
-              </div>
 
-              {/* Single-line Dietary Quick Filters (Veg, Non-Veg, Popular) right after search */}
-              <div className="pos-topbar-dietary-strip" role="tablist" aria-label="Dietary filters">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={dietaryFilter === 'veg'}
-                  className={`dietary-chip dietary-chip--veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-                  onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
-                  title="Pure Veg (Filter vegetarian items)"
-                  aria-label="Pure Veg"
-                >
-                  <span className="food-badge-veg" />
-                  <span className="dietary-chip-text">Veg</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={dietaryFilter === 'non-veg'}
-                  className={`dietary-chip dietary-chip--nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-                  onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
-                  title="Non-Veg (Filter non-vegetarian items)"
-                  aria-label="Non-Veg"
-                >
-                  <span className="food-badge-nonveg" />
-                  <span className="dietary-chip-text">Non-Veg</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={dietaryFilter === 'bestseller'}
-                  className={`dietary-chip dietary-chip--bestseller ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-                  onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-                  title="Popular (Filter bestsellers)"
-                  aria-label="Popular"
-                >
-                  <Flame size={13} className="dietary-flame-icon" />
-                  <span className="dietary-chip-text">Popular</span>
-                </button>
+                {/* Dynamic Floating Quick Suggestions (shown only when focused) */}
+                {isSearchFocused && (() => {
+                  const safeSearchStr = typeof search === 'string' ? search.trim().toLowerCase() : '';
+                  return (
+                    <div className="pos-search-suggestions" role="toolbar" aria-label="Dynamic search suggestions">
+                      <span className="pos-search-suggestion-label">Filter:</span>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSearch(safeSearchStr === 'veg' ? '' : 'veg');
+                        }}
+                        className={`pos-search-suggestion-chip ${safeSearchStr === 'veg' ? 'active' : ''}`}
+                      >
+                        <span className="food-badge-veg" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
+                        <span>Veg</span>
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSearch(safeSearchStr === 'non-veg' ? '' : 'non-veg');
+                        }}
+                        className={`pos-search-suggestion-chip ${safeSearchStr === 'non-veg' ? 'active' : ''}`}
+                      >
+                        <span className="food-badge-nonveg" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
+                        <span>Non-Veg</span>
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSearch(safeSearchStr === 'popular' ? '' : 'popular');
+                        }}
+                        className={`pos-search-suggestion-chip ${safeSearchStr === 'popular' ? 'active' : ''}`}
+                      >
+                        <span>🔥 Popular</span>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}

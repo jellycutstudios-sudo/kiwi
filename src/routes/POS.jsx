@@ -174,7 +174,8 @@ export default function POS() {
     }
   }, [isCategoryFirst, setCatFirstOverview]);
 
-  const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !search.trim();
+  const trimmedSearch = typeof search === 'string' ? search.trim() : '';
+  const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !trimmedSearch;
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
   const dietaryFilter = useMenuStore(s => s.dietaryFilter);
@@ -773,27 +774,45 @@ export default function POS() {
 
   // Menu items from active category (or all categories when searching) + dietary filter
   const displayItems = useMemo(() => {
+    const searchStr = typeof search === 'string' ? search.trim() : '';
     // When searching, search across all items regardless of active category tab
-    const rawItems = (activeCat === 'all' || search.trim())
+    const rawItems = (activeCat === 'all' || searchStr)
       ? categories.flatMap(c => (c.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || c.id, categoryName: i.categoryName || c.name })))
       : (categories.find(c => c.id === activeCat)?.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || activeCat, categoryName: i.categoryName || categories.find(c => c.id === activeCat)?.name }));
 
     let filtered = rawItems;
-    if (search.trim()) {
-      const lowerSearch = search.toLowerCase().trim();
-      filtered = filtered.filter(i => 
-        i.name?.toLowerCase().includes(lowerSearch) ||
-        i.code?.toLowerCase().includes(lowerSearch) ||
-        i.sku?.toLowerCase().includes(lowerSearch) ||
-        i.categoryName?.toLowerCase().includes(lowerSearch)
-      );
+    let effectiveDietary = dietaryFilter;
+
+    if (searchStr) {
+      let query = searchStr.toLowerCase();
+
+      // Dynamic smart dietary tag extraction from search query
+      if (/\b(non[\s-]?veg|nv)\b/i.test(query)) {
+        effectiveDietary = 'non-veg';
+        query = query.replace(/\b(non[\s-]?veg|nv)\b/gi, '').trim();
+      } else if (/\b(pure[\s-]?veg|vegetarian|veg)\b/i.test(query)) {
+        effectiveDietary = 'veg';
+        query = query.replace(/\b(pure[\s-]?veg|vegetarian|veg)\b/gi, '').trim();
+      } else if (/\b(bestseller|popular|favorite|trending)\b/i.test(query)) {
+        effectiveDietary = 'bestseller';
+        query = query.replace(/\b(bestseller|popular|favorite|trending)\b/gi, '').trim();
+      }
+
+      if (query) {
+        filtered = filtered.filter(i => 
+          i.name?.toLowerCase().includes(query) ||
+          i.code?.toLowerCase().includes(query) ||
+          i.sku?.toLowerCase().includes(query) ||
+          i.categoryName?.toLowerCase().includes(query)
+        );
+      }
     }
 
-    if (dietaryFilter === 'veg') {
+    if (effectiveDietary === 'veg') {
       filtered = filtered.filter(i => i.isVeg === true || i.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(i.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(i.name)));
-    } else if (dietaryFilter === 'non-veg') {
+    } else if (effectiveDietary === 'non-veg') {
       filtered = filtered.filter(i => i.isVeg === false || i.veg === false || /chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon|carbonara/i.test(i.name));
-    } else if (dietaryFilter === 'bestseller') {
+    } else if (effectiveDietary === 'bestseller') {
       const getItemSales = (i) => {
         const nameKey = (i.name || '').trim().toLowerCase();
         return (itemSalesMap[i.id] || 0) + (itemSalesMap[nameKey] || 0);
@@ -1421,7 +1440,7 @@ export default function POS() {
                   <div className="pos-cat-card-name">+ Custom Item</div>
                 </div>
                 <div className="pos-cat-card-footer">
-                  <span className="pos-cat-card-count">Off-menu daily special</span>
+                  <span className="pos-cat-card-count">Daily special</span>
                   <span className="pos-cat-card-arrow">+</span>
                 </div>
               </div>
@@ -1565,10 +1584,10 @@ export default function POS() {
                   </div>
                   <div className="menu-item-body">
                     <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {item.name}
-                      {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px' }}>⭐</span>}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                      {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px', flexShrink: 0 }}>⭐</span>}
                       {(item.isBestseller || item.bestseller || item.popular) && (
-                        <span title="Bestseller" style={{ fontSize: '11px' }}>🔥</span>
+                        <span title="Bestseller" style={{ fontSize: '11px', flexShrink: 0 }}>🔥</span>
                       )}
                     </div>
                     <div className="menu-item-price" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

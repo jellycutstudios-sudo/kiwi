@@ -53,7 +53,9 @@ export const useMenuStore = create((set, get) => {
     loading: initialCats.length === 0,
     error: null,
     search: '',
-    setSearch: (search) => set({ search }),
+    setSearch: (valOrFn) => set((state) => ({
+      search: typeof valOrFn === 'function' ? String(valOrFn(state.search) || '') : String(valOrFn || '')
+    })),
 
     catFirstOverview: true,
     setCatFirstOverview: (catFirstOverview) => set({ catFirstOverview }),
