@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { isPlatformRelevantToRestaurant } from '../routes/admin/DeliveryHub';
+import { isPlatformRelevantToRestaurant } from '../constants/deliveryPlatforms';
 
 describe('Delivery Hub Configuration & Security Logic', () => {
   // Test role resolution logic used in DeliveryHub.jsx and Sidebar.jsx

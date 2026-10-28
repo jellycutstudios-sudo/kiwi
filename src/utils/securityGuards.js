@@ -135,26 +135,10 @@ export function initSecurityGuards(options = {}) {
   window.addEventListener('keydown', handleKeydown, { capture: true });
   document.addEventListener('keydown', handleKeydown, { capture: true });
 
-  // 3. Unclosable Anti-Debugging Freeze Loop
-  // If DevTools is opened via browser menus (Three dots -> More tools -> Developer tools),
-  // this triggers a debugger pause repeatedly every 150ms so DevTools is locked up.
-  let antiDebugTimer = null;
-  const runAntiDebug = () => {
-    try {
-      (function() {
-        Function('debugger')();
-      })();
-    } catch {}
-  };
-
-  // Run anti-debug freeze loop
-  antiDebugTimer = setInterval(runAntiDebug, 150);
-
   return () => {
     window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
     document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
     window.removeEventListener('keydown', handleKeydown, { capture: true });
     document.removeEventListener('keydown', handleKeydown, { capture: true });
-    if (antiDebugTimer) clearInterval(antiDebugTimer);
   };
 }

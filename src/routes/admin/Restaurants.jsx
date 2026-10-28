@@ -1,20 +1,18 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { 
   Plus, ExternalLink, Building2, BarChart3, TrendingUp, ShoppingCart, 
-  AlertTriangle, RefreshCw, Layers, ShieldCheck, ArrowRight, CheckCircle2, 
-  Globe, Sparkles, Sliders, Users, Flame, Lock
+  AlertTriangle, RefreshCw, Layers, ShieldCheck, 
+  Globe, Sparkles, Sliders, Users, Flame
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
 import { 
   calculateLocalizedPrice, 
   prepareMasterMenuPayload, 
-  applyGlobal86, 
-  ENTERPRISE_ROLES, 
-  checkEnterprisePermission 
+  ENTERPRISE_ROLES
 } from '../../utils/enterpriseMenuSync';
 
 export default function Restaurants() {

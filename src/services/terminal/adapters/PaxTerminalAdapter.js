@@ -88,7 +88,7 @@ export class PaxTerminalAdapter extends BaseTerminalAdapter {
           provider: 'pax'
         };
       }
-    } catch (err) {
+    } catch {
       // Graceful fallback for local network / CORS browser protection:
       // Emulate ready state for POS UI with clear diagnostics
       return {

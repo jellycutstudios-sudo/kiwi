@@ -17,11 +17,8 @@ import {
   Volume2, 
   VolumeX, 
   Check, 
-  Timer,
   Printer,
-  Sun,
   CheckCircle2,
-  ArrowUpDown,
   Zap,
   Keyboard,
   X,
@@ -75,7 +72,7 @@ export default function KDS() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showBumpBarHelp, setShowBumpBarHelp] = useState(false);
-  const { isLocked: isWakeLocked, isSupported: isWakeSupported } = useWakeLock(true);
+  useWakeLock(true);
   
   // Kitchen display card sort order: 'oldest' (FIFO standard) | 'newest' (LIFO) | 'urgency' (Rush)
   const [kdsSortOrder, setKdsSortOrder] = useState(() => {
@@ -415,21 +412,7 @@ export default function KDS() {
     };
   }, [getElapsedSeconds]);
 
-  // Kitchen performance metrics
-  const kitchenMetrics = useMemo(() => {
-    if (kdsOrders.length === 0) return { avgWaitMins: 0, maxWaitMins: 0 };
-    let totalMins = 0;
-    let maxMins = 0;
-    kdsOrders.forEach(o => {
-      const mins = Math.floor(getElapsedSeconds(o) / 60);
-      totalMins += mins;
-      if (mins > maxMins) maxMins = mins;
-    });
-    return {
-      avgWaitMins: Math.round(totalMins / kdsOrders.length),
-      maxWaitMins: maxMins
-    };
-  }, [kdsOrders, getElapsedSeconds]);
+
 
   return (
     <div className="kds-layout">

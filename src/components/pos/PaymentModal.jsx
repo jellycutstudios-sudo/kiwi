@@ -30,7 +30,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
     getPointsDiscountAmount, tipAmount, setTip,
     tableName, tokenNumber, upiRef, setUpiRef,
-    setTerminalTx, getSettledTotal, getRemainingTotal, settledChecks
+    setTerminalTx, getSettledTotal, getRemainingTotal
   } = useOrderStore();
 
   const {
@@ -136,7 +136,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     }
 
     return result;
-  }, [total, currency]);
+  }, [total, currency, effectiveDue]);
 
   // Terminal Simulator states
   const [terminalStatus, setTerminalStatus] = useState(null); // null | 'connecting' | 'waiting' | 'processing' | 'success' | 'declined'

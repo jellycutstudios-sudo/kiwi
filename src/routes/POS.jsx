@@ -30,7 +30,6 @@ import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
 import { usePosTemplate } from '../utils/posTemplate';
-import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
@@ -98,7 +97,7 @@ export default function POS() {
     customer, setCustomerProfile, setRedeemingPoints,
     loadOrderToCart,
     tokenNumber, setToken,
-    activeSeat, setActiveSeat, setItemSeat, splitItemQty,
+    activeSeat, setActiveSeat, setItemSeat,
     settleSubCheck, settledChecks
   } = useOrderStore(
     useShallow((state) => ({
@@ -137,7 +136,6 @@ export default function POS() {
       activeSeat: state.activeSeat,
       setActiveSeat: state.setActiveSeat,
       setItemSeat: state.setItemSeat,
-      splitItemQty: state.splitItemQty,
       settleSubCheck: state.settleSubCheck,
       settledChecks: state.settledChecks
     }))
@@ -168,21 +166,18 @@ export default function POS() {
     }))
   );
 
-  const { template: posTemplate, setTemplate: setPosTemplate, isBistro, isCategoryFirst } = usePosTemplate();
+  const { isBistro, isCategoryFirst } = usePosTemplate();
 
   useEffect(() => {
     if (isCategoryFirst) {
       setCatFirstOverview(true);
     }
-  }, [isCategoryFirst]);
+  }, [isCategoryFirst, setCatFirstOverview]);
 
   const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !search.trim();
-  const isOnline = useOfflineQueueStore(s => s.isOnline);
-  const [guestCount, setGuestCount] = useState(2);
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
   const dietaryFilter = useMenuStore(s => s.dietaryFilter);
-  const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const prevItemCountRef = useRef(0);

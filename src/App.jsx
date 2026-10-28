@@ -35,7 +35,6 @@ const Restaurants    = lazyWithRetry(() => import('./routes/admin/Restaurants'))
 const DeliveryHub    = lazyWithRetry(() => import('./routes/admin/DeliveryHub'));
 const Transactions   = lazyWithRetry(() => import('./routes/admin/Transactions'));
 const PendingApproval= lazyWithRetry(() => import('./routes/PendingApproval'));
-const ActiveOrders   = lazyWithRetry(() => import('./routes/ActiveOrders'));
 const LandingPage    = lazyWithRetry(() => import('./routes/LandingPage'));
 const PosterManager  = lazyWithRetry(() => import('./routes/admin/PosterManager'));
 const PosterDisplay  = lazyWithRetry(() => import('./routes/PosterDisplay'));
@@ -129,7 +128,7 @@ export default function App() {
 
               {/* Online orders & counter active orders — cashiers, managers, and admins only */}
               <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['admin', 'super_admin', 'cashier', 'manager']} userRole={userRole} />}>
-                <Route path="/orders"          element={<ActiveOrders />} />
+                <Route path="/orders"          element={<OnlineOrders />} />
                 <Route path="/online-orders"   element={<OnlineOrders />} />
               </Route>
 

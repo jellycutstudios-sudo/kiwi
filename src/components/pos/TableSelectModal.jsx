@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTableStore } from '../../stores/tableStore';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -24,13 +24,13 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
   }, [restaurantId, subscribe]);
 
   // Derive effective status to guarantee 100% sync with active orders
-  const getEffectiveStatus = (tbl) => {
+  const getEffectiveStatus = useCallback((tbl) => {
     const activeOrder = tableOrders[tbl.id];
     const hasActiveOrder = activeOrder && !['billed', 'cancelled'].includes(activeOrder.status);
     if (hasActiveOrder) return 'occupied';
     if (tbl.status === 'reserved') return 'reserved';
     return tbl.status || 'free';
-  };
+  }, [tableOrders]);
 
   // Overall counts based on real-time operational status
   const counts = useMemo(() => {
@@ -42,7 +42,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
       else free++;
     });
     return { all: tables.length, free, occupied, reserved };
-  }, [tables, tableOrders]);
+  }, [tables, getEffectiveStatus]);
 
   // Auto-detect zones/sections or table prefix clusters (e.g. 'T', 'G', 'B')
   const zones = useMemo(() => {
@@ -103,7 +103,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         // Priority 2: Natural alphanumeric sorting (T1, T2, T3... instead of T1, T10, T2)
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
-  }, [tables, filterStatus, minSeats, selectedZone, search, freeFirst, tableOrders]);
+  }, [tables, filterStatus, minSeats, selectedZone, search, freeFirst, getEffectiveStatus]);
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>

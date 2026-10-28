@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, memo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -24,6 +24,29 @@ import {
   Cell,
   Tooltip
 } from 'recharts';
+
+const LiveDateTime = memo(function LiveDateTime() {
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14.5px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>
+        <Calendar size={15} style={{ color: 'var(--color-label-tertiary)' }} />
+        {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      </span>
+      <span style={{ color: 'var(--color-separator-opaque, rgba(255,255,255,0.25))', fontSize: '13px' }}>•</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14.5px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--color-label)' }}>
+        <Clock size={15} style={{ color: 'var(--color-accent, #3b82f6)' }} />
+        {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
+      </span>
+    </div>
+  );
+});
 
 export default function Dashboard() {
   const restaurant = useAuthStore(s => s.restaurant);
@@ -504,23 +527,7 @@ export default function Dashboard() {
     });
 
     return unsub;
-  }, [restaurant?.id, currentDateStr]);
-
-  const [hour, setHour] = useState(() => new Date().getHours());
-
-  // Keep greeting in sync with client's local clock, updating every minute
-  useEffect(() => {
-    const tick = () => setHour(new Date().getHours());
-    const id = setInterval(tick, 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const greeting = hour < 12 ? '☀️ Good Morning' : hour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening';
-  const displayGreetingName = useMemo(() => {
-    if (!staffDoc?.name) return 'Chef';
-    if (staffDoc.name.toLowerCase() === 'super admin') return 'Administrator';
-    return staffDoc.name;
-  }, [staffDoc?.name]);
+  }, [restaurant?.id, currentDateStr, tablesCount]);
 
   const displayedSales = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
   const displayedOrders = salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders;
@@ -602,30 +609,12 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
 
-      {/* Greeting Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+      {/* Date & Time Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
-          <h1 className="text-title2" style={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
-            {greeting}, {displayGreetingName}
-          </h1>
-          <p className="text-secondary text-body" style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={15} style={{ color: 'var(--color-label-tertiary)' }} />
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
+          <h1 className="sr-only">Dashboard</h1>
+          <LiveDateTime />
         </div>
-
-        <button
-          type="button"
-          className="advisor-trigger-btn"
-          onClick={() => setShowAiAdvisor(true)}
-          title="Open Business Advisor"
-        >
-          <span className="advisor-btn-icon">
-            <Bot size={14} />
-          </span>
-          <span>Advisor</span>
-          <span className="advisor-btn-badge">AI</span>
-        </button>
       </div>
 
       {/* 1. Executive Sales Assistant Hero Briefing */}

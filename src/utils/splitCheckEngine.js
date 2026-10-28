@@ -226,7 +226,7 @@ export function createSeatChecks(items = [], options = {}) {
  * @param {Object} options 
  * @returns {Array}
  */
-export function createEvenChecks(total, numGuests, items = [], options = {}) {
+export function createEvenChecks(total, numGuests, _items = [], _options = {}) {
   const n = Math.max(2, Math.min(20, Number(numGuests) || 2));
   const amounts = distributeEvenly(total, n);
 

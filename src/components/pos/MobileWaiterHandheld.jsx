@@ -1,9 +1,8 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useMemo, useEffect } from 'react';
 import { 
-  Search, X, Plus, Minus, Check, Flame, Clock, 
-  ChevronUp, ChevronDown, UtensilsCrossed, Printer, CreditCard, 
-  Split, AlertTriangle, ArrowLeft, Trash2, SlidersHorizontal, FileText 
+  Search, X, Plus, Minus, Flame, 
+  ChevronUp, ChevronDown, Printer, CreditCard, 
+  Split, ArrowLeft, Trash2, SlidersHorizontal, FileText 
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useOrderStore } from '../../stores/orderStore';
@@ -62,12 +61,11 @@ export default function MobileWaiterHandheld({
   onOpenSplitModal,
   onOpenPayment
 }) {
-  const { t } = useTranslation();
   const { tables, subscribe } = useTableStore();
   const { 
-    items, addItem, updateQty, removeItem, clearCart,
+    items, addItem, updateQty, removeItem,
     tableId, tableName, setTable, setOrderType, orderType,
-    loadOrderToCart, editingOrderId, setItemDetails, fireHeldItems,
+    loadOrderToCart, setItemDetails, fireHeldItems,
     note, setNote
   } = useOrderStore();
 
@@ -332,7 +330,6 @@ export default function MobileWaiterHandheld({
           {filteredItems.map(item => {
             const inCartItem = items.find(i => i.id === item.id);
             const cartQty = inCartItem?.qty || 0;
-            const isFired = inCartItem?.prepState !== 'hold';
 
             return (
               <div 

@@ -1,20 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, Download, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Delete } from 'lucide-react';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, collection, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { notifyAdminOfNewTrial } from '../utils/sendTrialNotification';
-import { usePwaInstall } from '../hooks/usePwaInstall';
 
 export default function Login() {
-  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const { loginWithEmail, loginWithPin, loading, error, clearError } = useAuthStore();
-  const { canInstall, isStandalone, promptInstall } = usePwaInstall();
   // Derive initial mode from URL query param at mount — no useEffect needed
   const [mode, setMode] = useState(() => {
     const queryMode = searchParams.get('mode');
@@ -31,7 +27,10 @@ export default function Login() {
   const [password, setPassword] = useState(() => isDemoMode && searchParams.get('demo') === 'admin' ? 'password123' : '');
   const [showPw, setShowPw] = useState(false);
   const [pin, setPin] = useState('');
-  const [restaurantId, setRestaurantId] = useState(() => isDemoMode && searchParams.get('demo') === 'staff' ? 'kiwi' : '');
+  const [restaurantId, setRestaurantId] = useState(() => {
+    if (isDemoMode && searchParams.get('demo') === 'staff') return 'kiwi';
+    return localStorage.getItem('rupos_last_rest_id') || '';
+  });
 
   // Registration states (Minimal 3 fields: Name, Mobile/Email, Password)
   const [regContact, setRegContact] = useState('');
@@ -61,6 +60,9 @@ export default function Login() {
       toast.error('Enter Restaurant ID first');
       setPin('');
       return;
+    }
+    if (restaurantId.trim()) {
+      localStorage.setItem('rupos_last_rest_id', restaurantId.trim());
     }
     const res = await loginWithPin(restaurantId.trim(), p);
     if (!res.ok) {
@@ -205,49 +207,23 @@ export default function Login() {
     } finally {
       setRegistering(false);
     }
-  };
-
-  return (
+  };  return (
     <div className="login-page">
-
-      {/* ── Left brand panel (desktop only) ── */}
-      <div className="login-brand-panel">
-        <div className="login-brand-content">
-          <div className="login-brand-logo-wrap">
-            <img src="/logorupos-light.svg" alt="RUPOS" />
-          </div>
-          <div className="login-brand-hero">
-            <h1 className="login-brand-title">Welcome<br />back.</h1>
-            <p className="login-brand-tagline">The modern OS for restaurants.</p>
-          </div>
-        </div>
-        <div className="login-brand-footer">
-          <Link to="/" className="login-footer-link">← Home</Link>
-          <span>© {new Date().getFullYear()} RUPOS</span>
-        </div>
-      </div>
-
-      {/* ── Right form panel ── */}
       <div className="login-form-panel">
         <div className="login-form-card">
-          <div className="login-top-bar">
-            <Link to="/" className="login-back-home-btn" id="btn-back-home" title="Back to Home Page">
-              <ArrowLeft size={14} />
-              <span>Back to Home</span>
+          {/* Minimal Top Header Row */}
+          <div className="login-header-row">
+            <Link to="/" className="login-back-btn" title="Back to Home" aria-label="Back to Home">
+              <ArrowLeft size={18} />
             </Link>
-          </div>
-
-          <div className="login-card-header">
-            <div className="login-logo-wrap mobile-only">
-              <img src="/logorupos.svg" alt="Logo" />
+            <div className="login-logo-wrap">
+              <img src="/logorupos.svg" alt="RUPOS" />
             </div>
-            <h2 className="login-card-title">
-              {mode === 'email' ? 'Sign in' : mode === 'pin' ? 'Staff PIN' : 'Create Restaurant'}
-            </h2>
+            <div className="login-header-placeholder" />
           </div>
 
-          {/* Mode toggle */}
-          <div className="login-mode-toggle">
+          {/* Touch-Friendly Segmented Mode Toggle */}
+          <div className="login-mode-toggle" role="tablist">
             {[
               { m: 'email', label: 'Admin' },
               { m: 'pin',   label: 'Staff' },
@@ -259,6 +235,8 @@ export default function Login() {
                 onClick={() => { setMode(item.m); clearError(); setPin(''); }}
                 className={`login-mode-btn ${mode === item.m ? 'active' : ''}`}
                 type="button"
+                role="tab"
+                aria-selected={mode === item.m}
               >
                 {item.label}
               </button>
@@ -277,7 +255,7 @@ export default function Login() {
                   className="form-input"
                   type="text"
                   autoComplete="username"
-                  placeholder="Mobile number or email"
+                  placeholder="name@restaurant.com"
                   value={identifier}
                   onChange={e => setIdentifier(e.target.value)}
                   required
@@ -286,17 +264,32 @@ export default function Login() {
               <div className="form-group">
                 <label className="form-label">Password</label>
                 <div className="password-input-wrapper">
-                  <input id="login-password" className="form-input password-input"
-                    type={showPw ? 'text' : 'password'} placeholder={t('passwordPlaceholder')}
-                    value={password} onChange={e => setPassword(e.target.value)} required />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="password-toggle-btn" aria-label="Toggle password visibility">
+                  <input
+                    id="login-password"
+                    className="form-input password-input"
+                    type={showPw ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    className="password-toggle-btn"
+                    aria-label="Toggle password visibility"
+                  >
                     {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
-              <button id="login-submit-btn" className="login-submit-btn"
-                type="submit" disabled={loading}>
-                {loading ? 'Signing in…' : t('signIn')}
+              <button
+                id="login-submit-btn"
+                className="login-submit-btn"
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? 'Signing in…' : 'Sign In'}
               </button>
               <div className="login-forgot-wrapper">
                 <button
@@ -307,7 +300,7 @@ export default function Login() {
                       return;
                     }
                     if (!identifier.includes('@')) {
-                      toast.error('Password reset emails require your registered email. Please enter it above.');
+                      toast.error('Password reset emails require your registered email.');
                       return;
                     }
                     try {
@@ -329,38 +322,54 @@ export default function Login() {
             <div className="login-form">
               <div className="form-group login-rest-id-group">
                 <label className="form-label">Restaurant ID</label>
-                <input id="login-restaurant-id" className="form-input"
-                  placeholder="e.g. my-restaurant or rest_abc123"
-                  value={restaurantId} onChange={e => setRestaurantId(e.target.value)} />
+                <input
+                  id="login-restaurant-id"
+                  className="form-input"
+                  placeholder="e.g. my-restaurant"
+                  value={restaurantId}
+                  onChange={e => {
+                    setRestaurantId(e.target.value);
+                    if (e.target.value.trim()) {
+                      localStorage.setItem('rupos_last_rest_id', e.target.value.trim());
+                    }
+                  }}
+                />
               </div>
+
               <div className="pin-dots">
-                {[0,1,2,3].map(i => (
+                {[0, 1, 2, 3].map(i => (
                   <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
                 ))}
               </div>
+
               <div className="pin-pad">
-                {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
-                  <button key={i} id={k ? `pin-key-${k}` : undefined}
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'delete'].map((k, i) => (
+                  <button
+                    key={i}
+                    id={k ? `pin-key-${k}` : undefined}
                     className={`pin-key ${k === '' ? 'empty' : ''}`}
-                    onClick={() => { if (k === '⌫') setPin(p => p.slice(0,-1)); else if (k) handlePinKey(k); }}
-                    disabled={loading}
-                    type="button">
-                    {k}
+                    onClick={() => {
+                      if (k === 'delete') setPin(p => p.slice(0, -1));
+                      else if (k) handlePinKey(k);
+                    }}
+                    disabled={loading || k === ''}
+                    type="button"
+                    aria-label={k === 'delete' ? 'Delete digit' : k || 'empty'}
+                  >
+                    {k === 'delete' ? <Delete size={20} /> : k}
                   </button>
                 ))}
               </div>
-              {loading && <div className="login-verifying">Verifying…</div>}
+
+              {loading && <div className="login-verifying">Verifying PIN…</div>}
             </div>
 
           /* ── Minimal 3-Field Registration ── */
           ) : (
             <div className="login-form register-form">
-              <p className="register-notice-text">
-                Create your restaurant workspace in seconds.
-              </p>
               <form onSubmit={handleRegister} className="register-form-inner">
                 <div className="form-group">
-                  <label className="form-label">Restaurant Name *</label>
+                  <label className="form-label">Restaurant Name</label>
                   <input
                     id="reg-rest-name"
                     className="form-input"
@@ -370,20 +379,15 @@ export default function Login() {
                     required
                     autoFocus
                   />
-                  {regRestName.trim() && (
-                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: '4px', display: 'block' }}>
-                      Online Store: <strong>/order/{regRestName.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-') || '...'}</strong>
-                    </span>
-                  )}
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Mobile Number (or Email) *</label>
+                  <label className="form-label">Mobile Number or Email</label>
                   <input
                     id="reg-email"
                     className="form-input"
                     type="text"
-                    placeholder="e.g. 9876543210 or name@example.com"
+                    placeholder="9876543210 or name@example.com"
                     value={regContact}
                     onChange={e => setRegContact(e.target.value)}
                     required
@@ -391,13 +395,13 @@ export default function Login() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Password *</label>
+                  <label className="form-label">Password</label>
                   <div className="password-input-wrapper">
                     <input
                       id="reg-password"
                       className="form-input"
                       type={showPw ? 'text' : 'password'}
-                      placeholder="Min 6 characters"
+                      placeholder="At least 6 characters"
                       value={regPassword}
                       onChange={e => setRegPassword(e.target.value)}
                       required
@@ -407,7 +411,7 @@ export default function Login() {
                       type="button"
                       className="password-toggle-btn"
                       onClick={() => setShowPw(!showPw)}
-                      title={showPw ? 'Hide password' : 'Show password'}
+                      aria-label={showPw ? 'Hide password' : 'Show password'}
                     >
                       {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -426,18 +430,10 @@ export default function Login() {
               </form>
             </div>
           )}
+        </div>
 
-          {canInstall && !isStandalone && (
-            <div className="login-install-wrapper">
-              <button
-                type="button"
-                className="login-install-btn"
-                onClick={promptInstall}
-              >
-                <Download size={14} /> Install DineOS App
-              </button>
-            </div>
-          )}
+        <div className="login-footer-credits">
+          © {new Date().getFullYear()} RUPOS • Restaurant Operating System
         </div>
       </div>
     </div>

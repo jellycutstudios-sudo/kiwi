@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { 
   Tablet, Smartphone, Tv, Check, X,
-  ArrowRight, Play, Globe, Menu, ChevronDown, ChevronUp,
+  ArrowRight, Globe, Menu, ChevronDown, ChevronUp,
   Utensils, Pizza, Coffee, CreditCard,
   Clock, Flame, ShieldCheck, Users,
   BarChart3, ChefHat, Printer, Layers,
-  Receipt, DollarSign, Calculator, Zap
+  Receipt, DollarSign, Calculator, Zap,
+  MessageCircle, Lock
 } from 'lucide-react';
 import '../landing-neo.css';
 
@@ -112,7 +113,7 @@ export default function LandingPage() {
             </button>
 
             <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn neo-btn-secondary neo-nav-desktop-only">
-              <Play size={12} /> Live Demo
+              <MessageCircle size={13} /> Request Demo
             </button>
 
             <Link to={isAuth ? "/dashboard" : "/login"} className="neo-btn neo-btn-primary">
@@ -136,7 +137,7 @@ export default function LandingPage() {
             <a href="#compare" className="neo-mobile-menu-item" onClick={() => setIsMobileMenuOpen(false)}>Comparison</a>
             <a href="#faq" className="neo-mobile-menu-item" onClick={() => setIsMobileMenuOpen(false)}>FAQ</a>
             <button className="neo-mobile-menu-item" onClick={() => { setIsMobileMenuOpen(false); setIsDemoModalOpen(true); }}>
-              <Play size={14} /> Open Live Demo
+              <MessageCircle size={14} /> Request Live Demo
             </button>
             <button className="neo-mobile-menu-item" onClick={() => { toggleLanguage(); setIsMobileMenuOpen(false); }}>
               <Globe size={14} /> {i18n.language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
@@ -162,8 +163,8 @@ export default function LandingPage() {
               <ArrowRight size={14} />
             </Link>
             <button onClick={() => setIsDemoModalOpen(true)} className="clay-hero-btn-secondary">
-              <Play size={12} />
-              <span>Live Demo</span>
+              <MessageCircle size={13} />
+              <span>Request Demo</span>
             </button>
           </div>
 
@@ -742,7 +743,7 @@ export default function LandingPage() {
             Start 14-Day Free Trial <ArrowRight size={14} />
           </Link>
           <button onClick={() => setIsDemoModalOpen(true)} className="neo-btn" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }}>
-            <Play size={12} /> Launch Live Demo
+            <MessageCircle size={13} /> Request Live Demo
           </button>
         </div>
       </section>
@@ -766,54 +767,64 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* DEMO MODAL */}
+      {/* REQUEST DEMO MODAL (WHATSAPP PROTECTED) */}
       {isDemoModalOpen && (
         <div className="neo-demo-modal-overlay" onClick={() => setIsDemoModalOpen(false)}>
-          <div className="neo-demo-modal" onClick={e => e.stopPropagation()}>
-            <button className="neo-demo-close-btn" onClick={() => setIsDemoModalOpen(false)}>
+          <div className="neo-demo-modal neo-demo-modal-whatsapp" onClick={e => e.stopPropagation()}>
+            <button className="neo-demo-close-btn" onClick={() => setIsDemoModalOpen(false)} aria-label="Close modal">
               <X size={16} />
             </button>
             <div className="neo-demo-header">
-              <h2>Select Demo Account</h2>
-              <p>Explore DineOS with pre-configured menus and live orders.</p>
+              <div className="neo-demo-badge">
+                <Lock size={12} />
+                <span>Protected Sandbox</span>
+              </div>
+              <h2>Request Live Demo Access</h2>
+              <p>To prevent spam and tailor the experience to your menu cuisine, our team provides 1-on-1 demo credentials directly via WhatsApp.</p>
             </div>
             
-            <div className="neo-demo-cards">
-              <div className="neo-demo-card">
-                <h3><ShieldCheck size={15} /> Admin / Owner Access</h3>
-                <p style={{ color: '#52525b', fontSize: '12px', margin: '0 0 12px 0' }}>Analytics, payroll, menu editing, and floor settings.</p>
-                <div className="neo-demo-credentials">
-                  <div className="neo-demo-cred-row">
-                    <span className="neo-demo-cred-label">Email</span>
-                    <span className="neo-demo-cred-val">demo@kiwi.com</span>
-                  </div>
-                  <div className="neo-demo-cred-row">
-                    <span className="neo-demo-cred-label">Password</span>
-                    <span className="neo-demo-cred-val">password123</span>
-                  </div>
+            <div className="neo-demo-features">
+              <div className="neo-demo-feature-item">
+                <Check size={14} className="neo-demo-check" />
+                <div>
+                  <strong>Instant Demo Credentials:</strong>
+                  <span> Full access to Admin, Waiter POS, and Kitchen Display</span>
                 </div>
-                <Link to="/login?mode=email&demo=admin" className="neo-btn neo-btn-primary" style={{ width: '100%', marginTop: '14px', fontSize: '12px' }}>
-                  Login as Admin →
-                </Link>
               </div>
+              <div className="neo-demo-feature-item">
+                <Check size={14} className="neo-demo-check" />
+                <div>
+                  <strong>Tailored For Your Concept:</strong>
+                  <span> Fine dining, QSR counter, cafe, or cloud kitchen setup</span>
+                </div>
+              </div>
+              <div className="neo-demo-feature-item">
+                <Check size={14} className="neo-demo-check" />
+                <div>
+                  <strong>Zero Pressure:</strong>
+                  <span> Explore at your own pace with test orders and real-time sync</span>
+                </div>
+              </div>
+            </div>
 
-              <div className="neo-demo-card">
-                <h3><Users size={15} /> Staff / Waiter Access</h3>
-                <p style={{ color: '#52525b', fontSize: '12px', margin: '0 0 12px 0' }}>Fast POS register checkout and table ordering.</p>
-                <div className="neo-demo-credentials">
-                  <div className="neo-demo-cred-row">
-                    <span className="neo-demo-cred-label">Restaurant</span>
-                    <span className="neo-demo-cred-val">kiwi</span>
-                  </div>
-                  <div className="neo-demo-cred-row">
-                    <span className="neo-demo-cred-label">PIN</span>
-                    <span className="neo-demo-cred-val">1234</span>
-                  </div>
-                </div>
-                <Link to="/login?mode=pin&demo=staff" className="neo-btn neo-btn-primary" style={{ width: '100%', marginTop: '14px', fontSize: '12px' }}>
-                  Login with PIN →
-                </Link>
-              </div>
+            <div className="neo-demo-action-box">
+              <a 
+                href="https://wa.me/919400018008?text=Hello%20DineOS%20team%2C%20I%20would%20like%20to%20request%20live%20demo%20access%20for%20my%20restaurant."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="neo-whatsapp-cta-btn"
+              >
+                <MessageCircle size={18} />
+                <span>Request Demo on WhatsApp</span>
+              </a>
+              <span className="neo-demo-subtext">
+                Usually responds within 5 minutes • +91 94000 18008
+              </span>
+            </div>
+
+            <div className="neo-demo-footer-note">
+              <span>Already received your credentials? </span>
+              <Link to="/login" onClick={() => setIsDemoModalOpen(false)}>Sign in here →</Link>
             </div>
           </div>
         </div>

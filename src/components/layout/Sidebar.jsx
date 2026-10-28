@@ -114,7 +114,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     });
 
     return unsub;
-  }, [restaurant?.id, restaurant?.brandId, restaurant?.ownerUid, user?.uid, role]);
+  }, [restaurant, user?.uid, role]);
 
   // Check if current route is in Admin section so it auto-expands
   const isCurrentRouteAdmin = location.pathname.startsWith('/admin');
@@ -197,7 +197,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       console.warn('Sidebar deliverySettings listener:', err);
     });
     return unsub;
-  }, [restaurant?.id]);
+  }, [restaurant?.id, restaurant?.deliveryIntegrations]);
 
   const handleItemClick = () => {
     if (setMobileOpen) {
