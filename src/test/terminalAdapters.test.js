@@ -202,5 +202,124 @@ describe('Payment Terminal Adapters & Architecture', () => {
     expect(cancel.success).toBe(true);
     expect(cancel.status).toBe('CANCELLED');
   });
+
+  it('parses approved Adyen Cloud Terminal API response with RRN and AuthCode', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      json: async () => ({
+        SaleToPOIResponse: {
+          PaymentResponse: {
+            Response: { Result: 'Success' },
+            POIData: { POITransactionID: { TransactionID: 'ADY_RRN_123456' } },
+            PaymentResult: {
+              PaymentAcquirerData: { ApprovalCode: 'ADY_AUTH_9988' },
+              PaymentInstrumentData: { CardData: { PaymentBrand: 'MasterCard', MaskedPan: '5555********4444' } }
+            }
+          }
+        }
+      })
+    });
+
+    const adyen = new AdyenTerminalAdapter({
+      apiKey: 'live_test_key_123',
+      merchantAccount: 'KiwiHospitalityECOM',
+      terminalId: 'ADYEN-V400m-987654321'
+    });
+
+    const res = await adyen.initiatePayment({
+      amount: 65.00,
+      currency: 'EUR',
+      orderId: 'ADY_ORDER_101'
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.status).toBe('APPROVED');
+    expect(res.rrn).toBe('ADY_RRN_123456');
+    expect(res.authCode).toBe('ADY_AUTH_9988');
+    expect(res.cardBrand).toBe('MasterCard');
+    expect(res.last4).toBe('4444');
+
+    fetchSpy.mockRestore();
+  });
+
+  it('parses approved Paytm EDC Cloud response with RRN and AuthCode', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      json: async () => ({
+        body: {
+          resultInfo: { resultStatus: 'TXN_SUCCESS', resultCode: '01', resultMsg: 'Success' },
+          bankTxnId: 'PTM_RRN_554433',
+          authRefNum: 'PTM_AUTH_7788',
+          paymentMode: 'CARD'
+        }
+      })
+    });
+
+    const paytm = new PaytmEdcAdapter({
+      merchantId: 'PTM_MERCHANT_01',
+      merchantKey: 'PTM_SECRET_KEY_01',
+      terminalId: 'PTM_TID_01'
+    });
+
+    const res = await paytm.initiatePayment({
+      amount: 1450.00,
+      currency: 'INR',
+      orderId: 'PTM_ORDER_789'
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.status).toBe('APPROVED');
+    expect(res.rrn).toBe('PTM_RRN_554433');
+    expect(res.authCode).toBe('PTM_AUTH_7788');
+    expect(res.provider).toBe('paytm');
+
+    fetchSpy.mockRestore();
+  });
+
+  it('handles Paytm EDC and Adyen declined statuses properly without hanging in placeholder states', async () => {
+    // Paytm declined
+    const fetchSpyPaytm = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      json: async () => ({
+        body: {
+          resultInfo: { resultStatus: 'TXN_FAILURE', resultCode: '227', resultMsg: 'Card Declined by Issuer' }
+        }
+      })
+    });
+
+    const paytm = new PaytmEdcAdapter({
+      merchantId: 'PTM_MERCHANT_01',
+      merchantKey: 'PTM_SECRET_KEY_01',
+      terminalId: 'PTM_TID_01'
+    });
+
+    const paytmRes = await paytm.initiatePayment({ amount: 500, currency: 'INR', orderId: 'ORD_FAIL_1' });
+    expect(paytmRes.success).toBe(false);
+    expect(paytmRes.status).toBe('DECLINED');
+    expect(paytmRes.errorMessage).toContain('Card Declined by Issuer');
+
+    fetchSpyPaytm.mockRestore();
+
+    // Adyen declined
+    const fetchSpyAdyen = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      json: async () => ({
+        SaleToPOIResponse: {
+          PaymentResponse: {
+            Response: { Result: 'Failure', ErrorCondition: 'Refusal', AdditionalResponse: 'Insufficient Funds' }
+          }
+        }
+      })
+    });
+
+    const adyen = new AdyenTerminalAdapter({
+      apiKey: 'live_test_key_123',
+      merchantAccount: 'KiwiHospitalityECOM',
+      terminalId: 'ADYEN-V400m-987654321'
+    });
+
+    const adyenRes = await adyen.initiatePayment({ amount: 99, currency: 'EUR', orderId: 'ORD_FAIL_2' });
+    expect(adyenRes.success).toBe(false);
+    expect(adyenRes.status).toBe('DECLINED');
+    expect(adyenRes.errorMessage).toBe('Refusal');
+
+    fetchSpyAdyen.mockRestore();
+  });
 });
 

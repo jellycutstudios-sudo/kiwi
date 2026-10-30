@@ -1,4 +1,6 @@
 import { BaseTerminalAdapter } from '../BaseTerminalAdapter';
+import { functions } from '../../../firebase';
+import { httpsCallable } from 'firebase/functions';
 
 /**
  * StripeTerminalAdapter
@@ -33,11 +35,25 @@ export class StripeTerminalAdapter extends BaseTerminalAdapter {
     if (this.terminalInstance) return this.terminalInstance;
     const StripeTerminal = await this.loadSdk();
     
-    // In production, connection token is retrieved from your backend Firebase Function
+    // In production, connection token is retrieved from backend Firebase Function
     this.terminalInstance = StripeTerminal.create({
       onFetchConnectionToken: async () => {
-        // Return simulated token or fetch from backend
-        return this.config.connectionToken || 'simulated_connection_token';
+        const restId = this.config.restaurantId || this.config.id;
+        if (functions && restId) {
+          try {
+            const createTokenFn = httpsCallable(functions, 'createTerminalConnectionToken');
+            const res = await createTokenFn({ restaurantId: restId });
+            if (res?.data?.secret) {
+              return res.data.secret;
+            }
+          } catch (fnErr) {
+            console.warn('[StripeTerminal] Backend connection token callable failed:', fnErr?.message);
+          }
+        }
+        if (this.config.connectionToken) {
+          return this.config.connectionToken;
+        }
+        return 'simulated_connection_token';
       },
       onUnexpectedReaderDisconnect: () => {
         console.warn('[StripeTerminal] Reader disconnected unexpectedly');

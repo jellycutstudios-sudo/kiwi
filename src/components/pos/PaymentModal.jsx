@@ -7,7 +7,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, ChevronUp, Coins } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 import { getTerminalAdapter, TERMINAL_PROVIDERS } from '../../services/terminal';
@@ -318,14 +319,25 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
       loadStripeSDK()
         .then((StripeTerminal) => {
           try {
-            // Token provider must call your backend to get a real Stripe ConnectionToken.
+            // Token provider retrieves a real Stripe ConnectionToken from the backend Firebase Function
             // See: https://stripe.com/docs/terminal/fleet/sdk-basics#connection-tokens
             const tokenProvider = async () => {
-              // TODO: Replace with a real call to your backend endpoint:
-              // const resp = await fetch('/api/stripe/connection-token', { method: 'POST' });
-              // const { secret } = await resp.json();
-              // return secret;
-              throw new Error('Stripe ConnectionToken backend endpoint not configured. Set up /api/stripe/connection-token on your server.');
+              if (functions && restaurant?.id) {
+                try {
+                  const createTokenFn = httpsCallable(functions, 'createTerminalConnectionToken');
+                  const result = await createTokenFn({ restaurantId: restaurant.id });
+                  if (result?.data?.secret) {
+                    return result.data.secret;
+                  }
+                } catch (fnErr) {
+                  console.error('[Stripe Terminal] Failed calling createTerminalConnectionToken callable:', fnErr);
+                  throw new Error(`Stripe ConnectionToken backend error: ${fnErr.message}`);
+                }
+              }
+              if (restaurant?.terminalConfig?.connectionToken) {
+                return restaurant.terminalConfig.connectionToken;
+              }
+              throw new Error('Stripe ConnectionToken could not be retrieved from backend. Ensure cloud functions are deployed.');
             };
 
             StripeTerminal.create({
