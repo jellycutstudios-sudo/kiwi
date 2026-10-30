@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
-import { collection, doc, updateDoc, addDoc, deleteDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -96,6 +96,11 @@ export default function StaffManager() {
       return;
     }
 
+    if (!restaurant.localStorageOnly && typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.error('Connect to the internet before changing cloud staff records.');
+      return;
+    }
+
     const cleanPin = form.pin ? String(form.pin).trim() : '';
 
     if (!editId) {
@@ -135,49 +140,43 @@ export default function StaffManager() {
           updatedAt: new Date().toISOString()
         };
 
-        const updatedList = staff.map(s => s.id === editId ? { ...s, ...publicMember } : s);
-        useStaffStore.getState().setStaffList(updatedList);
-
-        if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
-          try {
-            // 1. Update public staff profile (no pin or compensation stored here)
-            const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
-            await updateDoc(staffRef, {
+        const existingStaff = staff.find(s => s.id === editId);
+        const isActive = existingStaff?.active !== false;
+        const shouldSyncCloud = !restaurant.localStorageOnly;
+        if (shouldSyncCloud) {
+          const batch = writeBatch(db);
+          batch.update(doc(db, 'restaurants', restaurant.id, 'staff', editId), {
+            name: form.name.trim(),
+            role: form.role,
+            email: form.email?.trim() || null,
+            salaryType: form.salaryType,
+            updatedAt: new Date()
+          });
+          batch.set(doc(db, 'restaurants', restaurant.id, 'staff_credentials', editId), {
+            staffId: editId,
+            pin: targetPin,
+            salaryType: form.salaryType,
+            salaryRate: Number(form.salaryRate) || 0,
+            overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
+            updatedAt: new Date()
+          }, { merge: true });
+          if (cleanPin && oldPin && cleanPin !== oldPin) {
+            batch.delete(doc(db, 'restaurants', restaurant.id, 'staff_auth', oldPin));
+          }
+          if (targetPin) {
+            batch.set(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
+              staffId: editId,
               name: form.name.trim(),
               role: form.role,
-              email: form.email?.trim() || null,
-              salaryType: form.salaryType,
+              active: isActive,
               updatedAt: new Date()
             });
-
-            // 2. Update secure credentials in admin-only collection
-            const credRef = doc(db, 'restaurants', restaurant.id, 'staff_credentials', editId);
-            await setDoc(credRef, {
-              staffId: editId,
-              pin: targetPin,
-              salaryType: form.salaryType,
-              salaryRate: Number(form.salaryRate) || 0,
-              overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-              updatedAt: new Date()
-            }, { merge: true });
-
-            // 3. Update staff_auth lookup doc
-            if (cleanPin && oldPin && cleanPin !== oldPin) {
-              await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', oldPin)).catch(() => {});
-            }
-            if (targetPin) {
-              await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
-                staffId: editId,
-                name: form.name.trim(),
-                role: form.role,
-                active: true,
-                updatedAt: new Date()
-              });
-            }
-          } catch (cloudErr) {
-            console.warn('[StaffManager] Update cloud sync deferred:', cloudErr?.message);
           }
+          await batch.commit();
         }
+
+        const updatedList = staff.map(s => s.id === editId ? { ...s, ...publicMember, pin: targetPin } : s);
+        useStaffStore.getState().setStaffList(updatedList);
 
         toast.success('Staff updated!');
       } else {
@@ -199,49 +198,39 @@ export default function StaffManager() {
           updatedAt: new Date().toISOString()
         };
 
-        const updatedList = [...staff, publicMember];
-        useStaffStore.getState().setStaffList(updatedList);
-
-        if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
-          try {
-            // 1. Add to public staff collection (sanitized without pin)
-            const staffColRef = collection(db, 'restaurants', restaurant.id, 'staff');
-            const ref = await addDoc(staffColRef, {
-              name: form.name.trim(),
-              role: form.role,
-              active: true,
-              email: form.email?.trim() || null,
-              salaryType: form.salaryType,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            });
-            const createdId = ref.id;
-
-            // 2. Set credentials in admin-only collection
-            await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_credentials', createdId), {
-              staffId: createdId,
-              pin: cleanPin,
-              salaryType: form.salaryType,
-              salaryRate: Number(form.salaryRate) || 0,
-              overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-              updatedAt: new Date()
-            });
-
-            // 3. Set staff_auth single-key lookup doc
-            await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', cleanPin), {
-              staffId: createdId,
-              name: form.name.trim(),
-              role: form.role,
-              active: true,
-              updatedAt: new Date()
-            });
-
-            const finalList = updatedList.map(s => s.id === newStaffId ? { ...s, id: createdId } : s);
-            useStaffStore.getState().setStaffList(finalList);
-          } catch (cloudErr) {
-            console.warn('[StaffManager] Add cloud sync deferred:', cloudErr?.message);
-          }
+        const shouldSyncCloud = !restaurant.localStorageOnly;
+        let savedMember = { ...publicMember, pin: cleanPin };
+        if (shouldSyncCloud) {
+          const profileRef = doc(collection(db, 'restaurants', restaurant.id, 'staff'));
+          const batch = writeBatch(db);
+          batch.set(profileRef, {
+            name: form.name.trim(),
+            role: form.role,
+            active: true,
+            email: form.email?.trim() || null,
+            salaryType: form.salaryType,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          batch.set(doc(db, 'restaurants', restaurant.id, 'staff_credentials', profileRef.id), {
+            staffId: profileRef.id,
+            pin: cleanPin,
+            salaryType: form.salaryType,
+            salaryRate: Number(form.salaryRate) || 0,
+            overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
+            updatedAt: new Date()
+          });
+          batch.set(doc(db, 'restaurants', restaurant.id, 'staff_auth', cleanPin), {
+            staffId: profileRef.id,
+            name: form.name.trim(),
+            role: form.role,
+            active: true,
+            updatedAt: new Date()
+          });
+          await batch.commit();
+          savedMember = { ...savedMember, id: profileRef.id };
         }
+        useStaffStore.getState().setStaffList([...staff, savedMember]);
 
         toast.success('Staff member added!');
       }
@@ -267,6 +256,10 @@ export default function StaffManager() {
   const toggleActive = async (id, current) => {
     try {
       if (!restaurant?.id) return;
+      if (!restaurant.localStorageOnly && typeof navigator !== 'undefined' && !navigator.onLine) {
+        toast.error('Connect to the internet before changing cloud staff records.');
+        return;
+      }
       const nextActive = !current;
       const targetPin = credentials[id]?.pin || staffList.find(s => s.id === id)?.pin;
 
@@ -278,22 +271,23 @@ export default function StaffManager() {
         }
       }
 
+      const shouldSyncCloud = !restaurant.localStorageOnly;
+      if (shouldSyncCloud) {
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'restaurants', restaurant.id, 'staff', id), {
+          active: nextActive,
+          updatedAt: new Date()
+        });
+        if (targetPin) {
+          batch.set(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
+            active: nextActive,
+            updatedAt: new Date()
+          }, { merge: true });
+        }
+        await batch.commit();
+      }
       const updatedList = staff.map(s => s.id === id ? { ...s, active: nextActive, updatedAt: new Date().toISOString() } : s);
       useStaffStore.getState().setStaffList(updatedList);
-
-      if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
-        try {
-          const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
-          await updateDoc(staffRef, { active: nextActive, updatedAt: new Date() });
-          if (targetPin) {
-            await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
-              active: nextActive
-            }, { merge: true });
-          }
-        } catch (cloudErr) {
-          console.warn('[StaffManager] Toggle active cloud sync deferred:', cloudErr?.message);
-        }
-      }
       toast(nextActive ? 'Staff activated' : 'Staff deactivated', { icon: nextActive ? '✅' : '🔒' });
     } catch (err) {
       console.error(err);
@@ -305,22 +299,20 @@ export default function StaffManager() {
     if (!confirm('Remove this staff member?')) return;
     try {
       if (!restaurant?.id) return;
-      const targetPin = credentials[id]?.pin || staffList.find(s => s.id === id)?.pin;
-      const updatedList = staff.filter(s => s.id !== id);
-      useStaffStore.getState().setStaffList(updatedList);
-
-      if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
-        try {
-          const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
-          await deleteDoc(staffRef);
-          await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff_credentials', id)).catch(() => {});
-          if (targetPin) {
-            await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin)).catch(() => {});
-          }
-        } catch (cloudErr) {
-          console.warn('[StaffManager] Delete cloud sync deferred:', cloudErr?.message);
-        }
+      if (!restaurant.localStorageOnly && typeof navigator !== 'undefined' && !navigator.onLine) {
+        toast.error('Connect to the internet before changing cloud staff records.');
+        return;
       }
+      const targetPin = credentials[id]?.pin || staffList.find(s => s.id === id)?.pin;
+      const shouldSyncCloud = !restaurant.localStorageOnly;
+      if (shouldSyncCloud) {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, 'restaurants', restaurant.id, 'staff', id));
+        batch.delete(doc(db, 'restaurants', restaurant.id, 'staff_credentials', id));
+        if (targetPin) batch.delete(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin));
+        await batch.commit();
+      }
+      useStaffStore.getState().setStaffList(staff.filter(s => s.id !== id));
       toast.success('Removed');
     } catch (err) {
       console.error(err);

@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { collection, onSnapshot, serverTimestamp, getDoc, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { formatCurrency } from '../utils/formatCurrency';
 import { computeTax } from '../utils/taxUtils';
 import { 
@@ -143,7 +144,8 @@ export default function OnlineOrderPage() {
     if (!restaurant?.id || !activeOrderId) {
       return;
     }
-    const unsub = onSnapshot(doc(db, 'restaurants', restaurant.id, 'orders', activeOrderId), d => {
+    let projectionRequested = false;
+    const unsub = onSnapshot(doc(db, 'restaurants', restaurant.id, 'order_tracking', activeOrderId), d => {
       if (d.exists()) {
         const data = d.data();
         const type = data.orderType || data.type;
@@ -161,9 +163,16 @@ export default function OnlineOrderPage() {
           setActiveOrder({ id: d.id, ...data });
         }
       } else {
-        localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
-        setActiveOrderId(null);
+        // The projection is created asynchronously by Cloud Functions after order
+        // creation. Also ask the server to backfill an older order link once.
         setActiveOrder(null);
+        if (!projectionRequested && functions) {
+          projectionRequested = true;
+          httpsCallable(functions, 'ensurePublicOrderTracking')({
+            restaurantId: restaurant.id,
+            orderId: activeOrderId
+          }).catch(err => console.warn('Could not initialize order tracking:', err?.message));
+        }
       }
     }, err => console.log('Tracker fetch err:', err));
     return unsub;

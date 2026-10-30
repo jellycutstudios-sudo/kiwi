@@ -1,8 +1,66 @@
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const { notifyPlatformOrderStatus } = require('./webhooks/deliveryCallbacks');
 admin.initializeApp();
+
+function writePublicOrderTracking(trackingRef, order) {
+  const safeItems = (Array.isArray(order.items) ? order.items : []).map((item) => ({
+    name: String(item?.name || 'Item').slice(0, 120),
+    qty: Number.isFinite(Number(item?.qty)) ? Number(item.qty) : 1,
+    price: Number.isFinite(Number(item?.price)) ? Number(item.price) : 0,
+    selectedModifiers: (Array.isArray(item?.selectedModifiers) ? item.selectedModifiers : [])
+      .map((modifier) => ({ name: String(modifier?.name || '').slice(0, 80) }))
+      .filter((modifier) => modifier.name)
+      .slice(0, 30),
+  }));
+
+  return trackingRef.set({
+    status: String(order.status || 'pending'),
+    orderType: String(order.orderType || order.type || 'dine-in'),
+    tableName: order.tableName ? String(order.tableName).slice(0, 80) : null,
+    subtotal: Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : 0,
+    items: safeItems,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+// Keep a minimal public projection for customer tracking. The full order document
+// can contain phone numbers, addresses, notes, and other staff-only information.
+exports.syncPublicOrderTracking = onDocumentWritten('restaurants/{restaurantId}/orders/{orderId}', async (event) => {
+  const { restaurantId, orderId } = event.params;
+  const db = admin.firestore();
+  const trackingRef = db.doc(`restaurants/${restaurantId}/order_tracking/${orderId}`);
+  const after = event.data?.after;
+
+  if (!after?.exists) {
+    await trackingRef.delete().catch(() => {});
+    return null;
+  }
+
+  const order = after.data();
+  await writePublicOrderTracking(trackingRef, order);
+  return null;
+});
+
+// Populate the same safe projection on demand for pre-existing order links.
+exports.ensurePublicOrderTracking = onCall(async (request) => {
+  const restaurantId = String(request.data?.restaurantId || '');
+  const orderId = String(request.data?.orderId || '');
+  const safeId = /^[A-Za-z0-9_-]{1,150}$/;
+  if (!safeId.test(restaurantId) || !safeId.test(orderId)) {
+    throw new HttpsError('invalid-argument', 'Invalid order reference.');
+  }
+
+  const db = admin.firestore();
+  const orderSnap = await db.doc(`restaurants/${restaurantId}/orders/${orderId}`).get();
+  if (!orderSnap.exists) throw new HttpsError('not-found', 'Order not found.');
+  await writePublicOrderTracking(
+    db.doc(`restaurants/${restaurantId}/order_tracking/${orderId}`),
+    orderSnap.data()
+  );
+  return { ok: true };
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: verify Firebase ID token from Authorization header

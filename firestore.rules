@@ -58,6 +58,32 @@ service cloud.firestore {
       );
     }
 
+    function hasRestaurantRole(restaurantId, roles) {
+      return isSignedIn() && (
+        ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId && 'role' in request.auth.token && request.auth.token.role in roles) ||
+        (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId && getUserDoc().data.role in roles)
+      );
+    }
+
+    function canUpdateOperationalOrder(restaurantId) {
+      return isStaffMember(restaurantId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'items', 'status', 'updatedAt', 'prepCompletedAt', 'completedAt', 'prepDuration', 'assignedWaiterId',
+          'assignedWaiterName', 'tableId', 'tableName', 'servedAt', 'note',
+          'kitchenNotes', 'inventoryDepleted', 'prepStartedAt', 'lastFiredAt',
+          'lastFiredCourse'
+        ]);
+    }
+
+    function canSettleOrder(restaurantId) {
+      return hasRestaurantRole(restaurantId, ['cashier']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'paymentMethod', 'paid', 'paidAt', 'updatedAt', 'splitPayments',
+          'upiRef', 'terminalTx', 'rrn', 'authCode', 'terminalMethod', 'tipAmount',
+          'giftCardCode', 'giftCardDeduction', 'settledChecks'
+        ]);
+    }
+
 
     // ─────────────────────────────────────────────
     // /users — admins can only read/write their own doc
@@ -141,17 +167,29 @@ service cloud.firestore {
         );
       }
 
-      // Orders — public create (pending only with schema validation), public get (customer tracking by ID), staff list/update
+      // Orders — public create (pending only with schema validation), staff read/update
       match /orders/{orderId} {
-        allow get:    if true;                        // customers track their specific order by ID
+        allow get:    if isStaffMember(restaurantId);
         allow list:   if isStaffMember(restaurantId); // verified staff of this restaurant only
-        allow create: if isStaffMember(restaurantId) || (
+        allow create: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']) || (
+          hasRestaurantRole(restaurantId, ['waiter']) &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.total is number && request.resource.data.total >= 0 &&
+          request.resource.data.items is list && request.resource.data.items.size() > 0
+        ) || (
           request.resource.data.status == 'pending' &&
           request.resource.data.total is number && request.resource.data.total >= 0 &&
           request.resource.data.items is list && request.resource.data.items.size() > 0
         );
-        allow update: if isStaffMember(restaurantId);
+        allow update: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']) || canUpdateOperationalOrder(restaurantId) || canSettleOrder(restaurantId);
         allow delete: if false;                       // orders cannot be deleted; cancellation is status update
+      }
+
+      // Customer tracking exposes only the fields needed by the public order tracker.
+      // Cloud Functions maintain this projection; clients cannot create or modify it.
+      match /order_tracking/{orderId} {
+        allow get: if true;
+        allow list, create, update, delete: if false;
       }
 
       // Tokens — public read (TV display), authenticated staff write
@@ -229,12 +267,25 @@ service cloud.firestore {
       match /gift_cards/{cardId} {
         allow read:           if isStaffMember(restaurantId);
         allow create, delete: if isStaffManagerOrAdmin(restaurantId);
-        allow update:         if isStaffMember(restaurantId);   // cashier can redeem (balance update)
+        allow update:         if isStaffManagerOrAdmin(restaurantId) || (
+          hasRestaurantRole(restaurantId, ['cashier']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'updatedAt'])
+        );
       }
 
       // Shifts & Drawer Tills — authenticated staff read/write, deletion forbidden
       match /shifts/{shiftId} {
-        allow read, create, update: if isStaffMember(restaurantId);
+        allow read: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']);
+        allow create: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']);
+        allow update: if isStaffManagerOrAdmin(restaurantId) || (
+          hasRestaurantRole(restaurantId, ['cashier']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'closedAt', 'closedBy', 'closedById', 'closingCash', 'expectedCash',
+            'cashDrops', 'paidOuts', 'cashSalesAmount', 'cashSalesCount', 'cardSalesAmount',
+            'cardSalesCount', 'upiSalesAmount', 'upiSalesCount', 'totalSalesAmount',
+            'actualCash', 'variance', 'updatedAt'
+          ])
+        );
         allow delete: if false;
       }
 
