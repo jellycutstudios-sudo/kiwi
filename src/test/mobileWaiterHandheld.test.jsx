@@ -193,4 +193,82 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     fireEvent.click(screen.getByText('🔥 Rush Order'));
     expect(useOrderStore.getState().note).toContain('🔥 Rush Order');
   });
+
+  it('opens modifier modal and adds customizable item with selected sub options', () => {
+    const itemWithModifiers = {
+      id: '8a049dac-dd7c-4ff8-9c00-b53f0f07a706',
+      name: 'Garlic chicken',
+      price: 360,
+      isVeg: false,
+      categoryId: 'cat_mains',
+      modifierGroups: [
+        {
+          id: 'grp_gravy',
+          name: 'Gravy',
+          required: true,
+          minSelect: 1,
+          maxSelect: 1,
+          options: [
+            { id: 'opt_qtr', name: 'Quarter', priceAdd: 250 },
+            { id: 'opt_half', name: 'Half', priceAdd: 350 },
+            { id: 'opt_full', name: 'Full', priceAdd: 750 }
+          ]
+        },
+        {
+          id: 'grp_paste',
+          name: 'Paste',
+          required: true,
+          minSelect: 1,
+          maxSelect: 1,
+          options: [
+            { id: 'opt_paste_qtr', name: 'Quarter', priceAdd: 270 },
+            { id: 'opt_paste_half', name: 'Half', priceAdd: 340 },
+            { id: 'opt_paste_full', name: 'Full', priceAdd: 780 }
+          ]
+        }
+      ]
+    };
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="INR"
+        menuItems={[...sampleMenuItems, itemWithModifiers]}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // "Options" badge and price are rendered
+    expect(screen.getByText('Options')).toBeTruthy();
+    expect(screen.getByText('₹360.00')).toBeTruthy();
+
+    // Tap on Garlic chicken card to open ModifierModal
+    fireEvent.click(screen.getByText('Garlic chicken'));
+
+    // Modal opens showing style and portion axes
+    expect(screen.getByText('Pick style then portion — 1 item')).toBeTruthy();
+    expect(screen.getAllByText('Preparation / Style').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Portion / Size').length).toBeGreaterThan(0);
+
+    // Select Style: Gravy and Portion: Quarter (₹250.00)
+    fireEvent.click(screen.getByText('Gravy'));
+    fireEvent.click(screen.getByText('Quarter'));
+
+    // Confirm selection
+    const confirmBtn = screen.getByRole('button', { name: /Add to Cart/i });
+    fireEvent.click(confirmBtn);
+
+    // Cart contains Garlic chicken with sub-options
+    const cartItems = useOrderStore.getState().items;
+    expect(cartItems.length).toBe(1);
+    expect(cartItems[0].name).toBe('Garlic chicken');
+    expect(cartItems[0].price).toBe(250);
+    expect(cartItems[0].selectedModifiers.length).toBeGreaterThanOrEqual(1);
+  });
 });

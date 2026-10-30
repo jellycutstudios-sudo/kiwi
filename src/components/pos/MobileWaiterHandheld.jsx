@@ -9,6 +9,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useTableStore } from '../../stores/tableStore';
 import { hapticTap } from '../../utils/soundNotifications';
 import toast from 'react-hot-toast';
+import ModifierModal from './ModifierModal';
 
 const COMMON_ALLERGIES = [
   { id: 'nut_free', label: '🥜 Nut Allergy' },
@@ -76,6 +77,7 @@ export default function MobileWaiterHandheld({
   // Sheet States
   const [showTableSheet, setShowTableSheet] = useState(false);
   const [showCartSheet, setShowCartSheet] = useState(false);
+  const [activeModifierItem, setActiveModifierItem] = useState(null);
   const [customizingItem, setCustomizingItem] = useState(null); // item being customized with course/allergy
   const [itemCustomForm, setItemCustomForm] = useState({
     course: 'Mains',
@@ -84,6 +86,30 @@ export default function MobileWaiterHandheld({
     allergies: [],
     itemNote: ''
   });
+
+  const handleConfirmModifier = (selectedModifiers, flatPrice) => {
+    if (!activeModifierItem) return;
+    const isVariant = flatPrice !== undefined && flatPrice !== null;
+    const modifierTotal = isVariant
+      ? 0
+      : selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
+    const unitPrice = isVariant
+      ? flatPrice
+      : (activeModifierItem.price + modifierTotal);
+    const customId = activeModifierItem.id + '-' + selectedModifiers.map(m => m.id).sort().join('-');
+    const cartItem = {
+      ...activeModifierItem,
+      id: customId,
+      menuItemId: activeModifierItem.id,
+      name: activeModifierItem.name,
+      selectedModifiers,
+      modifierTotal: isVariant ? flatPrice : modifierTotal,
+      price: unitPrice
+    };
+    hapticTap('medium');
+    addItem(cartItem);
+    setActiveModifierItem(null);
+  };
 
   // Subscribe to real-time table statuses
   useEffect(() => {
@@ -328,15 +354,31 @@ export default function MobileWaiterHandheld({
       <main className="handheld-menu-scroll">
         <div className="handheld-menu-grid">
           {filteredItems.map(item => {
-            const inCartItem = items.find(i => i.id === item.id);
-            const cartQty = inCartItem?.qty || 0;
+            const hasModifiers = Boolean(item.modifierGroups && item.modifierGroups.length > 0);
+            const cartItemsForItem = items.filter(i => i.id === item.id || i.menuItemId === item.id);
+            const cartQty = cartItemsForItem.reduce((sum, i) => sum + i.qty, 0);
+            const singleCartItem = cartItemsForItem.length === 1 ? cartItemsForItem[0] : null;
+
+            // Formatted price label for modifier items with base price 0
+            let priceLabel = formatCurrency(item.price, currency);
+            if (hasModifiers && parseFloat(item.price) === 0) {
+              const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+              const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+              if (minPrice > 0) {
+                priceLabel = `From ${formatCurrency(minPrice, currency)}`;
+              }
+            }
 
             return (
               <div 
                 key={item.id} 
                 className={`handheld-item-card ${cartQty > 0 ? 'selected' : ''}`}
                 onClick={() => {
-                  if (cartQty === 0) {
+                  if (item.available === false) return;
+                  if (hasModifiers) {
+                    hapticTap('light');
+                    setActiveModifierItem(item);
+                  } else if (cartQty === 0) {
                     hapticTap('light');
                     addItem(item);
                   }
@@ -348,7 +390,12 @@ export default function MobileWaiterHandheld({
                     <span className="handheld-item-name">{item.name}</span>
                   </div>
                   <div className="handheld-item-price-row">
-                    <span className="handheld-item-price">{formatCurrency(item.price, currency)}</span>
+                    <span className="handheld-item-price">{priceLabel}</span>
+                    {hasModifiers && (
+                      <span className="handheld-item-pill" style={{ background: '#3b82f622', color: 'var(--color-accent, #3b82f6)', fontWeight: 700 }}>
+                        Options
+                      </span>
+                    )}
                     {item.isBestseller && (
                       <span className="handheld-item-pill bestseller">Popular</span>
                     )}
@@ -362,7 +409,18 @@ export default function MobileWaiterHandheld({
                       <button
                         type="button"
                         className="handheld-step-btn minus"
-                        onClick={() => { hapticTap('light'); updateQty(item.id, cartQty - 1); }}
+                        onClick={() => {
+                          hapticTap('light');
+                          if (hasModifiers) {
+                            if (singleCartItem) {
+                              updateQty(singleCartItem.id, singleCartItem.qty - 1, singleCartItem.selectedModifiers);
+                            } else {
+                              setShowCartSheet(true);
+                            }
+                          } else {
+                            updateQty(item.id, cartQty - 1);
+                          }
+                        }}
                         aria-label="Decrease quantity"
                       >
                         <Minus size={13} strokeWidth={2.5} />
@@ -371,19 +429,33 @@ export default function MobileWaiterHandheld({
                       <button
                         type="button"
                         className="handheld-step-btn plus"
-                        onClick={() => { hapticTap('light'); updateQty(item.id, cartQty + 1); }}
-                        aria-label="Increase quantity"
+                        onClick={() => {
+                          hapticTap('light');
+                          if (hasModifiers) {
+                            setActiveModifierItem(item);
+                          } else {
+                            updateQty(item.id, cartQty + 1);
+                          }
+                        }}
+                        aria-label={hasModifiers ? "Choose options to add" : "Increase quantity"}
                       >
                         <Plus size={13} strokeWidth={2.5} />
                       </button>
 
                       <button
                         type="button"
-                        className={`handheld-item-mod-btn ${inCartItem?.prepState === 'hold' ? 'held' : ''}`}
-                        onClick={(e) => openItemCustomizer(inCartItem, e)}
-                        title="Edit course, prep hold, or allergy notes"
+                        className={`handheld-item-mod-btn ${singleCartItem?.prepState === 'hold' ? 'held' : ''}`}
+                        onClick={(e) => {
+                          if (hasModifiers) {
+                            hapticTap('light');
+                            setActiveModifierItem(item);
+                          } else {
+                            openItemCustomizer(singleCartItem, e);
+                          }
+                        }}
+                        title={hasModifiers ? "View/select options" : "Edit course, prep hold, or allergy notes"}
                       >
-                        {inCartItem?.prepState === 'hold' ? '⏸️ Hold' : (inCartItem?.course || 'Tag')}
+                        {hasModifiers ? 'Options' : (singleCartItem?.prepState === 'hold' ? '⏸️ Hold' : (singleCartItem?.course || 'Tag'))}
                       </button>
                     </div>
                   ) : (
@@ -393,7 +465,11 @@ export default function MobileWaiterHandheld({
                       onClick={(e) => {
                         e.stopPropagation();
                         hapticTap('light');
-                        addItem(item);
+                        if (hasModifiers) {
+                          setActiveModifierItem(item);
+                        } else {
+                          addItem(item);
+                        }
                       }}
                       aria-label={`Add ${item.name}`}
                     >
@@ -519,6 +595,12 @@ export default function MobileWaiterHandheld({
                             </span>
                           )}
                         </div>
+
+                        {cartItem.selectedModifiers && cartItem.selectedModifiers.length > 0 && (
+                          <div style={{ fontSize: 11, color: 'var(--color-accent, #3b82f6)', fontWeight: 600, marginTop: 2 }}>
+                            {cartItem.selectedModifiers.map(m => m.name).join(' · ')}
+                          </div>
+                        )}
 
                         <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 2 }}>
                           {cartItem.course || 'Mains'} · {formatCurrency(cartItem.price, currency)} each
@@ -922,6 +1004,16 @@ export default function MobileWaiterHandheld({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Modifier & Style/Portion Options Modal ── */}
+      {activeModifierItem && (
+        <ModifierModal
+          item={activeModifierItem}
+          currency={currency}
+          onClose={() => setActiveModifierItem(null)}
+          onConfirm={handleConfirmModifier}
+        />
       )}
     </div>
   );
