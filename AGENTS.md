@@ -42,13 +42,14 @@ The app divides global state into discrete domain stores. Always use **fine-grai
 DineOS uses an **Obsidian Dark / Crisp Light** dual-theme design system.
 
 ### Key CSS Tokens
-- Canvas Base: `var(--color-bg)` (`#0c0d11` dark, `#ffffff` light)
-- Secondary Surface: `var(--color-bg-secondary)` (`#121319` dark, `#f8f9fa` light)
-- Card / Modal Surface: `var(--color-bg-elevated)` (`#161722` dark, `#ffffff` light)
-- Primary Text / Headlines: `var(--color-label)` (`#ffffff` dark, `#000000` light)
-- Body / Secondary Labels: `var(--color-label-secondary)` (`#d1d5db` dark, `#222222` light)
-- Muted Subtitles: `var(--color-label-tertiary)` (`#9ca3af` dark, `#6b7280` light)
-- Hairline Borders: `var(--color-separator)` (`rgba(255, 255, 255, 0.08)` dark)
+- Canvas Base: `var(--color-bg)` (`#090a0f` dark, `#f4f6fa` light)
+- Secondary Surface: `var(--color-bg-secondary)` (`#131520` dark, `#eef1f8` light)
+- Card / Modal Surface: `var(--color-bg-elevated)` (`#1c1f2e` dark, `#ffffff` light)
+- Primary Text / Headlines: `var(--color-label)` (`#ffffff` dark, `#0f172a` light)
+- Body / Secondary Labels: `var(--color-label-secondary)` (`#e2e8f0` dark, `#64748b` light)
+- Muted Subtitles: `var(--color-label-tertiary)` (`#94a3b8` dark, `#94a3b8` light)
+- Soft Placeholders / Captions: `var(--color-label-quat)` (`#64748b` dark, `#cbd5e1` light)
+- Hairline Borders: `var(--color-separator)` (`rgba(255, 255, 255, 0.14)` dark, `#e2e8f0` light)
 - Brand Green: `#10b981` (primary action / settled status)
 
 ### Card Rule
