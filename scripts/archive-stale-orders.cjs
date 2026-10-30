@@ -7,7 +7,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const RESTAURANT_ID = 'rest1';
-const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+const STALE_THRESHOLD_MS = 12 * 60 * 60 * 1000; // 12 hours (cross-shift stale)
 
 async function runCleanup() {
   console.log(`Starting stale order cleanup for restaurant: ${RESTAURANT_ID}...`);

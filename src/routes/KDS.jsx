@@ -156,7 +156,8 @@ export default function KDS() {
   };
 
   const kdsOrders = useMemo(() => {
-    const STALE_KDS_MS = 24 * 60 * 60 * 1000;
+    // Filter out orders older than 12 hours from live kitchen queue
+    const STALE_KDS_MS = 12 * 60 * 60 * 1000;
     const list = activeOrders
       .filter(o => ['pending', 'preparing'].includes(o.status))
       .filter(o => {

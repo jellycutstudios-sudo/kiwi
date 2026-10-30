@@ -11,7 +11,8 @@ export const TERMINAL_PROVIDERS = [
   {
     id: 'manual',
     name: 'Manual / Standalone Card Machine',
-    description: 'Use your existing standalone bank EDC swipe machine without direct API connection.',
+    description: 'Use your existing standalone bank EDC swipe machine without direct API connection (Finalize manually).',
+    status: 'production',
     features: ['debit_card', 'credit_card', 'manual_approval'],
     icon: 'CreditCard'
   },
@@ -19,50 +20,63 @@ export const TERMINAL_PROVIDERS = [
     id: 'simulator',
     name: 'Interactive Terminal Simulator (Test & Demo)',
     description: 'Simulate card tap, chip insert, UPI scan, and decline without physical hardware.',
+    status: 'simulator',
+    isSimulated: true,
     features: ['debit_card', 'credit_card', 'upi_qr', 'tap_to_pay'],
     icon: 'Terminal'
   },
   {
     id: 'pax',
     name: 'Pax A920 / A35 Smart POS (GCC & Global)',
-    description: 'Wireless Android smart reader standard in Qatar (QAR), UAE (AED), Saudi Arabia, and Europe via POSLink protocol.',
+    description: 'Wireless Android smart reader via direct LAN POSLink protocol (Qatar, UAE, Saudi Arabia, Europe).',
+    status: 'production',
     features: ['apple_pay', 'contactless_tap', 'chip_pin', 'poslink'],
     icon: 'Smartphone'
   },
   {
-    id: 'adyen',
-    name: 'Adyen Cloud Smart Terminal',
-    description: 'Enterprise cloud-connected smart readers (Castles Saturn 1000, S1F2, e285) via Adyen Terminal API.',
-    features: ['apple_pay', 'google_pay', 'contactless_tap', 'chip_pin'],
-    icon: 'CreditCard'
-  },
-  {
     id: 'stripe',
-    name: 'Stripe Terminal (Global)',
-    description: 'Stripe Smart Readers (WisePOS E, Stripe Reader S700) for US, EU, UK, and international venues.',
+    name: 'Stripe Terminal (Developer Preview)',
+    description: 'Stripe Smart Readers via Stripe Terminal JS SDK (Requires cloud connection token backend).',
+    status: 'preview',
+    isSimulated: true,
     features: ['debit_card', 'credit_card', 'apple_pay', 'google_pay'],
     icon: 'CreditCard'
   },
   {
     id: 'paytm',
-    name: 'Paytm All-In-One Android EDC',
-    description: 'Cloud push to Paytm Smart EDC with Card tap/insert, on-device UPI QR, and Soundbox voice alerts.',
+    name: 'Paytm Android EDC (Developer Preview)',
+    description: 'Paytm Smart EDC cloud integration scaffolding (Requires Paytm Cloud Gateway).',
+    status: 'preview',
+    isSimulated: true,
     features: ['debit_card', 'credit_card', 'upi_qr', 'soundbox'],
     icon: 'Smartphone'
   },
   {
     id: 'pinelabs',
-    name: 'Pine Labs Plutus Cloud',
-    description: 'Integrated with Pine Labs Android and traditional POS terminals via Plutus Cloud.',
+    name: 'Pine Labs Plutus (Developer Preview)',
+    description: 'Pine Labs Plutus Cloud integration scaffolding (Requires Plutus Cloud Gateway).',
+    status: 'preview',
+    isSimulated: true,
     features: ['debit_card', 'credit_card', 'emi', 'upi_qr'],
     icon: 'CreditCard'
   },
   {
     id: 'razorpay_pos',
-    name: 'Razorpay POS (Ezetap)',
-    description: 'Cloud-connected Android smart card readers accepting all cards and UPI.',
+    name: 'Razorpay POS / Ezetap (Developer Preview)',
+    description: 'Razorpay POS Android reader integration scaffolding (Requires Ezetap Cloud Gateway).',
+    status: 'preview',
+    isSimulated: true,
     features: ['debit_card', 'credit_card', 'tap_to_pay', 'upi_qr'],
     icon: 'Smartphone'
+  },
+  {
+    id: 'adyen',
+    name: 'Adyen Cloud Terminal (Developer Preview)',
+    description: 'Adyen Terminal API integration scaffolding (Requires Adyen Cloud API).',
+    status: 'preview',
+    isSimulated: true,
+    features: ['apple_pay', 'google_pay', 'contactless_tap', 'chip_pin'],
+    icon: 'CreditCard'
   }
 ];
 

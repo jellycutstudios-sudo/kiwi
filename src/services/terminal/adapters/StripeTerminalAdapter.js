@@ -52,12 +52,13 @@ export class StripeTerminalAdapter extends BaseTerminalAdapter {
     return {
       success: true,
       status: 'WAITING_FOR_CARD_OR_UPI',
+      isSimulated: true,
       transactionId: txId,
       amount,
       currency: currency || 'USD',
       orderId,
       terminalId: terminalId || this.config.readerId || 'reader_default',
-      prompt: 'Please tap, insert, or swipe card on the Stripe Reader.'
+      prompt: 'Please tap, insert, or swipe card on the Stripe Reader (Simulated Mode).'
     };
   }
 

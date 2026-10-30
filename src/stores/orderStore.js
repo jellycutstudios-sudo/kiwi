@@ -1259,7 +1259,8 @@ export const useOrderStore = create((set, get) => ({
     const unsub = onSnapshot(q, snap => {
       const rawOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      const STALE_ORDER_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+      // Auto-archive orders older than 12 hours (cross-shift / forgotten open tabs)
+      const STALE_ORDER_MAX_AGE_MS = 12 * 60 * 60 * 1000;
       const now = Date.now();
       const staleOrders = [];
       const freshOrders = [];

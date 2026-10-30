@@ -518,6 +518,9 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               )}
               {terminalStatus === 'waiting' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
+                  <span style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px' }}>
+                    DEMO / SIMULATION MODE (TESTING ONLY)
+                  </span>
                   <div style={{ color: '#38BDF8', fontSize: 13, fontWeight: 'bold' }}>AMOUNT: {formatCurrency(total, currency)}</div>
                   <div className="blink" style={{ color: '#34D399', margin: '8px 0', fontSize: 14, fontWeight: 'bold' }}>📡 TAP / INSERT CARD OR SCAN UPI</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>

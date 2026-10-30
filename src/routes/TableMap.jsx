@@ -71,7 +71,7 @@ export default function TableMap() {
   const tableOrders = useMemo(() => {
     const map = { ...firestoreTableOrders };
     const now = nowTime;
-    const MAX_STALE_AGE_MS = 24 * 60 * 60 * 1000;
+    const MAX_STALE_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours (cross-shift)
 
     (activeOrders || []).forEach(o => {
       if (o.type === 'dine-in' && o.tableId) {
@@ -836,7 +836,7 @@ export default function TableMap() {
       snap => {
         const map = {};
         const now = Date.now();
-        const MAX_STALE_MS = 24 * 60 * 60 * 1000;
+        const MAX_STALE_MS = 12 * 60 * 60 * 1000; // 12 hours (cross-shift)
         snap.docs.forEach(d => {
           const data = d.data();
           if (data.tableId) {
