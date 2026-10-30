@@ -181,70 +181,23 @@ export const useAuthStore = create(
               return { ok: true, role: staffData.role };
             } catch (fnErr) {
               // Rate limit lockouts or explicit invalid PIN responses must be returned immediately
-              if (fnErr.code === 'resource-exhausted' || fnErr.code === 'unauthenticated' || fnErr.code === 'permission-denied') {
+              if (fnErr.code === 'resource-exhausted' || fnErr.code === 'unauthenticated' || fnErr.code === 'permission-denied' || fnErr.code === 'invalid-argument') {
                 const msg = fnErr.message || 'Invalid PIN';
                 set({ loading: false, error: msg });
                 return { ok: false, error: msg };
               }
-              console.warn('validatePin function unreachable, attempting fallback:', fnErr.message);
+              console.warn('validatePin function unreachable (offline or network issue):', fnErr.message);
             }
           }
 
-          // 2. Fallback (for offline, local testing, or when Cloud Functions are not deployed)
-          await get().ensureAnonymousAuth();
-
-          let actualRestId = cleanRestId;
-          const lowerRestId = cleanRestId.toLowerCase();
-          const restQuery = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
-          const restSnap = await getDocs(restQuery);
-          if (!restSnap.empty) {
-            actualRestId = restSnap.docs[0].id;
-          } else {
-            const slugQuery = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
-            const slugSnap = await getDocs(slugQuery);
-            if (!slugSnap.empty) {
-              actualRestId = slugSnap.docs[0].id;
-            }
-          }
-
-          const staffQuery = query(
-            collection(db, 'restaurants', actualRestId, 'staff'),
-            where('pin', '==', cleanPin),
-            where('active', '==', true)
-          );
-          const staffSnap = await getDocs(staffQuery);
-          if (staffSnap.empty) {
-            set({ loading: false, error: 'Invalid PIN or staff member inactive' });
-            return { ok: false, error: 'Invalid PIN or staff member inactive' };
-          }
-
-          const staffDocSnap = staffSnap.docs[0];
-          const staffData = { id: staffDocSnap.id, ...staffDocSnap.data(), isPinLogin: true, restaurantId: actualRestId };
-
-          const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
-          if (!restDoc.exists()) {
-            set({ loading: false, error: 'Restaurant not found' });
-            return { ok: false, error: 'Restaurant not found' };
-          }
-          const restData = { id: actualRestId, ...restDoc.data() };
-
-          set({
-            user: auth?.currentUser || { uid: staffData.id, isPinLogin: true },
-            staffDoc: staffData,
-            restaurant: restData,
-            loading: false,
-          });
-          return { ok: true, role: staffData.role };
-
-        } catch (e) {
-          // If offline or network query fails, attempt offline staff PIN matching
+          // 2. Offline fallback (only for previously authorized staff cached locally on this terminal)
           try {
             const cachedStaff = JSON.parse(safeStorage.getItem('dineos_cached_staff') || '[]');
             const cleanPin = String(pin || '').trim();
             const matched = cachedStaff.find(s => String(s.pin).trim() === cleanPin && s.active !== false);
             if (matched) {
               const currentRest = get().restaurant || getInitialPersistedAuth().restaurant;
-              const staffData = { id: matched.id, ...matched, isPinLogin: true, restaurantId: currentRest?.id || restaurantId };
+              const staffData = { id: matched.id, ...matched, isPinLogin: true, restaurantId: currentRest?.id || cleanRestId };
               set({
                 user: { uid: staffData.id, isPinLogin: true },
                 staffDoc: staffData,
@@ -255,11 +208,12 @@ export const useAuthStore = create(
               return { ok: true, role: staffData.role, isOffline: true };
             }
           } catch (offlineErr) {
-            console.warn('[loginWithPin] Offline fallback error:', offlineErr);
+            console.warn('[loginWithPin] Offline cache check error:', offlineErr);
           }
 
-          set({ loading: false, error: e.message });
-          return { ok: false, error: e.message };
+          const offlineMsg = 'Unable to verify PIN with server. Please check your network connection.';
+          set({ loading: false, error: offlineMsg });
+          return { ok: false, error: offlineMsg };
         } finally {
           isLoggingIn = false;
         }

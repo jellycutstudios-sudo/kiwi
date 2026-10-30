@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { collection, onSnapshot, doc, setDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, setDoc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { 
@@ -765,8 +765,18 @@ export default function DeliveryHub() {
   const isPlatformPaused = (platformId) => platformSettings[platformId]?.paused === true;
 
   // Open partner configuration modal
-  const openConfigModal = (platformId) => {
-    const currentConfig = integrations[platformId] || {};
+  const openConfigModal = async (platformId) => {
+    let currentConfig = integrations[platformId] || {};
+    if (restaurant?.id) {
+      try {
+        const secureSnap = await getDoc(doc(db, 'restaurants', restaurant.id, 'deliverySettings', platformId));
+        if (secureSnap.exists()) {
+          currentConfig = { ...currentConfig, ...secureSnap.data() };
+        }
+      } catch (e) {
+        console.warn('Could not read secure credentials:', e);
+      }
+    }
     const meta = PLATFORM_META[platformId];
     const initialFields = {};
     (meta?.fields || []).forEach(f => {
@@ -789,10 +799,18 @@ export default function DeliveryHub() {
     if (!platformId || !restaurant?.id) return;
     setConfigModal(prev => ({ ...prev, saving: true }));
     try {
-      const docRef = doc(db, 'restaurants', restaurant.id);
-      const updatedPlatformConfig = {
-        ...(integrations[platformId] || {}),
+      // 1. Securely save credentials to protected deliverySettings subcollection (accessible only by admin & Cloud Functions)
+      const secureDocRef = doc(db, 'restaurants', restaurant.id, 'deliverySettings', platformId);
+      await setDoc(secureDocRef, {
         ...fields,
+        platformId,
+        enabled: Boolean(enabled),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      // 2. On root restaurant document, save only non-sensitive configuration (enabled flag & general delivery settings)
+      const docRef = doc(db, 'restaurants', restaurant.id);
+      const publicPlatformConfig = {
         enabled: Boolean(enabled)
       };
 
@@ -804,7 +822,7 @@ export default function DeliveryHub() {
 
       await setDoc(docRef, {
         deliveryIntegrations: {
-          [platformId]: updatedPlatformConfig
+          [platformId]: publicPlatformConfig
         },
         deliverySettings: {
           autoAccept,
@@ -813,12 +831,16 @@ export default function DeliveryHub() {
         }
       }, { merge: true });
 
-      // Local authStore sync
+      // Local authStore & state sync (in-memory only for current admin session)
+      const inMemoryConfig = {
+        ...publicPlatformConfig,
+        ...fields
+      };
       const updatedRest = {
         ...restaurant,
         deliveryIntegrations: {
           ...(restaurant?.deliveryIntegrations || {}),
-          [platformId]: updatedPlatformConfig
+          [platformId]: inMemoryConfig
         },
         deliverySettings: {
           ...(restaurant?.deliverySettings || {}),
@@ -830,10 +852,10 @@ export default function DeliveryHub() {
       useAuthStore.setState({ restaurant: updatedRest });
 
       // Immediate local state updates
-      setIntegrations(prev => ({ ...prev, [platformId]: updatedPlatformConfig }));
+      setIntegrations(prev => ({ ...prev, [platformId]: inMemoryConfig }));
       setCommissions(updatedCommissions);
 
-      toast.success(`${PLATFORM_META[platformId]?.name} configuration saved!`);
+      toast.success(`${PLATFORM_META[platformId]?.name} configuration securely saved!`);
       setConfigModal(prev => ({ ...prev, isOpen: false, saving: false }));
     } catch (err) {
       console.error('Save configuration error:', err);

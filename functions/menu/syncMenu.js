@@ -452,7 +452,15 @@ async function syncAllEnabledPlatforms(restaurantId, targetPlatform = null) {
   }
 
   const data = restDoc.data();
-  const integrations = data.deliveryIntegrations || {};
+  // Read protected subcollection settings, merged with legacy data
+  const secureSnap = await db.collection('restaurants').doc(restaurantId).collection('deliverySettings').get().catch(() => null);
+  const secureIntegrations = {};
+  if (secureSnap && !secureSnap.empty) {
+    secureSnap.forEach(d => {
+      secureIntegrations[d.id] = d.data();
+    });
+  }
+  const integrations = { ...(data.deliveryIntegrations || {}), ...secureIntegrations };
   let activePlatforms = Object.keys(integrations).filter(platform => integrations[platform].enabled === true);
 
   if (targetPlatform) {

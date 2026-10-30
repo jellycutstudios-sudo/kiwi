@@ -37,11 +37,10 @@ service cloud.firestore {
       );
     }
     
-    // Staff member check: requires super_admin, anonymous terminal session, valid restaurant custom token claim, or registered user profile
+    // Staff member check: requires super_admin, valid restaurant custom token claim, registered user profile, restaurant owner, or verified staff document
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
-         (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
          (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId) ||
          (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid()) ||
@@ -75,13 +74,13 @@ service cloud.firestore {
       allow read: if true;
       // Create — any signed-in user can register a new restaurant
       allow create: if isSignedIn();
-      // Update/Delete — authenticated admin or staff terminal session
-      allow update, delete: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
+      // Update/Delete — authenticated admin only (staff cannot mutate or delete restaurant document)
+      allow update, delete: if isUserAdmin(restaurantId);
 
-      // Staff — admin & staff terminal write. Read restricted to verified staff members of this restaurant.
+      // Staff — admin write only. Read restricted to verified staff members of this restaurant.
       match /staff/{staffId} {
         allow read:  if isStaffMember(restaurantId);
-        allow write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
+        allow write: if isUserAdmin(restaurantId);
       }
 
       // PIN collection:
@@ -91,10 +90,15 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Menu — public read, admin & staff terminal write
+      // PIN verification rate limiter ledger — internal / Cloud Functions Admin SDK only
+      match /_pin_attempts/{docId} {
+        allow read, write: if false;
+      }
+
+      // Menu — public read, admin write only
       match /menu/{catId} {
         allow read:  if true;
-        allow write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
+        allow write: if isUserAdmin(restaurantId);
       }
 
       // Tables — public read, authenticated staff write (or customer claiming table on order)
@@ -109,13 +113,13 @@ service cloud.firestore {
       // Orders — public create (with schema validation), public get (customer tracking by ID), staff list/update/delete
       match /orders/{orderId} {
         allow get:    if true;                        // customers track their specific order by ID
-        allow list:   if isStaffMember(restaurantId) || isSignedIn(); // authenticated staff and terminal sessions
-        allow create: if isStaffMember(restaurantId) || isSignedIn() || (
+        allow list:   if isStaffMember(restaurantId); // verified staff of this restaurant only
+        allow create: if isStaffMember(restaurantId) || (
           request.resource.data.status in ['pending', 'billed'] &&
           request.resource.data.total is number && request.resource.data.total >= 0 &&
           request.resource.data.items is list && request.resource.data.items.size() > 0
         );
-        allow update, delete: if isStaffMember(restaurantId) || isSignedIn();
+        allow update, delete: if isStaffMember(restaurantId);
       }
 
       // Tokens — public read (TV display), authenticated staff write
@@ -155,9 +159,9 @@ service cloud.firestore {
         allow write: if isStaffMember(restaurantId);
       }
 
-      // Payroll — SENSITIVE: admin & staff terminal
+      // Payroll — SENSITIVE: admin only
       match /payroll/{month}/entries/{staffEntryId} {
-        allow read, write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
+        allow read, write: if isUserAdmin(restaurantId);
       }
 
       // Customers CRM — authenticated staff read/write
@@ -175,14 +179,16 @@ service cloud.firestore {
         allow read, write: if isStaffMember(restaurantId);
       }
 
-      // Suppliers Directory — admin & staff terminal
+      // Suppliers Directory — staff read, admin write
       match /suppliers/{supplierId} {
-        allow read, write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
+        allow read:  if isStaffMember(restaurantId);
+        allow write: if isUserAdmin(restaurantId);
       }
 
-      // Purchase Orders — admin & staff terminal
+      // Purchase Orders — staff read, admin write
       match /purchase_orders/{poId} {
-        allow read, write: if isUserAdmin(restaurantId) || isStaffMember(restaurantId);
+        allow read:  if isStaffMember(restaurantId);
+        allow write: if isUserAdmin(restaurantId);
       }
 
       // Gift Cards & Vouchers — authenticated staff read, cashier/admin write

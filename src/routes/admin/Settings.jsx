@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { doc, updateDoc, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
@@ -583,6 +583,22 @@ export default function Settings() {
             if (!prev) return { ...data };
             return { ...data };
           });
+          // Merge secure delivery settings from protected subcollection
+          getDocs(collection(db, 'restaurants', restaurant.id, 'deliverySettings'))
+            .then(snap => {
+              if (!snap.empty) {
+                const secureIntegrations = {};
+                snap.forEach(d => { secureIntegrations[d.id] = d.data(); });
+                setSettings(prev => prev ? ({
+                  ...prev,
+                  deliveryIntegrations: {
+                    ...(prev.deliveryIntegrations || {}),
+                    ...secureIntegrations
+                  }
+                }) : prev);
+              }
+            })
+            .catch(() => {});
         }
       }
     });
@@ -593,6 +609,26 @@ export default function Settings() {
     setSaving(true);
     try {
       const settingsToSave = { ...settings };
+
+      // Isolate sensitive delivery credentials into the protected deliverySettings subcollection
+      if (settingsToSave.deliveryIntegrations) {
+        const publicIntegrations = {};
+        for (const [pId, pConfig] of Object.entries(settingsToSave.deliveryIntegrations)) {
+          if (pConfig && typeof pConfig === 'object') {
+            const { enabled, ...secretFields } = pConfig;
+            publicIntegrations[pId] = { enabled: Boolean(enabled) };
+            if (Object.keys(secretFields).length > 0) {
+              await setDoc(doc(db, 'restaurants', restaurant.id, 'deliverySettings', pId), {
+                ...secretFields,
+                platformId: pId,
+                enabled: Boolean(enabled),
+                updatedAt: new Date().toISOString()
+              }, { merge: true }).catch(err => console.warn('Could not save secure deliverySettings:', err));
+            }
+          }
+        }
+        settingsToSave.deliveryIntegrations = publicIntegrations;
+      }
       
       // Validate and check slug conflict
       if (settings.slug && settings.slug.trim()) {

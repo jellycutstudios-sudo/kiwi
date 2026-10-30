@@ -132,8 +132,8 @@ exports.syncOrderStatusToAggregator = onDocumentUpdated('restaurants/{restaurant
   const externalOrderId = after.externalOrderId || after.id;
 
   try {
-    const restDoc = await admin.firestore().collection('restaurants').doc(restaurantId).get();
-    const config = restDoc.exists ? (restDoc.data().deliveryIntegrations?.[platform] || {}) : {};
+    const db = admin.firestore();
+    const config = await getPlatformDeliveryConfig(db, restaurantId, platform);
 
     const callbackRes = await notifyPlatformOrderStatus({
       platform,
@@ -196,9 +196,7 @@ exports.handleDeliveryWebhook = onRequest(async (req, res) => {
       return res.status(404).send('Restaurant Not Found');
     }
 
-    const restData = restDoc.data();
-    const integrations = restData.deliveryIntegrations || {};
-    const platformConfig = integrations[platform] || {};
+    const platformConfig = await getPlatformDeliveryConfig(db, restaurantId, platform);
 
     if (!platformConfig.enabled) {
       console.error(`Integration for platform ${platform} is disabled`);
@@ -326,8 +324,7 @@ exports.syncDeliveryMenu = onRequest(async (req, res) => {
     }
     try {
       console.log(`[ORDER ACTION] ${action} for ${platform} order ${orderId} at ${restaurantId} by uid=${decodedToken.uid}`);
-      const restDoc = await admin.firestore().collection('restaurants').doc(restaurantId).get();
-      const config = restDoc.exists ? (restDoc.data().deliveryIntegrations?.[platform] || {}) : {};
+      const config = await getPlatformDeliveryConfig(admin.firestore(), restaurantId, platform);
       
       const callbackRes = await notifyPlatformOrderStatus({
         platform,
@@ -362,7 +359,23 @@ exports.syncDeliveryMenu = onRequest(async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Auth: Validate Staff PIN with Brute-Force Rate Limiting
+// Delivery Platform Configuration Helper (Secure Subcollection First)
+// ─────────────────────────────────────────────────────────────────────────────
+async function getPlatformDeliveryConfig(db, restaurantId, platform) {
+  try {
+    const secureDoc = await db.collection('restaurants').doc(restaurantId).collection('deliverySettings').doc(platform).get();
+    if (secureDoc.exists) {
+      return secureDoc.data();
+    }
+  } catch (err) {
+    console.warn(`[getPlatformDeliveryConfig] Could not read deliverySettings for ${platform}:`, err.message);
+  }
+  const restDoc = await db.collection('restaurants').doc(restaurantId).get();
+  return restDoc.exists ? (restDoc.data().deliveryIntegrations?.[platform] || {}) : {};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth: Validate Staff PIN with Persistent Brute-Force Rate Limiting
 // ─────────────────────────────────────────────────────────────────────────────
 const pinAttemptCache = new Map();
 const PIN_MAX_ATTEMPTS = 5;
@@ -381,16 +394,6 @@ exports.validatePin = onCall(async (request) => {
   const rateLimitKey = `${clientIp}_${cleanRestId}`;
   const now = Date.now();
 
-  // Check lockout status
-  const attempts = pinAttemptCache.get(rateLimitKey) || { count: 0, firstAttempt: now, lockedUntil: 0 };
-  if (attempts.lockedUntil > now) {
-    const minutesLeft = Math.ceil((attempts.lockedUntil - now) / 60000);
-    throw new HttpsError(
-      'resource-exhausted',
-      `Too many failed PIN attempts. Terminal temporarily locked. Please try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`
-    );
-  }
-
   try {
     const db = admin.firestore();
     let actualRestId = cleanRestId;
@@ -404,6 +407,35 @@ exports.validatePin = onCall(async (request) => {
       if (!slugQuery.empty) {
         actualRestId = slugQuery.docs[0].id;
       }
+    }
+
+    // Rate limiter reference: persistent in Firestore to survive cold starts and serverless instances
+    const sanitizedIp = String(clientIp).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const attemptDocRef = db.collection('restaurants').doc(actualRestId).collection('_pin_attempts').doc(sanitizedIp);
+
+    let attempts = pinAttemptCache.get(rateLimitKey);
+    if (!attempts) {
+      try {
+        const attemptSnap = await attemptDocRef.get();
+        if (attemptSnap.exists) {
+          attempts = attemptSnap.data();
+          pinAttemptCache.set(rateLimitKey, attempts);
+        }
+      } catch (e) {
+        console.warn('[validatePin] Could not read persistent pin attempts:', e.message);
+      }
+    }
+    if (!attempts) {
+      attempts = { count: 0, firstAttempt: now, lockedUntil: 0 };
+    }
+
+    // Check lockout status
+    if (attempts.lockedUntil > now) {
+      const minutesLeft = Math.ceil((attempts.lockedUntil - now) / 60000);
+      throw new HttpsError(
+        'resource-exhausted',
+        `Too many failed PIN attempts. Terminal temporarily locked. Please try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`
+      );
     }
 
     // Lookup staff by PIN
@@ -423,6 +455,10 @@ exports.validatePin = onCall(async (request) => {
         attempts.lockedUntil = now + PIN_LOCKOUT_MS;
       }
       pinAttemptCache.set(rateLimitKey, attempts);
+      await attemptDocRef.set({
+        ...attempts,
+        lastAttempt: now
+      }).catch(err => console.warn('[validatePin] Could not persist pin attempt:', err.message));
 
       const remaining = Math.max(0, PIN_MAX_ATTEMPTS - attempts.count);
       const alertMsg = attempts.lockedUntil > now
@@ -434,6 +470,7 @@ exports.validatePin = onCall(async (request) => {
 
     // PIN is valid: clear failed attempts
     pinAttemptCache.delete(rateLimitKey);
+    attemptDocRef.delete().catch(() => {});
 
     const staffDoc = staffQuery.docs[0];
     const staffData = staffDoc.data();
