@@ -287,7 +287,22 @@ export default function MenuEditor() {
   };
 
   const saveCategory = async () => {
-    if (!catForm.name.trim()) return;
+    const cleanName = catForm.name.trim();
+    if (!cleanName) {
+      toast.error('Category name is required');
+      return;
+    }
+
+    // Guard: Prevent duplicate category names (case-insensitive)
+    const isDuplicate = categories.some(c => 
+      c.name.trim().toLowerCase() === cleanName.toLowerCase() && 
+      (!editingCat || c.id !== editingCat.id)
+    );
+    if (isDuplicate) {
+      toast.error(`A category named "${cleanName}" already exists.`);
+      return;
+    }
+
     const isLocalOnly = Boolean(restaurant?.localStorageOnly);
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
 
@@ -298,7 +313,7 @@ export default function MenuEditor() {
     if (editingCat) {
       const updatedCats = categories.map(c => c.id === editingCat.id ? {
         ...c,
-        name: catForm.name.trim(),
+        name: cleanName,
         emoji: catForm.emoji.trim() || '🍽️',
         ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : { taxRate: undefined })
       } : c);
@@ -388,13 +403,32 @@ export default function MenuEditor() {
   };
 
   const saveItem = async () => {
+    const cleanName = itemForm.name.trim();
     const parsedPrice = parseFloat(itemForm.price);
-    if (!itemForm.name.trim() || itemForm.price === '' || isNaN(parsedPrice) || parsedPrice < 0) {
-      toast.error('Please enter a valid item name and price (minimum 0)');
+    if (!cleanName || itemForm.price === '' || isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error('Please enter a valid item name and a positive price (e.g. ₹50 or above)');
       return;
     }
+
+    // Guard: Warn on suspicious outlier prices (e.g. ₹1 or ₹2)
+    if (parsedPrice < 5) {
+      toast.error('Item price cannot be less than 5. Please enter a realistic menu price.');
+      return;
+    }
+
     const cat = categories.find(c => c.id === activeCatId);
     if (!cat) return;
+
+    // Guard: Prevent duplicate item names in the same category (case-insensitive)
+    const isDuplicateItem = (cat.items || []).some(i => 
+      i.name.trim().toLowerCase() === cleanName.toLowerCase() &&
+      (!editItem || i.id !== editItem.id)
+    );
+    if (isDuplicateItem) {
+      toast.error(`An item named "${cleanName}" already exists in this category.`);
+      return;
+    }
+
     const isLocalOnly = Boolean(restaurant?.localStorageOnly);
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
 
@@ -404,14 +438,14 @@ export default function MenuEditor() {
 
     const newItem = {
       id: editItem?.id ?? generateId(),
-      name: itemForm.name.trim(),
+      name: cleanName,
       price: parsedPrice,
       description: itemForm.description.trim(),
       emoji: itemForm.emoji.trim() || '🍽️',
       available: itemForm.available,
       modifierGroups: itemForm.modifierGroups ?? [],
       recipe: itemForm.recipe ?? [],
-      station: itemForm.station ?? 'Kitchen',
+      station: itemForm.station?.trim() || 'Kitchen',
       imageUrl: itemForm.imageUrl ?? '',
       highMargin: itemForm.highMargin || false,
       isBestseller: itemForm.isBestseller || false,
