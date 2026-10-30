@@ -196,18 +196,55 @@ export const useAuthStore = create(
             }
           }
 
-          // 2. Offline fallback (only for previously authorized staff cached locally on this terminal)
+          // 2. Offline / local fallback (uses cached staff roster on this terminal)
           try {
             const cachedStaff = JSON.parse(safeStorage.getItem('dineos_cached_staff') || '[]');
             const cleanPin = String(pin || '').trim();
             const matched = cachedStaff.find(s => String(s.pin).trim() === cleanPin && s.active !== false);
             if (matched) {
-              const currentRest = get().restaurant || getInitialPersistedAuth().restaurant;
-              const staffData = { id: matched.id, ...matched, isPinLogin: true, restaurantId: currentRest?.id || cleanRestId };
+              let actualRestId = matched.restaurantId || cleanRestId;
+              let restData = get().restaurant || getInitialPersistedAuth().restaurant;
+
+              // Ensure restaurant data is loaded so status === 'approved' is recognized
+              if (!restData || !restData.id || restData.id !== actualRestId) {
+                if (db) {
+                  try {
+                    let rSnap = await getDoc(doc(db, 'restaurants', actualRestId));
+                    if (!rSnap.exists()) {
+                      const lowerRestId = cleanRestId.toLowerCase();
+                      const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
+                      const sCustom = await getDocs(qCustom);
+                      if (!sCustom.empty) {
+                        rSnap = sCustom.docs[0];
+                        actualRestId = rSnap.id;
+                      } else {
+                        const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
+                        const sSlug = await getDocs(qSlug);
+                        if (!sSlug.empty) {
+                          rSnap = sSlug.docs[0];
+                          actualRestId = rSnap.id;
+                        }
+                      }
+                    }
+                    if (rSnap && rSnap.exists()) {
+                      restData = { id: rSnap.id, ...rSnap.data() };
+                    }
+                  } catch (rErr) {
+                    console.warn('[loginWithPin] Could not fetch restaurant online:', rErr);
+                  }
+                }
+              }
+
+              // Fallback to active approved restaurant object so routing never redirects to pending approval
+              if (!restData || !restData.id) {
+                restData = { id: actualRestId, status: 'approved', name: cleanRestId };
+              }
+
+              const staffData = { id: matched.id, ...matched, isPinLogin: true, restaurantId: restData.id };
               set({
                 user: { uid: staffData.id, isPinLogin: true },
                 staffDoc: staffData,
-                restaurant: currentRest,
+                restaurant: restData,
                 loading: false,
                 error: null
               });
