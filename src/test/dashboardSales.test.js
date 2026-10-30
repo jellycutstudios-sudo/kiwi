@@ -146,4 +146,30 @@ describe('Dashboard Today Sale Number Logic', () => {
     expect(stats.paymentSplit.upi).toBe(1);
     expect(stats.paymentSplit.card).toBe(0);
   });
+
+  it('correctly maps displayed sales across settled, open, and pipeline modes when shift has open tabs but no settled bills', () => {
+    const rawDocs = [
+      { id: 'open_tab_1', status: 'preparing', total: 450, paymentMethod: 'unpaid', createdAt: '2026-10-17T14:00:00.000Z' },
+      { id: 'open_tab_2', status: 'ready', total: 850, paymentMethod: 'unpaid', createdAt: '2026-10-17T14:15:00.000Z' },
+    ];
+    const stats = computeSalesStats({ rawDocs, today, endOfToday });
+
+    // Mode 1: Settled (Realized money collected)
+    const settledSales = stats.settledSales;
+    const settledOrders = stats.settledOrders;
+    expect(settledSales).toBe(0);
+    expect(settledOrders).toBe(0);
+
+    // Mode 2: Open (Active unbilled dining tabs)
+    const openSales = stats.openSales;
+    const openOrders = stats.openOrders;
+    expect(openSales).toBe(1300);
+    expect(openOrders).toBe(2);
+
+    // Mode 3: Pipeline (Total shift potential)
+    const pipelineSales = stats.totalSales;
+    const pipelineOrders = stats.totalOrders;
+    expect(pipelineSales).toBe(1300);
+    expect(pipelineOrders).toBe(2);
+  });
 });

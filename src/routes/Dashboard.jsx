@@ -261,7 +261,7 @@ export default function Dashboard() {
       nextD.setDate(nextD.getDate() + 1);
       const label = i === 0 ? 'Today' : d.toLocaleDateString('en', { weekday: 'short' });
       const dayRevenue = i === 0
-        ? (salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales)
+        ? (salesViewMode === 'open' ? todayStats.openSales : (salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales))
         : analyticsOrders
             .filter(o => {
               const date = typeof o.createdAt?.toDate === 'function' ? o.createdAt.toDate() : new Date(o.createdAt);
@@ -271,7 +271,7 @@ export default function Dashboard() {
       days.push({ label, rev: dayRevenue, isToday: i === 0 });
     }
     return days;
-  }, [analyticsOrders, salesViewMode, todayStats.totalSales, todayStats.settledSales]);
+  }, [analyticsOrders, salesViewMode, todayStats.totalSales, todayStats.settledSales, todayStats.openSales]);
 
 
   // Dynamic Growth Insights / Tips
@@ -529,9 +529,13 @@ export default function Dashboard() {
     return unsub;
   }, [restaurant?.id, currentDateStr, tablesCount]);
 
-  const displayedSales = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
-  const displayedOrders = salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders;
-  const displayedAvg = displayedOrders ? displayedSales / displayedOrders : 0;
+  const displayedSales = salesViewMode === 'open'
+    ? todayStats.openSales
+    : (salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales);
+  const displayedOrders = salesViewMode === 'open'
+    ? todayStats.openOrders
+    : (salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders);
+  const displayedAvg = displayedOrders > 0 ? displayedSales / displayedOrders : 0;
 
   // Yesterday comparison delta (positive = growth, negative = decline)
   const salesDelta = yesterdayStats.sales > 0
@@ -540,31 +544,47 @@ export default function Dashboard() {
 
   // Dynamic Sales Assistant Executive Summary
   const salesAssistantSummary = useMemo(() => {
-    const ordersCount = salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders;
-    const salesTotal = salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales;
+    const ordersCount = salesViewMode === 'open'
+      ? todayStats.openOrders
+      : (salesViewMode === 'pipeline' ? todayStats.totalOrders : todayStats.settledOrders);
+    const salesTotal = salesViewMode === 'open'
+      ? todayStats.openSales
+      : (salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales);
 
-    if (ordersCount === 0 && todayStats.openOrders === 0) {
+    if (todayStats.settledOrders === 0 && todayStats.openOrders === 0) {
       return {
         headline: "Ready for Service",
         message: "No orders have been placed yet today. As soon as orders are punched or settled, I'll track live revenue velocity, top dishes, and kitchen efficiency right here."
       };
     }
 
-    const deltaText = salesDelta !== null
+    if (salesViewMode === 'settled' && todayStats.settledOrders === 0 && todayStats.openOrders > 0) {
+      const topItemSnippet = todayStats.topItem ? ` Top item ordered so far is ${todayStats.topItem.name} (${todayStats.topItem.qty} items).` : '';
+      return {
+        headline: "Service in Progress",
+        message: `No customer checks have been settled yet today. Currently, ${todayStats.openOrders} dining table${todayStats.openOrders > 1 ? 's are' : ' is'} active with ${formatCurrency(todayStats.openSales, currency)} in pipeline.${topItemSnippet}`
+      };
+    }
+
+    const deltaText = salesDelta !== null && salesViewMode === 'settled'
       ? (salesDelta >= 0 ? ` (+${salesDelta}% vs yesterday)` : ` (${salesDelta}% vs yesterday)`)
       : '';
 
     const topItemText = todayStats.topItem
-      ? ` Top item is ${todayStats.topItem.name} (${todayStats.topItem.qty} sold).`
+      ? ` Top item is ${todayStats.topItem.name} (${todayStats.topItem.qty} ordered).`
       : '';
 
     const activeDiningText = todayStats.openOrders > 0
       ? ` ${todayStats.openOrders} dining table${todayStats.openOrders > 1 ? 's' : ''} currently active (${formatCurrency(todayStats.openSales, currency)} in pipeline).`
       : ' All active dining tables are settled and closed.';
 
+    const modeLabel = salesViewMode === 'open'
+      ? 'Live active tabs stand at'
+      : (salesViewMode === 'pipeline' ? 'Total shift pipeline stands at' : 'Settled revenue stands at');
+
     return {
       headline: "Today's Pulse",
-      message: `Net sales stand at ${formatCurrency(salesTotal, currency)} across ${ordersCount} order${ordersCount !== 1 ? 's' : ''}${deltaText}.${topItemText}${activeDiningText}`
+      message: `${modeLabel} ${formatCurrency(salesTotal, currency)} across ${ordersCount} order${ordersCount !== 1 ? 's' : ''}${deltaText}.${topItemText}${activeDiningText}`
     };
   }, [salesViewMode, todayStats, salesDelta, currency]);
 
@@ -609,11 +629,29 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
 
-      {/* Date & Time Header */}
+      {/* Date & Time Header with Shift Scope Badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <h1 className="sr-only">Dashboard</h1>
           <LiveDateTime />
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: '999px',
+              padding: '3px 10px',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--color-label-secondary)'
+            }}
+            title="Dashboard metrics reflect today's service shift (12:00 AM to present)"
+          >
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+            <span>Shift: Today</span>
+          </div>
         </div>
       </div>
 
@@ -640,27 +678,6 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
-          {todayStats.openSales > 0 && (
-            <button
-              type="button"
-              title={salesViewMode === 'pipeline' ? 'Showing live pipeline. Click to view settled sales only.' : 'Showing settled sales. Click to include live open orders.'}
-              onClick={() => setSalesViewMode(v => v === 'pipeline' ? 'settled' : 'pipeline')}
-              className="btn btn-secondary btn-sm"
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-md)'
-              }}
-            >
-              <Zap size={12} color={salesViewMode === 'pipeline' ? '#10b981' : 'var(--color-label-secondary)'} fill={salesViewMode === 'pipeline' ? '#10b981' : 'none'} />
-              {salesViewMode === 'pipeline' ? 'Live Pipeline' : 'Settled Only'}
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => setShowAiAdvisor(true)}
@@ -683,16 +700,140 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Sales Scope Segmented Controller */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div
+          role="group"
+          aria-label="Sales Scope"
+          style={{
+            display: 'inline-flex',
+            background: 'var(--color-bg-secondary)',
+            padding: '3px',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--color-separator)',
+            gap: '3px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setSalesViewMode('settled')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '12px',
+              fontWeight: salesViewMode === 'settled' ? 700 : 500,
+              background: salesViewMode === 'settled' ? 'var(--color-bg-elevated)' : 'transparent',
+              color: salesViewMode === 'settled' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+              border: salesViewMode === 'settled' ? '1px solid var(--color-separator)' : 'none',
+              boxShadow: salesViewMode === 'settled' ? 'var(--shadow-xs)' : 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
+            <span>💰 Settled Revenue</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'settled' ? '#10b981' : 'var(--color-label-tertiary)' }}>
+              ({formatCurrency(todayStats.settledSales, currency)})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSalesViewMode('open')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '12px',
+              fontWeight: salesViewMode === 'open' ? 700 : 500,
+              background: salesViewMode === 'open' ? 'var(--color-bg-elevated)' : 'transparent',
+              color: salesViewMode === 'open' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+              border: salesViewMode === 'open' ? '1px solid var(--color-separator)' : 'none',
+              boxShadow: salesViewMode === 'open' ? 'var(--shadow-xs)' : 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+            <span>⚡ Live Open Tabs</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'open' ? '#f59e0b' : 'var(--color-label-tertiary)' }}>
+              ({formatCurrency(todayStats.openSales, currency)})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSalesViewMode('pipeline')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '12px',
+              fontWeight: salesViewMode === 'pipeline' ? 700 : 500,
+              background: salesViewMode === 'pipeline' ? 'var(--color-bg-elevated)' : 'transparent',
+              color: salesViewMode === 'pipeline' ? 'var(--color-label)' : 'var(--color-label-secondary)',
+              border: salesViewMode === 'pipeline' ? '1px solid var(--color-separator)' : 'none',
+              boxShadow: salesViewMode === 'pipeline' ? 'var(--shadow-xs)' : 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+            <span>📊 Gross Shift Total</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'pipeline' ? '#3b82f6' : 'var(--color-label-tertiary)' }}>
+              ({formatCurrency(todayStats.totalSales, currency)})
+            </span>
+          </button>
+        </div>
+
+        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+          {salesViewMode === 'settled' && 'Viewing finalized, paid revenue collected today.'}
+          {salesViewMode === 'open' && 'Viewing active, unbilled tables currently in service.'}
+          {salesViewMode === 'pipeline' && 'Viewing full gross potential (settled sales + live open tabs).'}
+        </span>
+      </div>
+
       {/* 2. Core 4 Sales Vitals Grid */}
       <div className="sales-vitals-grid">
-        {/* Vital 1: Net Sales */}
+        {/* Vital 1: Sales */}
         <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '0ms' }}>
           <div className="sales-vital-head">
-            <span className="sales-vital-label">
-              Net Sales
-              <InfoTooltip text="Gross sales for today based on current view mode." size={11} />
-            </span>
-            <div className="sales-vital-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span className="sales-vital-label">
+                {salesViewMode === 'open' ? 'Live Open Tabs' : salesViewMode === 'pipeline' ? 'Gross Shift Sales' : 'Settled Sales'}
+                <InfoTooltip text={
+                  salesViewMode === 'open'
+                    ? "Total unbilled food & drinks currently ordered across active dining tables."
+                    : salesViewMode === 'pipeline'
+                    ? "Combined gross value of today's settled checks plus currently active dining tabs."
+                    : "Realized revenue from customer bills closed and paid for today."
+                } size={11} />
+              </span>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.4px',
+                color: salesViewMode === 'open' ? '#d97706' : salesViewMode === 'pipeline' ? '#2563eb' : '#059669'
+              }}>
+                {salesViewMode === 'open' ? 'Unbilled / In Dining' : salesViewMode === 'pipeline' ? 'Settled + Open' : 'Paid & Closed Today'}
+              </span>
+            </div>
+            <div className="sales-vital-icon" style={{
+              background: salesViewMode === 'open' ? 'rgba(245, 158, 11, 0.12)' : salesViewMode === 'pipeline' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+              color: salesViewMode === 'open' ? '#f59e0b' : salesViewMode === 'pipeline' ? '#3b82f6' : '#10b981'
+            }}>
               <TrendingUp size={16} strokeWidth={2.5} />
             </div>
           </div>
@@ -700,13 +841,44 @@ export default function Dashboard() {
             {loading ? <div className="skeleton" style={{ height: 26, width: 90, borderRadius: 6 }} /> : formatCurrency(displayedSales, currency)}
           </div>
           <div className="sales-vital-sub">
-            {salesDelta !== null ? (
-              <span style={{ color: salesDelta >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                {salesDelta >= 0 ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
-                {salesDelta >= 0 ? '+' : ''}{salesDelta}% vs yday ({formatCurrency(yesterdayStats.sales, currency)})
+            {salesViewMode === 'settled' ? (
+              todayStats.openSales > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setSalesViewMode('open')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: '#d97706',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    textAlign: 'left',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3
+                  }}
+                  title="Click to view live open dining tabs"
+                >
+                  + {formatCurrency(todayStats.openSales, currency)} in {todayStats.openOrders} open tab{todayStats.openOrders !== 1 ? 's' : ''} →
+                </button>
+              ) : salesDelta !== null ? (
+                <span style={{ color: salesDelta >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  {salesDelta >= 0 ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
+                  {salesDelta >= 0 ? '+' : ''}{salesDelta}% vs yday ({formatCurrency(yesterdayStats.sales, currency)})
+                </span>
+              ) : (
+                <span style={{ color: 'var(--color-label-secondary)' }}>All guest tabs settled</span>
+              )
+            ) : salesViewMode === 'open' ? (
+              <span style={{ color: 'var(--color-label-secondary)' }}>
+                {todayStats.openOrders} active open dining ticket{todayStats.openOrders !== 1 ? 's' : ''}
               </span>
             ) : (
-              <span>{todayStats.openSales > 0 ? `${formatCurrency(todayStats.openSales, currency)} in pipeline` : 'Real-time billing'}</span>
+              <span style={{ color: 'var(--color-label-secondary)' }}>
+                {formatCurrency(todayStats.settledSales, currency)} settled · {formatCurrency(todayStats.openSales, currency)} open
+              </span>
             )}
           </div>
         </div>
@@ -714,10 +886,21 @@ export default function Dashboard() {
         {/* Vital 2: Total Orders */}
         <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '50ms' }}>
           <div className="sales-vital-head">
-            <span className="sales-vital-label">
-              Total Orders
-              <InfoTooltip text="Total volume of guest orders placed today." size={11} />
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span className="sales-vital-label">
+                {salesViewMode === 'open' ? 'Active Tabs' : salesViewMode === 'pipeline' ? 'Total Orders' : 'Settled Bills'}
+                <InfoTooltip text={
+                  salesViewMode === 'open'
+                    ? "Number of tables and orders currently open in dining/kitchen."
+                    : salesViewMode === 'pipeline'
+                    ? "Combined count of closed bills and currently active dining orders."
+                    : "Number of customer checks successfully paid and closed today."
+                } size={11} />
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--color-label-secondary)' }}>
+                {salesViewMode === 'open' ? 'Currently Seated' : salesViewMode === 'pipeline' ? 'Closed + Open' : 'Closed Checks'}
+              </span>
+            </div>
             <div className="sales-vital-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
               <ShoppingCart size={16} strokeWidth={2.5} />
             </div>
@@ -733,10 +916,15 @@ export default function Dashboard() {
         {/* Vital 3: Average Order Value */}
         <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '100ms' }}>
           <div className="sales-vital-head">
-            <span className="sales-vital-label">
-              Avg. Ticket (AOV)
-              <InfoTooltip text="Average amount spent per bill today." size={11} />
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span className="sales-vital-label">
+                Avg. Ticket (AOV)
+                <InfoTooltip text="Average amount spent per bill based on current view mode." size={11} />
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--color-label-secondary)' }}>
+                {salesViewMode === 'open' ? 'Per Active Tab' : salesViewMode === 'pipeline' ? 'Per Order Overall' : 'Per Settled Bill'}
+              </span>
+            </div>
             <div className="sales-vital-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
               <CheckCircle2 size={16} strokeWidth={2.5} />
             </div>
@@ -752,10 +940,15 @@ export default function Dashboard() {
         {/* Vital 4: Payment Reconciliation */}
         <div className="sales-vital-card animate-fade-in" style={{ animationDelay: '150ms' }}>
           <div className="sales-vital-head">
-            <span className="sales-vital-label">
-              Reconciliation
-              <InfoTooltip text="Settled revenue segmented by payment method." size={11} />
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span className="sales-vital-label">
+                Reconciliation
+                <InfoTooltip text="Realized payment method breakdown of settled sales today." size={11} />
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#8b5cf6' }}>
+                Settled Funds
+              </span>
+            </div>
             <div className="sales-vital-icon" style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6' }}>
               <Wallet size={16} strokeWidth={2.5} />
             </div>
