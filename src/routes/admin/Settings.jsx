@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { doc, updateDoc, setDoc, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, getDoc, deleteField, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
@@ -599,6 +599,29 @@ export default function Settings() {
               }
             })
             .catch(() => {});
+
+          // Merge private credentials from admin-only secrets subcollection
+          getDoc(doc(db, 'restaurants', restaurant.id, 'secrets', 'credentials'))
+            .then(snap => {
+              if (snap.exists()) {
+                const sec = snap.data();
+                setSettings(prev => {
+                  if (!prev) return prev;
+                  const next = { ...prev };
+                  if (sec.reportGmailAppPassword) {
+                    next.reportGmailAppPassword = sec.reportGmailAppPassword;
+                  }
+                  if (sec.terminalApiKey) {
+                    next.terminalConfig = {
+                      ...(next.terminalConfig || {}),
+                      apiKey: sec.terminalApiKey
+                    };
+                  }
+                  return next;
+                });
+              }
+            })
+            .catch(() => {});
         }
       }
     });
@@ -628,6 +651,30 @@ export default function Settings() {
           }
         }
         settingsToSave.deliveryIntegrations = publicIntegrations;
+      }
+
+      // Isolate sensitive credentials (Gmail app password, Terminal API key) into protected secrets subcollection
+      const secretCredentials = {};
+      if (settingsToSave.reportGmailAppPassword) {
+        secretCredentials.reportGmailAppPassword = settingsToSave.reportGmailAppPassword;
+      }
+      if (settingsToSave.terminalConfig?.apiKey) {
+        secretCredentials.terminalApiKey = settingsToSave.terminalConfig.apiKey;
+      }
+
+      if (Object.keys(secretCredentials).length > 0) {
+        await setDoc(doc(db, 'restaurants', restaurant.id, 'secrets', 'credentials'), {
+          ...secretCredentials,
+          updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(err => console.warn('Could not save secure credentials:', err));
+      }
+
+      // Scrub credentials from public restaurant document (deleteField removes any previously stored secrets)
+      settingsToSave.reportGmailAppPassword = deleteField();
+      if (settingsToSave.terminalConfig) {
+        const cleanTerminalConfig = { ...settingsToSave.terminalConfig };
+        delete cleanTerminalConfig.apiKey;
+        settingsToSave.terminalConfig = cleanTerminalConfig;
       }
       
       // Validate and check slug conflict

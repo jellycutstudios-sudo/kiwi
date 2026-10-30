@@ -630,6 +630,7 @@ export default function KDS() {
   }, []);
 
   const kdsOrders = useMemo(() => {
+    void expiryTick; // Re-evaluates on low-frequency expiryTick
     // Filter out orders older than 12 hours from live kitchen queue
     const STALE_KDS_MS = 12 * 60 * 60 * 1000;
     const now = Date.now();
@@ -669,6 +670,7 @@ export default function KDS() {
   }, [activeOrders, activeStation, kdsSortOrder, expiryTick]);
 
   const recentReadyOrders = useMemo(() => {
+    void expiryTick; // Re-evaluates on low-frequency expiryTick
     const now = Date.now();
     return activeOrders
       .filter(o => {

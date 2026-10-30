@@ -583,10 +583,6 @@ export default function Dashboard() {
   const displayedSales = salesViewMode === 'open'
     ? effectiveOpenSales
     : (salesViewMode === 'pipeline' ? effectiveTotalSales : todayStats.settledSales);
-  const displayedOrders = salesViewMode === 'open'
-    ? effectiveOpenOrders
-    : (salesViewMode === 'pipeline' ? effectiveTotalOrders : todayStats.settledOrders);
-  const displayedAvg = displayedOrders > 0 ? displayedSales / displayedOrders : 0;
 
   // Yesterday comparison delta (positive = growth, negative = decline)
   const salesDelta = yesterdayStats.sales > 0

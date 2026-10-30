@@ -682,7 +682,18 @@ exports.sendDailySalesReportEmail = onCall(async (request) => {
   }
 
   const senderEmail = restData.reportSenderEmail || process.env.GMAIL_USER || 'smanpk@gmail.com';
-  const appPassword = restData.reportGmailAppPassword || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASS;
+  let appPassword = restData.reportGmailAppPassword;
+  if (!appPassword) {
+    try {
+      const secretSnap = await db.collection('restaurants').doc(restaurantId).collection('secrets').doc('credentials').get();
+      if (secretSnap.exists) {
+        appPassword = secretSnap.data().reportGmailAppPassword;
+      }
+    } catch (secErr) {
+      console.warn('Could not read secure credentials subcollection:', secErr?.message);
+    }
+  }
+  appPassword = appPassword || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASS;
 
   if (!appPassword) {
     throw new HttpsError('failed-precondition', 'No Gmail App Password configured in restaurant settings or environment');

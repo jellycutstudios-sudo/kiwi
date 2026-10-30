@@ -10,7 +10,8 @@ import { useTableStore } from '../stores/tableStore';
 import { useGiftCardStore } from '../stores/giftCardStore';
 import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printKitchenVoidTicket, printInvoiceA4 } from '../utils/print';
 import toast from 'react-hot-toast';
@@ -638,26 +639,21 @@ export default function POS() {
         managerName = staffDoc?.name || 'Manager';
       } else {
         const cleanPin = managerPin.trim();
-        const authSnap = await getDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', cleanPin));
-
-        if (!authSnap.exists()) {
-          toast.error('Invalid Manager PIN');
+        if (!functions) {
+          toast.error('PIN verification service unavailable');
           return;
         }
+        const validatePinFn = httpsCallable(functions, 'validatePin');
+        const res = await validatePinFn({ restaurantId: restaurant.id, pin: cleanPin });
+        const staff = res.data?.staff;
 
-        const authData = authSnap.data();
-        if (authData.active === false) {
-          toast.error('Manager account is inactive');
-          return;
-        }
-
-        if (!['admin', 'super_admin', 'manager'].includes(authData.role)) {
+        if (!['admin', 'super_admin', 'manager'].includes(staff?.role)) {
           toast.error('Insufficient permissions — manager or admin PIN required');
           return;
         }
 
-        managerDocId = authData.staffId || authSnap.id;
-        managerName = authData.name || 'Manager';
+        managerDocId = staff.id;
+        managerName = staff.name || 'Manager';
       }
 
       const qtyReduced = voidAction.type === 'remove' ? voidAction.item.qty : 1;
