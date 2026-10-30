@@ -38,8 +38,14 @@ export default function Login() {
   const [regRestName, setRegRestName] = useState('');
   const [registering, setRegistering] = useState(false);
 
+  // Clear any leftover auth errors on mount or mode change
+  useEffect(() => {
+    clearError();
+  }, [mode, clearError]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
+    clearError();
     const cleanId = String(identifier || '').trim();
     const cleanPw = String(password || '').trim();
     if (!cleanId) {
@@ -243,7 +249,12 @@ export default function Login() {
             ))}
           </div>
 
-          {error && <div className="login-error-msg">{error}</div>}
+          {error && (() => {
+            const isPinMsg = error.toLowerCase().includes('pin') || error.toLowerCase().includes('terminal locked');
+            if (mode === 'pin' && !isPinMsg) return null;
+            if (mode === 'email' && isPinMsg) return null;
+            return <div className="login-error-msg">{error}</div>;
+          })()}
 
           {/* ── Admin email / mobile login ── */}
           {mode === 'email' ? (
@@ -257,7 +268,10 @@ export default function Login() {
                   autoComplete="username"
                   placeholder="name@restaurant.com"
                   value={identifier}
-                  onChange={e => setIdentifier(e.target.value)}
+                  onChange={e => {
+                    setIdentifier(e.target.value);
+                    if (error) clearError();
+                  }}
                   required
                 />
               </div>
@@ -270,7 +284,10 @@ export default function Login() {
                     type={showPw ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => {
+                      setPassword(e.target.value);
+                      if (error) clearError();
+                    }}
                     required
                   />
                   <button
