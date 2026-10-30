@@ -66,6 +66,13 @@ export default function TableMap() {
   const [selected, setSelected] = useState(null);
   const [reservations, setReservations] = useState([]);
 
+  // Live ticker for elapsed times
+  const [nowTime, setNowTime] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTime(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   // Derive table orders directly from orderStore activeOrders (eliminates duplicate Firestore query)
   const tableOrders = useMemo(() => {
     const map = {};
@@ -162,13 +169,6 @@ export default function TableMap() {
   const wrapperRef = useRef(null);
   const popoverRef = useRef(null);
   const canvasRef = useRef(null);
-
-  // Live ticker for elapsed times
-  const [nowTime, setNowTime] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowTime(Date.now()), 60000);
-    return () => clearInterval(id);
-  }, []);
 
   const floorTables = useMemo(() => {
     return tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
