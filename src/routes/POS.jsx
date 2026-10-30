@@ -638,25 +638,36 @@ export default function POS() {
     }
     
     try {
-      await ensureAnonymousAuth();
-      // Query staff directly by PIN
-      const staffQuery = query(
-        collection(db, 'restaurants', restaurant.id, 'staff'),
-        where('pin', '==', managerPin.trim()),
-        where('active', '==', true)
-      );
-      const staffSnap = await getDocs(staffQuery);
+      // Verify manager PIN via single-key lookup (no collection listing/scraping)
+      let managerDocId = null;
+      let managerName = 'Manager';
 
-      if (staffSnap.empty) {
-        toast.error('Invalid Manager PIN');
-        return;
-      }
+      // If current logged-in user is already a manager or admin, accept their own PIN or role
+      if (['admin', 'super_admin', 'manager'].includes(staffDoc?.role)) {
+        managerDocId = staffDoc?.id || 'admin';
+        managerName = staffDoc?.name || 'Manager';
+      } else {
+        const cleanPin = managerPin.trim();
+        const authSnap = await getDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', cleanPin));
 
-      const managerDoc = staffSnap.docs[0];
-      const managerData = managerDoc.data();
-      if (!['admin', 'super_admin', 'manager'].includes(managerData.role)) {
-        toast.error('Insufficient permissions — manager or admin PIN required');
-        return;
+        if (!authSnap.exists()) {
+          toast.error('Invalid Manager PIN');
+          return;
+        }
+
+        const authData = authSnap.data();
+        if (authData.active === false) {
+          toast.error('Manager account is inactive');
+          return;
+        }
+
+        if (!['admin', 'super_admin', 'manager'].includes(authData.role)) {
+          toast.error('Insufficient permissions — manager or admin PIN required');
+          return;
+        }
+
+        managerDocId = authData.staffId || authSnap.id;
+        managerName = authData.name || 'Manager';
       }
 
       const qtyReduced = voidAction.type === 'remove' ? voidAction.item.qty : 1;
@@ -672,8 +683,8 @@ export default function POS() {
         reducedQty: qtyReduced,
         cashierId: staffDoc?.id || 'unknown',
         cashierName: staffDoc?.name || 'Cashier',
-        managerId: managerDoc.id,
-        managerName: managerData.name,
+        managerId: managerDocId,
+        managerName: managerName,
         reason: voidReason,
         value: voidVal
       };
@@ -695,7 +706,7 @@ export default function POS() {
         }],
         reason: voidReason,
         staffName: staffDoc?.name || 'Cashier',
-        managerName: managerData.name
+        managerName: managerName
       });
 
       if (voidAction.type === 'remove') {

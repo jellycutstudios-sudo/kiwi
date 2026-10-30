@@ -196,7 +196,75 @@ export const useAuthStore = create(
             }
           }
 
-          // 2. Offline / local fallback (uses cached staff roster on this terminal)
+          // 2. Direct single-key PIN verification against staff_auth (no list/enumeration permitted)
+          if (db) {
+            try {
+              let actualRestId = cleanRestId;
+              let restData = get().restaurant || getInitialPersistedAuth().restaurant;
+
+              // Ensure restaurant ID is resolved
+              if (!restData || !restData.id || restData.id !== actualRestId) {
+                let rSnap = await getDoc(doc(db, 'restaurants', actualRestId));
+                if (!rSnap.exists()) {
+                  const lowerRestId = cleanRestId.toLowerCase();
+                  const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
+                  const sCustom = await getDocs(qCustom);
+                  if (!sCustom.empty) {
+                    rSnap = sCustom.docs[0];
+                    actualRestId = rSnap.id;
+                  } else {
+                    const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
+                    const sSlug = await getDocs(qSlug);
+                    if (!sSlug.empty) {
+                      rSnap = sSlug.docs[0];
+                      actualRestId = rSnap.id;
+                    }
+                  }
+                }
+                if (rSnap && rSnap.exists()) {
+                  restData = { id: rSnap.id, ...rSnap.data() };
+                }
+              }
+
+              if (restData?.status === 'suspended') {
+                set({ loading: false, error: 'Restaurant account has been suspended' });
+                return { ok: false, error: 'Restaurant account has been suspended' };
+              }
+
+              const authSnap = await getDoc(doc(db, 'restaurants', actualRestId, 'staff_auth', cleanPin));
+              if (authSnap.exists()) {
+                const authData = authSnap.data();
+                if (authData.active === false) {
+                  set({ loading: false, error: 'Staff member is inactive' });
+                  return { ok: false, error: 'Staff member is inactive' };
+                }
+
+                const staffData = {
+                  id: authData.staffId || authSnap.id,
+                  name: authData.name || 'Staff',
+                  role: authData.role || 'staff',
+                  isPinLogin: true,
+                  restaurantId: actualRestId
+                };
+
+                const finalRest = restData || { id: actualRestId, status: 'approved', name: cleanRestId };
+
+                set({
+                  user: { uid: staffData.id, isPinLogin: true },
+                  staffDoc: staffData,
+                  restaurant: finalRest,
+                  loading: false,
+                  error: null
+                });
+
+                return { ok: true, role: staffData.role };
+              }
+            } catch (authErr) {
+              console.warn('[loginWithPin] staff_auth lookup check:', authErr.message);
+            }
+          }
+
+          // 3. Offline / local fallback (uses cached staff roster on this terminal)
           try {
             const cachedStaff = JSON.parse(safeStorage.getItem('dineos_cached_staff') || '[]');
             const cleanPin = String(pin || '').trim();

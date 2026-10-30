@@ -77,9 +77,24 @@ service cloud.firestore {
       // Update/Delete — authenticated admin only (staff cannot mutate or delete restaurant document)
       allow update, delete: if isUserAdmin(restaurantId);
 
-      // Staff — admin write only. Read restricted to verified staff members of this restaurant.
+      // Staff profiles — public within restaurant (waiter assignment, order tagging, KDS)
+      // Contains name, role, active, email. Does NOT contain sensitive credentials or compensation.
       match /staff/{staffId} {
         allow read:  if isStaffMember(restaurantId);
+        allow write: if isUserAdmin(restaurantId);
+      }
+
+      // Staff Credentials & Compensation — strictly ADMIN ONLY
+      // Stores plaintext PINs, salary rates, and overtime rates. Non-admin staff cannot read or write.
+      match /staff_credentials/{staffId} {
+        allow read, write: if isUserAdmin(restaurantId);
+      }
+
+      // Staff Single-Key PIN Authentication & Manager Overrides
+      // Allows verifying a single entered PIN (get) without permitting enumeration or scraping (list forbidden)
+      match /staff_auth/{pin} {
+        allow get:   if true;
+        allow list:  if false;
         allow write: if isUserAdmin(restaurantId);
       }
 

@@ -65,7 +65,12 @@ export const useStaffStore = create((set) => {
       const unsub = onSnapshot(
         q,
         (snap) => {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const list = snap.docs.map((d) => {
+            const data = d.data();
+            // Sanitize sensitive credentials and compensation from the general staff roster
+            const { pin: _p, salaryRate: _sr, overtimeRate: _or, ...publicProfile } = data;
+            return { id: d.id, ...publicProfile };
+          });
           try {
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('dineos_cached_staff', JSON.stringify(list));

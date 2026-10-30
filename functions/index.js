@@ -438,13 +438,39 @@ exports.validatePin = onCall(async (request) => {
       );
     }
 
-    // Lookup staff by PIN
-    const staffQuery = await db.collection('restaurants').doc(actualRestId).collection('staff')
-      .where('pin', '==', String(pin).trim())
-      .where('active', '==', true)
-      .get();
+    // Lookup staff by PIN (checks secure staff_auth first, then staff_credentials, then legacy staff)
+    const cleanPin = String(pin).trim();
+    let staffDocId = null;
+    let staffData = null;
 
-    if (staffQuery.empty) {
+    const authSnap = await db.collection('restaurants').doc(actualRestId).collection('staff_auth').doc(cleanPin).get();
+    if (authSnap.exists && authSnap.data().active !== false) {
+      const d = authSnap.data();
+      staffDocId = d.staffId || authSnap.id;
+      staffData = { id: staffDocId, name: d.name, role: d.role };
+    } else {
+      const credQuery = await db.collection('restaurants').doc(actualRestId).collection('staff_credentials')
+        .where('pin', '==', cleanPin)
+        .get();
+      if (!credQuery.empty) {
+        staffDocId = credQuery.docs[0].id;
+        const sSnap = await db.collection('restaurants').doc(actualRestId).collection('staff').doc(staffDocId).get();
+        if (sSnap.exists && sSnap.data().active !== false) {
+          staffData = { id: staffDocId, ...sSnap.data() };
+        }
+      } else {
+        const legacyQuery = await db.collection('restaurants').doc(actualRestId).collection('staff')
+          .where('pin', '==', cleanPin)
+          .where('active', '==', true)
+          .get();
+        if (!legacyQuery.empty) {
+          staffDocId = legacyQuery.docs[0].id;
+          staffData = { id: staffDocId, ...legacyQuery.docs[0].data() };
+        }
+      }
+    }
+
+    if (!staffData) {
       // Record failed attempt
       attempts.count += 1;
       if (now - attempts.firstAttempt > PIN_LOCKOUT_MS) {
@@ -472,9 +498,6 @@ exports.validatePin = onCall(async (request) => {
     pinAttemptCache.delete(rateLimitKey);
     attemptDocRef.delete().catch(() => {});
 
-    const staffDoc = staffQuery.docs[0];
-    const staffData = staffDoc.data();
-    
     // Check if restaurant is approved
     const restDoc = await db.collection('restaurants').doc(actualRestId).get();
     if (!restDoc.exists || restDoc.data().status !== 'approved') {
@@ -482,7 +505,7 @@ exports.validatePin = onCall(async (request) => {
     }
 
     // Create a custom token with scoped restaurant and role claims
-    const uid = staffDoc.id;
+    const uid = staffDocId;
     const additionalClaims = {
       role: staffData.role,
       restaurantId: actualRestId,
@@ -493,7 +516,7 @@ exports.validatePin = onCall(async (request) => {
 
     return { 
       token: customToken, 
-      staff: { id: staffDoc.id, ...staffData },
+      staff: { id: staffDocId, ...staffData },
       restaurantId: actualRestId
     };
 

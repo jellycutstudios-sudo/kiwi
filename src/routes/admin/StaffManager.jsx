@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
-import { collection, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, addDoc, deleteDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -20,11 +20,41 @@ const ROLE_LABELS = {
 export default function StaffManager() {
   const { restaurant, staffDoc: currentUser } = useAuthStore();
   const { staff } = useStaffStore();
+  const [credentials, setCredentials] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [editId, setEditId] = useState(null);
   const [revealedPins, setRevealedPins] = useState({});
   const [showAllPins, setShowAllPins] = useState(false);
+
+  // Subscribe to isolated staff credentials (admin-only)
+  useEffect(() => {
+    if (!restaurant?.id || !db) return;
+    const unsub = onSnapshot(
+      collection(db, 'restaurants', restaurant.id, 'staff_credentials'),
+      (snap) => {
+        const map = {};
+        snap.forEach(d => { map[d.id] = d.data(); });
+        setCredentials(map);
+      },
+      (err) => console.warn('[StaffManager] Credentials listener error:', err.message)
+    );
+    return () => unsub();
+  }, [restaurant?.id]);
+
+  // Merge public staff profile with admin-only credentials
+  const staffList = useMemo(() => {
+    return staff.map(s => {
+      const cred = credentials[s.id] || {};
+      return {
+        ...s,
+        pin: cred.pin || s.pin || '',
+        salaryType: cred.salaryType || s.salaryType || 'monthly',
+        salaryRate: cred.salaryRate !== undefined ? cred.salaryRate : (s.salaryRate || 0),
+        overtimeRate: cred.overtimeRate !== undefined ? cred.overtimeRate : (s.overtimeRate || '1.5'),
+      };
+    });
+  }, [staff, credentials]);
 
   const togglePinVisibility = (id) => {
     setRevealedPins(prev => ({
@@ -43,7 +73,7 @@ export default function StaffManager() {
   });
 
   const generatePin = () => {
-    const existingPins = new Set(staff.map(s => s.pin).filter(Boolean));
+    const existingPins = new Set(staffList.map(s => s.pin).filter(Boolean));
     for (let attempts = 0; attempts < 100; attempts++) {
       const candidate = String(Math.floor(1000 + Math.random() * 9000));
       if (!existingPins.has(candidate)) {
@@ -85,39 +115,65 @@ export default function StaffManager() {
     }
 
     try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-
       if (editId) {
-        if (cleanPin) {
-          const isPinInUse = staff.some(s => s.id !== editId && s.pin === cleanPin && s.active !== false);
+        const oldPin = credentials[editId]?.pin || staffList.find(s => s.id === editId)?.pin;
+        const targetPin = cleanPin || oldPin;
+        if (targetPin) {
+          const isPinInUse = staffList.some(s => s.id !== editId && s.pin === targetPin && s.active !== false);
           if (isPinInUse) {
             toast.error('PIN already in use — choose a different PIN');
             return;
           }
         }
 
-        const updatedMember = {
+        const publicMember = {
           id: editId,
           name: form.name.trim(),
           role: form.role,
           email: form.email?.trim() || null,
           salaryType: form.salaryType,
-          salaryRate: Number(form.salaryRate) || 0,
-          overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
-          ...(cleanPin ? { pin: cleanPin } : {}),
           updatedAt: new Date().toISOString()
         };
 
-        const updatedList = staff.map(s => s.id === editId ? { ...s, ...updatedMember } : s);
+        const updatedList = staff.map(s => s.id === editId ? { ...s, ...publicMember } : s);
         useStaffStore.getState().setStaffList(updatedList);
 
         if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
           try {
+            // 1. Update public staff profile (no pin or compensation stored here)
             const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', editId);
             await updateDoc(staffRef, {
-              ...updatedMember,
+              name: form.name.trim(),
+              role: form.role,
+              email: form.email?.trim() || null,
+              salaryType: form.salaryType,
               updatedAt: new Date()
             });
+
+            // 2. Update secure credentials in admin-only collection
+            const credRef = doc(db, 'restaurants', restaurant.id, 'staff_credentials', editId);
+            await setDoc(credRef, {
+              staffId: editId,
+              pin: targetPin,
+              salaryType: form.salaryType,
+              salaryRate: Number(form.salaryRate) || 0,
+              overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
+              updatedAt: new Date()
+            }, { merge: true });
+
+            // 3. Update staff_auth lookup doc
+            if (cleanPin && oldPin && cleanPin !== oldPin) {
+              await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', oldPin)).catch(() => {});
+            }
+            if (targetPin) {
+              await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
+                staffId: editId,
+                name: form.name.trim(),
+                role: form.role,
+                active: true,
+                updatedAt: new Date()
+              });
+            }
           } catch (cloudErr) {
             console.warn('[StaffManager] Update cloud sync deferred:', cloudErr?.message);
           }
@@ -125,39 +181,62 @@ export default function StaffManager() {
 
         toast.success('Staff updated!');
       } else {
-        const isPinInUse = staff.some(s => s.pin === cleanPin && s.active !== false);
+        const isPinInUse = staffList.some(s => s.pin === cleanPin && s.active !== false);
         if (isPinInUse) {
           toast.error('PIN already in use — choose a different PIN');
           return;
         }
 
         const newStaffId = `staff_${Date.now()}`;
-        const newMember = {
+        const publicMember = {
           id: newStaffId,
           name: form.name.trim(),
-          pin: cleanPin,
           role: form.role,
           active: true,
           email: form.email?.trim() || null,
           salaryType: form.salaryType,
-          salaryRate: Number(form.salaryRate) || 0,
-          overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
 
-        const updatedList = [...staff, newMember];
+        const updatedList = [...staff, publicMember];
         useStaffStore.getState().setStaffList(updatedList);
 
         if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
           try {
+            // 1. Add to public staff collection (sanitized without pin)
             const staffColRef = collection(db, 'restaurants', restaurant.id, 'staff');
             const ref = await addDoc(staffColRef, {
-              ...newMember,
+              name: form.name.trim(),
+              role: form.role,
+              active: true,
+              email: form.email?.trim() || null,
+              salaryType: form.salaryType,
               createdAt: new Date(),
               updatedAt: new Date()
             });
-            const finalList = updatedList.map(s => s.id === newStaffId ? { ...s, id: ref.id } : s);
+            const createdId = ref.id;
+
+            // 2. Set credentials in admin-only collection
+            await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_credentials', createdId), {
+              staffId: createdId,
+              pin: cleanPin,
+              salaryType: form.salaryType,
+              salaryRate: Number(form.salaryRate) || 0,
+              overtimeRate: form.salaryType === 'hourly' ? (Number(form.overtimeRate) || 1.5) : null,
+              updatedAt: new Date()
+            });
+
+            // 3. Set staff_auth single-key lookup doc
+            await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', cleanPin), {
+              staffId: createdId,
+              name: form.name.trim(),
+              role: form.role,
+              active: true,
+              updatedAt: new Date()
+            });
+
+            const finalList = updatedList.map(s => s.id === newStaffId ? { ...s, id: createdId } : s);
             useStaffStore.getState().setStaffList(finalList);
           } catch (cloudErr) {
             console.warn('[StaffManager] Add cloud sync deferred:', cloudErr?.message);
@@ -189,14 +268,13 @@ export default function StaffManager() {
     try {
       if (!restaurant?.id) return;
       const nextActive = !current;
-      if (nextActive) {
-        const target = staff.find(s => s.id === id);
-        if (target?.pin) {
-          const isPinInUse = staff.some(s => s.id !== id && s.pin === target.pin && s.active !== false);
-          if (isPinInUse) {
-            toast.error('PIN is currently in use by another active staff member. Update this staff member\'s PIN first.');
-            return;
-          }
+      const targetPin = credentials[id]?.pin || staffList.find(s => s.id === id)?.pin;
+
+      if (nextActive && targetPin) {
+        const isPinInUse = staffList.some(s => s.id !== id && s.pin === targetPin && s.active !== false);
+        if (isPinInUse) {
+          toast.error('PIN is currently in use by another active staff member. Update this staff member\'s PIN first.');
+          return;
         }
       }
 
@@ -205,9 +283,13 @@ export default function StaffManager() {
 
       if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
         try {
-          await useAuthStore.getState().ensureAnonymousAuth();
           const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
           await updateDoc(staffRef, { active: nextActive, updatedAt: new Date() });
+          if (targetPin) {
+            await setDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
+              active: nextActive
+            }, { merge: true });
+          }
         } catch (cloudErr) {
           console.warn('[StaffManager] Toggle active cloud sync deferred:', cloudErr?.message);
         }
@@ -223,14 +305,18 @@ export default function StaffManager() {
     if (!confirm('Remove this staff member?')) return;
     try {
       if (!restaurant?.id) return;
+      const targetPin = credentials[id]?.pin || staffList.find(s => s.id === id)?.pin;
       const updatedList = staff.filter(s => s.id !== id);
       useStaffStore.getState().setStaffList(updatedList);
 
       if (!restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
         try {
-          await useAuthStore.getState().ensureAnonymousAuth();
           const staffRef = doc(db, 'restaurants', restaurant.id, 'staff', id);
           await deleteDoc(staffRef);
+          await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff_credentials', id)).catch(() => {});
+          if (targetPin) {
+            await deleteDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin)).catch(() => {});
+          }
         } catch (cloudErr) {
           console.warn('[StaffManager] Delete cloud sync deferred:', cloudErr?.message);
         }
@@ -265,8 +351,8 @@ export default function StaffManager() {
 
       <div className="card">
         <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <span className="card-title">Staff Members ({staff.length})</span>
-          {staff.length > 0 && (
+          <span className="card-title">Staff Members ({staffList.length})</span>
+          {staffList.length > 0 && (
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -282,12 +368,12 @@ export default function StaffManager() {
           )}
         </div>
         <div>
-          {staff.length === 0 ? (
+          {staffList.length === 0 ? (
             <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
               <div style={{fontSize:32}}>👥</div>
               <div style={{marginTop:'var(--space-2)'}}>No staff added yet</div>
             </div>
-          ) : staff.map(s => (
+          ) : staffList.map(s => (
             <div key={s.id} className="staff-row" style={{ opacity: s.active === false ? 0.5 : 1 }}>
               <div className="staff-row-top">
                 <div className="staff-avatar">
