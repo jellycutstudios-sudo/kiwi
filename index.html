@@ -79,13 +79,6 @@
           };
           window.addEventListener('keydown', blockKeys, true);
           document.addEventListener('keydown', blockKeys, true);
-
-          // 3. DevTools Freeze Loop (Continuously triggers debugger to freeze inspector)
-          setInterval(function() {
-            try {
-              (function() { Function('debugger')(); })();
-            } catch (_) {}
-          }, 150);
         } catch (err) {}
       })();
     </script>

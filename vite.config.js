@@ -82,7 +82,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,jpg,jpeg,webp,wav,mp3}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wav,mp3}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/__/],
         cleanupOutdatedCaches: true,
@@ -147,22 +147,20 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) {
+               return 'ui-vendor';
+            }
             if (id.includes('react') || id.includes('scheduler')) {
                return 'react-vendor';
             }
             if (id.includes('firebase')) {
                return 'firebase-vendor';
             }
-            if (id.includes('lucide-react')) {
-               return 'ui-vendor';
-            }
             if (id.includes('i18next')) {
                return 'i18n-vendor';
             }
-            if (id.includes('recharts') || id.includes('d3-')) {
-               return 'charts-vendor';
-            }
-            return 'vendor';
+            // Non-core vendor libraries (recharts, d3, etc.) are bundled with their
+            // consuming lazy routes rather than forced into an eager initial vendor bundle.
           }
         }
       }

@@ -4,7 +4,7 @@ import {
   deleteDoc, writeBatch, serverTimestamp, getDocs
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebase';
+import { db, getFirebaseStorage } from '../firebase';
 
 export const usePosterStore = create((set, get) => {
   let slideshowsUnsub = null;
@@ -228,8 +228,9 @@ export const usePosterStore = create((set, get) => {
       const targetIds = Array.isArray(targetSlideshowIds) ? targetSlideshowIds : [targetSlideshowIds];
       if (targetIds.length === 0) throw new Error('No target TV screens selected');
 
+      const storage = await getFirebaseStorage();
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      const storageRef = ref(storage, `menuImages/${restaurantId}/${fileName}`);
+      const storageRef = storage ? ref(storage, `menuImages/${restaurantId}/${fileName}`) : null;
 
       // Compress once
       const base64Data = await get().compressPosterImage(file);
@@ -237,6 +238,7 @@ export const usePosterStore = create((set, get) => {
       // Upload to Firebase Storage with safe fallback
       let downloadUrl;
       try {
+        if (!storageRef) throw new Error('Firebase Storage not initialized');
         await uploadString(storageRef, base64Data, 'data_url');
         downloadUrl = await getDownloadURL(storageRef);
       } catch (storageErr) {
@@ -279,6 +281,7 @@ export const usePosterStore = create((set, get) => {
       if (targetIds.length === 0) throw new Error('No target TV screens selected');
 
       const total = files.length;
+      const storage = await getFirebaseStorage();
       for (let i = 0; i < total; i++) {
         const file = files[i];
         if (onProgress) {
@@ -291,11 +294,12 @@ export const usePosterStore = create((set, get) => {
         }
 
         const fileName = `${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-        const storageRef = ref(storage, `menuImages/${restaurantId}/${fileName}`);
+        const storageRef = storage ? ref(storage, `menuImages/${restaurantId}/${fileName}`) : null;
 
         const base64Data = await get().compressPosterImage(file);
         let downloadUrl;
         try {
+          if (!storageRef) throw new Error('Firebase Storage not initialized');
           await uploadString(storageRef, base64Data, 'data_url');
           downloadUrl = await getDownloadURL(storageRef);
         } catch (storageErr) {
@@ -521,8 +525,11 @@ export const usePosterStore = create((set, get) => {
 
           if (!stillInUse) {
             try {
-              const fileRef = ref(storage, imageUrl);
-              await deleteObject(fileRef);
+              const storage = await getFirebaseStorage();
+              if (storage) {
+                const fileRef = ref(storage, imageUrl);
+                await deleteObject(fileRef);
+              }
             } catch (storageErr) {
               console.warn('[posterStore] Could not delete file from Storage:', storageErr);
             }

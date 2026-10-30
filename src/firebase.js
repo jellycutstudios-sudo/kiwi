@@ -3,8 +3,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
-import { getMessaging, isSupported } from 'firebase/messaging';
-import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
@@ -35,7 +33,6 @@ if (isFirebaseConfigured) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    storage = getStorage(app);
     functions = getFunctions(app);
 
     // Enable offline persistence using the modern API
@@ -45,16 +42,29 @@ if (isFirebaseConfigured) {
         tabManager: persistentMultipleTabManager()
       })
     });
-
-    // FCM — only in browsers that support it
-    isSupported().then(supported => {
-      if (supported) {
-        messaging = getMessaging(app);
-      }
-    });
   } catch (error) {
     console.error('Firebase initialization failed:', error);
   }
+}
+
+// Optional Firebase services — dynamically loaded when feature is actively used
+export async function getFirebaseStorage() {
+  if (!storage && app) {
+    const { getStorage } = await import('firebase/storage');
+    storage = getStorage(app);
+  }
+  return storage;
+}
+
+export async function getFirebaseMessaging() {
+  if (!messaging && app) {
+    const { getMessaging, isSupported } = await import('firebase/messaging');
+    const supported = await isSupported();
+    if (supported) {
+      messaging = getMessaging(app);
+    }
+  }
+  return messaging;
 }
 
 export { app, auth, db, messaging, storage, functions };

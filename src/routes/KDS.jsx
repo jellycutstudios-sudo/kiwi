@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -53,6 +53,482 @@ function playKitchenChime() {
   }
 }
 
+// Pure helper for ticket urgency styling
+function computeKdsUrgency(elapsedSeconds) {
+  const mins = Math.floor(elapsedSeconds / 60);
+  if (mins < 10) {
+    return {
+      type: 'normal',
+      label: 'FRESH',
+      color: '#10b981',
+      bannerBg: 'linear-gradient(90deg, #065f46 0%, #047857 100%)',
+      badgeBg: 'rgba(16, 185, 129, 0.25)',
+      badgeColor: '#34d399',
+      borderClass: 'status-normal'
+    };
+  }
+  if (mins < 20) {
+    return {
+      type: 'delayed',
+      label: 'DELAYED',
+      color: '#f59e0b',
+      bannerBg: 'linear-gradient(90deg, #92400e 0%, #b45309 100%)',
+      badgeBg: 'rgba(245, 158, 11, 0.25)',
+      badgeColor: '#fbbf24',
+      borderClass: 'status-delayed'
+    };
+  }
+  if (mins < 60) {
+    return {
+      type: 'late',
+      label: 'RUSH',
+      color: '#ef4444',
+      bannerBg: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 100%)',
+      badgeBg: 'rgba(239, 68, 68, 0.35)',
+      badgeColor: '#f87171',
+      borderClass: 'status-late'
+    };
+  }
+  return {
+    type: 'overdue',
+    label: 'OVERDUE',
+    color: '#e11d48',
+    bannerBg: 'linear-gradient(90deg, #881337 0%, #9f1239 100%)',
+    badgeBg: 'rgba(225, 29, 72, 0.45)',
+    badgeColor: '#fda4af',
+    borderClass: 'status-overdue'
+  };
+}
+
+// Independent ticking clock for kitchen topbar — prevents parent KDS re-renders
+const KDSClock = memo(function KDSClock() {
+  const [time, setTime] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <div className="kds-clock-box">
+      {new Date(time).toLocaleTimeString()}
+    </div>
+  );
+});
+
+// Independent ticking ticket card — stopwatch & urgency update locally without parent re-renders
+const KDSTicketCard = memo(function KDSTicketCard({
+  order,
+  orderIdx,
+  activeStation,
+  modes,
+  restaurant,
+  handleCallToken,
+  printSingleKitchenTicket,
+  cycleItemStatus,
+  handleStartPreparing,
+  handleMarkReady,
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const elapsedSeconds = getOrderElapsedSeconds(order, now);
+  const stopwatch = formatOrderStopwatch(order, now);
+  const urgency = computeKdsUrgency(elapsedSeconds);
+
+  const stationItems = (order.items ?? []).filter(i => (activeStation === 'All' || i.station === activeStation) && i.prepState !== 'hold');
+  const anyStationPending = stationItems.some(i => !i.status || i.status === 'pending');
+  const allStationReady = stationItems.every(i => i.status === 'ready');
+
+  return (
+    <div
+      className={`kds-order-card ${urgency.borderClass}`}
+      id={`kds-order-${order.id}`}
+    >
+      {/* Top Urgency Header Banner */}
+      <div style={{
+        padding: '8px 14px',
+        background: urgency.bannerBg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        color: '#ffffff',
+        fontWeight: 900,
+        fontSize: 12,
+        letterSpacing: '0.04em'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {orderIdx < 9 && (
+            <span style={{
+              fontSize: 10.5,
+              fontWeight: 900,
+              padding: '1px 5px',
+              borderRadius: 4,
+              background: 'rgba(255,255,255,0.22)',
+              color: '#ffffff',
+              fontFamily: 'monospace'
+            }} title={`Bump bar hotkey: Press [${orderIdx + 1}]`}>
+              #{orderIdx + 1}
+            </span>
+          )}
+          {urgency.type === 'late' && <Flame size={15} color="#ffffff" />}
+          {urgency.type === 'delayed' && <AlertTriangle size={15} color="#ffffff" />}
+          {urgency.type === 'normal' && <Clock size={15} color="#ffffff" />}
+          <span>{urgency.label}</span>
+        </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          fontFamily: 'monospace',
+          fontSize: 13,
+          background: 'rgba(0,0,0,0.3)',
+          padding: '2px 8px',
+          borderRadius: 6
+        }}>
+          <span>⏱️</span>
+          <span>{stopwatch}</span>
+        </div>
+      </div>
+
+      {/* Order Identity Subheader */}
+      <div className="kds-order-header">
+        <div>
+          <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {modes.includes('token') && order.token && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCallToken(order.token);
+                }}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  borderRadius: 6,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: '#f59e0b',
+                  color: '#000000',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(245, 158, 11, 0.4)'
+                }}
+                title="Tap to call token number on TV display"
+              >
+                📢 #{String(order.token).padStart(3, '0')}
+              </button>
+            )}
+            <span>
+              {order.type === 'dine-in' ? (order.tableName ? `🪑 Table ${order.tableName}` : '🍽️ Dine-In') : (order.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online')}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 3, fontWeight: 600 }}>
+            {order.type.toUpperCase()} · #{order.id.slice(-6).toUpperCase()}
+          </div>
+        </div>
+        
+        {/* Action & Status Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              printSingleKitchenTicket({
+                restaurant,
+                order,
+                items: order.items,
+                staffName: order.staffName
+              });
+            }}
+            style={{
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-separator-opaque)',
+              color: 'var(--color-label)',
+              borderRadius: 8,
+              padding: '4px 8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
+              fontWeight: 700,
+              transition: 'all 0.15s ease'
+            }}
+            title="Print Kitchen Ticket to Thermal Printer"
+          >
+            <Printer size={13} />
+            <span>Print</span>
+          </button>
+
+          {/* Status Pill */}
+          <div style={{
+            padding: '4px 10px',
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 800,
+            background: order.status === 'pending' ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
+            color: order.status === 'pending' ? 'var(--color-yellow)' : 'var(--color-purple)',
+            border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)'
+          }}>
+            {order.status === 'pending' ? '⏳ WAITING' : '🍳 COOKING'}
+          </div>
+        </div>
+      </div>
+
+      {/* Card Items List */}
+      <div className="kds-order-items">
+        {(() => {
+          const COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
+          return COURSES.map(courseName => {
+            const courseItems = (order.items ?? [])
+              .map((item, idx) => ({ ...item, originalIndex: idx }))
+              .filter(item => {
+                const matchesStation = activeStation === 'All' || item.station === activeStation;
+                const matchesCourse = (item.course === courseName) || (!COURSES.includes(item.course) && courseName === 'Mains');
+                const isNotHeld = item.prepState !== 'hold';
+                return matchesStation && matchesCourse && isNotHeld;
+              });
+
+            if (courseItems.length === 0) return null;
+
+            return (
+              <div key={courseName} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-label-secondary)',
+                  borderBottom: '1px solid var(--color-separator-opaque)',
+                  paddingBottom: 3,
+                  letterSpacing: '0.06em'
+                }}>
+                  {courseName}
+                </div>
+                {courseItems.map(item => {
+                  const isReady = item.status === 'ready';
+                  const isPreparing = item.status === 'preparing';
+                  const originalIndex = item.originalIndex;
+
+                  return (
+                    <div 
+                      key={originalIndex} 
+                      onClick={() => cycleItemStatus(order, originalIndex, item.status || 'pending')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '7px 8px',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        background: isPreparing ? 'var(--color-purple-light)' : (isReady ? 'transparent' : 'var(--color-bg-secondary)'),
+                        border: isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-separator-opaque)',
+                        transition: 'all 0.15s ease',
+                        opacity: isReady ? 0.45 : 1,
+                      }}
+                      title="Click to advance item prep status"
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span className="kds-item-qty" style={{
+                            background: isReady ? 'var(--color-fill-secondary)' : '#f59e0b',
+                            color: isReady ? 'var(--color-label-secondary)' : '#000000'
+                          }}>
+                            ×{item.qty}
+                          </span>
+                          <span style={{ 
+                            textDecoration: isReady ? 'line-through' : 'none',
+                            color: isReady ? 'var(--color-label-tertiary)' : 'var(--color-label)',
+                            fontSize: 15,
+                            fontWeight: isPreparing ? 800 : 700,
+                            letterSpacing: '-0.2px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}>
+                            <span>{item.name}</span>
+                            {item.seatNumber && (
+                              <span style={{
+                                fontSize: 11,
+                                fontWeight: 900,
+                                background: '#0f172a',
+                                color: '#38bdf8',
+                                border: '1px solid #38bdf8',
+                                padding: '1px 6px',
+                                borderRadius: 5
+                              }}>
+                                🪑 S{item.seatNumber}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        {item.allergies && item.allergies.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, paddingLeft: 38 }}>
+                            {item.allergies.map(a => (
+                              <span key={a} style={{
+                                fontSize: 11,
+                                fontWeight: 900,
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                border: '1px solid #ef4444',
+                                padding: '2px 7px',
+                                borderRadius: 4,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em'
+                              }}>
+                                ⚠️ {a.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {(item.itemNote || item.notes) && (
+                          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#f59e0b', marginTop: 3, paddingLeft: 38 }}>
+                            📝 {item.itemNote || item.notes}
+                          </div>
+                        )}
+                        {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
+                          const variantMods = item.selectedModifiers.filter(m => m.isVariantAxis);
+                          const regularMods = item.selectedModifiers.filter(m => !m.isVariantAxis);
+                          return (
+                            <div style={{ paddingLeft: 38, marginTop: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {/* Variant axes — large high-contrast badge */}
+                              {variantMods.length > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  {variantMods.map((m, mIdx) => (
+                                    <span key={mIdx} style={{
+                                      background: mIdx === 0 ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
+                                      color: mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)',
+                                      border: `1.5px solid ${mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)'}`,
+                                      padding: '3px 10px',
+                                      borderRadius: 6,
+                                      fontSize: 13,
+                                      fontWeight: 900,
+                                      letterSpacing: '0.04em',
+                                      textTransform: 'uppercase',
+                                    }}>
+                                      {m.modifierGroupName}: {m.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Regular modifiers — show group name + option so kitchen knows Gravy vs Paste */}
+                              {regularMods.length > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                  {regularMods.map((m, mIdx) => (
+                                    <span key={mIdx} style={{
+                                      background: 'var(--color-bg-secondary)',
+                                      color: 'var(--color-label-secondary)',
+                                      border: '1px solid var(--color-separator-opaque)',
+                                      padding: '2px 7px',
+                                      borderRadius: 4,
+                                      fontSize: 11,
+                                      fontWeight: 700
+                                    }}>
+                                      {m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {activeStation === 'All' && item.station && (
+                          <span style={{
+                            fontSize: 9,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: 'var(--color-fill-secondary)',
+                            color: 'var(--color-label-secondary)',
+                            fontWeight: 700
+                          }}>
+                            {item.station}
+                          </span>
+                        )}
+                        <span style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontWeight: 800,
+                          background: isReady ? 'var(--color-green-light)' : (isPreparing ? 'var(--color-purple-light)' : 'var(--color-yellow-light)'),
+                          color: isReady ? 'var(--color-green)' : (isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)'),
+                          border: isReady ? '1px solid var(--color-green)' : (isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-yellow)'),
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 3
+                        }}>
+                          {isReady ? '✓ Done' : (isPreparing ? '🍳 Cook' : '⏳ Wait')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          });
+        })()}
+        
+        {order.note && (
+          <div style={{
+            marginTop: 6,
+            color: 'var(--color-label)',
+            background: 'var(--color-brand-ochre-light)',
+            border: '1px solid var(--color-brand-ochre)',
+            padding: '6px 10px',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 600
+          }}>
+            📝 {order.note}
+          </div>
+        )}
+      </div>
+
+      {/* Card Action Bump Bar */}
+      <div className="kds-order-action" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        {allStationReady ? (
+          <div style={{
+            flex: 1,
+            textAlign: 'center',
+            color: 'var(--color-green)',
+            fontSize: 13,
+            fontWeight: 800,
+            padding: '10px 0',
+            background: 'var(--color-green-light)',
+            borderRadius: 10,
+            border: '1px solid var(--color-green)'
+          }}>
+            ✓ All Items Ready for Serving
+          </div>
+        ) : (
+          <>
+            {anyStationPending && (
+              <button
+                className="kds-cook-btn"
+                onClick={() => handleStartPreparing(order, activeStation)}
+              >
+                🍳 Start Cooking
+              </button>
+            )}
+            <button
+              className="kds-ready-btn"
+              onClick={() => handleMarkReady(order, activeStation)}
+              style={{ flex: anyStationPending ? 1.2 : 1 }}
+            >
+              <Check size={16} strokeWidth={3} /> Mark All Ready
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export default function KDS() {
   const navigate = useNavigate();
   const restaurant = useAuthStore(s => s.restaurant);
@@ -91,7 +567,6 @@ export default function KDS() {
   }, []);
   
   const prevCountRef = useRef(0);
-  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const stationsList = useMemo(() => {
     const configured = getKitchenStations(restaurant);
@@ -118,14 +593,6 @@ export default function KDS() {
     }
   }, [stationsList, activeStation]);
 
-  // 1-second interval for real-time kitchen stopwatches & digital clock
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Listen for browser fullscreen changes
   useEffect(() => {
     const handleFsChange = () => {
@@ -145,7 +612,7 @@ export default function KDS() {
     }
   }, []);
 
-  const handleCallToken = async (tokenNumber) => {
+  const handleCallToken = useCallback(async (tokenNumber) => {
     if (!restaurant?.id) return;
     try {
       await callSpecificToken(restaurant.id, tokenNumber);
@@ -153,16 +620,17 @@ export default function KDS() {
     } catch {
       toast.error("Failed to call token");
     }
-  };
+  }, [restaurant?.id, callSpecificToken]);
 
   const kdsOrders = useMemo(() => {
     // Filter out orders older than 12 hours from live kitchen queue
     const STALE_KDS_MS = 12 * 60 * 60 * 1000;
+    const now = Date.now();
     const list = activeOrders
       .filter(o => ['pending', 'preparing'].includes(o.status))
       .filter(o => {
         const orderTime = getOrderTimestampMs(o);
-        if (orderTime && (currentTime - orderTime) > STALE_KDS_MS) return false;
+        if (orderTime && (now - orderTime) > STALE_KDS_MS) return false;
         if (activeStation === 'All') {
           return o.items?.some(i => i.status !== 'ready' && i.prepState !== 'hold');
         }
@@ -184,27 +652,23 @@ export default function KDS() {
         const isRushB = b.priority === 'rush' || b.isRush || b.rush ? 1 : 0;
         if (isRushB !== isRushA) return isRushB - isRushA;
 
-        // 2. Highest elapsed wait time next
-        const elapsedA = getOrderElapsedSeconds(a, currentTime);
-        const elapsedB = getOrderElapsedSeconds(b, currentTime);
-        if (elapsedB !== elapsedA) {
-          return elapsedB - elapsedA;
-        }
+        // 2. Highest elapsed wait time next (oldest ticket first)
         return timeA - timeB;
       }
 
       // Default: 'oldest' (FIFO standard kitchen queue - oldest orders at top-left)
       return timeA - timeB;
     });
-  }, [activeOrders, activeStation, kdsSortOrder, currentTime]);
+  }, [activeOrders, activeStation, kdsSortOrder]);
 
   const recentReadyOrders = useMemo(() => {
+    const now = Date.now();
     return activeOrders
       .filter(o => {
         if (o.status !== 'ready') return false;
         const readyTimeMs = getOrderTimestampMs(o.prepCompletedAt || o.updatedAt || o);
         if (!readyTimeMs) return true;
-        return (currentTime - readyTimeMs) <= 30 * 60 * 1000;
+        return (now - readyTimeMs) <= 30 * 60 * 1000;
       })
       .slice()
       .sort((a, b) => {
@@ -212,7 +676,7 @@ export default function KDS() {
         const timeB = getOrderTimestampMs(b.prepCompletedAt || b.updatedAt || b) || 0;
         return timeB - timeA;
       });
-  }, [activeOrders, currentTime]);
+  }, [activeOrders]);
 
   const handleRecallOrder = useCallback(async (order) => {
     try {
@@ -236,21 +700,32 @@ export default function KDS() {
     prevCountRef.current = orderCount;
   }, [orderCount, soundEnabled]);
 
-  const getStationOrderCount = (station) => {
-    if (station === 'All') {
-      return activeOrders
-        .filter(o => ['pending', 'preparing'].includes(o.status))
-        .filter(o => o.items?.some(i => i.status !== 'ready' && i.prepState !== 'hold')).length;
+  // Single-pass count calculation across all stations — replaces O(N*S) repeated filtering
+  const stationCounts = useMemo(() => {
+    const counts = { All: 0 };
+    for (const s of stationsList) counts[s] = 0;
+    for (const o of activeOrders) {
+      if (!['pending', 'preparing'].includes(o.status)) continue;
+      const unreadyItems = (o.items || []).filter(i => i.status !== 'ready' && i.prepState !== 'hold');
+      if (unreadyItems.length > 0) {
+        counts.All = (counts.All || 0) + 1;
+        const seen = new Set();
+        for (const item of unreadyItems) {
+          const st = item.station;
+          if (st && !seen.has(st)) {
+            seen.add(st);
+            counts[st] = (counts[st] || 0) + 1;
+          }
+        }
+      }
     }
-    return activeOrders
-      .filter(o => ['pending', 'preparing'].includes(o.status))
-      .filter(o => o.items?.some(i => i.station === station && i.status !== 'ready' && i.prepState !== 'hold')).length;
-  };
+    return counts;
+  }, [activeOrders, stationsList]);
 
-  const handleStartPreparing = async (order, station) => {
+  const handleStartPreparing = useCallback(async (order, station) => {
     await updateKDSStationStatus(restaurant.id, order, station, 'preparing');
     toast('Station preparation started...', { icon: '🍳' });
-  };
+  }, [restaurant?.id, updateKDSStationStatus]);
 
   const handleMarkReady = useCallback(async (order, station) => {
     await updateKDSStationStatus(restaurant.id, order, station, 'ready');
@@ -265,6 +740,15 @@ export default function KDS() {
       }
     }
   }, [restaurant?.id, modes, updateKDSStationStatus, callSpecificToken]);
+
+  const cycleItemStatus = useCallback(async (order, itemIndex, currentStatus) => {
+    let nextStatus = 'pending';
+    if (currentStatus === 'pending') nextStatus = 'preparing';
+    else if (currentStatus === 'preparing') nextStatus = 'ready';
+    else if (currentStatus === 'ready') nextStatus = 'pending';
+    
+    await updateKDSItemStatus(restaurant.id, order, itemIndex, nextStatus);
+  }, [restaurant?.id, updateKDSItemStatus]);
 
   // ── Commercial Hardware Bump Bar & Keyboard Shortcuts ──
   useEffect(() => {
@@ -363,69 +847,7 @@ export default function KDS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [kdsOrders, recentReadyOrders, activeStation, stationsList, kdsSortOrder, handleSortOrderChange, toggleFullscreen, handleMarkReady, handleRecallOrder, modes]);
 
-  const cycleItemStatus = async (order, itemIndex, currentStatus) => {
-    let nextStatus = 'pending';
-    if (currentStatus === 'pending') nextStatus = 'preparing';
-    else if (currentStatus === 'preparing') nextStatus = 'ready';
-    else if (currentStatus === 'ready') nextStatus = 'pending';
-    
-    await updateKDSItemStatus(restaurant.id, order, itemIndex, nextStatus);
-  };
 
-  // Helper for live stopwatch and urgency levels
-  const getElapsedSeconds = useCallback((orderOrCreatedAt) => {
-    return getOrderElapsedSeconds(orderOrCreatedAt, currentTime);
-  }, [currentTime]);
-
-  const getStopwatch = useCallback((orderOrCreatedAt) => {
-    return formatOrderStopwatch(orderOrCreatedAt, currentTime);
-  }, [currentTime]);
-
-  const getUrgency = useCallback((orderOrCreatedAt) => {
-    const mins = Math.floor(getElapsedSeconds(orderOrCreatedAt) / 60);
-    if (mins < 10) {
-      return {
-        type: 'normal',
-        label: 'FRESH',
-        color: '#10b981',
-        bannerBg: 'linear-gradient(90deg, #065f46 0%, #047857 100%)',
-        badgeBg: 'rgba(16, 185, 129, 0.25)',
-        badgeColor: '#34d399',
-        borderClass: 'status-normal'
-      };
-    }
-    if (mins < 20) {
-      return {
-        type: 'delayed',
-        label: 'DELAYED',
-        color: '#f59e0b',
-        bannerBg: 'linear-gradient(90deg, #92400e 0%, #b45309 100%)',
-        badgeBg: 'rgba(245, 158, 11, 0.25)',
-        badgeColor: '#fbbf24',
-        borderClass: 'status-delayed'
-      };
-    }
-    if (mins < 60) {
-      return {
-        type: 'late',
-        label: 'RUSH',
-        color: '#ef4444',
-        bannerBg: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 100%)',
-        badgeBg: 'rgba(239, 68, 68, 0.35)',
-        badgeColor: '#f87171',
-        borderClass: 'status-late'
-      };
-    }
-    return {
-      type: 'overdue',
-      label: 'OVERDUE',
-      color: '#e11d48',
-      bannerBg: 'linear-gradient(90deg, #881337 0%, #9f1239 100%)',
-      badgeBg: 'rgba(225, 29, 72, 0.45)',
-      badgeColor: '#fda4af',
-      borderClass: 'status-overdue'
-    };
-  }, [getElapsedSeconds]);
 
 
 
@@ -482,7 +904,7 @@ export default function KDS() {
           {/* Station Filters */}
           <div className="kds-header-stations no-scrollbar touch-scroll-x">
             {stationsList.map(station => {
-              const count = getStationOrderCount(station);
+              const count = stationCounts[station] || 0;
               const isActive = activeStation === station;
               return (
                 <button
@@ -541,9 +963,7 @@ export default function KDS() {
           </button>
 
           {/* Digital Clock */}
-          <div className="kds-clock-box">
-            {new Date(currentTime).toLocaleTimeString()}
-          </div>
+          <KDSClock />
 
           {/* Cloud Sync Status */}
           <div className={`kds-sync-beacon ${isOnline ? 'online' : 'offline'}`} title={isOnline ? 'Online' : 'Offline'}>
@@ -806,401 +1226,21 @@ export default function KDS() {
           </div>
         ) : (
           <div className="kds-grid">
-            {kdsOrders.map((order, orderIdx) => {
-              const stationItems = (order.items ?? []).filter(i => (activeStation === 'All' || i.station === activeStation) && i.prepState !== 'hold');
-              const anyStationPending = stationItems.some(i => !i.status || i.status === 'pending');
-              const allStationReady = stationItems.every(i => i.status === 'ready');
-              const urgency = getUrgency(order);
-              const stopwatch = getStopwatch(order);
-
-              return (
-                <div
-                  key={order.id}
-                  className={`kds-order-card ${urgency.borderClass}`}
-                  id={`kds-order-${order.id}`}
-                >
-                  {/* Top Urgency Header Banner */}
-                  <div style={{
-                    padding: '8px 14px',
-                    background: urgency.bannerBg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    color: '#ffffff',
-                    fontWeight: 900,
-                    fontSize: 12,
-                    letterSpacing: '0.04em'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {orderIdx < 9 && (
-                        <span style={{
-                          fontSize: 10.5,
-                          fontWeight: 900,
-                          padding: '1px 5px',
-                          borderRadius: 4,
-                          background: 'rgba(255,255,255,0.22)',
-                          color: '#ffffff',
-                          fontFamily: 'monospace'
-                        }} title={`Bump bar hotkey: Press [${orderIdx + 1}]`}>
-                          #{orderIdx + 1}
-                        </span>
-                      )}
-                      {urgency.type === 'late' && <Flame size={15} color="#ffffff" />}
-                      {urgency.type === 'delayed' && <AlertTriangle size={15} color="#ffffff" />}
-                      {urgency.type === 'normal' && <Clock size={15} color="#ffffff" />}
-                      <span>{urgency.label}</span>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      background: 'rgba(0,0,0,0.3)',
-                      padding: '2px 8px',
-                      borderRadius: 6
-                    }}>
-                      <span>⏱️</span>
-                      <span>{stopwatch}</span>
-                    </div>
-                  </div>
-
-                  {/* Order Identity Subheader */}
-                  <div className="kds-order-header">
-                    <div>
-                      <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        {modes.includes('token') && order.token && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCallToken(order.token);
-                            }}
-                            style={{
-                              padding: '3px 8px',
-                              fontSize: 11,
-                              fontWeight: 800,
-                              borderRadius: 6,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              background: '#f59e0b',
-                              color: '#000000',
-                              border: 'none',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 6px rgba(245, 158, 11, 0.4)'
-                            }}
-                            title="Tap to call token number on TV display"
-                          >
-                            📢 #{String(order.token).padStart(3, '0')}
-                          </button>
-                        )}
-                        <span>
-                          {order.type === 'dine-in' ? (order.tableName ? `🪑 Table ${order.tableName}` : '🍽️ Dine-In') : (order.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online')}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 3, fontWeight: 600 }}>
-                        {order.type.toUpperCase()} · #{order.id.slice(-6).toUpperCase()}
-                      </div>
-                    </div>
-                    
-                    {/* Action & Status Pills */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          printSingleKitchenTicket({
-                            restaurant,
-                            order,
-                            items: order.items,
-                            staffName: order.staffName
-                          });
-                        }}
-                        style={{
-                          background: 'var(--color-bg-secondary)',
-                          border: '1px solid var(--color-separator-opaque)',
-                          color: 'var(--color-label)',
-                          borderRadius: 8,
-                          padding: '4px 8px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          transition: 'all 0.15s ease'
-                        }}
-                        title="Print Kitchen Ticket to Thermal Printer"
-                      >
-                        <Printer size={13} />
-                        <span>Print</span>
-                      </button>
-
-                      {/* Status Pill */}
-                      <div style={{
-                        padding: '4px 10px',
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 800,
-                        background: order.status === 'pending' ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
-                        color: order.status === 'pending' ? 'var(--color-yellow)' : 'var(--color-purple)',
-                        border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)'
-                      }}>
-                        {order.status === 'pending' ? '⏳ WAITING' : '🍳 COOKING'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Items List */}
-                  <div className="kds-order-items">
-                    {(() => {
-                      const COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
-                      return COURSES.map(courseName => {
-                        const courseItems = (order.items ?? [])
-                          .map((item, idx) => ({ ...item, originalIndex: idx }))
-                          .filter(item => {
-                            const matchesStation = activeStation === 'All' || item.station === activeStation;
-                            const matchesCourse = (item.course === courseName) || (!COURSES.includes(item.course) && courseName === 'Mains');
-                            const isNotHeld = item.prepState !== 'hold';
-                            return matchesStation && matchesCourse && isNotHeld;
-                          });
-
-                        if (courseItems.length === 0) return null;
-
-                        return (
-                          <div key={courseName} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div style={{
-                              fontSize: 10,
-                              fontWeight: 900,
-                              textTransform: 'uppercase',
-                              color: 'var(--color-label-secondary)',
-                              borderBottom: '1px solid var(--color-separator-opaque)',
-                              paddingBottom: 3,
-                              letterSpacing: '0.06em'
-                            }}>
-                              {courseName}
-                            </div>
-                            {courseItems.map(item => {
-                              const isReady = item.status === 'ready';
-                              const isPreparing = item.status === 'preparing';
-                              const originalIndex = item.originalIndex;
-
-                              return (
-                                <div 
-                                  key={originalIndex} 
-                                  onClick={() => cycleItemStatus(order, originalIndex, item.status || 'pending')}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    width: '100%',
-                                    padding: '7px 8px',
-                                    borderRadius: 8,
-                                    cursor: 'pointer',
-                                    background: isPreparing ? 'var(--color-purple-light)' : (isReady ? 'transparent' : 'var(--color-bg-secondary)'),
-                                    border: isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-separator-opaque)',
-                                    transition: 'all 0.15s ease',
-                                    opacity: isReady ? 0.45 : 1,
-                                  }}
-                                  title="Click to advance item prep status"
-                                >
-                                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                      <span className="kds-item-qty" style={{
-                                        background: isReady ? 'var(--color-fill-secondary)' : '#f59e0b',
-                                        color: isReady ? 'var(--color-label-secondary)' : '#000000'
-                                      }}>
-                                        ×{item.qty}
-                                      </span>
-                                      <span style={{ 
-                                        textDecoration: isReady ? 'line-through' : 'none',
-                                        color: isReady ? 'var(--color-label-tertiary)' : 'var(--color-label)',
-                                        fontSize: 15,
-                                        fontWeight: isPreparing ? 800 : 700,
-                                        letterSpacing: '-0.2px',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 6
-                                      }}>
-                                        <span>{item.name}</span>
-                                        {item.seatNumber && (
-                                          <span style={{
-                                            fontSize: 11,
-                                            fontWeight: 900,
-                                            background: '#0f172a',
-                                            color: '#38bdf8',
-                                            border: '1px solid #38bdf8',
-                                            padding: '1px 6px',
-                                            borderRadius: 5
-                                          }}>
-                                            🪑 S{item.seatNumber}
-                                          </span>
-                                        )}
-                                      </span>
-                                    </div>
-                                    {item.allergies && item.allergies.length > 0 && (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, paddingLeft: 38 }}>
-                                        {item.allergies.map(a => (
-                                          <span key={a} style={{
-                                            fontSize: 11,
-                                            fontWeight: 900,
-                                            background: 'rgba(239, 68, 68, 0.15)',
-                                            color: '#ef4444',
-                                            border: '1px solid #ef4444',
-                                            padding: '2px 7px',
-                                            borderRadius: 4,
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.04em'
-                                          }}>
-                                            ⚠️ {a.replace(/_/g, ' ')}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                    {(item.itemNote || item.notes) && (
-                                      <div style={{ fontSize: 12, fontStyle: 'italic', color: '#f59e0b', marginTop: 3, paddingLeft: 38 }}>
-                                        📝 {item.itemNote || item.notes}
-                                      </div>
-                                    )}
-                                    {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
-                                      const variantMods = item.selectedModifiers.filter(m => m.isVariantAxis);
-                                      const regularMods = item.selectedModifiers.filter(m => !m.isVariantAxis);
-                                      return (
-                                        <div style={{ paddingLeft: 38, marginTop: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                          {/* Variant axes — large high-contrast badge */}
-                                          {variantMods.length > 0 && (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                              {variantMods.map((m, mIdx) => (
-                                                <span key={mIdx} style={{
-                                                  background: mIdx === 0 ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
-                                                  color: mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)',
-                                                  border: `1.5px solid ${mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)'}`,
-                                                  padding: '3px 10px',
-                                                  borderRadius: 6,
-                                                  fontSize: 13,
-                                                  fontWeight: 900,
-                                                  letterSpacing: '0.04em',
-                                                  textTransform: 'uppercase',
-                                                }}>
-                                                  {m.modifierGroupName}: {m.name}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          )}
-                                          {/* Regular modifiers — show group name + option so kitchen knows Gravy vs Paste */}
-                                          {regularMods.length > 0 && (
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                              {regularMods.map((m, mIdx) => (
-                                                <span key={mIdx} style={{
-                                                  background: 'var(--color-bg-secondary)',
-                                                  color: 'var(--color-label-secondary)',
-                                                  border: '1px solid var(--color-separator-opaque)',
-                                                  padding: '2px 7px',
-                                                  borderRadius: 4,
-                                                  fontSize: 11,
-                                                  fontWeight: 700
-                                                }}>
-                                                  {m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    {activeStation === 'All' && item.station && (
-                                      <span style={{
-                                        fontSize: 9,
-                                        padding: '2px 6px',
-                                        borderRadius: 4,
-                                        background: 'var(--color-fill-secondary)',
-                                        color: 'var(--color-label-secondary)',
-                                        fontWeight: 700
-                                      }}>
-                                        {item.station}
-                                      </span>
-                                    )}
-                                    <span style={{
-                                      fontSize: 11,
-                                      padding: '3px 8px',
-                                      borderRadius: 6,
-                                      fontWeight: 800,
-                                      background: isReady ? 'var(--color-green-light)' : (isPreparing ? 'var(--color-purple-light)' : 'var(--color-yellow-light)'),
-                                      color: isReady ? 'var(--color-green)' : (isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)'),
-                                      border: isReady ? '1px solid var(--color-green)' : (isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-yellow)'),
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 3
-                                    }}>
-                                      {isReady ? '✓ Done' : (isPreparing ? '🍳 Cook' : '⏳ Wait')}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      });
-                    })()}
-                    
-                    {order.note && (
-                      <div style={{
-                        marginTop: 6,
-                        color: 'var(--color-label)',
-                        background: 'var(--color-brand-ochre-light)',
-                        border: '1px solid var(--color-brand-ochre)',
-                        padding: '6px 10px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600
-                      }}>
-                        📝 {order.note}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Action Bump Bar */}
-                  <div className="kds-order-action" style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                    {allStationReady ? (
-                      <div style={{
-                        flex: 1,
-                        textAlign: 'center',
-                        color: 'var(--color-green)',
-                        fontSize: 13,
-                        fontWeight: 800,
-                        padding: '10px 0',
-                        background: 'var(--color-green-light)',
-                        borderRadius: 10,
-                        border: '1px solid var(--color-green)'
-                      }}>
-                        ✓ All Items Ready for Serving
-                      </div>
-                    ) : (
-                      <>
-                        {anyStationPending && (
-                          <button
-                            className="kds-cook-btn"
-                            onClick={() => handleStartPreparing(order, activeStation)}
-                          >
-                            🍳 Start Cooking
-                          </button>
-                        )}
-                        <button
-                          className="kds-ready-btn"
-                          onClick={() => handleMarkReady(order, activeStation)}
-                          style={{ flex: anyStationPending ? 1.2 : 1 }}
-                        >
-                          <Check size={16} strokeWidth={3} /> Mark All Ready
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {kdsOrders.map((order, orderIdx) => (
+              <KDSTicketCard
+                key={order.id}
+                order={order}
+                orderIdx={orderIdx}
+                activeStation={activeStation}
+                modes={modes}
+                restaurant={restaurant}
+                handleCallToken={handleCallToken}
+                printSingleKitchenTicket={printSingleKitchenTicket}
+                cycleItemStatus={cycleItemStatus}
+                handleStartPreparing={handleStartPreparing}
+                handleMarkReady={handleMarkReady}
+              />
+            ))}
           </div>
         )
       )}
