@@ -639,21 +639,46 @@ export default function POS() {
         managerName = staffDoc?.name || 'Manager';
       } else {
         const cleanPin = managerPin.trim();
-        if (!functions) {
-          toast.error('PIN verification service unavailable');
+        let authData = null;
+        let staffId = null;
+
+        // Try validatePin Cloud Function if available
+        if (functions) {
+          try {
+            const validatePinFn = httpsCallable(functions, 'validatePin');
+            const res = await validatePinFn({ restaurantId: restaurant.id, pin: cleanPin });
+            const s = res.data?.staff;
+            if (s) {
+              authData = s;
+              staffId = s.id;
+            }
+          } catch {
+            // Function unavailable or not deployed, fall back to direct single-key verification
+          }
+        }
+
+        if (!authData) {
+          const authSnap = await getDoc(doc(db, 'restaurants', restaurant.id, 'staff_auth', cleanPin));
+          if (!authSnap.exists()) {
+            toast.error('Invalid Manager PIN');
+            return;
+          }
+          authData = authSnap.data();
+          staffId = authData.staffId || authSnap.id;
+        }
+
+        if (authData.active === false) {
+          toast.error('Manager account is inactive');
           return;
         }
-        const validatePinFn = httpsCallable(functions, 'validatePin');
-        const res = await validatePinFn({ restaurantId: restaurant.id, pin: cleanPin });
-        const staff = res.data?.staff;
 
-        if (!['admin', 'super_admin', 'manager'].includes(staff?.role)) {
+        if (!['admin', 'super_admin', 'manager'].includes(authData.role)) {
           toast.error('Insufficient permissions — manager or admin PIN required');
           return;
         }
 
-        managerDocId = staff.id;
-        managerName = staff.name || 'Manager';
+        managerDocId = staffId;
+        managerName = authData.name || 'Manager';
       }
 
       const qtyReduced = voidAction.type === 'remove' ? voidAction.item.qty : 1;

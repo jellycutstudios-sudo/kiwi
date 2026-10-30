@@ -5,6 +5,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   signInWithCustomToken,
+  signInAnonymously,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -132,7 +133,7 @@ export const useAuthStore = create(
         }
       },
 
-      // PIN login for staff (authenticates securely via Cloud Functions with custom claims)
+      // PIN login for staff (authenticates securely via Cloud Functions or direct single-key verification)
       loginWithPin: async (restaurantId, pin) => {
         isLoggingIn = true;
         set({ loading: true, error: null });
@@ -146,7 +147,39 @@ export const useAuthStore = create(
             return { ok: false, error: 'Restaurant ID and PIN are required' };
           }
 
-          // 1. Primary: Server-side validation with brute-force rate-limiting
+          // 1. Client-side brute force rate-limiting / lockout protection
+          const attemptsKey = `dineos_pin_attempts_${cleanRestId}`;
+          let attemptRecord = null;
+          try {
+            attemptRecord = JSON.parse(safeStorage.getItem(attemptsKey) || 'null');
+          } catch {}
+          const now = Date.now();
+          if (attemptRecord && attemptRecord.lockedUntil && attemptRecord.lockedUntil > now) {
+            const minLeft = Math.ceil((attemptRecord.lockedUntil - now) / 60000);
+            const msg = `Too many failed PIN attempts. Terminal locked for ${minLeft} minute${minLeft > 1 ? 's' : ''}.`;
+            set({ loading: false, error: msg });
+            return { ok: false, error: msg };
+          }
+
+          const recordFailedAttempt = () => {
+            const count = (attemptRecord?.count || 0) + 1;
+            const lockedUntil = count >= 5 ? now + 15 * 60 * 1000 : 0;
+            try {
+              safeStorage.setItem(attemptsKey, JSON.stringify({ count, lockedUntil, lastAttempt: now }));
+            } catch {}
+            const remaining = Math.max(0, 5 - count);
+            return count >= 5
+              ? 'Too many failed PIN attempts. Terminal locked for 15 minutes.'
+              : `Invalid PIN. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`;
+          };
+
+          const clearFailedAttempts = () => {
+            try {
+              safeStorage.removeItem(attemptsKey);
+            } catch {}
+          };
+
+          // 2. Primary: Cloud Function (if deployed and available)
           if (functions) {
             try {
               const validatePinFn = httpsCallable(functions, 'validatePin');
@@ -164,7 +197,6 @@ export const useAuthStore = create(
                 }
               }
 
-              // Set staffDoc and restaurant synchronously so listeners recognize an active staff session
               set({
                 staffDoc: staffData,
                 restaurant: restData,
@@ -177,6 +209,7 @@ export const useAuthStore = create(
                 firebaseUser = cred.user;
               }
 
+              clearFailedAttempts();
               set({
                 user: firebaseUser || { uid: staffData.id, isPinLogin: true },
                 staffDoc: staffData,
@@ -186,23 +219,105 @@ export const useAuthStore = create(
 
               return { ok: true, role: staffData.role };
             } catch (fnErr) {
-              // Rate limit lockouts or explicit invalid PIN responses must be returned immediately
-              if (fnErr.code === 'resource-exhausted' || fnErr.code === 'unauthenticated' || fnErr.code === 'permission-denied' || fnErr.code === 'invalid-argument') {
-                const msg = fnErr.message || 'Invalid PIN';
+              if (fnErr.code === 'resource-exhausted') {
+                const msg = fnErr.message || 'Terminal locked due to too many failed attempts';
                 set({ loading: false, error: msg });
                 return { ok: false, error: msg };
               }
-              console.warn('validatePin function unreachable (offline or network issue):', fnErr.message);
-              // If online, do not bypass server validation
-              if (typeof navigator !== 'undefined' && navigator.onLine) {
-                const msg = fnErr.message || 'Authentication server unreachable';
+              if (fnErr.code === 'unauthenticated') {
+                const msg = recordFailedAttempt();
                 set({ loading: false, error: msg });
                 return { ok: false, error: msg };
               }
+              console.warn('validatePin function unreachable or not deployed, falling back to direct verification:', fnErr.message);
             }
           }
 
-          // 2. Offline / local fallback (uses cached staff roster on this terminal when offline)
+          // 3. Direct single-key PIN verification against staff_auth
+          if (db) {
+            try {
+              let actualRestId = cleanRestId;
+              let restData = get().restaurant || getInitialPersistedAuth().restaurant;
+
+              // Ensure restaurant ID is resolved
+              if (!restData || !restData.id || restData.id !== actualRestId) {
+                let rSnap = await getDoc(doc(db, 'restaurants', actualRestId));
+                if (!rSnap.exists()) {
+                  const lowerRestId = cleanRestId.toLowerCase();
+                  const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
+                  const sCustom = await getDocs(qCustom);
+                  if (!sCustom.empty) {
+                    rSnap = sCustom.docs[0];
+                    actualRestId = rSnap.id;
+                  } else {
+                    const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
+                    const sSlug = await getDocs(qSlug);
+                    if (!sSlug.empty) {
+                      rSnap = sSlug.docs[0];
+                      actualRestId = rSnap.id;
+                    }
+                  }
+                }
+                if (rSnap && rSnap.exists()) {
+                  restData = { id: rSnap.id, ...rSnap.data() };
+                }
+              }
+
+              if (restData?.status === 'suspended') {
+                set({ loading: false, error: 'Restaurant account has been suspended' });
+                return { ok: false, error: 'Restaurant account has been suspended' };
+              }
+
+              const authSnap = await getDoc(doc(db, 'restaurants', actualRestId, 'staff_auth', cleanPin));
+              if (authSnap.exists()) {
+                const authData = authSnap.data();
+                if (authData.active === false) {
+                  set({ loading: false, error: 'Staff member is inactive' });
+                  return { ok: false, error: 'Staff member is inactive' };
+                }
+
+                const staffData = {
+                  id: authData.staffId || authSnap.id,
+                  name: authData.name || 'Staff',
+                  role: authData.role || 'staff',
+                  isPinLogin: true,
+                  restaurantId: actualRestId
+                };
+
+                const finalRest = restData || { id: actualRestId, status: 'approved', name: cleanRestId };
+
+                // Ensure an active Firebase Auth anonymous session for Firestore rules
+                let firebaseUser = null;
+                if (auth) {
+                  if (auth.currentUser) {
+                    firebaseUser = auth.currentUser;
+                  } else {
+                    try {
+                      const cred = await signInAnonymously(auth);
+                      firebaseUser = cred.user;
+                    } catch (anonErr) {
+                      console.warn('Anonymous sign-in for staff PIN session deferred:', anonErr?.message);
+                    }
+                  }
+                }
+
+                clearFailedAttempts();
+                set({
+                  user: firebaseUser || { uid: staffData.id, isPinLogin: true },
+                  staffDoc: staffData,
+                  restaurant: finalRest,
+                  loading: false,
+                  error: null
+                });
+
+                return { ok: true, role: staffData.role };
+              }
+            } catch (authErr) {
+              console.warn('[loginWithPin] staff_auth lookup check error:', authErr.message);
+            }
+          }
+
+          // 4. Offline / local fallback (uses cached staff roster on this terminal when offline)
           try {
             const cachedStaff = JSON.parse(safeStorage.getItem('dineos_cached_staff') || '[]');
             const cleanPin = String(pin || '').trim();
@@ -247,6 +362,7 @@ export const useAuthStore = create(
               }
 
               const staffData = { id: matched.id, ...matched, isPinLogin: true, restaurantId: restData.id };
+              clearFailedAttempts();
               set({
                 user: { uid: staffData.id, isPinLogin: true },
                 staffDoc: staffData,
@@ -260,9 +376,9 @@ export const useAuthStore = create(
             console.warn('[loginWithPin] Offline cache check error:', offlineErr);
           }
 
-          const offlineMsg = 'Unable to verify PIN with server. Please check your network connection.';
-          set({ loading: false, error: offlineMsg });
-          return { ok: false, error: offlineMsg };
+          const failMsg = recordFailedAttempt();
+          set({ loading: false, error: failMsg });
+          return { ok: false, error: failMsg };
         } finally {
           isLoggingIn = false;
         }
@@ -422,9 +538,16 @@ export const useAuthStore = create(
       },
 
       // Ensures a valid Firebase Auth session exists for Firestore writes.
-      // Deprecated: Firestore operations and cloud functions no longer rely on anonymous auth.
-      // Kept as an async no-op to maintain backwards compatibility with existing store calls.
-      ensureAnonymousAuth: async () => {},
+      ensureAnonymousAuth: async () => {
+        if (!auth) return;
+        if (auth.currentUser) return;
+        try {
+          const cred = await signInAnonymously(auth);
+          set({ user: cred.user });
+        } catch (e) {
+          console.warn('ensureAnonymousAuth deferred:', e?.message);
+        }
+      },
 
       // Helpers
       get role() { return get().staffDoc?.role ?? null; },

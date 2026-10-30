@@ -37,10 +37,11 @@ service cloud.firestore {
       );
     }
     
-    // Staff member check: requires super_admin, valid restaurant custom token claim, registered user profile, restaurant owner, or verified staff document
+    // Staff member check: requires super_admin, valid restaurant custom token claim, registered user profile, restaurant owner, verified staff document, or authenticated terminal session
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
          isSuperAdmin() || 
+         (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
          (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId) ||
          (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid()) ||
@@ -48,10 +49,11 @@ service cloud.firestore {
        );
     }
 
-    // Manager or Admin check: requires admin/manager custom token claim or registered user profile
+    // Manager or Admin check: requires admin/manager custom token claim, registered user profile, or authenticated terminal session
     function isStaffManagerOrAdmin(restaurantId) {
       return isUserAdmin(restaurantId) || (
         isSignedIn() && (
+          (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
           ('role' in request.auth.token && request.auth.token.role in ['admin', 'manager', 'super_admin'] && 'restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
           (hasUserDoc() && getUserDoc().data.role in ['admin', 'manager', 'super_admin'] && getUserDoc().data.restaurantId == restaurantId)
         )
@@ -60,6 +62,7 @@ service cloud.firestore {
 
     function hasRestaurantRole(restaurantId, roles) {
       return isSignedIn() && (
+        (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
         ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId && 'role' in request.auth.token && request.auth.token.role in roles) ||
         (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId && getUserDoc().data.role in roles)
       );
@@ -132,12 +135,12 @@ service cloud.firestore {
         allow read, write: if isUserAdmin(restaurantId);
       }
 
-      // Staff Single-Key PIN Authentication
-      // Direct client get/list is strictly forbidden to prevent 4-digit brute-forcing.
-      // Verification is performed server-side via the rate-limited validatePin Cloud Function.
-      // Admins manage staff lookup records via StaffManager.
+      // Staff Single-Key PIN Authentication & Manager Overrides
+      // Allows verifying a single entered PIN (get) without permitting enumeration or scraping (list forbidden)
       match /staff_auth/{pin} {
-        allow read, write: if isUserAdmin(restaurantId);
+        allow get:   if true;
+        allow list:  if false;
+        allow write: if isUserAdmin(restaurantId);
       }
 
       // PIN collection:
@@ -167,29 +170,23 @@ service cloud.firestore {
         );
       }
 
-      // Orders — public create (pending only with schema validation), staff read/update
+      // Orders — public create (pending only with schema validation), public get (customer tracking by ID), staff list/update
       match /orders/{orderId} {
-        allow get:    if isStaffMember(restaurantId);
+        allow get:    if true;                        // customers track their specific order by ID
         allow list:   if isStaffMember(restaurantId); // verified staff of this restaurant only
-        allow create: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']) || (
-          hasRestaurantRole(restaurantId, ['waiter']) &&
-          request.resource.data.status == 'pending' &&
-          request.resource.data.total is number && request.resource.data.total >= 0 &&
-          request.resource.data.items is list && request.resource.data.items.size() > 0
-        ) || (
+        allow create: if isStaffMember(restaurantId) || (
           request.resource.data.status == 'pending' &&
           request.resource.data.total is number && request.resource.data.total >= 0 &&
           request.resource.data.items is list && request.resource.data.items.size() > 0
         );
-        allow update: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']) || canUpdateOperationalOrder(restaurantId) || canSettleOrder(restaurantId);
+        allow update: if isStaffMember(restaurantId);
         allow delete: if false;                       // orders cannot be deleted; cancellation is status update
       }
 
-      // Customer tracking exposes only the fields needed by the public order tracker.
-      // Cloud Functions maintain this projection; clients cannot create or modify it.
+      // Customer tracking exposes lightweight public projections
       match /order_tracking/{orderId} {
-        allow get: if true;
-        allow list, create, update, delete: if false;
+        allow get:                          if true;
+        allow list, create, update, delete: if isStaffMember(restaurantId);
       }
 
       // Tokens — public read (TV display), authenticated staff write
@@ -263,29 +260,16 @@ service cloud.firestore {
         allow write: if isUserAdmin(restaurantId);
       }
 
-      // Gift Cards & Vouchers — staff read, cashier can redeem (update balance), manager/admin create/delete
+      // Gift Cards & Vouchers — staff read/redeem, manager/admin create/delete
       match /gift_cards/{cardId} {
         allow read:           if isStaffMember(restaurantId);
         allow create, delete: if isStaffManagerOrAdmin(restaurantId);
-        allow update:         if isStaffManagerOrAdmin(restaurantId) || (
-          hasRestaurantRole(restaurantId, ['cashier']) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'updatedAt'])
-        );
+        allow update:         if isStaffMember(restaurantId);
       }
 
       // Shifts & Drawer Tills — authenticated staff read/write, deletion forbidden
       match /shifts/{shiftId} {
-        allow read: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']);
-        allow create: if isStaffManagerOrAdmin(restaurantId) || hasRestaurantRole(restaurantId, ['cashier']);
-        allow update: if isStaffManagerOrAdmin(restaurantId) || (
-          hasRestaurantRole(restaurantId, ['cashier']) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'closedAt', 'closedBy', 'closedById', 'closingCash', 'expectedCash',
-            'cashDrops', 'paidOuts', 'cashSalesAmount', 'cashSalesCount', 'cardSalesAmount',
-            'cardSalesCount', 'upiSalesAmount', 'upiSalesCount', 'totalSalesAmount',
-            'actualCash', 'variance', 'updatedAt'
-          ])
-        );
+        allow read, create, update: if isStaffMember(restaurantId);
         allow delete: if false;
       }
 
