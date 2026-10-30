@@ -156,9 +156,12 @@ export default function KDS() {
   };
 
   const kdsOrders = useMemo(() => {
+    const STALE_KDS_MS = 24 * 60 * 60 * 1000;
     const list = activeOrders
       .filter(o => ['pending', 'preparing'].includes(o.status))
       .filter(o => {
+        const orderTime = getOrderTimestampMs(o);
+        if (orderTime && (currentTime - orderTime) > STALE_KDS_MS) return false;
         if (activeStation === 'All') {
           return o.items?.some(i => i.status !== 'ready' && i.prepState !== 'hold');
         }
@@ -401,14 +404,25 @@ export default function KDS() {
         borderClass: 'status-delayed'
       };
     }
+    if (mins < 60) {
+      return {
+        type: 'late',
+        label: 'RUSH',
+        color: '#ef4444',
+        bannerBg: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 100%)',
+        badgeBg: 'rgba(239, 68, 68, 0.35)',
+        badgeColor: '#f87171',
+        borderClass: 'status-late'
+      };
+    }
     return {
-      type: 'late',
-      label: 'RUSH',
-      color: '#ef4444',
-      bannerBg: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 100%)',
-      badgeBg: 'rgba(239, 68, 68, 0.35)',
-      badgeColor: '#f87171',
-      borderClass: 'status-late'
+      type: 'overdue',
+      label: 'OVERDUE',
+      color: '#e11d48',
+      bannerBg: 'linear-gradient(90deg, #881337 0%, #9f1239 100%)',
+      badgeBg: 'rgba(225, 29, 72, 0.45)',
+      badgeColor: '#fda4af',
+      borderClass: 'status-overdue'
     };
   }, [getElapsedSeconds]);
 

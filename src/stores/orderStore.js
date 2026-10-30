@@ -1259,12 +1259,63 @@ export const useOrderStore = create((set, get) => ({
     const unsub = onSnapshot(q, snap => {
       const rawOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
+      const STALE_ORDER_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const staleOrders = [];
+      const freshOrders = [];
+
+      rawOrders.forEach(o => {
+        let createdMs = 0;
+        if (o.createdAt) {
+          if (o.createdAt.toDate) createdMs = o.createdAt.toDate().getTime();
+          else if (typeof o.createdAt === 'number') createdMs = o.createdAt;
+          else {
+            const p = new Date(o.createdAt).getTime();
+            if (!isNaN(p)) createdMs = p;
+          }
+        }
+        if (createdMs > 0 && (now - createdMs) > STALE_ORDER_MAX_AGE_MS) {
+          staleOrders.push(o);
+        } else {
+          freshOrders.push(o);
+        }
+      });
+
       // Sort in memory by createdAt descending to avoid composite index requirement
-      const orders = rawOrders.sort((a, b) => {
+      const orders = freshOrders.sort((a, b) => {
         const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
         const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
         return timeB - timeA;
       });
+
+      // Asynchronously auto-archive stale tickets (>24h old) and release their tables in Firestore
+      if (staleOrders.length > 0 && db && restaurantId) {
+        (async () => {
+          try {
+            const batch = writeBatch(db);
+            staleOrders.forEach(stale => {
+              const oRef = doc(db, 'restaurants', restaurantId, 'orders', stale.id);
+              batch.update(oRef, {
+                status: 'completed',
+                autoArchived: true,
+                archivedReason: 'stale_order_over_24h',
+                archivedAt: serverTimestamp(),
+              });
+              if (stale.tableId) {
+                const tRef = doc(db, 'restaurants', restaurantId, 'tables', stale.tableId);
+                batch.update(tRef, {
+                  status: 'free',
+                  currentOrderId: null,
+                  activeOrderId: null,
+                });
+              }
+            });
+            await batch.commit();
+          } catch (archErr) {
+            console.warn('[orderStore] Could not auto-archive stale orders:', archErr?.message);
+          }
+        })();
+      }
       const online = orders.filter(o => o.type === 'online');
 
       // Play chime and show toast notifications for order events

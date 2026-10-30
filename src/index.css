@@ -8777,6 +8777,17 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
+.kds-order-card.status-overdue {
+  border-color: #e11d48;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.35);
+  animation: pulse-border-overdue 2s infinite ease-in-out;
+}
+
+@keyframes pulse-border-overdue {
+  0%, 100% { border-color: #e11d48; box-shadow: 0 0 14px rgba(225, 29, 72, 0.25); }
+  50% { border-color: #be123c; box-shadow: 0 0 22px rgba(225, 29, 72, 0.55); }
+}
+
 .kds-order-card.status-late {
   border-color: var(--color-red);
   box-shadow: 0 0 14px rgba(239, 68, 68, 0.2);

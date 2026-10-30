@@ -16,7 +16,7 @@ import {
   Copy, Wand2, Sparkles
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { getOrderElapsedSeconds } from '../utils/timezoneUtils';
+import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
 import './admin/FloorPlanEditor.css';
 
 /* ─── Elapsed time badge helper ─────────────────────────────── */
@@ -32,9 +32,10 @@ function formatElapsed(mins) {
   if (mins < 60) return `${mins}m seated`;
   const hrs = Math.floor(mins / 60);
   const rem = mins % 60;
-  if (hrs < 24) return rem > 0 ? `${hrs}h ${rem}m seated` : `${hrs}h seated`;
+  if (hrs < 12) return rem > 0 ? `${hrs}h ${rem}m seated` : `${hrs}h seated`;
+  if (hrs < 24) return `${hrs}h (stale)`;
   const days = Math.floor(hrs / 24);
-  return `${days}d seated`;
+  return `${days}d (stale)`;
 }
 
 export default function TableMap() {
@@ -69,17 +70,32 @@ export default function TableMap() {
   // Merge Firestore table orders with local & offline active orders for seamless resilience
   const tableOrders = useMemo(() => {
     const map = { ...firestoreTableOrders };
+    const now = nowTime;
+    const MAX_STALE_AGE_MS = 24 * 60 * 60 * 1000;
+
     (activeOrders || []).forEach(o => {
       if (o.type === 'dine-in' && o.tableId) {
-        if (['billed', 'cancelled'].includes(o.status)) {
+        const orderTime = getOrderTimestampMs(o);
+        const isStale = orderTime && (now - orderTime) > MAX_STALE_AGE_MS;
+        if (['billed', 'cancelled', 'completed'].includes(o.status) || isStale) {
           delete map[o.tableId];
         } else {
           map[o.tableId] = o;
         }
       }
     });
+
+    // Remove any lingering Firestore orders older than 24h
+    Object.keys(map).forEach(tId => {
+      const order = map[tId];
+      const orderTime = getOrderTimestampMs(order);
+      if (orderTime && (now - orderTime) > MAX_STALE_AGE_MS) {
+        delete map[tId];
+      }
+    });
+
     return map;
-  }, [firestoreTableOrders, activeOrders]);
+  }, [firestoreTableOrders, activeOrders, nowTime]);
 
   // Modals
   const [showTransfer, setShowTransfer] = useState(false);
@@ -224,7 +240,7 @@ export default function TableMap() {
     let free = 0, occupied = 0, reserved = 0, liveRevenue = 0;
     floorTables.forEach(t => {
       const order = tableOrders[t.id];
-      const isOccupied = (order && order.status !== 'billed' && order.status !== 'cancelled') || t.status === 'occupied';
+      const isOccupied = (order && !['billed', 'cancelled', 'completed'].includes(order.status)) || t.status === 'occupied';
       const isReserved = !isOccupied && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
       if (isOccupied) { occupied++; if (order?.total) liveRevenue += order.total; }
       else if (isReserved) reserved++;
@@ -819,7 +835,17 @@ export default function TableMap() {
         where('type', '==', 'dine-in')),
       snap => {
         const map = {};
-        snap.docs.forEach(d => { const data = d.data(); if (data.tableId) map[data.tableId] = { id: d.id, ...data }; });
+        const now = Date.now();
+        const MAX_STALE_MS = 24 * 60 * 60 * 1000;
+        snap.docs.forEach(d => {
+          const data = d.data();
+          if (data.tableId) {
+            const orderTime = getOrderTimestampMs(data);
+            if (!orderTime || (now - orderTime) <= MAX_STALE_MS) {
+              map[data.tableId] = { id: d.id, ...data };
+            }
+          }
+        });
         setFirestoreTableOrders(map);
       }, err => console.warn('TableMap orders err:', err));
   }, [restaurant?.id]);
@@ -1371,9 +1397,16 @@ export default function TableMap() {
                     {isFoodReady ? (
                       <span className="tm-badge tm-badge--ready">🔔 READY</span>
                     ) : effectiveStatus === 'occupied' ? (
-                      <span className="tm-badge tm-badge--occupied">
+                      <span
+                        className={`tm-badge ${elapsedMins >= 720 ? 'tm-badge--stale' : 'tm-badge--occupied'}`}
+                        style={elapsedMins >= 720 ? { background: '#dc2626', color: '#fff' } : undefined}
+                      >
                         <span className="tm-badge-dot" />
-                        {elapsedMins > 0 ? formatElapsed(elapsedMins).replace(' seated', '') : 'BUSY'}
+                        {elapsedMins >= 720
+                          ? `STALE (${Math.floor(elapsedMins / 60)}h)`
+                          : elapsedMins > 0
+                          ? formatElapsed(elapsedMins).replace(' seated', '')
+                          : (hasOrder ? 'BUSY' : 'OCCUPIED')}
                       </span>
                     ) : isReserved ? (
                       <span className="tm-badge tm-badge--reserved">RES</span>
@@ -1566,8 +1599,18 @@ export default function TableMap() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                         <span className="table-capacity">👥 {t.capacity}p</span>
                         {!isEditingLayout && hasOrder && elapsedMins > 0 && (
-                          <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '999px', background: ec.bg, color: ec.color, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                            ⏱️ {elapsedMins < 60 ? `${elapsedMins}m` : elapsedMins < 1440 ? `${Math.floor(elapsedMins / 60)}h` : `${Math.floor(elapsedMins / 1440)}d`}
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '999px',
+                            background: elapsedMins >= 720 ? '#dc2626' : ec.bg,
+                            color: elapsedMins >= 720 ? '#ffffff' : ec.color,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px'
+                          }}>
+                            ⏱️ {elapsedMins < 60 ? `${elapsedMins}m` : elapsedMins < 720 ? `${Math.floor(elapsedMins / 60)}h` : 'STALE'}
                           </span>
                         )}
                       </div>
@@ -1818,6 +1861,54 @@ export default function TableMap() {
 
               {selOrder ? (
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Stale / Overdue Order Warning Banner */}
+                  {selElapsedMins >= 720 && (
+                    <div style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#dc2626' }}>
+                          ⚠️ Overdue Tab ({Math.floor(selElapsedMins / 60)}h old)
+                        </span>
+                        <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                          This order was started in an earlier shift. If the guest has left, clear it to release the table.
+                        </span>
+                      </div>
+                      <button
+                        className="btn btn-sm"
+                        style={{
+                          background: '#dc2626',
+                          color: '#fff',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          borderRadius: 8,
+                          padding: '6px 14px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                        onClick={async () => {
+                          if (window.confirm(`Release ${selectedTable.name} and clear this overdue order?`)) {
+                            await updateOrderStatus(restaurant.id, selOrder.id, 'completed');
+                            await freeTable(restaurant.id, selectedTable.id);
+                            setSelected(null);
+                            toast.success(`Table ${selectedTable.name} freed!`);
+                          }
+                        }}
+                      >
+                        Free Table
+                      </button>
+                    </div>
+                  )}
+
                   {/* High-Frequency 1-Tap Actions: Add Items (POS) & Print Bill */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <button
@@ -2134,6 +2225,41 @@ export default function TableMap() {
                           </button>
                           <button className="btn btn-primary" style={{ flex: 1, height: 36, fontSize: 13 }}
                             onClick={() => { clearCart(); setTable(selectedTable.id, selectedTable.name); setOrderType('dine-in'); toast.success(`Order started for ${selectedTable.name}`); navigate('/pos'); }}>
+                            ⚡ Start Order
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (selectedTable.status === 'occupied') {
+                    return (
+                      <div className="tm-free-cta" style={{ border: '1.5px dashed #f59e0b', borderRadius: 12, padding: 18, background: 'rgba(245, 158, 11, 0.05)' }}>
+                        <div className="tm-free-icon">⚠️</div>
+                        <div className="tm-free-label" style={{ color: '#d97706' }}>Table Marked Busy</div>
+                        <div className="tm-free-hint">No active order was found attached to this table. Free it or start a new order.</div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%' }}>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ flex: 1, height: 40, fontWeight: 700 }}
+                            onClick={async () => {
+                              await freeTable(restaurant.id, selectedTable.id);
+                              setSelected(null);
+                              toast.success(`Table ${selectedTable.name} marked free!`);
+                            }}
+                          >
+                            Mark Free
+                          </button>
+                          <button
+                            className="btn btn-primary"
+                            style={{ flex: 1, height: 40, fontWeight: 700 }}
+                            onClick={() => {
+                              clearCart();
+                              setTable(selectedTable.id, selectedTable.name);
+                              setOrderType('dine-in');
+                              toast.success(`Order started for ${selectedTable.name}`);
+                              navigate('/pos');
+                            }}
+                          >
                             ⚡ Start Order
                           </button>
                         </div>
