@@ -142,3 +142,4 @@ cleanupAnonymousUsers().catch(err => {
   console.error('\n❌ Error during cleanup:', err.message);
   process.exit(1);
 });
+

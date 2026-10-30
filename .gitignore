@@ -31,3 +31,6 @@ functions/.env
 # Local environment
 .node_env/
 .vercel
+serviceAccountKey.json
+*serviceAccount*.json
+
