@@ -4,7 +4,6 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  signInAnonymously,
   signInWithCustomToken,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -335,14 +334,8 @@ export const useAuthStore = create(
           } else {
             // No Firebase Auth user on initial tick
             if (isStaffSession) {
-              // Restore anonymous auth for Firestore permissions while keeping staff session intact
-              try {
-                const cred = await signInAnonymously(auth);
-                set({ user: cred.user, loading: false });
-              } catch (e) {
-                console.warn('Staff session anonymous re-auth failed:', e.code, e.message);
-                set({ loading: false });
-              }
+              // Retain active staff session without creating redundant anonymous auth users
+              set({ loading: false });
             } else {
               // Not a staff session — clear state and show login screen
               set({ user: null, staffDoc: null, loading: false });
@@ -369,17 +362,9 @@ export const useAuthStore = create(
       },
 
       // Ensures a valid Firebase Auth session exists for Firestore writes.
-      // Call before any authenticated Firestore write (openShift, submitOrder, etc.)
-      ensureAnonymousAuth: async () => {
-        if (!auth) return;
-        if (auth.currentUser) return; // already signed in
-        try {
-          const cred = await signInAnonymously(auth);
-          set({ user: cred.user });
-        } catch (e) {
-          console.error('ensureAnonymousAuth failed:', e.code, e.message);
-        }
-      },
+      // Deprecated: Firestore operations and cloud functions no longer rely on anonymous auth.
+      // Kept as an async no-op to maintain backwards compatibility with existing store calls.
+      ensureAnonymousAuth: async () => {},
 
       // Helpers
       get role() { return get().staffDoc?.role ?? null; },
