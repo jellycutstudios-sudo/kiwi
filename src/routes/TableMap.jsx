@@ -64,12 +64,11 @@ export default function TableMap() {
   useWakeLock(true);
 
   const [selected, setSelected] = useState(null);
-  const [firestoreTableOrders, setFirestoreTableOrders] = useState({});
   const [reservations, setReservations] = useState([]);
 
-  // Merge Firestore table orders with local & offline active orders for seamless resilience
+  // Derive table orders directly from orderStore activeOrders (eliminates duplicate Firestore query)
   const tableOrders = useMemo(() => {
-    const map = { ...firestoreTableOrders };
+    const map = {};
     const now = nowTime;
     const MAX_STALE_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours (cross-shift)
 
@@ -77,25 +76,14 @@ export default function TableMap() {
       if (o.type === 'dine-in' && o.tableId) {
         const orderTime = getOrderTimestampMs(o);
         const isStale = orderTime && (now - orderTime) > MAX_STALE_AGE_MS;
-        if (['billed', 'cancelled', 'completed'].includes(o.status) || isStale) {
-          delete map[o.tableId];
-        } else {
+        if (!['billed', 'cancelled', 'completed'].includes(o.status) && !isStale) {
           map[o.tableId] = o;
         }
       }
     });
 
-    // Remove any lingering Firestore orders older than 24h
-    Object.keys(map).forEach(tId => {
-      const order = map[tId];
-      const orderTime = getOrderTimestampMs(order);
-      if (orderTime && (now - orderTime) > MAX_STALE_AGE_MS) {
-        delete map[tId];
-      }
-    });
-
     return map;
-  }, [firestoreTableOrders, activeOrders, nowTime]);
+  }, [activeOrders, nowTime]);
 
   // Modals
   const [showTransfer, setShowTransfer] = useState(false);
@@ -826,29 +814,6 @@ export default function TableMap() {
 
   // Subscriptions
   useEffect(() => { if (!restaurant?.id) return; return subscribe(restaurant.id); }, [restaurant?.id, subscribe]);
-
-  useEffect(() => {
-    if (!restaurant?.id) return;
-    return onSnapshot(
-      query(collection(db, 'restaurants', restaurant.id, 'orders'),
-        where('status', 'in', ['pending', 'preparing', 'ready', 'served']),
-        where('type', '==', 'dine-in')),
-      snap => {
-        const map = {};
-        const now = Date.now();
-        const MAX_STALE_MS = 12 * 60 * 60 * 1000; // 12 hours (cross-shift)
-        snap.docs.forEach(d => {
-          const data = d.data();
-          if (data.tableId) {
-            const orderTime = getOrderTimestampMs(data);
-            if (!orderTime || (now - orderTime) <= MAX_STALE_MS) {
-              map[data.tableId] = { id: d.id, ...data };
-            }
-          }
-        });
-        setFirestoreTableOrders(map);
-      }, err => console.warn('TableMap orders err:', err));
-  }, [restaurant?.id]);
 
   useEffect(() => {
     if (!restaurant?.id) return;

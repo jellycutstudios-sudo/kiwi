@@ -1252,7 +1252,7 @@ export const useOrderStore = create((set, get) => ({
 
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
-      where('status', 'in', ['pending', 'preparing', 'ready']),
+      where('status', 'in', ['pending', 'preparing', 'ready', 'served']),
       limit(100)
     );
     let isInitial = true;

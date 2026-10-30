@@ -622,6 +622,13 @@ export default function KDS() {
     }
   }, [restaurant?.id, callSpecificToken]);
 
+  // Low-frequency tick (every 30s) to refresh time-based expiry windows without frequent re-renders
+  const [expiryTick, setExpiryTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setExpiryTick(t => t + 1), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const kdsOrders = useMemo(() => {
     // Filter out orders older than 12 hours from live kitchen queue
     const STALE_KDS_MS = 12 * 60 * 60 * 1000;
@@ -659,7 +666,7 @@ export default function KDS() {
       // Default: 'oldest' (FIFO standard kitchen queue - oldest orders at top-left)
       return timeA - timeB;
     });
-  }, [activeOrders, activeStation, kdsSortOrder]);
+  }, [activeOrders, activeStation, kdsSortOrder, expiryTick]);
 
   const recentReadyOrders = useMemo(() => {
     const now = Date.now();
@@ -676,7 +683,7 @@ export default function KDS() {
         const timeB = getOrderTimestampMs(b.prepCompletedAt || b.updatedAt || b) || 0;
         return timeB - timeA;
       });
-  }, [activeOrders]);
+  }, [activeOrders, expiryTick]);
 
   const handleRecallOrder = useCallback(async (order) => {
     try {

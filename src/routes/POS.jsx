@@ -9,7 +9,7 @@ import { useMenuStore } from '../stores/menuStore';
 import { useTableStore } from '../stores/tableStore';
 import { useGiftCardStore } from '../stores/giftCardStore';
 import { useShallow } from 'zustand/react/shallow';
-import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, onSnapshot, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printKitchenVoidTicket, printInvoiceA4 } from '../utils/print';
@@ -205,27 +205,6 @@ export default function POS() {
     addItem(item);
   };
 
-  const [tableOrders, setTableOrders] = useState({});
-
-  useEffect(() => {
-    if (!restaurant?.id) return;
-    const q = query(
-      collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('status', 'in', ['pending', 'preparing', 'ready', 'served']),
-      where('type', '==', 'dine-in')
-    );
-    return onSnapshot(q, snap => {
-      const map = {};
-      snap.docs.forEach(d => {
-        const data = d.data();
-        if (data.tableId) map[data.tableId] = { id: d.id, ...data };
-      });
-      setTableOrders(map);
-    }, err => {
-      console.warn("POS table orders listener error:", err);
-    });
-  }, [restaurant?.id]);
-
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const userRole = staffDoc?.role ?? 'admin';
@@ -271,6 +250,17 @@ export default function POS() {
   // Live active orders in store
   const activeOrders = useOrderStore(s => s.activeOrders);
   const [showActiveOrdersModal, setShowActiveOrdersModal] = useState(false);
+
+  // Derive active dine-in table orders directly from orderStore (eliminates duplicate Firestore query)
+  const tableOrders = useMemo(() => {
+    const map = {};
+    (activeOrders || []).forEach(o => {
+      if (o.type === 'dine-in' && o.tableId && ['pending', 'preparing', 'ready', 'served'].includes(o.status)) {
+        map[o.tableId] = o;
+      }
+    });
+    return map;
+  }, [activeOrders]);
 
   const runningOrders = useMemo(() => {
     return (activeOrders || []).filter(o => o.status !== 'billed' && o.status !== 'cancelled');

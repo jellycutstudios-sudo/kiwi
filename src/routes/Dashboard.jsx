@@ -149,7 +149,6 @@ export default function Dashboard() {
   const [tablesCount, setTablesCount] = useState(0);
   const currency = restaurant?.currency ?? 'INR';
   // ── Owner Intelligence State ──
-  const [yesterdayStats, setYesterdayStats] = useState({ sales: 0, orders: 0 });
   const [cancellations, setCancellations] = useState(0);
   const [reservationsToday, setReservationsToday] = useState({ count: 0, next: null });
   const [showAiAdvisor, setShowAiAdvisor] = useState(false);
@@ -170,7 +169,7 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch completed orders for the last 7 days for Business Insights
+  // Fetch completed orders for the last 7 days for Business Insights & comparisons
   useEffect(() => {
     if (!restaurant?.id) return;
     const start = new Date();
@@ -179,7 +178,7 @@ export default function Dashboard() {
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
       where('createdAt', '>=', start),
-      limit(200)  // Cap analytics lookback — enough for insight calculations
+      limit(300)  // Lookback for 7-day insights and yesterday's delta
     );
 
     getDocs(q).then(snap => {
@@ -191,28 +190,25 @@ export default function Dashboard() {
     });
   }, [restaurant?.id]);
 
-  // Fetch yesterday's sales for delta comparison
-  useEffect(() => {
-    if (!restaurant?.id) return;
+  // Derive yesterday's sales from analyticsOrders for delta comparison (eliminates redundant query)
+  const yesterdayStats = useMemo(() => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     yesterday.setHours(0, 0, 0, 0);
     const yesterdayEnd = new Date(yesterday);
     yesterdayEnd.setHours(23, 59, 59, 999);
-    getDocs(query(
-      collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('createdAt', '>=', yesterday),
-      where('createdAt', '<=', yesterdayEnd),
-      limit(500)
-    )).then(snap => {
-      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const billed = docs.filter(d =>
-        (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) &&
-        d.status !== 'cancelled'
-      );
-      setYesterdayStats({ sales: billed.reduce((s, d) => s + (d.total ?? 0), 0), orders: billed.length });
-    }).catch(err => console.error('Yesterday stats failed:', err));
-  }, [restaurant?.id]);
+
+    const billed = analyticsOrders.filter(d => {
+      if (!d.createdAt) return false;
+      const date = typeof d.createdAt.toDate === 'function' ? d.createdAt.toDate() : new Date(d.createdAt);
+      return date >= yesterday && date <= yesterdayEnd;
+    });
+
+    return {
+      sales: billed.reduce((s, d) => s + (d.total ?? 0), 0),
+      orders: billed.length
+    };
+  }, [analyticsOrders]);
 
   // Fetch today's reservations count
   useEffect(() => {
