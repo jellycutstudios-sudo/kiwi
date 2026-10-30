@@ -239,17 +239,24 @@ export const useAuthStore = create(
               let actualRestId = cleanRestId;
               let restData = get().restaurant || getInitialPersistedAuth().restaurant;
 
+              // Map demo/kiwi aliases to rest1
+              if (['kiwi', 'demo'].includes(cleanRestId.toLowerCase())) {
+                actualRestId = 'rest1';
+              }
+
               // Ensure restaurant ID is resolved
               if (!restData || !restData.id || restData.id !== actualRestId) {
                 let rSnap = await getDoc(doc(db, 'restaurants', actualRestId));
                 if (!rSnap.exists()) {
                   const lowerRestId = cleanRestId.toLowerCase();
+                  // A. Try customId
                   const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
                   const sCustom = await getDocs(qCustom);
                   if (!sCustom.empty) {
                     rSnap = sCustom.docs[0];
                     actualRestId = rSnap.id;
                   } else {
+                    // B. Try slug
                     const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
                     const sSlug = await getDocs(qSlug);
                     if (!sSlug.empty) {
@@ -257,10 +264,56 @@ export const useAuthStore = create(
                       actualRestId = rSnap.id;
                     }
                   }
+
+                  // C. Try phone number (if input looks like digits)
+                  if (!rSnap.exists()) {
+                    const digits = cleanRestId.replace(/\D/g, '');
+                    if (digits.length >= 6) {
+                      const phoneCandidates = [digits];
+                      if (digits.length > 10) phoneCandidates.push(digits.slice(-10));
+                      if (digits.length === 10) phoneCandidates.push(`+91${digits}`, `91${digits}`);
+                      const qPhone = query(collection(db, 'restaurants'), where('phone', 'in', phoneCandidates));
+                      const sPhone = await getDocs(qPhone);
+                      if (!sPhone.empty) {
+                        rSnap = sPhone.docs[0];
+                        actualRestId = rSnap.id;
+                      }
+                    }
+                  }
+
+                  // D. Try name match (case-insensitive / slug-normalized)
+                  if (!rSnap.exists()) {
+                    const qName = query(collection(db, 'restaurants'), where('name', '==', cleanRestId));
+                    const sName = await getDocs(qName);
+                    if (!sName.empty) {
+                      rSnap = sName.docs[0];
+                      actualRestId = rSnap.id;
+                    } else {
+                      try {
+                        const allRests = await getDocs(collection(db, 'restaurants'));
+                        const cleanNorm = cleanRestId.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        for (const d of allRests.docs) {
+                          const dName = (d.data().name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                          const dSlug = (d.data().slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                          if (cleanNorm && (dName === cleanNorm || dSlug === cleanNorm)) {
+                            rSnap = d;
+                            actualRestId = d.id;
+                            break;
+                          }
+                        }
+                      } catch {}
+                    }
+                  }
                 }
                 if (rSnap && rSnap.exists()) {
                   restData = { id: rSnap.id, ...rSnap.data() };
                 }
+              }
+
+              if (!restData || !restData.id) {
+                const notFoundMsg = `Restaurant "${cleanRestId}" not found. Enter your Restaurant ID, Name, or Phone.`;
+                set({ loading: false, error: notFoundMsg });
+                return { ok: false, error: notFoundMsg };
               }
 
               if (restData?.status === 'suspended') {
@@ -311,9 +364,20 @@ export const useAuthStore = create(
                 });
 
                 return { ok: true, role: staffData.role };
+              } else {
+                // Restaurant was verified, but PIN does not exist in staff_auth
+                const failMsg = recordFailedAttempt();
+                set({ loading: false, error: failMsg });
+                return { ok: false, error: failMsg };
               }
             } catch (authErr) {
               console.warn('[loginWithPin] staff_auth lookup check error:', authErr.message);
+              // Do not record failed attempt on server permission/network error
+              const errMsg = authErr.message?.includes('permission')
+                ? 'Permission denied accessing staff records. Please check restaurant setup.'
+                : 'Unable to verify PIN with server. Please check your network connection.';
+              set({ loading: false, error: errMsg });
+              return { ok: false, error: errMsg };
             }
           }
 

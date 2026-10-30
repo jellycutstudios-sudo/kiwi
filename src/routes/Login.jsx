@@ -10,7 +10,7 @@ import { notifyAdminOfNewTrial } from '../utils/sendTrialNotification';
 
 export default function Login() {
   const [searchParams] = useSearchParams();
-  const { loginWithEmail, loginWithPin, loading, error, clearError } = useAuthStore();
+  const { loginWithEmail, loginWithPin, loading, error, clearError, restaurant: currentRest } = useAuthStore();
   // Derive initial mode from URL query param at mount — no useEffect needed
   const [mode, setMode] = useState(() => {
     const queryMode = searchParams.get('mode');
@@ -28,8 +28,8 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [pin, setPin] = useState('');
   const [restaurantId, setRestaurantId] = useState(() => {
-    if (isDemoMode && searchParams.get('demo') === 'staff') return 'kiwi';
-    return localStorage.getItem('rupos_last_rest_id') || '';
+    if (isDemoMode && searchParams.get('demo') === 'staff') return 'rest1';
+    return localStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '';
   });
 
   // Registration states (Minimal 3 fields: Name, Mobile/Email, Password)
@@ -62,22 +62,21 @@ export default function Login() {
   };
 
   const submitPin = useCallback(async (p) => {
-    if (!restaurantId.trim()) {
-      toast.error('Enter Restaurant ID first');
+    const targetRest = (restaurantId || localStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '').trim();
+    if (!targetRest) {
+      toast.error('Enter Restaurant ID, Name, or Phone first');
       setPin('');
       return;
     }
-    if (restaurantId.trim()) {
-      localStorage.setItem('rupos_last_rest_id', restaurantId.trim());
-    }
-    const res = await loginWithPin(restaurantId.trim(), p);
+    localStorage.setItem('rupos_last_rest_id', targetRest);
+    const res = await loginWithPin(targetRest, p);
     if (!res.ok) {
       toast.error(res.error);
       setPin('');
     } else {
       toast.success('Welcome!');
     }
-  }, [restaurantId, loginWithPin]);
+  }, [restaurantId, currentRest, loginWithPin]);
 
   const handlePinKey = useCallback((key) => {
     setPin((prev) => {
@@ -338,11 +337,11 @@ export default function Login() {
           ) : mode === 'pin' ? (
             <div className="login-form">
               <div className="form-group login-rest-id-group">
-                <label className="form-label">Restaurant ID</label>
+                <label className="form-label">Restaurant ID, Name, or Phone</label>
                 <input
                   id="login-restaurant-id"
                   className="form-input"
-                  placeholder="e.g. my-restaurant"
+                  placeholder="e.g. rest1 or Demo Restaurant"
                   value={restaurantId}
                   onChange={e => {
                     setRestaurantId(e.target.value);
