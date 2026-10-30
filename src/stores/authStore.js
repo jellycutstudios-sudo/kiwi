@@ -153,14 +153,9 @@ export const useAuthStore = create(
               const res = await validatePinFn({ restaurantId: cleanRestId, pin: cleanPin });
               const { token, staff, restaurantId: actualRestId } = res.data;
 
-              // Sign in with the cryptographically scoped Custom Token
-              let firebaseUser = null;
-              if (auth && token) {
-                const cred = await signInWithCustomToken(auth, token);
-                firebaseUser = cred.user;
-              }
+              const staffData = { id: staff.id, ...staff, isPinLogin: true, restaurantId: actualRestId };
 
-              // Load restaurant document
+              // Load restaurant document before signing in with custom token
               let restData = null;
               if (db && actualRestId) {
                 const restDoc = await getDoc(doc(db, 'restaurants', actualRestId));
@@ -169,7 +164,19 @@ export const useAuthStore = create(
                 }
               }
 
-              const staffData = { id: staff.id, ...staff, isPinLogin: true, restaurantId: actualRestId };
+              // Set staffDoc and restaurant synchronously so listeners recognize an active staff session
+              set({
+                staffDoc: staffData,
+                restaurant: restData,
+              });
+
+              // Sign in with the cryptographically scoped Custom Token
+              let firebaseUser = null;
+              if (auth && token) {
+                const cred = await signInWithCustomToken(auth, token);
+                firebaseUser = cred.user;
+              }
+
               set({
                 user: firebaseUser || { uid: staffData.id, isPinLogin: true },
                 staffDoc: staffData,
@@ -287,16 +294,18 @@ export const useAuthStore = create(
           return () => {};
         }
         return onAuthStateChanged(auth, async (user) => {
+          if (isLoggingIn) return; // Prevent race condition with active loginWithPin or loginWithEmail
+
           const currentStaff = get().staffDoc;
           const currentRest = get().restaurant;
           const isStaffSession = Boolean(currentStaff && currentRest && currentStaff.role !== 'super_admin');
 
           if (user) {
             // Case 1: Staff session already active (waiter, cashier, kitchen, etc.)
-            if (isStaffSession) {
+            if (isStaffSession || currentStaff?.isPinLogin) {
               set({ user, loading: false });
               // Validate restaurant status without signing out on transient network errors
-              const restId = currentRest.id;
+              const restId = currentRest?.id || currentStaff?.restaurantId;
               if (restId && db) {
                 try {
                   const rSnap = await getDoc(doc(db, 'restaurants', restId));
@@ -315,9 +324,17 @@ export const useAuthStore = create(
               return;
             }
 
+            // Check if user authenticated via custom token with isPinLogin claim
+            try {
+              const tokenResult = await user.getIdTokenResult();
+              if (tokenResult.claims && tokenResult.claims.isPinLogin) {
+                set({ user, loading: false });
+                return;
+              }
+            } catch {}
+
             // Case 2: Anonymous user without staff profile — check if orphaned
             if (user.isAnonymous) {
-              if (isLoggingIn) return;
               // Clean up orphaned anonymous session
               try {
                 await firebaseSignOut(auth);
