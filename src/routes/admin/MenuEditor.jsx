@@ -405,14 +405,12 @@ export default function MenuEditor() {
   const saveItem = async () => {
     const cleanName = itemForm.name.trim();
     const parsedPrice = parseFloat(itemForm.price);
-    if (!cleanName || itemForm.price === '' || isNaN(parsedPrice) || parsedPrice <= 0) {
-      toast.error('Please enter a valid item name and a positive price (e.g. ₹50 or above)');
+    if (!cleanName) {
+      toast.error('Please enter an item name');
       return;
     }
-
-    // Guard: Warn on suspicious outlier prices (e.g. ₹1 or ₹2)
-    if (parsedPrice < 5) {
-      toast.error('Item price cannot be less than 5. Please enter a realistic menu price.');
+    if (itemForm.price === '' || isNaN(parsedPrice) || parsedPrice < 0) {
+      toast.error('Please enter a valid price (0 or higher)');
       return;
     }
 
