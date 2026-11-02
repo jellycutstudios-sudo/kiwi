@@ -10,7 +10,7 @@ import {
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Settings, Building2, ChevronLeft, ChevronRight, LogOut,
   Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
-  ChevronDown, ChevronUp, Copy, Check
+  ChevronDown, ChevronUp, Copy, Check, ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
@@ -210,6 +210,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
   const isAdmin = ['admin', 'super_admin', 'manager'].includes(role);
   const isSuperAdmin = role === 'super_admin';
+  const pendingApprovalsCount = isSuperAdmin
+    ? availableOutlets.filter(r => r.status === 'pending' || r.status === 'trial_pending').length
+    : 0;
 
   const handleSignOut = async () => {
     await signOut();
@@ -635,18 +638,59 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             {/* If collapsed on desktop, always show icons. If expanded, toggle via adminExpanded */}
             {(isCollapsed || adminExpanded) && (
               <div className="sidebar-admin-items">
-                {filteredAdminNav.map(n => (
-                  <NavLink
-                    key={n.key}
-                    to={n.path}
-                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                    title={isCollapsed ? t(n.label) : undefined}
-                    onClick={handleItemClick}
-                  >
-                    <span className="nav-item-icon"><n.icon size={20} strokeWidth={1.9} /></span>
-                    {!isCollapsed && <span>{n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label)}</span>}
-                  </NavLink>
-                ))}
+                {filteredAdminNav.map(n => {
+                  const isAccountNav = n.key === 'restaurants';
+                  const NavIcon = (isAccountNav && isSuperAdmin) ? ShieldCheck : n.icon;
+                  const navLabel = isAccountNav && isSuperAdmin
+                    ? 'Registered Accounts'
+                    : (n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label));
+
+                  return (
+                    <NavLink
+                      key={n.key}
+                      to={n.path}
+                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                      title={isCollapsed ? navLabel : undefined}
+                      onClick={handleItemClick}
+                      style={{ position: 'relative' }}
+                    >
+                      <span className="nav-item-icon"><NavIcon size={20} strokeWidth={1.9} /></span>
+                      {!isCollapsed && <span>{navLabel}</span>}
+                      {isAccountNav && isSuperAdmin && pendingApprovalsCount > 0 && !isCollapsed && (
+                        <span
+                          className="nav-badge"
+                          style={{
+                            background: '#f59e0b',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: '11px',
+                            padding: '1px 6px',
+                            borderRadius: '10px',
+                            minWidth: '18px',
+                            textAlign: 'center'
+                          }}
+                          title={`${pendingApprovalsCount} accounts awaiting approval`}
+                        >
+                          {pendingApprovalsCount}
+                        </span>
+                      )}
+                      {isAccountNav && isSuperAdmin && pendingApprovalsCount > 0 && isCollapsed && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 6,
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#f59e0b'
+                          }}
+                          title={`${pendingApprovalsCount} accounts awaiting approval`}
+                        />
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
             )}
           </div>

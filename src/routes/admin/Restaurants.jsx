@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { 
   Plus, ExternalLink, Building2, BarChart3, TrendingUp, ShoppingCart, 
   AlertTriangle, RefreshCw, Layers, ShieldCheck, 
-  Globe, Sparkles, Sliders, Users, Flame
+  Globe, Sparkles, Sliders, Users, Flame,
+  Search, Phone, Mail, User, Clock, CheckCircle2, XCircle, AlertCircle,
+  Trash2, Copy, Check, Rocket
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
@@ -16,11 +19,18 @@ import {
 } from '../../utils/enterpriseMenuSync';
 
 export default function Restaurants() {
-  const { staffDoc, restaurant: currentRestaurant } = useAuthStore();
+  const navigate = useNavigate();
+  const { staffDoc, restaurant: currentRestaurant, switchRestaurant } = useAuthStore();
   const [restaurants, setRestaurants] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name:'', address:'', phone:'', currency:'INR' });
   const [saving, setSaving] = useState(false);
+
+  // Platform Accounts & Approvals States
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'pending' | 'approved' | 'suspended'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [usersMap, setUsersMap] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
 
   // Tabs layout: 'outlets' | 'analytics' | 'menu_hub' | 'staff_roles'
   const [activeTab, setActiveTab] = useState('outlets');
@@ -53,6 +63,21 @@ export default function Restaurants() {
   const [loadingAllStaff, setLoadingAllStaff] = useState(false);
 
   const isSuperAdmin = staffDoc?.role === 'super_admin';
+
+  // Listen to registered users when super_admin to display owner email, name, and phone
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const unsub = onSnapshot(collection(db, 'users'), snap => {
+      const map = {};
+      snap.forEach(d => {
+        map[d.id] = { id: d.id, ...d.data() };
+      });
+      setUsersMap(map);
+    }, err => {
+      console.warn('Users listener in Restaurants:', err);
+    });
+    return unsub;
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     let q;
@@ -348,15 +373,80 @@ export default function Restaurants() {
     }
   };
 
+  const handleCopyId = (e, id) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    toast.success(`ID copied: ${id}`);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleEnterConsole = (restaurantItem) => {
+    switchRestaurant(restaurantItem);
+    toast.success(`Switched active context to ${restaurantItem.name}`);
+    navigate('/dashboard');
+  };
+
+  const handleDeleteRestaurant = async (restaurantItem) => {
+    if (!window.confirm(`Permanently delete account "${restaurantItem.name}" (${restaurantItem.id})? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'restaurants', restaurantItem.id));
+      toast.success(`Account for "${restaurantItem.name}" deleted successfully`);
+    } catch (e) {
+      toast.error('Failed to delete account: ' + e.message);
+    }
+  };
+
   const updateRestaurantStatus = async (restaurantId, newStatus) => {
     try {
       const docRef = doc(db, 'restaurants', restaurantId);
       await updateDoc(docRef, { status: newStatus });
-      toast.success(`Restaurant ${newStatus === 'approved' ? 'approved' : 'suspended'} successfully!`);
+      toast.success(`Restaurant account ${newStatus === 'approved' ? 'approved & activated' : 'suspended'}!`);
     } catch (e) {
       toast.error('Failed to update status: ' + e.message);
     }
   };
+
+  const formatRegistrationDate = (ts) => {
+    if (!ts) return 'N/A';
+    try {
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      if (isNaN(d.getTime())) return 'N/A';
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  // Status counters for Super Admin & Owners
+  const pendingCount = restaurants.filter(r => r.status === 'pending' || r.status === 'trial_pending').length;
+  const approvedCount = restaurants.filter(r => r.status === 'approved' || (!r.status && !r.isPending)).length;
+  const suspendedCount = restaurants.filter(r => r.status === 'suspended').length;
+
+  const filteredRestaurants = restaurants.filter(r => {
+    if (statusFilter === 'pending') {
+      if (r.status !== 'pending' && r.status !== 'trial_pending') return false;
+    } else if (statusFilter === 'approved') {
+      if (r.status !== 'approved' && (r.status || r.isPending)) return false;
+    } else if (statusFilter === 'suspended') {
+      if (r.status !== 'suspended') return false;
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const owner = usersMap[r.ownerUid];
+      const matchName = (r.name || '').toLowerCase().includes(q);
+      const matchAddress = (r.address || '').toLowerCase().includes(q);
+      const matchId = (r.id || '').toLowerCase().includes(q);
+      const matchPhone = (r.phone || owner?.phone || '').toLowerCase().includes(q);
+      const matchEmail = (r.email || owner?.email || '').toLowerCase().includes(q);
+      const matchOwnerName = (owner?.name || '').toLowerCase().includes(q);
+      return matchName || matchAddress || matchId || matchPhone || matchEmail || matchOwnerName;
+    }
+    return true;
+  });
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
@@ -371,14 +461,20 @@ export default function Restaurants() {
       `}</style>
 
       {/* Header Section */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
         <div>
-          <h2 className="text-title2">Restaurants</h2>
-          <p className="text-secondary text-subhead" style={{marginTop:2}}>Manage all your restaurant branches</p>
+          <h2 className="text-title2">
+            {isSuperAdmin ? 'Registered Accounts' : 'Restaurants'}
+          </h2>
+          <p className="text-secondary text-subhead" style={{ marginTop: 2 }}>
+            {isSuperAdmin
+              ? 'Verify, approve, and manage registered restaurant accounts across the platform'
+              : 'Manage all your restaurant branches'}
+          </p>
         </div>
         {activeTab === 'outlets' ? (
           <button className="btn btn-primary" id="add-restaurant-btn" onClick={() => setShowForm(true)}>
-            <Plus size={16}/> New Restaurant
+            <Plus size={16}/> {isSuperAdmin ? 'Register New Account' : 'New Restaurant'}
           </button>
         ) : (
           <button
@@ -396,10 +492,10 @@ export default function Restaurants() {
 
       <div className="nav-tabs no-scrollbar touch-scroll-x">
         {[
-          { key: 'outlets', label: 'Outlets Directory', icon: Building2 },
-          { key: 'analytics', label: 'Consolidated Analytics & P&L', icon: BarChart3 },
+          { key: 'outlets', label: isSuperAdmin ? 'Accounts Directory' : 'Outlets Directory', icon: isSuperAdmin ? ShieldCheck : Building2 },
+          { key: 'analytics', label: isSuperAdmin ? 'Platform & Franchise Analytics' : 'Consolidated Analytics & P&L', icon: BarChart3 },
           { key: 'menu_hub', label: 'Master Menu Hub & Push', icon: Layers },
-          { key: 'staff_roles', label: 'Franchise Staff & Roles', icon: ShieldCheck }
+          { key: 'staff_roles', label: isSuperAdmin ? 'Global Staff Directory' : 'Franchise Staff & Roles', icon: Users }
         ].map(tab => (
           <button
             key={tab.key}
@@ -414,71 +510,366 @@ export default function Restaurants() {
         ))}
       </div>
 
-      {/* ── Tab Content: Outlets Directory ────────────── */}
+      {/* ── Tab Content: Accounts & Outlets Directory ────────────── */}
       {activeTab === 'outlets' && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'var(--space-4)' }}>
-          {restaurants.map(r => (
-            <div key={r.id} className="card card-padded" style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)', border: r.status !== 'approved' ? '1.5px solid var(--color-orange)' : '1px solid var(--color-separator)' }}>
-              <div style={{ display:'flex', alignItems:'flex-start', gap:'var(--space-3)' }}>
-                <div style={{ width:44, height:44, borderRadius:'var(--radius-lg)', background: r.status !== 'approved' ? 'var(--color-orange-light)' : 'var(--color-accent-light)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>
-                  🍽️
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight:'var(--weight-bold)', fontSize:'var(--text-headline)' }}>{r.name}</div>
-                    <span className={`badge ${r.status === 'approved' ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10 }}>
-                      {r.status === 'approved' ? 'Approved' : 'Pending'}
-                    </span>
+        <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+          {/* Pending Approval Alert Banner for Super Admin */}
+          {isSuperAdmin && pendingCount > 0 && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1.5px solid rgba(245, 158, 11, 0.4)',
+              borderRadius: '12px',
+              padding: '14px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertCircle size={22} color="#f59e0b" style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-label)' }}>
+                    {pendingCount} Account{pendingCount > 1 ? 's' : ''} Awaiting Approval
                   </div>
-                  {r.address && <div style={{ fontSize:'var(--text-caption1)', color:'var(--color-label-secondary)', marginTop:1 }}>📍 {r.address}</div>}
+                  <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+                    New registrations need Super Admin verification before they can access the full terminal and live POS.
+                  </div>
                 </div>
               </div>
-              <div style={{ display:'flex', gap:'var(--space-2)', flexWrap:'wrap' }}>
-                {(r.modes??[]).map(m => <span key={m} className="badge badge-blue">{m}</span>)}
-              </div>
-              <div style={{ display:'flex', gap:'var(--space-2)', alignItems:'center' }}>
-                <code style={{ fontSize:'var(--text-caption2)', fontFamily:'var(--font-mono)', background:'var(--color-bg-secondary)', padding:'2px 6px', borderRadius:'var(--radius-xs)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {r.id}
-                </code>
-                <a href={`/order/${r.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-icon btn-sm" title="View order page">
-                  <ExternalLink size={12}/>
-                </a>
-              </div>
-              {isSuperAdmin && (
-                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '4px' }}>
-                  {r.status !== 'approved' ? (
-                    <button
-                      className="btn btn-success btn-sm"
-                      style={{ flex: 1 }}
-                      onClick={() => updateRestaurantStatus(r.id, 'approved')}
-                    >
-                      Approve & Mark Paid
-                    </button>
-                  ) : (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      style={{ flex: 1, background: 'transparent', color: 'var(--color-red)', borderColor: 'var(--color-red)' }}
-                      onClick={() => updateRestaurantStatus(r.id, 'suspended')}
-                    >
-                      Suspend Outlet
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-          {restaurants.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '48px 24px', gridColumn: '1 / -1', background: 'var(--color-bg-secondary)', borderRadius: '16px', border: '1px dashed var(--color-separator)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>🏢</div>
-              <h4 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--color-label)' }}>No Outlets Registered Yet</h4>
-              <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--color-label-secondary)' }}>
-                Register your brand's branch locations or franchise stores to enable centralized menu sync and analytics.
-              </p>
-              <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 auto' }}>
-                <Plus size={16} /> Register First Outlet
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setStatusFilter('pending')}
+                style={{
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  borderColor: 'rgba(245, 158, 11, 0.5)',
+                  color: '#f59e0b',
+                  fontWeight: 600
+                }}
+              >
+                Review Pending ({pendingCount})
               </button>
             </div>
           )}
+
+          {/* Quick Metrics Cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 'var(--space-3)'
+          }}>
+            <div className="card card-padded" style={{ padding: '14px 16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>Total Accounts</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '4px', color: 'var(--color-label)' }}>{restaurants.length}</div>
+            </div>
+            <div
+              className="card card-padded"
+              style={{
+                padding: '14px 16px',
+                border: pendingCount > 0 ? '1.5px solid rgba(245, 158, 11, 0.5)' : undefined,
+                background: pendingCount > 0 ? 'rgba(245, 158, 11, 0.05)' : undefined
+              }}
+            >
+              <div style={{ fontSize: '12px', color: pendingCount > 0 ? '#f59e0b' : 'var(--color-label-secondary)', fontWeight: 600 }}>
+                Pending Approvals
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '4px', color: pendingCount > 0 ? '#f59e0b' : 'var(--color-label)' }}>
+                {pendingCount}
+              </div>
+            </div>
+            <div className="card card-padded" style={{ padding: '14px 16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>Active & Live</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '4px', color: '#10b981' }}>{approvedCount}</div>
+            </div>
+            <div className="card card-padded" style={{ padding: '14px 16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', fontWeight: 600 }}>Suspended</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '4px', color: suspendedCount > 0 ? 'var(--color-red)' : 'var(--color-label)' }}>
+                {suspendedCount}
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+            marginTop: '4px'
+          }}>
+            {/* Filter Pills */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: `All (${restaurants.length})` },
+                { id: 'pending', label: `Pending (${pendingCount})` },
+                { id: 'approved', label: `Active (${approvedCount})` },
+                { id: 'suspended', label: `Suspended (${suspendedCount})` }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setStatusFilter(f.id)}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: statusFilter === f.id ? 700 : 500,
+                    borderRadius: '20px',
+                    border: '1px solid',
+                    borderColor: statusFilter === f.id ? 'var(--color-accent)' : 'var(--color-separator)',
+                    background: statusFilter === f.id ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                    color: statusFilter === f.id ? 'var(--color-accent)' : 'var(--color-label-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div style={{ position: 'relative', minWidth: '260px', flex: '1 1 260px', maxWidth: '420px' }}>
+              <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)' }} />
+              <input
+                type="text"
+                className="input"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search account, owner, email, phone, ID..."
+                style={{ paddingLeft: '34px', fontSize: '13px', height: '36px', width: '100%' }}
+              />
+            </div>
+          </div>
+
+          {/* Accounts Grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'var(--space-4)' }}>
+            {filteredRestaurants.map(r => {
+              const owner = usersMap[r.ownerUid];
+              const isPending = r.status === 'pending' || r.status === 'trial_pending';
+              const isSuspended = r.status === 'suspended';
+              const isApproved = !isPending && !isSuspended;
+              const isCurrent = currentRestaurant?.id === r.id;
+
+              return (
+                <div
+                  key={r.id}
+                  className="card card-padded"
+                  style={{
+                    display:'flex',
+                    flexDirection:'column',
+                    gap:'var(--space-3)',
+                    border: isPending
+                      ? '1.5px solid #f59e0b'
+                      : isSuspended
+                      ? '1px solid var(--color-red)'
+                      : isCurrent
+                      ? '1.5px solid var(--color-accent)'
+                      : '1px solid var(--color-separator)',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Card Header */}
+                  <div style={{ display:'flex', alignItems:'flex-start', gap:'var(--space-3)' }}>
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 'var(--radius-lg)',
+                      background: isPending ? 'rgba(245, 158, 11, 0.15)' : isSuspended ? 'rgba(239, 68, 68, 0.15)' : 'var(--color-accent-light)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      flexShrink: 0
+                    }}>
+                      {isPending ? '⏳' : isSuspended ? '🛑' : '🍽️'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: 'var(--weight-bold)', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.name}
+                        </div>
+                        <span
+                          className={`badge ${isPending ? 'badge-orange' : isSuspended ? 'badge-red' : 'badge-green'}`}
+                          style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                        >
+                          {isPending ? 'Pending Approval' : isSuspended ? 'Suspended' : 'Approved'}
+                        </span>
+                      </div>
+                      {r.address && (
+                        <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          📍 {r.address}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Owner Information Box */}
+                  <div style={{
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    fontSize: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-label)' }}>
+                      <User size={13} color="var(--color-label-tertiary)" />
+                      <span style={{ fontWeight: 600 }}>{owner?.name || r.ownerName || 'Owner Name: N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-label-secondary)' }}>
+                      <Mail size={13} color="var(--color-label-tertiary)" />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {owner?.email || r.email || 'No email registered'}
+                      </span>
+                    </div>
+                    {(owner?.phone || r.phone) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-label-secondary)' }}>
+                        <Phone size={13} color="var(--color-label-tertiary)" />
+                        <span>{owner?.phone || r.phone}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: 2, paddingTop: 4, borderTop: '1px solid var(--color-separator)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-label-tertiary)', fontSize: '11px' }}>
+                        <Clock size={11} />
+                        <span>Joined: {formatRegistrationDate(r.createdAt || owner?.createdAt)}</span>
+                      </div>
+                      {r.trialEndsAt && (
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: '#f59e0b' }}>
+                          Trial active
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Account Identifier & Direct Links */}
+                  <div style={{ display:'flex', gap:'var(--space-2)', alignItems:'center' }}>
+                    <div
+                      onClick={(e) => handleCopyId(e, r.id)}
+                      title="Click to copy Restaurant ID"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'var(--color-bg-secondary)',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-xs)',
+                        cursor: 'pointer',
+                        flex: 1,
+                        minWidth: 0,
+                        border: '1px solid var(--color-separator)'
+                      }}
+                    >
+                      <code style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        ID: {r.id}
+                      </code>
+                      {copiedId === r.id ? <Check size={12} color="#10b981" /> : <Copy size={12} color="var(--color-label-tertiary)" />}
+                    </div>
+
+                    <a
+                      href={`/order/${r.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-icon btn-sm"
+                      title="Open public digital ordering page"
+                    >
+                      <ExternalLink size={13}/>
+                    </a>
+                  </div>
+
+                  {/* Operational Action Controls */}
+                  {isSuperAdmin && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', paddingTop: '8px', borderTop: '1px solid var(--color-separator)' }}>
+                      {/* If Pending: Approve vs Reject */}
+                      {isPending && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="btn btn-success btn-sm"
+                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 700 }}
+                            onClick={() => updateRestaurantStatus(r.id, 'approved')}
+                          >
+                            <CheckCircle2 size={14} /> Approve & Activate
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                            onClick={() => handleDeleteRestaurant(r)}
+                            title="Reject and delete this registration"
+                          >
+                            <XCircle size={14} /> Reject
+                          </button>
+                        </div>
+                      )}
+
+                      {/* If Approved: Open Outlet Console + Suspend Toggle */}
+                      {isApproved && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 600 }}
+                            onClick={() => handleEnterConsole(r)}
+                          >
+                            <Rocket size={14} /> Open Outlet Console
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--color-label-secondary)' }}
+                            onClick={() => updateRestaurantStatus(r.id, 'suspended')}
+                          >
+                            Suspend
+                          </button>
+                        </div>
+                      )}
+
+                      {/* If Suspended: Reactivate + Delete */}
+                      {isSuspended && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="btn btn-success btn-sm"
+                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 700 }}
+                            onClick={() => updateRestaurantStatus(r.id, 'approved')}
+                          >
+                            <CheckCircle2 size={14} /> Reactivate Account
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                            onClick={() => handleDeleteRestaurant(r)}
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {filteredRestaurants.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '48px 24px', gridColumn: '1 / -1', background: 'var(--color-bg-secondary)', borderRadius: '16px', border: '1px dashed var(--color-separator)' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>🏢</div>
+                <h4 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--color-label)' }}>
+                  {searchQuery || statusFilter !== 'all' ? 'No Accounts Match Filters' : 'No Accounts Registered Yet'}
+                </h4>
+                <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--color-label-secondary)' }}>
+                  {searchQuery || statusFilter !== 'all'
+                    ? 'Try clearing your search query or switching filters.'
+                    : 'Register your brand\'s branch locations or franchise stores to enable centralized management.'}
+                </p>
+                {(searchQuery || statusFilter !== 'all') ? (
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>
+                    Reset Filters
+                  </button>
+                ) : (
+                  <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 auto' }}>
+                    <Plus size={16} /> Register First Outlet
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
