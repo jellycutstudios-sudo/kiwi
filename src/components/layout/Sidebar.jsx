@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
@@ -44,6 +44,7 @@ const ADMIN_NAV = [
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const signOut = useAuthStore(s => s.signOut);
@@ -108,9 +109,6 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         ? list
         : list.filter(r => r.id === restaurant?.id || r.status === 'approved');
       setAvailableOutlets(filtered.length > 0 ? filtered : (restaurant ? [restaurant] : []));
-      if (role === 'super_admin' && !restaurant?.id && filtered.length > 0) {
-        switchRestaurant(filtered[0]);
-      }
     }, (err) => {
       console.warn('Sidebar availableOutlets listener:', err);
       setAvailableOutlets(restaurant ? [restaurant] : []);
@@ -277,8 +275,96 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         )}
       </div>
 
-      {/* Restaurant Info Pill & Multi-Branch Switcher */}
-      {!isCollapsed && restaurant?.name && (
+      {/* Super Admin Platform Pill (Global Scope) */}
+      {!isCollapsed && isSuperAdmin && !restaurant && (
+        <div style={{
+          margin: '10px 12px 4px',
+          padding: '10px 12px',
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            background: 'rgba(59, 130, 246, 0.16)',
+            color: '#3b82f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            flexShrink: 0
+          }}>
+            🛡️
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
+              Platform Super Admin
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginTop: '1px' }}>
+              Global SaaS Console • {availableOutlets.length} Tenants
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Super Admin Tenant Inspection Pill (When inspecting a single outlet) */}
+      {!isCollapsed && isSuperAdmin && restaurant && (
+        <div style={{
+          margin: '10px 12px 4px',
+          padding: '10px 12px',
+          background: 'rgba(245, 158, 11, 0.10)',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          borderRadius: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '6px',
+              background: 'rgba(245, 158, 11, 0.2)',
+              color: '#f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              flexShrink: 0
+            }}>
+              👁️
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {restaurant.name}
+              </div>
+              <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>
+                Tenant Inspection Mode
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              switchRestaurant(null);
+              toast.success('Exited to Platform Console');
+              navigate('/admin/restaurants');
+            }}
+            style={{ width: '100%', height: '26px', fontSize: '11px', padding: '0 6px', fontWeight: 600 }}
+          >
+            ✕ Exit to Platform Console
+          </button>
+        </div>
+      )}
+
+      {/* Normal Restaurant Info Pill & Multi-Branch Switcher */}
+      {!isCollapsed && !isSuperAdmin && restaurant?.name && (
         <div style={{
           margin: '10px 12px 4px',
           padding: '10px 12px',
@@ -481,13 +567,67 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Navigation Links */}
       <nav className="sidebar-nav">
-        <div className="sidebar-nav-group">
-          {!isCollapsed && (
-            <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>{t('pos')}</span>
-              <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.6 }}>CORE</span>
-            </div>
-          )}
+        {isSuperAdmin && !restaurant ? (
+          <div className="sidebar-nav-group">
+            {!isCollapsed && (
+              <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>PLATFORM</span>
+                <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.6 }}>SAAS ADMIN</span>
+              </div>
+            )}
+            <NavLink
+              to="/admin/restaurants"
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              title={isCollapsed ? 'Registered Accounts' : undefined}
+              onClick={handleItemClick}
+              style={{ position: 'relative' }}
+            >
+              <span className="nav-item-icon"><ShieldCheck size={20} strokeWidth={1.9} /></span>
+              {!isCollapsed && <span>Registered Accounts</span>}
+              {pendingApprovalsCount > 0 && !isCollapsed && (
+                <span
+                  className="nav-badge"
+                  style={{
+                    background: '#f59e0b',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '11px',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    minWidth: '18px',
+                    textAlign: 'center'
+                  }}
+                  title={`${pendingApprovalsCount} accounts awaiting approval`}
+                >
+                  {pendingApprovalsCount}
+                </span>
+              )}
+              {pendingApprovalsCount > 0 && isCollapsed && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 6,
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#f59e0b'
+                  }}
+                  title={`${pendingApprovalsCount} accounts awaiting approval`}
+                />
+              )}
+            </NavLink>
+          </div>
+        ) : (
+          <div className="sidebar-nav-group">
+            {!isCollapsed && (
+              <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{t('pos')}</span>
+                <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.6 }}>
+                  {isSuperAdmin ? 'TENANT CORE' : 'CORE'}
+                </span>
+              </div>
+            )}
 
           {NAV.filter(n => {
             const hasRole = n.roles.includes('all') || n.roles.includes(role);
@@ -589,9 +729,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             );
           })}
         </div>
+        )}
 
         {/* Admin / Management Section */}
-        {isAdmin && (
+        {isAdmin && (!isSuperAdmin || restaurant) && (
           <div className="sidebar-admin-section">
             {!isCollapsed ? (
               <button

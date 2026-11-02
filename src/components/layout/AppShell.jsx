@@ -111,10 +111,12 @@ export default function AppShell() {
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
   const setHasUpdate = useUpdateStore(s => s.setHasUpdate);
   const staffDoc = useAuthStore(s => s.staffDoc);
+  const isSuperAdmin = staffDoc?.role === 'super_admin';
 
   // Morning Cheer: confetti shower & encouraging greeting on first open of the day
   useEffect(() => {
     // Expose test helper on window so user or developer can trigger it anytime via window.testMorningCheer()
+    if (isSuperAdmin) return;
     if (typeof window !== 'undefined') {
       window.testMorningCheer = (force = true) => {
         triggerMorningCheer({ staffName: staffDoc?.name || restaurant?.name, force });
@@ -125,7 +127,7 @@ export default function AppShell() {
       triggerMorningCheer({ staffName: staffDoc?.name || restaurant?.name });
     }, 1200);
     return () => clearTimeout(timer);
-  }, [staffDoc?.name, restaurant?.name]);
+  }, [isSuperAdmin, staffDoc?.name, restaurant?.name]);
 
   // Listen for Service Worker update prompt and notify cashier/staff gracefully
   useEffect(() => {
@@ -181,7 +183,9 @@ export default function AppShell() {
     return () => clearTimeout(id);
   }, [location.pathname]);
 
-  const pageTitle = t(PAGE_TITLES[location.pathname] ?? 'appName');
+  const pageTitle = (isSuperAdmin && location.pathname === '/admin/restaurants')
+    ? 'Registered Accounts & Approvals'
+    : t(PAGE_TITLES[location.pathname] ?? 'appName');
 
   // Subscribe to real-time data globally
   useEffect(() => {

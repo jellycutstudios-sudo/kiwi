@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowLeft, Delete } from 'lucide-react';
@@ -9,6 +9,7 @@ import { auth, db } from '../firebase';
 import { notifyAdminOfNewTrial } from '../utils/sendTrialNotification';
 
 export default function Login() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loginWithEmail, loginWithPin, loading, error, clearError, restaurant: currentRest } = useAuthStore();
   // Derive initial mode from URL query param at mount — no useEffect needed
@@ -57,8 +58,17 @@ export default function Login() {
       return;
     }
     const res = await loginWithEmail(cleanId, cleanPw);
-    if (!res.ok) toast.error(res.error);
-    else toast.success('Welcome back!');
+    if (!res.ok) {
+      toast.error(res.error);
+    } else {
+      toast.success('Welcome back!');
+      const role = useAuthStore.getState().staffDoc?.role;
+      if (role === 'super_admin') {
+        navigate('/admin/restaurants', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
   };
 
   const submitPin = useCallback(async (p) => {

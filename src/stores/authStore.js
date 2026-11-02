@@ -479,19 +479,8 @@ export const useAuthStore = create(
                   }
                 }
               }
-            } else if (userData.role === 'super_admin') {
-              // Super admin fallback: load first approved restaurant so branch-level views have active context
-              try {
-                const restQuery = query(collection(db, 'restaurants'));
-                const restSnap = await getDocs(restQuery);
-                if (!restSnap.empty) {
-                  const firstApproved = restSnap.docs.find(d => d.data().status === 'approved') || restSnap.docs[0];
-                  restData = { id: firstApproved.id, ...firstApproved.data() };
-                }
-              } catch (rErr) {
-                console.warn('Could not load fallback restaurant for super admin:', rErr);
-              }
             }
+            // For super_admin, restData intentionally stays null so they enter the global Platform Console
             set({
               user: firebaseUser,
               staffDoc: userData,
@@ -511,6 +500,9 @@ export const useAuthStore = create(
       signOut: async () => {
         // Clear state synchronously
         set({ user: null, staffDoc: null, restaurant: null, loading: false });
+        try {
+          safeStorage.removeItem('restaurant-os-auth');
+        } catch {}
         
         try {
           useOrderStore.getState().clearCart();
@@ -639,10 +631,12 @@ export const useAuthStore = create(
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => {
         // Persist only the minimum needed to restore session on refresh
+        const isSuper = s.staffDoc?.role === 'super_admin';
         return { 
-          user: s.user ? { uid: s.user.uid, isPinLogin: Boolean(s.user.isPinLogin || (s.staffDoc && s.staffDoc.role !== 'super_admin')) } : null,
+          user: s.user ? { uid: s.user.uid, isPinLogin: Boolean(s.user.isPinLogin || (s.staffDoc && !isSuper)) } : null,
           staffDoc: s.staffDoc, 
-          restaurant: s.restaurant 
+          // Never persist a restaurant lock for super_admin
+          restaurant: isSuper ? null : s.restaurant 
         };
       },
       onRehydrateStorage: () => (state) => {
