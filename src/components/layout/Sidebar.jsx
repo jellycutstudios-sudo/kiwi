@@ -233,7 +233,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const filteredAdminNav = ADMIN_NAV.filter(n => {
     if (n.superAdmin && !isSuperAdmin) return false;
     if (n.roles && !n.roles.includes(role)) return false;
-    if (n.requiredMode) {
+    if (n.requiredMode && !isSuperAdmin) {
       return hasMode(n.requiredMode);
     }
     return true;
@@ -478,115 +478,114 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Navigation Links */}
       <nav className="sidebar-nav">
-        {!isSuperAdmin && (
-          <div className="sidebar-nav-group">
-            {!isCollapsed && (
-              <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>{t('pos')}</span>
-                <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.6 }}>CORE</span>
-              </div>
-            )}
+        <div className="sidebar-nav-group">
+          {!isCollapsed && (
+            <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>{t('pos')}</span>
+              <span style={{ fontSize: '9px', fontWeight: 600, opacity: 0.6 }}>CORE</span>
+            </div>
+          )}
 
-            {NAV.filter(n => {
-              const hasRole = n.roles.includes('all') || n.roles.includes(role);
-              if (!hasRole) return false;
-              if (n.key === 'dashboard' && role === 'cashier' && !restaurant?.allowCashierDashboard) {
-                return false;
+          {NAV.filter(n => {
+            const hasRole = n.roles.includes('all') || n.roles.includes(role);
+            if (!hasRole) return false;
+            if (n.key === 'dashboard' && role === 'cashier' && !restaurant?.allowCashierDashboard) {
+              return false;
+            }
+            if (isSuperAdmin) return true;
+            if (n.key === 'pos' && !hasMode('pos')) {
+              return false;
+            }
+            if (n.requiredMode) {
+              if (n.key === 'kds') {
+                if (!hasMode('kds')) return false;
+                const km = restaurant?.kitchenConfig?.mode;
+                if (km === 'disabled' || km === 'printer_only') return false;
+                return true;
               }
-              if (n.key === 'pos' && !hasMode('pos')) {
-                return false;
+              if (n.key === 'tables') {
+                return hasMode('table');
               }
-              if (n.requiredMode) {
-                if (n.key === 'kds') {
-                  if (!hasMode('kds')) return false;
-                  const km = restaurant?.kitchenConfig?.mode;
-                  if (km === 'disabled' || km === 'printer_only') return false;
-                  return true;
-                }
-                if (n.key === 'tables') {
-                  return hasMode('table');
-                }
-                if (n.key === 'online_orders') {
-                  return hasMode('online') || unreadOnlineCount > 0;
-                }
-                return hasMode(n.requiredMode);
+              if (n.key === 'online_orders') {
+                return hasMode('online') || unreadOnlineCount > 0;
               }
-              return true;
-            }).map(n => {
-              const badgeCount = n.badgeType === 'onlineOrders'
-                ? (unreadOnlineCount > 0 ? unreadOnlineCount : onlineOrders.filter(o => o.status === 'pending').length)
-                : n.badgeType === 'activeOrders'
-                ? activeOrdersCount
-                : 0;
+              return hasMode(n.requiredMode);
+            }
+            return true;
+          }).map(n => {
+            const badgeCount = n.badgeType === 'onlineOrders'
+              ? (unreadOnlineCount > 0 ? unreadOnlineCount : onlineOrders.filter(o => o.status === 'pending').length)
+              : n.badgeType === 'activeOrders'
+              ? activeOrdersCount
+              : 0;
 
-              return (
-                <NavLink
-                  key={n.key}
-                  to={n.path}
-                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                  title={isCollapsed ? t(n.label) : undefined}
-                  onClick={handleItemClick}
-                  style={{ position: 'relative' }}
-                >
-                  <span className="nav-item-icon"><n.icon size={20} strokeWidth={1.9} /></span>
-                  {!isCollapsed && <span style={{ flex: 1 }}>{t(n.label)}</span>}
-                  
-                  {/* Badges for counts */}
-                  {!isCollapsed && badgeCount > 0 && (
-                    <span 
-                      className="nav-badge" 
-                      style={{
-                        background: n.badgeType === 'activeOrders' ? '#3b82f6' : 'var(--color-red)',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '11px',
-                        padding: '2px 7px',
-                        borderRadius: '6px',
-                        minWidth: '20px'
-                      }}
-                    >
-                      {badgeCount}
-                    </span>
-                  )}
-                  {isCollapsed && badgeCount > 0 && (
-                    <span style={{
-                      position: 'absolute', top: 4, right: 6,
-                      width: 8, height: 8, borderRadius: '50%',
+            return (
+              <NavLink
+                key={n.key}
+                to={n.path}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                title={isCollapsed ? t(n.label) : undefined}
+                onClick={handleItemClick}
+                style={{ position: 'relative' }}
+              >
+                <span className="nav-item-icon"><n.icon size={20} strokeWidth={1.9} /></span>
+                {!isCollapsed && <span style={{ flex: 1 }}>{t(n.label)}</span>}
+                
+                {/* Badges for counts */}
+                {!isCollapsed && badgeCount > 0 && (
+                  <span 
+                    className="nav-badge" 
+                    style={{
                       background: n.badgeType === 'activeOrders' ? '#3b82f6' : 'var(--color-red)',
-                    }} />
-                  )}
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      padding: '2px 7px',
+                      borderRadius: '6px',
+                      minWidth: '20px'
+                    }}
+                  >
+                    {badgeCount}
+                  </span>
+                )}
+                {isCollapsed && badgeCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: 4, right: 6,
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: n.badgeType === 'activeOrders' ? '#3b82f6' : 'var(--color-red)',
+                  }} />
+                )}
 
-                  {/* Delivery Hub pause indicator */}
-                  {n.key === 'delivery_hub' && anyPlatformPaused && !isCollapsed && (
-                    <span 
-                      className="nav-badge" 
-                      style={{ 
-                        background: 'rgba(255, 149, 0, 0.18)', 
-                        color: '#ff9500', 
-                        border: '1px solid rgba(255, 149, 0, 0.35)',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em',
-                        padding: '1px 5px',
-                        borderRadius: 'var(--radius-full)'
-                      }}
-                      title="Delivery channels paused"
-                    >
-                      PAUSED
-                    </span>
-                  )}
-                  {n.key === 'delivery_hub' && anyPlatformPaused && isCollapsed && (
-                    <span style={{
-                      position: 'absolute', top: 4, right: 6,
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: '#ff9500',
-                    }} />
-                  )}
-                </NavLink>
-              );
-            })}
-          </div>
-        )}
+                {/* Delivery Hub pause indicator */}
+                {n.key === 'delivery_hub' && anyPlatformPaused && !isCollapsed && (
+                  <span 
+                    className="nav-badge" 
+                    style={{ 
+                      background: 'rgba(255, 149, 0, 0.18)', 
+                      color: '#ff9500', 
+                      border: '1px solid rgba(255, 149, 0, 0.35)',
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      padding: '1px 5px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                    title="Delivery channels paused"
+                  >
+                    PAUSED
+                  </span>
+                )}
+                {n.key === 'delivery_hub' && anyPlatformPaused && isCollapsed && (
+                  <span style={{
+                    position: 'absolute', top: 4, right: 6,
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: '#ff9500',
+                  }} />
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
 
         {/* Admin / Management Section */}
         {isAdmin && (
