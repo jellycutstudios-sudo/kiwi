@@ -479,6 +479,18 @@ export const useAuthStore = create(
                   }
                 }
               }
+            } else if (userData.role === 'super_admin') {
+              // Super admin fallback: load first approved restaurant so branch-level views have active context
+              try {
+                const restQuery = query(collection(db, 'restaurants'));
+                const restSnap = await getDocs(restQuery);
+                if (!restSnap.empty) {
+                  const firstApproved = restSnap.docs.find(d => d.data().status === 'approved') || restSnap.docs[0];
+                  restData = { id: firstApproved.id, ...firstApproved.data() };
+                }
+              } catch (rErr) {
+                console.warn('Could not load fallback restaurant for super admin:', rErr);
+              }
             }
             set({
               user: firebaseUser,

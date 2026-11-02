@@ -259,7 +259,7 @@ export default function Login() {
           {mode === 'email' ? (
             <form onSubmit={handleLogin} className="login-form">
               <div className="form-group">
-                <label className="form-label">Mobile Number or Email</label>
+                <label className="form-label" htmlFor="login-email">Mobile Number or Email</label>
                 <input
                   id="login-email"
                   className="form-input"
@@ -275,13 +275,14 @@ export default function Login() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Password</label>
+                <label className="form-label" htmlFor="login-password">Password</label>
                 <div className="password-input-wrapper">
                   <input
                     id="login-password"
                     className="form-input password-input"
                     type={showPw ? 'text' : 'password'}
-                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={e => {
                       setPassword(e.target.value);
@@ -293,7 +294,8 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPw(!showPw)}
                     className="password-toggle-btn"
-                    aria-label="Toggle password visibility"
+                    aria-label={showPw ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPw}
                   >
                     {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -337,7 +339,7 @@ export default function Login() {
           ) : mode === 'pin' ? (
             <div className="login-form">
               <div className="form-group login-rest-id-group">
-                <label className="form-label">Restaurant ID, Name, or Phone</label>
+                <label className="form-label" htmlFor="login-restaurant-id">Restaurant ID, Name, or Phone</label>
                 <input
                   id="login-restaurant-id"
                   className="form-input"
@@ -385,9 +387,10 @@ export default function Login() {
             <div className="login-form register-form">
               <form onSubmit={handleRegister} className="register-form-inner">
                 <div className="form-group">
-                  <label className="form-label">Restaurant Name</label>
+                  <label className="form-label" htmlFor="reg-rest-name">Restaurant Name</label>
                   <input
                     id="reg-rest-name"
+                    autoComplete="organization"
                     className="form-input"
                     placeholder="e.g. Delicious Cafe"
                     value={regRestName}
@@ -398,9 +401,10 @@ export default function Login() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Mobile Number or Email</label>
+                  <label className="form-label" htmlFor="reg-email">Mobile Number or Email</label>
                   <input
                     id="reg-email"
+                    autoComplete="username"
                     className="form-input"
                     type="text"
                     placeholder="9876543210 or name@example.com"
@@ -411,12 +415,13 @@ export default function Login() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Password</label>
+                  <label className="form-label" htmlFor="reg-password">Password</label>
                   <div className="password-input-wrapper">
                     <input
                       id="reg-password"
-                      className="form-input"
+                      className="form-input password-input"
                       type={showPw ? 'text' : 'password'}
+                      autoComplete="new-password"
                       placeholder="At least 6 characters"
                       value={regPassword}
                       onChange={e => setRegPassword(e.target.value)}
@@ -428,6 +433,7 @@ export default function Login() {
                       className="password-toggle-btn"
                       onClick={() => setShowPw(!showPw)}
                       aria-label={showPw ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPw}
                     >
                       {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>

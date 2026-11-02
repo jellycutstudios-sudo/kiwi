@@ -81,7 +81,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
   // Query sibling branches for franchise owner or super admin
   useEffect(() => {
-    if (!restaurant?.id) {
+    if (role !== 'super_admin' && !restaurant?.id) {
       setAvailableOutlets([]);
       return;
     }
@@ -89,16 +89,16 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     let q = null;
     if (role === 'super_admin') {
       q = collection(db, 'restaurants');
-    } else if (restaurant.brandId) {
+    } else if (restaurant?.brandId) {
       q = query(collection(db, 'restaurants'), where('brandId', '==', restaurant.brandId));
-    } else if (restaurant.ownerUid) {
+    } else if (restaurant?.ownerUid) {
       q = query(collection(db, 'restaurants'), where('ownerUid', '==', restaurant.ownerUid));
     } else if (user?.uid) {
       q = query(collection(db, 'restaurants'), where('ownerUid', '==', user.uid));
     }
 
     if (!q) {
-      setAvailableOutlets([restaurant]);
+      setAvailableOutlets(restaurant ? [restaurant] : []);
       return;
     }
 
@@ -106,15 +106,18 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const filtered = role === 'super_admin'
         ? list
-        : list.filter(r => r.id === restaurant.id || r.status === 'approved');
-      setAvailableOutlets(filtered.length > 0 ? filtered : [restaurant]);
+        : list.filter(r => r.id === restaurant?.id || r.status === 'approved');
+      setAvailableOutlets(filtered.length > 0 ? filtered : (restaurant ? [restaurant] : []));
+      if (role === 'super_admin' && !restaurant?.id && filtered.length > 0) {
+        switchRestaurant(filtered[0]);
+      }
     }, (err) => {
       console.warn('Sidebar availableOutlets listener:', err);
-      setAvailableOutlets([restaurant]);
+      setAvailableOutlets(restaurant ? [restaurant] : []);
     });
 
     return unsub;
-  }, [restaurant, user?.uid, role]);
+  }, [restaurant, user?.uid, role, switchRestaurant]);
 
   // Check if current route is in Admin section so it auto-expands
   const isCurrentRouteAdmin = location.pathname.startsWith('/admin');
@@ -730,7 +733,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 gap: '5px'
               }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                <span style={{ textTransform: 'capitalize' }}>{staffDoc?.role ?? 'Staff'}</span>
+                <span style={{ textTransform: 'capitalize' }}>{staffDoc?.role === 'super_admin' ? 'Super Admin' : (staffDoc?.role ?? 'Staff')}</span>
               </div>
             </div>
           </div>

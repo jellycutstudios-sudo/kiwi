@@ -9407,32 +9407,47 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   text-transform: none !important;
 }
 
-.login-form .form-input {
+.login-page .login-form .form-group .form-input {
   height: 52px;
   padding: 0 16px;
   border-radius: 14px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8fafc !important;
-  font-size: 15px;
+  border: 1.5px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 16px;
   color: #0f172a;
+  color-scheme: light;
+  caret-color: #0f172a;
   transition: all 150ms ease;
   width: 100%;
   box-sizing: border-box;
-  -webkit-box-shadow: 0 0 0px 1000px #f8fafc inset !important;
-  -webkit-text-fill-color: #0f172a !important;
 }
 
-.login-form .form-input:focus {
+.login-page .login-form .form-group .form-input:focus {
   outline: none;
   border-color: #0f172a;
-  background: #ffffff !important;
-  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
-  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.06);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.15);
 }
 
-.login-form .form-input::placeholder {
-  color: #94a3b8;
+.login-page .login-form .form-group .form-input::placeholder {
+  color: #64748b;
+  opacity: 1;
   font-size: 14.5px;
+}
+
+/* Keep autofill colors local to auth fields without hiding the focus ring. */
+.login-page .login-form .form-group .form-input:autofill {
+  -webkit-text-fill-color: #0f172a;
+  box-shadow: 0 0 0 1000px #f8fafc inset;
+}
+
+.login-page .login-form .form-group .form-input:autofill:focus {
+  box-shadow: 0 0 0 1000px #ffffff inset, 0 0 0 3px rgba(15, 23, 42, 0.15);
+}
+
+.login-page :is(button, a):focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 3px;
 }
 
 /* ── Password toggle ── */
