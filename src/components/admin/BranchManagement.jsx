@@ -191,10 +191,22 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
     const status = subscriptionStatus(branch, subscription);
     const owner = usersMap[branch.ownerUid];
     return <article key={branch.id} className="branch-card" aria-label={`Branch ${branch.name}`}>
-      <div className="branch-row"><div className="branch-grow"><h4>{branch.name}</h4><p className="text-secondary">{branch.address || 'Address not added'}</p></div>
-        <span className={`badge ${branch.status === 'suspended' ? 'badge-red' : branch.status === 'approved' ? 'badge-green' : 'badge-orange'}`}>
-          {branch.status === 'suspended' ? 'Suspended' : branch.status === 'approved' ? 'Approved' : 'Pending approval'}
-        </span>
+      <div className="branch-row">
+        <div className="branch-grow">
+          <h4>{branch.name}</h4>
+          <p className="text-secondary">{branch.address || 'Address not added'}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {(branch.isMainBranch || !branch.parentRestaurantId) && (
+            <span className="badge badge-purple" style={{ fontSize: '10px' }}>Main HQ</span>
+          )}
+          {branch.parentRestaurantId && (
+            <span className="badge badge-blue" style={{ fontSize: '10px' }}>Outlet</span>
+          )}
+          <span className={`badge ${branch.status === 'suspended' ? 'badge-red' : branch.status === 'approved' ? 'badge-green' : 'badge-orange'}`}>
+            {branch.status === 'suspended' ? 'Suspended' : branch.status === 'approved' ? 'Approved' : 'Pending approval'}
+          </span>
+        </div>
       </div>
       <p className="text-secondary branch-owner">{owner?.name || branch.ownerName || 'Owner'} · {owner?.email || branch.email || 'No owner email'}</p>
       <div className="branch-billing-summary">
@@ -236,7 +248,13 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
     </div>}
     {!ready && !loadError && <p role="status" className="text-secondary">Loading businesses and billing…</p>}
     <div className="branch-metrics">
-      {[['Businesses', loaded.groups && !loadErrors.businesses ? groups.length : '—'], ['Branches', restaurants.length], ['Pending approval', pendingCount], ['Due in 7 days', ready ? dueCount : '—'], ['Overdue', ready ? overdueCount : '—']].map(([label, value]) =>
+      {[
+        ['Active Brands', (loaded.groups && !loadErrors.businesses ? groups.length : 0) + (ungrouped.length > 0 ? (new Set(ungrouped.map(b => b.ownerUid || b.id)).size) : 0) || '—'],
+        ['Total Outlets', restaurants.length],
+        ['Pending approval', pendingCount],
+        ['Due in 7 days', ready ? dueCount : '—'],
+        ['Overdue', ready ? overdueCount : '—']
+      ].map(([label, value]) =>
         <div className="card card-padded" key={label}><span className="branch-caption">{label}</span><strong>{value}</strong></div>)}
     </div>
     <div className="branch-row branch-toolbar">
@@ -263,7 +281,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
       </section>;
     })}
     {ungrouped.filter(matches).length > 0 && <section className="card branch-group" aria-label={groupsAvailable ? 'Ungrouped branches' : 'Branches'}>
-      <div className="branch-group-header"><h3>{groupsAvailable ? 'Individual branches' : 'Branches'}</h3><p className="text-secondary">{groupsAvailable ? 'Manage billing here, or create a business to connect branches belonging to the same owner.' : 'Business grouping is unavailable. You can still open branch consoles and manage approvals.'}</p></div>
+      <div className="branch-group-header"><h3>{groupsAvailable ? 'Restaurant Brands (Main HQ & Outlets)' : 'Branches'}</h3><p className="text-secondary">{groupsAvailable ? 'Main headquarters and individual outlets. You can manage billing, add sub-outlets, or connect branches under a shared brand.' : 'Business grouping is unavailable. You can still open branch consoles and manage approvals.'}</p></div>
       <div className="branch-grid">{ungrouped.filter(matches).map(renderBranch)}</div>
     </section>}
     {!shownCount && <div className="card card-padded branch-empty">{restaurants.length ? 'No branches match your filters.' : 'Create a business, then add its first branch.'}</div>}

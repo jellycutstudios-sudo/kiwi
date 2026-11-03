@@ -298,6 +298,8 @@ export default function Restaurants() {
     setSaving(true);
     try {
       const effectiveUid = user?.uid || staffDoc?.id || staffDoc?.uid;
+      const isFirst = !restaurants || restaurants.length === 0;
+      const mainBranch = restaurants.find(r => r.isMainBranch || !r.parentRestaurantId) || restaurants[0];
       const ref = await addDoc(collection(db, 'restaurants'), {
         name: form.name.trim(),
         address: form.address.trim(),
@@ -310,6 +312,8 @@ export default function Restaurants() {
         email: user?.email || staffDoc?.email || '',
         ownerName: staffDoc?.name || user?.displayName || '',
         status: isSuperAdmin ? 'approved' : 'pending',
+        isMainBranch: Boolean(isFirst),
+        parentRestaurantId: !isFirst && mainBranch ? mainBranch.id : null,
       });
       toast.success(isSuperAdmin ? `Restaurant created! ID: ${ref.id}` : `Branch registered! Pending approval by Super Admin.`);
       setShowForm(false);
@@ -639,12 +643,24 @@ export default function Restaurants() {
                         <div style={{ fontWeight: 'var(--weight-bold)', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {r.name}
                         </div>
-                        <span
-                          className={`badge ${isPending ? 'badge-orange' : isSuspended ? 'badge-red' : 'badge-green'}`}
-                          style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                        >
-                          {isPending ? 'Pending Approval' : isSuspended ? 'Suspended' : 'Approved'}
-                        </span>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          {(r.isMainBranch || !r.parentRestaurantId) && (
+                            <span className="badge badge-purple" style={{ fontSize: 9, fontWeight: 700 }}>
+                              ⭐ Main HQ
+                            </span>
+                          )}
+                          {r.parentRestaurantId && (
+                            <span className="badge badge-blue" style={{ fontSize: 9 }}>
+                              📍 Outlet
+                            </span>
+                          )}
+                          <span
+                            className={`badge ${isPending ? 'badge-orange' : isSuspended ? 'badge-red' : 'badge-green'}`}
+                            style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                          >
+                            {isPending ? 'Pending' : isSuspended ? 'Suspended' : 'Approved'}
+                          </span>
+                        </div>
                       </div>
                       {r.address && (
                         <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

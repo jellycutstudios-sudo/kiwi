@@ -543,9 +543,16 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                         color: isActive ? 'var(--color-accent, #38bdf8)' : 'var(--color-label)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px'
                       }}>
-                        {out.name}
+                        <span>{(out.isMainBranch || !out.parentRestaurantId) ? '⭐' : '📍'}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{out.name}</span>
+                        {(out.isMainBranch || !out.parentRestaurantId) && (
+                          <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.2)', color: '#8b5cf6', fontWeight: 700, flexShrink: 0 }}>HQ</span>
+                        )}
                       </span>
                       {out.address && (
                         <span style={{ fontSize: '10px', color: 'var(--color-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
