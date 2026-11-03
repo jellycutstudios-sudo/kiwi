@@ -132,6 +132,11 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
   const toggleBranch = id => update('restaurantIds', form.restaurantIds.includes(id) ? form.restaurantIds.filter(value => value !== id) : [...form.restaurantIds, id]);
 
   function openNewBranch(groupId = groups[0]?.id || '') {
+    if (!groups.length) {
+      toast('Create a business first to group branches under an owner.', { icon: '🏢' });
+      open('group', {}, { name: '', ownerUid: '', restaurantIds: [] });
+      return;
+    }
     open('branch', {}, { groupId, name: '', address: '', phone: '', currency: 'INR', fee: '', cycle: 'monthly' });
   }
 
@@ -220,7 +225,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
     <div className="branch-row branch-toolbar">
       <p className="text-secondary branch-grow">One owner login. Separate fees and renewals for every branch.</p>
       <button className="btn btn-secondary" disabled={!ready} onClick={() => open('group', {}, { name: '', ownerUid: '', restaurantIds: [] })}><Building2 size={16} /> Create business</button>
-      <button className="btn btn-primary" disabled={!ready || !groups.length} onClick={() => openNewBranch()}><Plus size={16} /> New branch</button>
+      <button className="btn btn-primary" disabled={!ready} onClick={() => openNewBranch()} title={!groups.length ? 'Create a business first to add branches' : 'Add new branch'}><Plus size={16} /> New branch</button>
     </div>
     {loadError && <div className="branch-notice" role="alert">{billingLoadMessage(loadErrors)}
       <button className="btn btn-secondary btn-sm" onClick={() => { setLoadErrors({}); setLoaded({ groups: false, subscriptions: false }); setRetry(value => value + 1); }}>Try again</button>
