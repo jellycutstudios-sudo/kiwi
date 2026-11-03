@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { Building2, CreditCard, Link2, Plus, Search, X } from 'lucide-react';
+import { Building2, ChevronRight, ChevronsUpDown, CreditCard, Link2, Plus, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db } from '../../firebase';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
@@ -126,6 +126,29 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
       };
     });
   }, [ungrouped, usersMap]);
+
+  const [collapsedBrands, setCollapsedBrands] = useState(() => new Set());
+  const toggleBrand = key => {
+    setCollapsedBrands(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const allBrandKeys = useMemo(() => {
+    const groupKeys = groups.map(g => g.id);
+    const brandKeys = ungroupedBrands.map(b => b.ownerUid || b.brandTitle);
+    return [...groupKeys, ...brandKeys];
+  }, [groups, ungroupedBrands]);
+  const allCollapsed = allBrandKeys.length > 0 && allBrandKeys.every(k => collapsedBrands.has(k));
+  const toggleAll = () => {
+    if (allCollapsed) {
+      setCollapsedBrands(new Set());
+    } else {
+      setCollapsedBrands(new Set(allBrandKeys));
+    }
+  };
   const pendingCount = restaurants.filter(branch => ['pending', 'trial_pending'].includes(branch.status)).length;
   const overdueCount = restaurants.filter(branch => subscriptionStatus(branch, subscriptions[branch.id]).key === 'overdue').length;
   const dueCount = restaurants.filter(branch => subscriptionStatus(branch, subscriptions[branch.id]).key === 'due_soon').length;
@@ -211,14 +234,17 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
     const subscription = subscriptions[branch.id];
     const status = subscriptionStatus(branch, subscription);
     const owner = usersMap[branch.ownerUid];
-    return <article key={branch.id} className="branch-card" aria-label={`Branch ${branch.name}`}>
+    const isMainHQ = branch.isMainBranch || (!branch.parentRestaurantId && branch.isMainBranch !== false);
+    const isOutlet = Boolean(branch.parentRestaurantId || branch.isMainBranch === false);
+
+    return <article key={branch.id} className={`branch-card ${isMainHQ ? 'is-main-hq' : isOutlet ? 'is-outlet' : ''}`} aria-label={`Branch ${branch.name}`}>
       <div className="branch-row">
         <div className="branch-grow">
           <h4>{branch.name}</h4>
           <p className="text-secondary">{branch.address || 'Address not added'}</p>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          {branch.isMainBranch || (!branch.parentRestaurantId && branch.isMainBranch !== false) ? (
+          {isMainHQ ? (
             <span className="badge badge-purple" style={{ fontSize: '10px' }}>⭐ Main HQ</span>
           ) : (
             <span className="badge badge-blue" style={{ fontSize: '10px' }}>📍 Outlet</span>
@@ -282,22 +308,59 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
       <select className="form-select branch-filter" aria-label="Filter branches" value={filter} onChange={e => setFilter(e.target.value)}>
         {[['all', 'All branches'], ['pending', 'Pending approval'], ['active', 'Active subscription'], ['due_soon', 'Due soon'], ['overdue', 'Overdue'], ['awaiting_payment', 'Awaiting payment'], ['not_set', 'Billing not set'], ['suspended', 'Suspended']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '36px', whiteSpace: 'nowrap' }}
+        onClick={toggleAll}
+        title={allCollapsed ? 'Expand all brands' : 'Collapse all brands'}
+      >
+        <ChevronsUpDown size={14} />
+        {allCollapsed ? 'Expand all' : 'Collapse all'}
+      </button>
     </div>
-    <p className="text-secondary branch-help">Paid-through dates are inclusive. Overdue branches remain usable until you suspend them.</p>
+    <p className="text-secondary branch-help">Paid-through dates are inclusive. Overdue branches remain usable until you suspend them. Click any brand to expand or collapse.</p>
     {groupsAvailable && groups.map(group => {
       const allBranches = restaurants.filter(branch => branch.businessGroupId === group.id);
       const visible = allBranches.filter(matches);
       if (!visible.length && (search || filter !== 'all')) return null;
       const owner = usersMap[group.ownerUid];
-      return <section className="card branch-group" key={group.id} aria-label={`Business ${group.name}`}>
-        <div className="branch-row branch-group-header"><div className="branch-grow"><h3><Building2 size={18} /> {group.name}</h3>
-          <p className="text-secondary">{owner?.name || 'Owner'} · {owner?.email || group.ownerUid} · {allBranches.length} branch{allBranches.length === 1 ? '' : 'es'}</p>
-        </div><div className="branch-actions">
-          <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => open('connect', { groupId: group.id, name: group.name }, { restaurantIds: [] })}><Link2 size={14} /> Connect existing</button>
-          <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => openNewBranch(group.id)}><Plus size={14} /> Add branch</button>
-          <button className="btn btn-primary btn-sm" disabled={!ready || !allBranches.length} onClick={() => openPayment(allBranches)}>Record payment</button>
-        </div></div>
-        {visible.length ? <div className="branch-grid">{visible.map(renderBranch)}</div> : <p className="text-secondary branch-empty">Connect an existing branch or add this business’s first branch.</p>}
+      const isOpen = Boolean(search.trim()) || !collapsedBrands.has(group.id);
+
+      return <section className="card branch-group brand-accordion-card" key={group.id} aria-label={`Business ${group.name}`}>
+        <div
+          className="brand-accordion-header"
+          onClick={() => toggleBrand(group.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBrand(group.id); } }}
+          aria-expanded={isOpen}
+        >
+          <div className="brand-header-left">
+            <div className={`brand-chevron-icon ${isOpen ? 'open' : ''}`}>
+              <ChevronRight size={18} />
+            </div>
+            <div className="brand-header-titles">
+              <div className="brand-header-title-row">
+                <strong className="brand-title">🏢 {group.name}</strong>
+                <span className="badge badge-purple" style={{ fontSize: '10.5px' }}>
+                  {allBranches.length} Branch{allBranches.length === 1 ? '' : 'es'}
+                </span>
+              </div>
+              <p className="brand-header-subtitle">
+                {owner?.name || 'Owner'} · {owner?.email || group.ownerUid}
+              </p>
+            </div>
+          </div>
+          <div className="brand-header-actions" onClick={e => e.stopPropagation()}>
+            <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => open('connect', { groupId: group.id, name: group.name }, { restaurantIds: [] })}><Link2 size={14} /> Connect existing</button>
+            <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => openNewBranch(group.id)}><Plus size={14} /> Add branch</button>
+            <button className="btn btn-primary btn-sm" disabled={!ready || !allBranches.length} onClick={() => openPayment(allBranches)}>Record payment</button>
+          </div>
+        </div>
+        {isOpen && (
+          visible.length ? <div className="branch-grid">{visible.map(renderBranch)}</div> : <p className="text-secondary branch-empty">Connect an existing branch or add this business’s first branch.</p>
+        )}
       </section>;
     })}
     {ungrouped.filter(matches).length > 0 && (
@@ -306,37 +369,70 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
           <h3>{groupsAvailable ? 'Restaurant Brands (Main HQ & Outlets)' : 'Branches'}</h3>
           <p className="text-secondary">
             {groupsAvailable
-              ? 'Main headquarters and multi-branch outlets grouped by restaurant brand.'
+              ? 'Main headquarters and multi-branch outlets grouped by restaurant brand. Click any brand to expand or collapse.'
               : 'Business grouping is unavailable. You can still open branch consoles and manage approvals.'}
           </p>
         </div>
         {ungroupedBrands.map(brand => {
+          const brandKey = brand.ownerUid || brand.brandTitle;
           const visible = brand.branches.filter(matches);
           if (!visible.length && (search || filter !== 'all')) return null;
+          const isOpen = Boolean(search.trim()) || !collapsedBrands.has(brandKey);
+          const isMulti = brand.branches.length > 1;
+
           return (
-            <div key={brand.ownerUid || brand.brandTitle} style={{ borderBottom: '1px solid var(--color-separator)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-separator)' }}>
-                <div>
-                  <strong style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    🏢 {brand.brandTitle}
-                    <span className="badge badge-purple" style={{ fontSize: '10px' }}>
-                      {brand.branches.length} Outlet{brand.branches.length === 1 ? '' : 's'}
-                    </span>
-                  </strong>
-                  <p className="text-secondary" style={{ fontSize: '11px', margin: '2px 0 0' }}>
-                    {brand.owner?.name || 'Owner'} · {brand.owner?.email || brand.ownerUid}
-                  </p>
+            <div key={brandKey} className="brand-accordion-card">
+              <div
+                className="brand-accordion-header"
+                onClick={() => toggleBrand(brandKey)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBrand(brandKey); } }}
+                aria-expanded={isOpen}
+              >
+                <div className="brand-header-left">
+                  <div className={`brand-chevron-icon ${isOpen ? 'open' : ''}`}>
+                    <ChevronRight size={18} />
+                  </div>
+                  <div className="brand-header-titles">
+                    <div className="brand-header-title-row">
+                      <strong className="brand-title">🏢 {brand.brandTitle}</strong>
+                      {isMulti ? (
+                        <span className="badge badge-purple" style={{ fontSize: '10.5px' }}>
+                          {brand.branches.length} Outlets (Multi-Branch)
+                        </span>
+                      ) : (
+                        <span className="badge badge-secondary" style={{ fontSize: '10.5px' }}>
+                          Single Location
+                        </span>
+                      )}
+                    </div>
+                    <p className="brand-header-subtitle">
+                      {brand.owner?.name || 'Owner'} · {brand.owner?.email || brand.ownerUid}
+                      {brand.branches[0]?.address ? ` · 📍 ${brand.branches[0].address}` : ''}
+                    </p>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="brand-header-actions" onClick={e => e.stopPropagation()}>
                   <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => openNewBranch('', brand.ownerUid)}>
                     <Plus size={14} /> Add Outlet
                   </button>
                   <button className="btn btn-secondary btn-sm" disabled={!ready || !brand.branches.length} onClick={() => openPayment(brand.branches)}>
-                    Record Payment
+                    <CreditCard size={14} /> Record Payment
                   </button>
                 </div>
               </div>
-              <div className="branch-grid">{visible.map(renderBranch)}</div>
+              {isOpen && (
+                <div className="brand-accordion-content">
+                  {isMulti && (
+                    <div className="brand-chain-banner">
+                      <span>🏛️ Brand Structure:</span>
+                      <strong>⭐ Main HQ</strong> + <strong>📍 {brand.branches.length - 1} Sub-Outlet{brand.branches.length > 2 ? 's' : ''}</strong>
+                    </div>
+                  )}
+                  <div className="branch-grid">{visible.map(renderBranch)}</div>
+                </div>
+              )}
             </div>
           );
         })}

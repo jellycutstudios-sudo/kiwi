@@ -41,6 +41,95 @@
 .branch-check small { display: block; margin-top: 2px; }
 .branch-allocation { border: 1px solid var(--color-separator); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere; }
 .branch-payment-total { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 14px; border-radius: 10px; background: var(--color-accent-light); font-size: 15px; }
+
+/* Brand Accordion */
+.brand-accordion-card {
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-bg);
+  transition: background-color 0.15s ease;
+}
+.brand-accordion-card:last-child {
+  border-bottom: none;
+}
+.brand-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+  gap: 12px;
+}
+.brand-accordion-header:hover {
+  background: var(--color-fill, rgba(255, 255, 255, 0.05));
+}
+.brand-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.brand-chevron-icon {
+  color: var(--color-label-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.brand-chevron-icon.open {
+  transform: rotate(90deg);
+}
+.brand-header-titles {
+  min-width: 0;
+  flex: 1;
+}
+.brand-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.brand-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-label);
+}
+.brand-header-subtitle {
+  font-size: 11.5px;
+  margin: 3px 0 0;
+  color: var(--color-label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brand-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.brand-chain-banner {
+  padding: 7px 18px;
+  background: rgba(139, 92, 246, 0.08);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  font-size: 11.5px;
+  color: #a78bfa;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.branch-card.is-main-hq {
+  border-left: 3px solid #8b5cf6;
+}
+.branch-card.is-outlet {
+  border-left: 3px solid #38bdf8;
+}
+
 @media (max-width: 480px) {
   .branch-form-grid { grid-template-columns: 1fr; }
   .branch-grid { padding: 10px; }
