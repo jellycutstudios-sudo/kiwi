@@ -10,7 +10,7 @@ import {
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Settings, Building2, ChevronLeft, ChevronRight, LogOut,
   Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
-  ChevronDown, ChevronUp, Copy, Check, ShieldCheck
+  ChevronDown, ChevronUp, Copy, Check, ShieldCheck, Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
@@ -548,9 +548,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                         alignItems: 'center',
                         gap: '5px'
                       }}>
-                        <span>{(out.isMainBranch || !out.parentRestaurantId) ? '⭐' : '📍'}</span>
+                        <span>{(out.isMainBranch || (!out.parentRestaurantId && out.isMainBranch !== false)) ? '⭐' : '📍'}</span>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{out.name}</span>
-                        {(out.isMainBranch || !out.parentRestaurantId) && (
+                        {(out.isMainBranch || (!out.parentRestaurantId && out.isMainBranch !== false)) && (
                           <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.2)', color: '#8b5cf6', fontWeight: 700, flexShrink: 0 }}>HQ</span>
                         )}
                       </span>
