@@ -2436,13 +2436,95 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-search-wrapper {
-  flex: 1;
+  flex: 0 1 280px;
   min-width: 140px;
-  max-width: 440px;
+  max-width: 340px;
   display: flex;
   align-items: center;
   position: relative;
   transition: flex 0.2s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* POS Topbar Dietary Segmented Control (Always visible on Desktop & Tablet) */
+.pos-dietary-topbar-pills {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--color-bg-secondary, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--color-separator, rgba(0, 0, 0, 0.08));
+  padding: 2px 3px;
+  border-radius: var(--radius-md, 8px);
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 34px;
+}
+
+[data-theme="dark"] .pos-dietary-topbar-pills {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pos-dietary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-label-secondary, #64748b);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-family: inherit;
+}
+
+[data-theme="dark"] .pos-dietary-pill {
+  color: #94a3b8;
+}
+
+.pos-dietary-pill:hover {
+  background: var(--color-bg-tertiary, rgba(0, 0, 0, 0.06));
+  color: var(--color-label, #0f172a);
+}
+
+[data-theme="dark"] .pos-dietary-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+}
+
+.pos-dietary-pill.active {
+  background: var(--color-surface, #ffffff);
+  color: var(--color-label, #0f172a);
+  border-color: var(--color-separator, rgba(0, 0, 0, 0.1));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .pos-dietary-pill.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.pos-dietary-pill.veg.active {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.pos-dietary-pill.nonveg.active {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.pos-dietary-pill.popular.active {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
 }
 
 .pos-search-suggestions {
@@ -2699,6 +2781,21 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
     gap: 6px;
   }
 
+  .pos-dietary-topbar-pills {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    max-width: 170px;
+  }
+  .pos-dietary-topbar-pills::-webkit-scrollbar {
+    display: none;
+  }
+  .pos-dietary-pill {
+    padding: 0 6px;
+    font-size: 11px;
+    gap: 3px;
+  }
+
   /* Expand search on mobile when focused to give ample typing room */
   .pos-search-wrapper:focus-within {
     flex: 2;
@@ -2708,6 +2805,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 /* Mobile phones (<= 560px): switch density buttons to sleek icon-only to eliminate congestion */
 @media (max-width: 560px) {
+  .pos-dietary-topbar-pills {
+    max-width: 125px;
+  }
   .density-label {
     display: none !important;
   }

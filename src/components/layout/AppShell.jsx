@@ -65,6 +65,7 @@ export default function AppShell() {
   const setIsFocusMode = useMenuStore(s => s.setIsFocusMode);
   const catFirstOverview = useMenuStore(s => s.catFirstOverview);
   const setCatFirstOverview = useMenuStore(s => s.setCatFirstOverview);
+  const dietaryFilter = useMenuStore(s => s.dietaryFilter);
   const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const { isCategoryFirst } = usePosTemplate();
   const subscribeStaff = useStaffStore(s => s.subscribeStaff);
@@ -73,7 +74,6 @@ export default function AppShell() {
   const offlineQueue = useOfflineQueueStore(s => s.queue);
   const isSyncingQueue = useOfflineQueueStore(s => s.isSyncing);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Initialize network monitoring listeners
   useEffect(() => {
@@ -302,16 +302,14 @@ export default function AppShell() {
                 </button>
               )}
 
-              {/* Search Bar with Dynamic Search Suggestions */}
+              {/* Search Bar */}
               <div className="pos-search-wrapper">
                 <Search size={14} className="pos-search-icon" />
                 <input
                   className="form-input pos-search-input"
-                  placeholder="Search menu, 'veg', 'non-veg'..."
+                  placeholder="Search menu..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                   id="menu-search-input"
                   aria-label="Search menu"
                 />
@@ -326,48 +324,52 @@ export default function AppShell() {
                     <X size={13} />
                   </button>
                 )}
+              </div>
 
-                {/* Dynamic Floating Quick Suggestions (shown only when focused) */}
-                {isSearchFocused && (() => {
-                  const safeSearchStr = typeof search === 'string' ? search.trim().toLowerCase() : '';
-                  return (
-                    <div className="pos-search-suggestions" role="toolbar" aria-label="Dynamic search suggestions">
-                      <span className="pos-search-suggestion-label">Filter:</span>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setSearch(safeSearchStr === 'veg' ? '' : 'veg');
-                        }}
-                        className={`pos-search-suggestion-chip ${safeSearchStr === 'veg' ? 'active' : ''}`}
-                      >
-                        <span className="food-badge-veg" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
-                        <span>Veg</span>
-                      </button>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setSearch(safeSearchStr === 'non-veg' ? '' : 'non-veg');
-                        }}
-                        className={`pos-search-suggestion-chip ${safeSearchStr === 'non-veg' ? 'active' : ''}`}
-                      >
-                        <span className="food-badge-nonveg" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
-                        <span>Non-Veg</span>
-                      </button>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setSearch(safeSearchStr === 'popular' ? '' : 'popular');
-                        }}
-                        className={`pos-search-suggestion-chip ${safeSearchStr === 'popular' ? 'active' : ''}`}
-                      >
-                        <span>🔥 Popular</span>
-                      </button>
-                    </div>
-                  );
-                })()}
+              {/* Top Bar Dietary Filter Pills (Always visible on Desktop & Tablet) */}
+              <div className="pos-dietary-topbar-pills" role="toolbar" aria-label="Dietary filters">
+                <button
+                  type="button"
+                  id="topbar-dietary-all"
+                  onClick={() => setDietaryFilter('all')}
+                  className={`pos-dietary-pill ${dietaryFilter === 'all' ? 'active' : ''}`}
+                  title="Show all items"
+                >
+                  <span>All</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="topbar-dietary-veg"
+                  onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+                  className={`pos-dietary-pill veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
+                  title="Show Vegetarian items only"
+                >
+                  <span className="food-badge-veg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
+                  <span>Veg</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="topbar-dietary-nonveg"
+                  onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+                  className={`pos-dietary-pill nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+                  title="Show Non-Vegetarian items only"
+                >
+                  <span className="food-badge-nonveg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
+                  <span>Non-Veg</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="topbar-dietary-bestseller"
+                  onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+                  className={`pos-dietary-pill popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+                  title="Show Bestseller & Popular items"
+                >
+                  <span style={{ fontSize: '12px' }}>🔥</span>
+                  <span>Popular</span>
+                </button>
               </div>
 
               {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}
