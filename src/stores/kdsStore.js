@@ -27,7 +27,7 @@ export const useKdsStore = create(() => ({
 
     const activeItems = updatedItems.filter(i => i.status !== 'cancelled' && i.status !== 'void');
     const hasPreparing = activeItems.some(i => i.status === 'preparing' || i.status === 'ready');
-    const allReady = activeItems.length > 0 && activeItems.every(i => i.status === 'ready');
+    const allReady = activeItems.length > 0 && activeItems.every(i => ['ready', 'served'].includes(i.status));
 
     let overallStatus = order.status;
     const updates = { items: updatedItems };
@@ -118,7 +118,7 @@ export const useKdsStore = create(() => ({
 
     const activeItems = updatedItems.filter(i => i.status !== 'cancelled' && i.status !== 'void');
     const hasPreparing = activeItems.some(i => i.status === 'preparing' || i.status === 'ready');
-    const allReady = activeItems.length > 0 && activeItems.every(i => i.status === 'ready');
+    const allReady = activeItems.length > 0 && activeItems.every(i => ['ready', 'served'].includes(i.status));
 
     let overallStatus = order.status;
     const updates = { items: updatedItems };
@@ -204,6 +204,7 @@ export const useKdsStore = create(() => ({
 
     try {
       if (order.id && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
         await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), {
           lastFoodReadyAlert: alertData
         });

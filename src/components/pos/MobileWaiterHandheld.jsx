@@ -168,9 +168,10 @@ export default function MobileWaiterHandheld({
 
   const handleAcknowledgePickedUp = async (orderId) => {
     hapticTap('medium');
+    const targetItemName = foodReadyAlert?.itemName;
     setFoodReadyAlert(null);
     if (orderId && restaurant?.id) {
-      await markOrderOrItemsServed(restaurant.id, orderId);
+      await markOrderOrItemsServed(restaurant.id, orderId, null, targetItemName);
       toast.success('Food marked as Picked Up & Served! ✓');
     }
   };

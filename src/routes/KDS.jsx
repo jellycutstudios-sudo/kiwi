@@ -127,7 +127,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
 
   const stationItems = (order.items ?? []).filter(i => (activeStation === 'All' || i.station === activeStation) && i.prepState !== 'hold');
   const anyStationPending = stationItems.some(i => !i.status || i.status === 'pending');
-  const allStationReady = stationItems.every(i => i.status === 'ready');
+  const allStationReady = stationItems.length > 0 && stationItems.every(i => ['ready', 'served'].includes(i.status));
 
   return (
     <div
@@ -339,7 +339,9 @@ const KDSTicketCard = memo(function KDSTicketCard({
                 </div>
                 {courseItems.map(item => {
                   const isReady = item.status === 'ready';
+                  const isServed = item.status === 'served';
                   const isPreparing = item.status === 'preparing';
+                  const isDone = isReady || isServed;
                   const originalIndex = item.originalIndex;
 
                   return (
@@ -354,23 +356,23 @@ const KDSTicketCard = memo(function KDSTicketCard({
                         padding: '7px 8px',
                         borderRadius: 8,
                         cursor: 'pointer',
-                        background: isPreparing ? 'var(--color-purple-light)' : (isReady ? 'transparent' : 'var(--color-bg-secondary)'),
+                        background: isPreparing ? 'var(--color-purple-light)' : (isDone ? 'transparent' : 'var(--color-bg-secondary)'),
                         border: isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-separator-opaque)',
                         transition: 'all 0.15s ease',
                       }}
                       title="Click to advance item prep status"
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8, opacity: isReady ? 0.55 : 1 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8, opacity: isDone ? 0.55 : 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span className="kds-item-qty" style={{
-                            background: isReady ? 'var(--color-fill-secondary)' : '#f59e0b',
-                            color: isReady ? 'var(--color-label-secondary)' : '#000000'
+                            background: isDone ? 'var(--color-fill-secondary)' : '#f59e0b',
+                            color: isDone ? 'var(--color-label-secondary)' : '#000000'
                           }}>
                             ×{item.qty}
                           </span>
                           <span style={{ 
-                            textDecoration: isReady ? 'line-through' : 'none',
-                            color: isReady ? 'var(--color-label-tertiary)' : 'var(--color-label)',
+                            textDecoration: isDone ? 'line-through' : 'none',
+                            color: isDone ? 'var(--color-label-tertiary)' : 'var(--color-label)',
                             fontSize: 15,
                             fontWeight: isPreparing ? 800 : 700,
                             letterSpacing: '-0.2px',
@@ -481,57 +483,98 @@ const KDSTicketCard = memo(function KDSTicketCard({
                             {item.station}
                           </span>
                         )}
-                        {isReady && handleRingWaiter && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRingWaiter(order, item.name);
-                              setRangItems(prev => ({ ...prev, [originalIndex]: true }));
-                              setTimeout(() => {
-                                setRangItems(prev => ({ ...prev, [originalIndex]: false }));
-                              }, 2500);
-                            }}
-                            style={{
+                        {isServed ? (
+                          <span style={{
+                            fontSize: 10.5,
+                            padding: '2px 7px',
+                            height: 24,
+                            borderRadius: 5,
+                            fontWeight: 800,
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 3,
+                            flexShrink: 0
+                          }}>
+                            ✓ Picked Up
+                          </span>
+                        ) : isReady ? (
+                          <>
+                            {handleRingWaiter && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRingWaiter(order, item.name);
+                                  setRangItems(prev => ({ ...prev, [originalIndex]: true }));
+                                  setTimeout(() => {
+                                    setRangItems(prev => ({ ...prev, [originalIndex]: false }));
+                                  }, 2500);
+                                }}
+                                style={{
+                                  fontSize: 10.5,
+                                  padding: '2px 6px',
+                                  height: 24,
+                                  borderRadius: 5,
+                                  fontWeight: 800,
+                                  background: rangItems[originalIndex] ? 'var(--color-green)' : 'rgba(245, 158, 11, 0.15)',
+                                  color: rangItems[originalIndex] ? '#ffffff' : '#f59e0b',
+                                  border: rangItems[originalIndex] ? '1px solid var(--color-green)' : '1px solid rgba(245, 158, 11, 0.35)',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 3,
+                                  flexShrink: 0,
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title="Ring Waiter / Food Runner for this dish"
+                              >
+                                <Bell size={11} />
+                                <span>{rangItems[originalIndex] ? 'Rang!' : 'Ring'}</span>
+                              </button>
+                            )}
+                            <span style={{
                               fontSize: 10.5,
-                              padding: '2px 6px',
+                              padding: '2px 7px',
                               height: 24,
                               borderRadius: 5,
                               fontWeight: 800,
-                              background: rangItems[originalIndex] ? 'var(--color-green)' : 'rgba(245, 158, 11, 0.15)',
-                              color: rangItems[originalIndex] ? '#ffffff' : '#f59e0b',
-                              border: rangItems[originalIndex] ? '1px solid var(--color-green)' : '1px solid rgba(245, 158, 11, 0.35)',
-                              cursor: 'pointer',
+                              background: 'var(--color-green-light)',
+                              color: 'var(--color-green)',
+                              border: '1px solid var(--color-green)',
                               display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: 3,
                               flexShrink: 0,
-                              transition: 'all 0.15s ease'
-                            }}
-                            title="Ring Waiter / Food Runner for this dish"
-                          >
-                            <Bell size={11} />
-                            <span>{rangItems[originalIndex] ? 'Rang!' : 'Ring'}</span>
-                          </button>
+                              letterSpacing: '0.02em'
+                            }}>
+                              ✓ Ready
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{
+                            fontSize: 10.5,
+                            padding: '2px 7px',
+                            height: 24,
+                            borderRadius: 5,
+                            fontWeight: 800,
+                            background: isPreparing ? 'var(--color-purple-light)' : 'rgba(245, 158, 11, 0.1)',
+                            color: isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)',
+                            border: isPreparing ? '1px solid var(--color-purple)' : '1px solid rgba(245, 158, 11, 0.3)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 3,
+                            flexShrink: 0,
+                            letterSpacing: '0.02em'
+                          }}>
+                            {isPreparing ? '🍳 Cooking' : 'To Cook'}
+                          </span>
                         )}
-                        <span style={{
-                          fontSize: 10.5,
-                          padding: '2px 7px',
-                          height: 24,
-                          borderRadius: 5,
-                          fontWeight: 800,
-                          background: isReady ? 'var(--color-green-light)' : (isPreparing ? 'var(--color-purple-light)' : 'rgba(245, 158, 11, 0.1)'),
-                          color: isReady ? 'var(--color-green)' : (isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)'),
-                          border: isReady ? '1px solid var(--color-green)' : (isPreparing ? '1px solid var(--color-purple)' : '1px solid rgba(245, 158, 11, 0.3)'),
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 3,
-                          flexShrink: 0,
-                          letterSpacing: '0.02em'
-                        }}>
-                          {isReady ? '✓ Ready' : (isPreparing ? '🍳 Cooking' : 'To Cook')}
-                        </span>
                       </div>
                     </div>
                   );
@@ -746,9 +789,9 @@ export default function KDS() {
         const orderTime = getOrderTimestampMs(o);
         if (orderTime && (now - orderTime) > STALE_KDS_MS) return false;
         if (activeStation === 'All') {
-          return o.items?.some(i => i.status !== 'ready' && i.prepState !== 'hold');
+          return (o.items || []).some(i => i.prepState !== 'hold');
         }
-        return o.items?.some(i => i.station === activeStation && i.status !== 'ready' && i.prepState !== 'hold');
+        return (o.items || []).some(i => i.station === activeStation && i.prepState !== 'hold');
       });
 
     return list.slice().sort((a, b) => {
@@ -857,8 +900,8 @@ export default function KDS() {
   }, [restaurant?.id, modes, updateKDSStationStatus, callSpecificToken]);
 
   const cycleItemStatus = useCallback(async (order, itemIndex, currentStatus) => {
-    // 1-tap fast bump: if pending or preparing -> mark ready. If ready -> revert to pending (instant undo)
-    const nextStatus = currentStatus === 'ready' ? 'pending' : 'ready';
+    // 1-tap fast bump: if pending or preparing -> mark ready. If ready or served -> revert to pending (instant undo)
+    const nextStatus = (currentStatus === 'ready' || currentStatus === 'served') ? 'pending' : 'ready';
     await updateKDSItemStatus(restaurant.id, order, itemIndex, nextStatus);
   }, [restaurant?.id, updateKDSItemStatus]);
 

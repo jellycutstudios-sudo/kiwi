@@ -1351,6 +1351,57 @@ export const useOrderStore = create((set, get) => ({
           }
 
           if (change.type === 'modified') {
+            // Kitchen-to-Waiter Food Ready Ring Alert (Cross-Device Firestore Sync)
+            if (data.lastFoodReadyAlert && data.lastFoodReadyAlert.timestamp) {
+              const alertTime = data.lastFoodReadyAlert.timestamp;
+              const now = Date.now();
+              const lastSounded = get().lastSoundedAlertTimestamps || {};
+              // Trigger if alert created within the last 2 minutes and not already sounded for this exact timestamp
+              if ((now - alertTime) < 120000 && lastSounded[orderId] !== alertTime) {
+                set({
+                  lastSoundedAlertTimestamps: { ...lastSounded, [orderId]: alertTime }
+                });
+
+                const currentRest = useAuthStore.getState().restaurant;
+                const currentStaff = useAuthStore.getState().staffDoc;
+                const currentRole = currentStaff?.role ?? 'admin';
+                const notifConfig = currentRest?.notifications ?? {};
+
+                // Only alert front-of-house staff (waiters, cashiers, admins), not kitchen display
+                if (currentRole !== 'kitchen') {
+                  const tone = notifConfig.readySoundTone || 'kitchen-bell';
+                  const effectiveVolume = notifConfig.soundVolume === 'soft' ? 0.6 : notifConfig.soundVolume === 'normal' ? 0.8 : 1.0;
+                  try {
+                    playNotificationTone(tone, effectiveVolume);
+                    const audio = new Audio('/sounds/order-chime.wav');
+                    audio.play().catch(() => {});
+                  } catch (e) {
+                    console.warn('Audio ring alert failed:', e);
+                  }
+
+                  if (notifConfig.vibrateOnReady !== false) {
+                    vibrateDevice([300, 150, 300, 150, 300]);
+                  }
+
+                  // Broadcast locally so active tab/handheld components pop the pickup banner
+                  localSyncChannel.broadcast('FOOD_READY_ALERT', data.lastFoodReadyAlert);
+
+                  const tblDesc = data.lastFoodReadyAlert.tableName || (data.tableName ? `Table ${data.tableName}` : 'Table');
+                  const itemDesc = data.lastFoodReadyAlert.itemName || 'Food Plated at Pass';
+                  toast.success(`🔔 ${tblDesc}: ${itemDesc} is READY!`, {
+                    duration: 8000,
+                    icon: '🔔',
+                    style: {
+                      background: '#0f172a',
+                      color: '#ffffff',
+                      border: '2px solid #f59e0b',
+                      fontWeight: 800
+                    }
+                  });
+                }
+              }
+            }
+
             // Check if status transitioned to 'ready' (prepared by kitchen)
             if (data.status === 'ready') {
               const notified = get().notifiedReadyOrders || [];
@@ -1545,21 +1596,56 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  markOrderOrItemsServed: async (restaurantId, orderId, itemIndex = null) => {
+  markOrderOrItemsServed: async (restaurantId, orderId, itemIndex = null, itemName = null) => {
     const active = get().activeOrders || [];
     const target = active.find(o => o.id === orderId);
     if (!target) return;
 
     const updatedItems = (target.items || []).map((item, idx) => {
-      if (itemIndex === null || itemIndex === idx || (Array.isArray(itemIndex) && itemIndex.includes(idx))) {
+      // 1. Explicit item index provided
+      if (itemIndex !== null) {
+        const matchesIndex = itemIndex === idx || (Array.isArray(itemIndex) && itemIndex.includes(idx));
+        if (matchesIndex) {
+          return { ...item, status: 'served', servedAt: item.servedAt || new Date().toISOString() };
+        }
+        return item;
+      }
+
+      // 2. Specific itemName provided (e.g. from alert: "Veggie Supreme")
+      if (itemName && itemName !== 'Entire Order' && itemName !== 'Food Plated at Pass') {
+        const namesList = itemName.split(',').map(s => s.trim().toLowerCase());
+        const itemLower = (item.name || '').trim().toLowerCase();
+        if (namesList.includes(itemLower) && item.status === 'ready') {
+          return { ...item, status: 'served', servedAt: item.servedAt || new Date().toISOString() };
+        }
+        return item;
+      }
+
+      // 3. Fallback: ONLY mark items currently in 'ready' status as served!
+      // NEVER mark pending or preparing items as served (they are still being cooked)!
+      if (item.status === 'ready') {
         return { ...item, status: 'served', servedAt: item.servedAt || new Date().toISOString() };
       }
+
       return item;
     });
 
     const activeItems = updatedItems.filter(i => i.status !== 'cancelled' && i.status !== 'void');
     const allServed = activeItems.length > 0 && activeItems.every(i => i.status === 'served');
-    const newStatus = allServed ? 'served' : target.status;
+    const hasUncooked = activeItems.some(i => ['pending', 'preparing'].includes(i.status));
+
+    // Status resolution:
+    // If all items are served -> 'served'
+    // If there are still items cooking/pending -> retain 'preparing' (or 'pending')
+    // If all uncooked are finished and some are ready -> 'ready'
+    let newStatus = target.status;
+    if (allServed) {
+      newStatus = 'served';
+    } else if (hasUncooked) {
+      newStatus = target.status === 'pending' ? 'pending' : 'preparing';
+    } else {
+      newStatus = 'ready';
+    }
 
     const updates = {
       items: updatedItems,
