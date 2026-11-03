@@ -307,6 +307,8 @@ export default function Restaurants() {
         taxConfig: { type: 'none' },
         createdAt: serverTimestamp(),
         ownerUid: effectiveUid,
+        email: user?.email || staffDoc?.email || '',
+        ownerName: staffDoc?.name || user?.displayName || '',
         status: isSuperAdmin ? 'approved' : 'pending',
       });
       toast.success(isSuperAdmin ? `Restaurant created! ID: ${ref.id}` : `Branch registered! Pending approval by Super Admin.`);
@@ -420,8 +422,8 @@ export default function Restaurants() {
           </p>
         </div>
         {activeTab === 'outlets' ? (!isSuperAdmin && (
-          <button className="btn btn-primary" id="add-restaurant-btn" onClick={() => setShowForm(true)}>
-            <Plus size={16}/> {isSuperAdmin ? 'Register New Account' : 'New Restaurant'}
+          <button className="btn btn-primary" id="add-branch-btn" onClick={() => setShowForm(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Plus size={16}/> Add New Branch
           </button>
         )) : (
           <button
@@ -1516,25 +1518,32 @@ export default function Restaurants() {
         <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
           <div className="modal">
             <div className="modal-header">
-              <h2 className="modal-title">New Restaurant</h2>
+              <div>
+                <h2 className="modal-title">{isSuperAdmin ? 'New Restaurant Account' : 'Register New Branch'}</h2>
+                {!isSuperAdmin && (
+                  <p style={{ fontSize: '11px', color: 'var(--color-label-secondary)', margin: '2px 0 0' }}>
+                    Add an additional outlet linked directly to your owner account.
+                  </p>
+                )}
+              </div>
               <button className="btn btn-secondary btn-icon" onClick={()=>setShowForm(false)}>✕</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label className="form-label">Restaurant Name</label>
-                <input id="new-rest-name" className="form-input" placeholder="My Restaurant" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
+                <label className="form-label">Branch / Restaurant Name</label>
+                <input id="new-rest-name" className="form-input" placeholder="e.g. Downtown Express" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
               </div>
               <div className="form-group">
-                <label className="form-label">Address</label>
-                <input id="new-rest-address" className="form-input" placeholder="Street, City" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} />
+                <label className="form-label">Location Address</label>
+                <input id="new-rest-address" className="form-input" placeholder="e.g. 123 Main St, City Mall" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} />
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
                 <div className="form-group">
-                  <label className="form-label">Phone</label>
-                  <input id="new-rest-phone" className="form-input" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} />
+                  <label className="form-label">Outlet Phone</label>
+                  <input id="new-rest-phone" className="form-input" placeholder="+91..." value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Currency</label>
+                  <label className="form-label">Billing Currency</label>
                   <select id="new-rest-currency" className="form-select" value={form.currency} onChange={e=>setForm(f=>({...f,currency:e.target.value}))}>
                     {CURRENCY_OPTIONS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
                   </select>
@@ -1544,7 +1553,7 @@ export default function Restaurants() {
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancel</button>
               <button className="btn btn-primary" id="create-restaurant-btn" onClick={createRestaurant} disabled={saving}>
-                {saving?'Creating...':'Create Restaurant'}
+                {saving ? 'Creating...' : (isSuperAdmin ? 'Create Account' : 'Register Branch')}
               </button>
             </div>
           </div>

@@ -38,7 +38,7 @@ const ADMIN_NAV = [
   { key: 'transactions', path: '/admin/transactions', icon: ReceiptText,     label: 'transactions', roles: ['admin', 'super_admin', 'manager'] },
   { key: 'posters',     path: '/admin/posters',     icon: MonitorPlay,      label: 'posters', roles: ['admin', 'super_admin'], requiredMode: 'posters' },
   { key: 'settings',   path: '/admin/settings',     icon: Settings,         label: 'settings', roles: ['admin', 'super_admin'] },
-  { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'restaurants', superAdmin: true },
+  { key: 'restaurants',path: '/admin/restaurants',  icon: Building2,        label: 'branches', roles: ['admin', 'super_admin'] },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
@@ -557,6 +557,33 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   </button>
                 );
               })}
+              <div style={{ borderTop: '1px solid var(--color-separator)', marginTop: '4px', paddingTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOutletMenuOpen(false);
+                    navigate('/admin/restaurants');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    width: '100%',
+                    color: 'var(--color-accent, #38bdf8)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    transition: 'all 0.12s ease'
+                  }}
+                >
+                  <Plus size={14} /> Add New Branch
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -779,8 +806,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 {filteredAdminNav.map(n => {
                   const isAccountNav = n.key === 'restaurants';
                   const NavIcon = (isAccountNav && isSuperAdmin) ? ShieldCheck : n.icon;
-                  const navLabel = isAccountNav && isSuperAdmin
-                    ? 'Businesses & Branches'
+                  const navLabel = isAccountNav
+                    ? (isSuperAdmin ? 'Businesses & Branches' : 'Outlets & Branches')
                     : (n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label));
 
                   return (
