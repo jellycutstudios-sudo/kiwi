@@ -113,6 +113,8 @@ const KDSTicketCard = memo(function KDSTicketCard({
   handleRingWaiter,
 }) {
   const [now, setNow] = useState(() => Date.now());
+  const [rangItems, setRangItems] = useState({});
+  const [headerRang, setHeaderRang] = useState(false);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -217,6 +219,38 @@ const KDSTicketCard = memo(function KDSTicketCard({
         
         {/* Action & Status Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {handleRingWaiter && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRingWaiter(order);
+                setHeaderRang(true);
+                setTimeout(() => setHeaderRang(false), 2500);
+              }}
+              style={{
+                background: headerRang ? '#10b981' : '#f59e0b',
+                border: 'none',
+                color: headerRang ? '#ffffff' : '#000000',
+                borderRadius: 8,
+                padding: '4px 9px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 800,
+                boxShadow: headerRang 
+                  ? '0 1px 6px rgba(16, 185, 129, 0.5)' 
+                  : '0 1px 6px rgba(245, 158, 11, 0.4)',
+                transition: 'all 0.15s ease'
+              }}
+              title="Alert server/runner to collect order from pass"
+            >
+              <span>{headerRang ? '✓ Rang!' : '🔔 Ring Waiter'}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={(e) => {
@@ -258,7 +292,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
             color: order.status === 'pending' ? 'var(--color-yellow)' : 'var(--color-purple)',
             border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)'
           }}>
-            {order.status === 'pending' ? '⏳ WAITING' : '🍳 COOKING'}
+            {order.status === 'pending' ? 'TO COOK' : 'COOKING'}
           </div>
         </div>
       </div>
@@ -312,11 +346,10 @@ const KDSTicketCard = memo(function KDSTicketCard({
                         background: isPreparing ? 'var(--color-purple-light)' : (isReady ? 'transparent' : 'var(--color-bg-secondary)'),
                         border: isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-separator-opaque)',
                         transition: 'all 0.15s ease',
-                        opacity: isReady ? 0.45 : 1,
                       }}
                       title="Click to advance item prep status"
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8, opacity: isReady ? 0.55 : 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span className="kds-item-qty" style={{
                             background: isReady ? 'var(--color-fill-secondary)' : '#f59e0b',
@@ -441,24 +474,31 @@ const KDSTicketCard = memo(function KDSTicketCard({
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRingWaiter(order, item.name);
+                              setRangItems(prev => ({ ...prev, [originalIndex]: true }));
+                              setTimeout(() => {
+                                setRangItems(prev => ({ ...prev, [originalIndex]: false }));
+                              }, 2500);
                             }}
                             style={{
                               fontSize: 11,
-                              padding: '2px 7px',
+                              padding: '3px 8px',
                               borderRadius: 6,
                               fontWeight: 800,
-                              background: '#f59e0b',
-                              color: '#000000',
+                              background: rangItems[originalIndex] ? '#10b981' : '#f59e0b',
+                              color: rangItems[originalIndex] ? '#ffffff' : '#000000',
                               border: 'none',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 3,
-                              boxShadow: '0 1px 4px rgba(245, 158, 11, 0.4)'
+                              boxShadow: rangItems[originalIndex]
+                                ? '0 1px 6px rgba(16, 185, 129, 0.5)'
+                                : '0 1px 6px rgba(245, 158, 11, 0.4)',
+                              transition: 'all 0.15s ease'
                             }}
                             title="Ring Waiter / Food Runner for this dish"
                           >
-                            🔔 Ring
+                            {rangItems[originalIndex] ? '✓ Rang!' : '🔔 Ring'}
                           </button>
                         )}
                         <span style={{
@@ -473,7 +513,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
                           alignItems: 'center',
                           gap: 3
                         }}>
-                          {isReady ? '✓ Done' : (isPreparing ? '🍳 Cook' : '⏳ Wait')}
+                          {isReady ? '✓ Ready' : (isPreparing ? '🍳 Cooking' : 'To Cook')}
                         </span>
                       </div>
                     </div>
@@ -520,10 +560,14 @@ const KDSTicketCard = memo(function KDSTicketCard({
             {handleRingWaiter && (
               <button
                 type="button"
-                onClick={() => handleRingWaiter(order, 'Entire Order')}
+                onClick={() => {
+                  handleRingWaiter(order, 'Entire Order');
+                  setHeaderRang(true);
+                  setTimeout(() => setHeaderRang(false), 2500);
+                }}
                 style={{
-                  background: '#f59e0b',
-                  color: '#000000',
+                  background: headerRang ? '#10b981' : '#f59e0b',
+                  color: headerRang ? '#ffffff' : '#000000',
                   border: 'none',
                   borderRadius: 10,
                   padding: '0 14px',
@@ -533,11 +577,14 @@ const KDSTicketCard = memo(function KDSTicketCard({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
-                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)'
+                  boxShadow: headerRang 
+                    ? '0 2px 8px rgba(16, 185, 129, 0.5)' 
+                    : '0 2px 8px rgba(245, 158, 11, 0.4)',
+                  transition: 'all 0.15s ease'
                 }}
                 title="Ring Server: Buzz waiter to pick up order"
               >
-                <span>🔔 Ring Waiter</span>
+                <span>{headerRang ? '✓ Rang!' : '🔔 Ring Waiter'}</span>
               </button>
             )}
           </div>
@@ -787,11 +834,8 @@ export default function KDS() {
   }, [restaurant?.id, modes, updateKDSStationStatus, callSpecificToken]);
 
   const cycleItemStatus = useCallback(async (order, itemIndex, currentStatus) => {
-    let nextStatus = 'pending';
-    if (currentStatus === 'pending') nextStatus = 'preparing';
-    else if (currentStatus === 'preparing') nextStatus = 'ready';
-    else if (currentStatus === 'ready') nextStatus = 'pending';
-    
+    // 1-tap fast bump: if pending or preparing -> mark ready. If ready -> revert to pending (instant undo)
+    const nextStatus = currentStatus === 'ready' ? 'pending' : 'ready';
     await updateKDSItemStatus(restaurant.id, order, itemIndex, nextStatus);
   }, [restaurant?.id, updateKDSItemStatus]);
 
