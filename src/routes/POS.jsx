@@ -50,6 +50,13 @@ const POS_CATEGORY_THEMES = [
   'pos-cat-theme-emerald',
 ];
 
+const checkIsVegItem = (item) => {
+  if (!item) return false;
+  if (item.isVeg === true || item.veg === true || item.dietary === 'veg') return true;
+  if (item.isVeg === false || item.veg === false || item.dietary === 'non-veg') return false;
+  return (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(item.name || '') && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(item.name || ''));
+};
+
 function EmptyCartState({ onAddCustomItem }) {
   return (
     <div className="pos-empty-cart-minimal">
@@ -831,9 +838,9 @@ export default function POS() {
     }
 
     if (effectiveDietary === 'veg') {
-      filtered = filtered.filter(i => i.isVeg === true || i.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(i.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(i.name)));
+      filtered = filtered.filter(i => checkIsVegItem(i));
     } else if (effectiveDietary === 'non-veg') {
-      filtered = filtered.filter(i => i.isVeg === false || i.veg === false || /chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon|carbonara/i.test(i.name));
+      filtered = filtered.filter(i => !checkIsVegItem(i));
     } else if (effectiveDietary === 'bestseller') {
       const getItemSales = (i) => {
         const nameKey = (i.name || '').trim().toLowerCase();
@@ -1486,7 +1493,7 @@ export default function POS() {
             {displayItems.map(item => {
               const qty = getItemQty(item);
               const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
-              const isVegItem = item.isVeg === true || item.veg === true || (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(item.name) && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(item.name));
+              const isVegItem = checkIsVegItem(item);
               
               if (menuDensity === 'dense') {
                 const formattedPrice = hasModifiers && parseFloat(item.price) === 0 ? (

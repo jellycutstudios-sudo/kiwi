@@ -43,6 +43,16 @@ const compressImage = (file, maxDim = 400, quality = 0.82) => {
 // Use cryptographically random IDs — Date.now() is not unique under concurrent saves
 const generateId = () => crypto.randomUUID();
 
+export const isVegetarianItem = (item) => {
+  if (item?.isVeg === true || item?.veg === true || item?.dietary === 'veg') return true;
+  if (item?.isVeg === false || item?.veg === false || item?.dietary === 'non-veg') return false;
+  const text = `${item?.name || ''} ${item?.description || ''}`.toLowerCase();
+  if (/\b(chicken|mutton|beef|pork|fish|prawn|shrimp|crab|egg|meat|bacon|ham|duck|shawarma|keema|tikka|kabab|kebab)\b/.test(text) && !/\b(paneer|veg|soya|mushroom)\b/.test(text)) {
+    return false;
+  }
+  return true;
+};
+
 export default function MenuEditor() {
   const { restaurant } = useAuthStore();
   const { categories } = useMenuStore();
@@ -62,7 +72,7 @@ export default function MenuEditor() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '' });
+  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -136,7 +146,9 @@ export default function MenuEditor() {
       isBestseller: false,
       barcode: '',
       unit: 'pcs',
-      taxRate: ''
+      taxRate: '',
+      isVeg: true,
+      dietary: 'veg'
     });
     setShowAdvancedDetails(false);
     setActiveTab('general');
@@ -147,6 +159,7 @@ export default function MenuEditor() {
     setIsAddingCustomStation(false);
     setNewCustomStation('');
     setEditItem(item);
+    const isVegDefault = isVegetarianItem(item);
     setItemForm({
       name: item.name,
       price: item.price,
@@ -161,7 +174,9 @@ export default function MenuEditor() {
       isBestseller: item.isBestseller || item.bestseller || false,
       barcode: item.barcode ?? '',
       unit: item.unit ?? 'pcs',
-      taxRate: item.taxRate != null ? String(item.taxRate) : ''
+      taxRate: item.taxRate != null ? String(item.taxRate) : '',
+      isVeg: isVegDefault,
+      dietary: item.dietary || (isVegDefault ? 'veg' : 'non-veg')
     });
     setShowAdvancedDetails(Boolean(item.barcode || item.description || item.taxRate != null || (item.unit && item.unit !== 'pcs')));
     setActiveTab('general');
@@ -434,6 +449,8 @@ export default function MenuEditor() {
       ? parseFloat(itemForm.taxRate)
       : null;
 
+    const isVeg = itemForm.isVeg !== false;
+
     const newItem = {
       id: editItem?.id ?? generateId(),
       name: cleanName,
@@ -449,6 +466,8 @@ export default function MenuEditor() {
       isBestseller: itemForm.isBestseller || false,
       barcode: itemForm.barcode?.trim() ?? '',
       unit: itemForm.unit || 'pcs',
+      isVeg: isVeg,
+      dietary: isVeg ? 'veg' : 'non-veg',
       ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {})
     };
     const items = editItem
@@ -471,7 +490,7 @@ export default function MenuEditor() {
 
     setShowItemForm(false);
     setEditItem(null);
-    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs' });
+    setItemForm({ name:'', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
     toast.success(editItem ? 'Item updated!' : 'Item added!');
   };
 
@@ -1091,7 +1110,12 @@ export default function MenuEditor() {
 
                       {/* Content */}
                       <div className="menu-editor-card-body">
-                        <div className="menu-editor-card-title-row">
+                        <div className="menu-editor-card-title-row" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span
+                            className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
+                            title={isVegetarianItem(item) ? "Vegetarian" : "Non-Vegetarian"}
+                            style={{ flexShrink: 0 }}
+                          />
                           <h4 className="menu-editor-card-title">{item.name}</h4>
                         </div>
 
@@ -1160,6 +1184,11 @@ export default function MenuEditor() {
                       )}
                       <div style={{ flex: 1, minWidth: 150 }}>
                         <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span
+                            className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
+                            title={isVegetarianItem(item) ? "Vegetarian" : "Non-Vegetarian"}
+                            style={{ flexShrink: 0 }}
+                          />
                           <span>{item.name}</span>
                           {item.highMargin && <span title="High Margin">⭐</span>}
                           {(item.isBestseller || item.bestseller) && <span title="Bestseller">🔥</span>}
@@ -1532,6 +1561,62 @@ export default function MenuEditor() {
                       onChange={e => setItemForm(f=>({...f,emoji:e.target.value}))} 
                       style={{ width: 44, height: 34, textAlign: 'center', fontSize: 17, padding: '0 4px', borderRadius: '8px' }}
                     />
+                  </div>
+                </div>
+
+                {/* Food Type (Dietary: Veg / Non-Veg) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="form-label" style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.4px', margin: 0 }}>
+                    Food Type (Dietary)
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      id="item-veg-toggle"
+                      onClick={() => setItemForm(f => ({ ...f, isVeg: true, dietary: 'veg' }))}
+                      style={{
+                        height: 38,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        border: itemForm.isVeg ? '1.5px solid #16a34a' : '1px solid var(--color-separator)',
+                        background: itemForm.isVeg ? 'rgba(22, 163, 74, 0.12)' : 'var(--color-bg-secondary)',
+                        color: itemForm.isVeg ? '#16a34a' : 'var(--color-label-secondary)'
+                      }}
+                    >
+                      <span className="food-badge-veg" style={{ width: 14, height: 14 }} />
+                      <span>Vegetarian (Veg)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      id="item-nonveg-toggle"
+                      onClick={() => setItemForm(f => ({ ...f, isVeg: false, dietary: 'non-veg' }))}
+                      style={{
+                        height: 38,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        border: !itemForm.isVeg ? '1.5px solid #dc2626' : '1px solid var(--color-separator)',
+                        background: !itemForm.isVeg ? 'rgba(220, 38, 38, 0.12)' : 'var(--color-bg-secondary)',
+                        color: !itemForm.isVeg ? '#ef4444' : 'var(--color-label-secondary)'
+                      }}
+                    >
+                      <span className="food-badge-nonveg" style={{ width: 14, height: 14 }} />
+                      <span>Non-Vegetarian</span>
+                    </button>
                   </div>
                 </div>
 
