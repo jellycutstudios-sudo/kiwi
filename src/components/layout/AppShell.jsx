@@ -184,7 +184,7 @@ export default function AppShell() {
   }, [location.pathname]);
 
   const pageTitle = (isSuperAdmin && location.pathname === '/admin/restaurants')
-    ? 'Registered Accounts & Approvals'
+    ? 'Businesses & Branches'
     : t(PAGE_TITLES[location.pathname] ?? 'appName');
 
   // Subscribe to real-time data globally

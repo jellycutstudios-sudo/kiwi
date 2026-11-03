@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const getInitialCategories = () => {
+const getInitialCategories = (restaurantId = null) => {
   if (typeof localStorage === 'undefined') return [];
   try {
-    const raw = localStorage.getItem('dineos_cached_menu');
+    const raw = localStorage.getItem(restaurantId ? `dineos_cached_menu_${restaurantId}` : 'dineos_cached_menu');
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -171,8 +171,8 @@ export const useMenuStore = create((set, get) => {
       }
 
       // If we have cached categories, keep them visible so there is zero flicker
-      const cached = getInitialCategories();
-      set({ loading: cached.length === 0, error: null });
+      const cached = getInitialCategories(restaurantId);
+      set({ categories: cached, loading: cached.length === 0, error: null });
       subscribedRestId = restaurantId;
       subCount = 1;
 
@@ -184,6 +184,7 @@ export const useMenuStore = create((set, get) => {
           try {
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('dineos_cached_menu', JSON.stringify(cats));
+              localStorage.setItem(`dineos_cached_menu_${restaurantId}`, JSON.stringify(cats));
             }
           } catch (e) {
             console.debug('[useMenuStore] LocalStorage cache write skipped:', e);

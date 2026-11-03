@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const getInitialStaff = () => {
+const getInitialStaff = (restaurantId = null) => {
   if (typeof localStorage === 'undefined') return [];
   try {
-    const raw = localStorage.getItem('dineos_cached_staff');
+    const raw = localStorage.getItem(restaurantId ? `dineos_cached_staff_${restaurantId}` : 'dineos_cached_staff');
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -56,7 +56,7 @@ export const useStaffStore = create((set) => {
         subCount = 0;
       }
 
-      const cached = getInitialStaff();
+      const cached = getInitialStaff(restaurantId);
       set({ staff: cached, loading: cached.length === 0, error: null });
       subscribedRestId = restaurantId;
       subCount = 1;
@@ -74,6 +74,7 @@ export const useStaffStore = create((set) => {
           try {
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('dineos_cached_staff', JSON.stringify(list));
+              localStorage.setItem(`dineos_cached_staff_${restaurantId}`, JSON.stringify(list));
             }
           } catch {}
           set({ staff: list, loading: false });

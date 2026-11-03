@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "branchPayments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "recordedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "orders",
       "queryScope": "COLLECTION",
       "fields": [

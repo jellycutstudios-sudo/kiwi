@@ -1,8 +1,8 @@
 // src/firebase.js
 // Initialize Firebase — replace config with your Firebase project credentials
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
@@ -31,6 +31,8 @@ if (isFirebaseConfigured) {
   };
 
   try {
+    const useEmulators = import.meta.env.DEV && import.meta.env.VITE_FIREBASE_EMULATORS === 'true';
+    if (useEmulators && !firebaseConfig.projectId?.startsWith('demo-')) throw new Error('Local emulator mode requires a demo- project ID.');
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     functions = getFunctions(app);
@@ -42,6 +44,11 @@ if (isFirebaseConfigured) {
         tabManager: persistentMultipleTabManager()
       })
     });
+    // Explicit opt-in for isolated local testing; demo projects never reach live Firebase.
+    if (useEmulators) {
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      connectFirestoreEmulator(db, '127.0.0.1', 8088);
+    }
   } catch (error) {
     console.error('Firebase initialization failed:', error);
   }

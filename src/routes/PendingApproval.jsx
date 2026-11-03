@@ -1,8 +1,24 @@
+import { useEffect, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 
 export default function PendingApproval() {
-  const { signOut, restaurant, staffDoc } = useAuthStore();
+  const signOut = useAuthStore(s => s.signOut);
+  const restaurant = useAuthStore(s => s.restaurant);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const user = useAuthStore(s => s.user);
+  const switchRestaurant = useAuthStore(s => s.switchRestaurant);
+  const [otherBranches, setOtherBranches] = useState([]);
+  const isSuspended = restaurant?.status === 'suspended';
+
+  useEffect(() => {
+    if (!user?.uid || staffDoc?.role !== 'admin' || staffDoc?.isPinLogin) return;
+    return onSnapshot(query(collection(db, 'restaurants'), where('ownerUid', '==', user.uid)), snapshot => {
+      setOtherBranches(snapshot.docs.map(branch => ({ ...branch.data(), id: branch.id })).filter(branch => branch.status === 'approved'));
+    }, error => console.warn('Available owner branches:', error));
+  }, [user?.uid, staffDoc?.role, staffDoc?.isPinLogin]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -15,16 +31,16 @@ export default function PendingApproval() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 64, marginBottom: 'var(--space-3)' }}>⏳</div>
           <h2 className="text-title2" style={{ marginBottom: 'var(--space-2)' }}>
-            Account Pending Approval
+            {isSuspended ? 'Branch Suspended' : 'Account Pending Approval'}
           </h2>
           <p className="text-secondary text-subhead">
-            Your restaurant registration is complete, but access is restricted until offline payment is verified.
+            {isSuspended ? 'This branch has been suspended. Contact the platform administrator to restore access.' : 'Your restaurant registration is complete, but access is restricted until offline payment is verified.'}
           </p>
         </div>
 
         <div className="card card-padded" style={{ background: 'var(--color-bg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', border: '1.5px solid var(--color-orange)' }}>
           <div style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-headline)', color: 'var(--color-orange)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>⚠️</span> Status: Pending Offline Payment
+            <span>⚠️</span> Status: {isSuspended ? 'Suspended' : 'Pending Offline Payment'}
           </div>
           <hr style={{ border: 'none', borderTop: '1px dashed var(--color-separator)' }} />
           <div style={{ fontSize: 'var(--text-subhead)', lineHeight: 1.6 }}>
@@ -53,6 +69,14 @@ export default function PendingApproval() {
             <li>Once the payment is received, the Super Admin will approve your account, and you will gain immediate access to DineOS.</li>
           </ol>
         </div>
+
+        {otherBranches.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p className="text-secondary">Your other approved branches remain available:</p>
+          {otherBranches.map(branch => <button className="btn btn-primary" key={branch.id} onClick={async () => {
+            const result = await switchRestaurant(branch);
+            if (!result?.ok) toast.error(result?.error || 'Unable to switch branch.');
+          }}>Open {branch.name}</button>)}
+        </div>}
 
         <button
           className="btn btn-secondary btn-lg"

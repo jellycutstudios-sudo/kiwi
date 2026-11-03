@@ -90,11 +90,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     let q = null;
     if (role === 'super_admin') {
       q = collection(db, 'restaurants');
-    } else if (restaurant?.brandId) {
-      q = query(collection(db, 'restaurants'), where('brandId', '==', restaurant.brandId));
-    } else if (restaurant?.ownerUid) {
-      q = query(collection(db, 'restaurants'), where('ownerUid', '==', restaurant.ownerUid));
-    } else if (user?.uid) {
+    } else if (role === 'admin' && !staffDoc?.isPinLogin && user?.uid) {
       q = query(collection(db, 'restaurants'), where('ownerUid', '==', user.uid));
     }
 
@@ -107,7 +103,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const filtered = role === 'super_admin'
         ? list
-        : list.filter(r => r.id === restaurant?.id || r.status === 'approved');
+        : list.filter(r => r.ownerUid === user?.uid && (r.id === restaurant?.id || r.status === 'approved'));
       setAvailableOutlets(filtered.length > 0 ? filtered : (restaurant ? [restaurant] : []));
     }, (err) => {
       console.warn('Sidebar availableOutlets listener:', err);
@@ -115,7 +111,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     });
 
     return unsub;
-  }, [restaurant, user?.uid, role, switchRestaurant]);
+  }, [restaurant, user?.uid, role, staffDoc?.isPinLogin]);
 
   // Check if current route is in Admin section so it auto-expands
   const isCurrentRouteAdmin = location.pathname.startsWith('/admin');
@@ -519,9 +515,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   <button
                     key={out.id}
                     type="button"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      switchRestaurant(out);
+                      const result = await switchRestaurant(out);
+                      if (!result?.ok) { toast.error(result?.error || 'Unable to switch branch.'); return; }
                       setOutletMenuOpen(false);
                       toast.success(`Switched to ${out.name}`, { icon: '📍' });
                     }}
@@ -578,12 +575,12 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             <NavLink
               to="/admin/restaurants"
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              title={isCollapsed ? 'Registered Accounts' : undefined}
+              title={isCollapsed ? 'Businesses & Branches' : undefined}
               onClick={handleItemClick}
               style={{ position: 'relative' }}
             >
               <span className="nav-item-icon"><ShieldCheck size={20} strokeWidth={1.9} /></span>
-              {!isCollapsed && <span>Registered Accounts</span>}
+              {!isCollapsed && <span>Businesses & Branches</span>}
               {pendingApprovalsCount > 0 && !isCollapsed && (
                 <span
                   className="nav-badge"
@@ -783,7 +780,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   const isAccountNav = n.key === 'restaurants';
                   const NavIcon = (isAccountNav && isSuperAdmin) ? ShieldCheck : n.icon;
                   const navLabel = isAccountNav && isSuperAdmin
-                    ? 'Registered Accounts'
+                    ? 'Businesses & Branches'
                     : (n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label));
 
                   return (

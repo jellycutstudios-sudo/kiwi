@@ -28,31 +28,44 @@ service cloud.firestore {
       );
     }
 
+    function isRestaurantOperational(restaurantId) {
+      return get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.get('status', 'approved') == 'approved';
+    }
+
+    function validBusinessGroup() {
+      return !('businessGroupId' in request.resource.data) || (
+        request.resource.data.businessGroupId is string &&
+        getAfter(/databases/$(database)/documents/businessGroups/$(request.resource.data.businessGroupId)).data.ownerUid == request.resource.data.ownerUid
+      );
+    }
+
     function isUserAdmin(restaurantId) {
       return isSignedIn() && (
-        isSuperAdmin() || 
+        isSuperAdmin() || (isRestaurantOperational(restaurantId) && (
         ('role' in request.auth.token && request.auth.token.role == 'admin' && 'restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
         (hasUserDoc() && getUserDoc().data.role == 'admin' && getUserDoc().data.restaurantId == restaurantId) ||
         (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid())
+        ))
       );
     }
     
     // Staff member check: requires super_admin, valid restaurant custom token claim, registered user profile, restaurant owner, verified staff document, or authenticated terminal session
     function isStaffMember(restaurantId) {
        return isSignedIn() && (
-         isSuperAdmin() || 
+         isSuperAdmin() || (isRestaurantOperational(restaurantId) && (
          (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
          ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
          (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId) ||
          (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid()) ||
          exists(/databases/$(database)/documents/restaurants/$(restaurantId)/staff/$(uid()))
+         ))
        );
     }
 
     // Manager or Admin check: requires admin/manager custom token claim, registered user profile, or authenticated terminal session
     function isStaffManagerOrAdmin(restaurantId) {
       return isUserAdmin(restaurantId) || (
-        isSignedIn() && (
+        isSignedIn() && isRestaurantOperational(restaurantId) && (
           (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
           ('role' in request.auth.token && request.auth.token.role in ['admin', 'manager', 'super_admin'] && 'restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId) ||
           (hasUserDoc() && getUserDoc().data.role in ['admin', 'manager', 'super_admin'] && getUserDoc().data.restaurantId == restaurantId)
@@ -61,7 +74,7 @@ service cloud.firestore {
     }
 
     function hasRestaurantRole(restaurantId, roles) {
-      return isSignedIn() && (
+      return isSignedIn() && isRestaurantOperational(restaurantId) && (
         (request.auth.token.firebase.sign_in_provider == 'anonymous') ||
         ('restaurantId' in request.auth.token && request.auth.token.restaurantId == restaurantId && 'role' in request.auth.token && request.auth.token.role in roles) ||
         (hasUserDoc() && getUserDoc().data.restaurantId == restaurantId && getUserDoc().data.role in roles)
@@ -105,6 +118,40 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // Business grouping is private and controlled by the platform administrator.
+    match /businessGroups/{groupId} {
+      allow read: if isSuperAdmin() || (isSignedIn() && resource.data.ownerUid == uid());
+      allow create: if isSuperAdmin() &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 &&
+        request.resource.data.ownerUid is string &&
+        get(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)).data.role == 'admin';
+      allow update, delete: if false;
+    }
+
+    // Fees and renewal dates must never be placed on public restaurant documents.
+    match /branchSubscriptions/{restaurantId} {
+      allow read: if isSuperAdmin() || (isSignedIn() &&
+        get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerUid == uid());
+      allow create, update: if isSuperAdmin() &&
+        request.resource.data.feeMinor is int && request.resource.data.feeMinor >= 0 &&
+        request.resource.data.currency in ['INR', 'AED', 'SAR', 'QAR', 'BHD', 'KWD', 'OMR', 'USD'] &&
+        request.resource.data.cycle in ['monthly', 'yearly'] &&
+        (request.resource.data.paidThrough == null || request.resource.data.paidThrough is string);
+      allow delete: if false;
+    }
+
+    // Receipts are append-only. One receipt may allocate payment across several branches.
+    match /branchPayments/{paymentId} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin() &&
+        request.resource.data.recordedBy == uid() && request.resource.data.recordedAt == request.time &&
+        request.resource.data.totalMinor is int && request.resource.data.totalMinor > 0 &&
+        request.resource.data.branchIds is list && request.resource.data.branchIds.size() > 0 &&
+        request.resource.data.branchIds.size() <= 50 && request.resource.data.allocations is list &&
+        request.resource.data.allocations.size() == request.resource.data.branchIds.size();
+      allow update, delete: if false;
+    }
+
     // ─────────────────────────────────────────────
     // /restaurants
     // ─────────────────────────────────────────────
@@ -112,10 +159,19 @@ service cloud.firestore {
       // Public read — online order page needs restaurant name/logo
       // Sensitive subcollections like payroll, suppliers, void logs are isolated below
       allow read: if true;
-      // Create — any signed-in user can register a new restaurant
-      allow create: if isSignedIn();
-      // Update/Delete — authenticated admin only (staff cannot mutate or delete restaurant document)
-      allow update, delete: if isUserAdmin(restaurantId);
+      // Owners self-register pending branches; only super admin can group or activate them.
+      allow create: if isSignedIn() && validBusinessGroup() && (
+        isSuperAdmin() || (
+          request.resource.data.ownerUid == uid() && request.resource.data.status == 'pending' &&
+          !('businessGroupId' in request.resource.data) && !('brandId' in request.resource.data)
+        )
+      );
+      allow update: if validBusinessGroup() && (isSuperAdmin() || (
+        isUserAdmin(restaurantId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'ownerUid', 'businessGroupId', 'brandId', 'status', 'createdBy', 'createdAt'
+        ])
+      ));
+      allow delete: if isSuperAdmin();
 
       // Staff profiles — public within restaurant (waiter assignment, order tagging, KDS)
       // Contains name, role, active, email. Does NOT contain sensitive credentials or compensation.
@@ -165,7 +221,7 @@ service cloud.firestore {
       // Tables — public read, authenticated staff write (or customer claiming table on order)
       match /tables/{tableId} {
         allow read:  if true;
-        allow write: if isStaffMember(restaurantId) || (
+        allow write: if isStaffMember(restaurantId) || (isRestaurantOperational(restaurantId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'activeOrderId', 'currentOrderId']) &&
           request.resource.data.status in ['occupied', 'free']
         );
@@ -175,7 +231,7 @@ service cloud.firestore {
       match /orders/{orderId} {
         allow get:    if true;                        // customers track their specific order by ID
         allow list:   if isStaffMember(restaurantId); // verified staff of this restaurant only
-        allow create: if isStaffMember(restaurantId) || (
+        allow create: if isStaffMember(restaurantId) || (isRestaurantOperational(restaurantId) &&
           request.resource.data.status == 'pending' &&
           request.resource.data.total is number && request.resource.data.total >= 0 &&
           request.resource.data.items is list && request.resource.data.items.size() > 0

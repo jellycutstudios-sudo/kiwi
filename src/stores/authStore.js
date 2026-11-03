@@ -11,8 +11,14 @@ import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, functions } from '../firebase';
 import { useOrderStore } from './orderStore';
+import { canSwitchBranch } from '../utils/branchBilling';
+import { useMenuStore } from './menuStore';
+import { useStaffStore } from './staffStore';
+import { useTableStore } from './tableStore';
+import { useShiftStore } from './shiftStore';
 
 let isLoggingIn = false;
+let authLoadSequence = 0;
 
 const getInitialPersistedAuth = () => {
   if (typeof window === 'undefined') return {};
@@ -63,6 +69,7 @@ export const useAuthStore = create(
 
       // Identifier (Mobile Number or Email) / Password login (admin)
       loginWithEmail: async (identifier, password) => {
+        isLoggingIn = true;
         set({ loading: true, error: null });
 
         try {
@@ -118,8 +125,7 @@ export const useAuthStore = create(
           }
 
           const cred = await signInWithEmailAndPassword(auth, targetEmail, password);
-          await get().loadUserData(cred.user);
-          return { ok: true };
+          return await get().loadUserData(cred.user);
         } catch (e) {
           const isInvalidCred = e.code === 'auth/invalid-credential' 
             || e.code === 'auth/user-not-found' 
@@ -130,6 +136,8 @@ export const useAuthStore = create(
             : e.message;
           set({ loading: false, error: msg });
           return { ok: false, error: msg };
+        } finally {
+          isLoggingIn = false;
         }
       },
 
@@ -449,6 +457,8 @@ export const useAuthStore = create(
       },
 
       loadUserData: async (firebaseUser) => {
+        const sequence = ++authLoadSequence;
+        if (get().user?.uid !== firebaseUser.uid) set({ user: null, staffDoc: null, restaurant: null, loading: true });
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userSnap = await getDoc(userDocRef);
@@ -456,15 +466,15 @@ export const useAuthStore = create(
           if (userSnap.exists()) {
             const userData = { id: userSnap.id, ...userSnap.data() };
             let restData = null;
-            if (userData.restaurantId) {
+            if (userData.restaurantId && userData.role !== 'super_admin') {
               const restDocRef = doc(db, 'restaurants', userData.restaurantId);
               const restDoc = await getDoc(restDocRef);
               if (restDoc.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
-                if (restData.status === 'suspended') {
+                if (restData.status === 'suspended' && userData.role !== 'admin' && userData.role !== 'super_admin') {
                   set({ loading: false, error: 'Restaurant account has been suspended. Please contact support.' });
                   await get().signOut();
-                  return;
+                  return { ok: false, error: 'Restaurant account has been suspended. Please contact support.' };
                 }
 
                 // Auto-sync email to restaurant doc if missing, enabling mobile number login
@@ -480,24 +490,41 @@ export const useAuthStore = create(
                 }
               }
             }
+            if (userData.role === 'admin') {
+              const owned = await getDocs(query(collection(db, 'restaurants'), where('ownerUid', '==', firebaseUser.uid)));
+              const branches = owned.docs.map(branch => ({ ...branch.data(), id: branch.id }));
+              const previousId = get().restaurant?.id;
+              // A suspended primary branch must not lock the owner out of other paid branches.
+              restData = branches.find(branch => branch.id === previousId && branch.status === 'approved')
+                || branches.find(branch => branch.id === restData?.id && branch.status === 'approved')
+                || branches.find(branch => branch.status === 'approved')
+                || restData || branches[0] || null;
+            }
             // For super_admin, restData intentionally stays null so they enter the global Platform Console
+            if (sequence !== authLoadSequence) return { ok: false, error: 'Session changed. Sign in again.' };
             set({
               user: firebaseUser,
               staffDoc: userData,
               restaurant: restData,
               loading: false,
+              error: null,
             });
+            return { ok: true };
           } else {
-            // user doc not found (e.g. freshly registered, before setDoc)
-            set({ user: firebaseUser, loading: false });
+            if (sequence !== authLoadSequence) return { ok: false, error: 'Session changed. Sign in again.' };
+            const error = 'Your account profile is unavailable. Contact the platform administrator.';
+            set({ user: null, staffDoc: null, restaurant: null, loading: false, error });
+            return { ok: false, error };
           }
         } catch (e) {
           console.error("loadUserData error:", e);
-          set({ loading: false, error: e.message });
+          if (sequence === authLoadSequence) set({ user: null, staffDoc: null, restaurant: null, loading: false, error: e.message });
+          return { ok: false, error: e.message };
         }
       },
 
       signOut: async () => {
+        ++authLoadSequence; // Ignore late profile responses after logout.
         // Clear state synchronously
         set({ user: null, staffDoc: null, restaurant: null, loading: false });
         try {
@@ -525,11 +552,13 @@ export const useAuthStore = create(
 
           const currentStaff = get().staffDoc;
           const currentRest = get().restaurant;
-          const isStaffSession = Boolean(currentStaff && currentRest && currentStaff.role !== 'super_admin');
+          const isStaffSession = Boolean(currentStaff?.isPinLogin && currentRest && currentStaff.role !== 'super_admin');
 
           if (user) {
+            const sameUser = get().user?.uid === user.uid;
+            if (!sameUser) set({ user: null, staffDoc: null, restaurant: null, loading: true });
             // Case 1: Staff session already active (waiter, cashier, kitchen, etc.)
-            if (isStaffSession || currentStaff?.isPinLogin) {
+            if (isStaffSession && sameUser) {
               set({ user, loading: false });
               // Validate restaurant status without signing out on transient network errors
               const restId = currentRest?.id || currentStaff?.restaurantId;
@@ -555,7 +584,8 @@ export const useAuthStore = create(
             try {
               const tokenResult = await user.getIdTokenResult();
               if (tokenResult.claims && tokenResult.claims.isPinLogin) {
-                set({ user, loading: false });
+                // A PIN identity cannot inherit cached platform privileges.
+                set({ user: null, staffDoc: null, restaurant: null, loading: false, error: 'Sign in again with your branch PIN.' });
                 return;
               }
             } catch {}
@@ -582,7 +612,8 @@ export const useAuthStore = create(
               set({ loading: false });
             } else {
               // Not a staff session — clear state and show login screen
-              set({ user: null, staffDoc: null, loading: false });
+              ++authLoadSequence;
+              set({ user: null, staffDoc: null, restaurant: null, loading: false });
             }
           }
         });
@@ -590,13 +621,34 @@ export const useAuthStore = create(
 
       clearError: () => set({ error: null }),
 
-      switchRestaurant: (newRestaurant) => {
-        if (!newRestaurant || !newRestaurant.id) return;
+      switchRestaurant: async (newRestaurant) => {
+        const state = get();
+        if (!newRestaurant?.id) {
+          if (state.staffDoc?.role !== 'super_admin') return { ok: false, error: 'Select a branch.' };
+        }
+        let target = newRestaurant;
+        if (state.staffDoc?.role !== 'super_admin') {
+          try {
+            const snapshot = await getDoc(doc(db, 'restaurants', newRestaurant.id));
+            if (!snapshot.exists()) return { ok: false, error: 'Branch no longer exists.' };
+            target = { ...snapshot.data(), id: snapshot.id };
+          } catch { return { ok: false, error: 'Unable to verify this branch. Try again.' }; }
+        }
+        if (!canSwitchBranch(state.user, state.staffDoc, target)) {
+          return { ok: false, error: 'You can only switch to your own approved branches.' };
+        }
+        if (target?.id === state.restaurant?.id) return { ok: true };
         try {
           useOrderStore.getState().clearCart?.();
           useOrderStore.setState({ activeOrders: [], onlineOrders: [] });
         } catch {}
-        set({ restaurant: newRestaurant });
+        useMenuStore.setState({ categories: [], loading: true, search: '' });
+        useStaffStore.setState({ staff: [], loading: true });
+        useTableStore.setState({ tables: [], selectedTable: null });
+        useShiftStore.setState({ activeShift: null });
+        safeStorage.removeItem('dineos_active_shift');
+        set({ restaurant: target });
+        return { ok: true };
       },
 
       updateRestaurantState: (updates) => {
@@ -633,7 +685,7 @@ export const useAuthStore = create(
         // Persist only the minimum needed to restore session on refresh
         const isSuper = s.staffDoc?.role === 'super_admin';
         return { 
-          user: s.user ? { uid: s.user.uid, isPinLogin: Boolean(s.user.isPinLogin || (s.staffDoc && !isSuper)) } : null,
+          user: s.user ? { uid: s.user.uid, isPinLogin: Boolean(s.user.isPinLogin || s.staffDoc?.isPinLogin) } : null,
           staffDoc: s.staffDoc, 
           // Never persist a restaurant lock for super_admin
           restaurant: isSuper ? null : s.restaurant 

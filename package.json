@@ -13,7 +13,8 @@
     "test:fast": "vitest run",
     "test:changed": "vitest run --changed",
     "test:save": "vitest run --reporter=json --outputFile=src/test/fixtures/test-baseline.json",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:branch-rules": "node --test scripts/test-branch-rules.mjs"
   },
   "dependencies": {
     "@fontsource/source-sans-3": "^5.3.0",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",

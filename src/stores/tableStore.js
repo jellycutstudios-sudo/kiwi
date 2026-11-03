@@ -31,7 +31,7 @@ export const useTableStore = create((set, get) => {
 
       // Load cached tables for this specific restaurant immediately
       const cached = getInitialTables(restaurantId);
-      if (cached.length > 0 && subscribedRestId !== restaurantId) {
+      if (subscribedRestId !== restaurantId) {
         set({ tables: cached });
       }
 

@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import BranchManagement from '../../components/admin/BranchManagement';
+import { menuTargets, sameBusiness, summarizeOutlet } from '../../utils/platformAdministration';
+import { pushBranchMenu, setBusinessDishAvailability } from '../../services/platformMenus';
 import { 
   Plus, ExternalLink, Building2, BarChart3, TrendingUp, ShoppingCart, 
   AlertTriangle, RefreshCw, Layers, ShieldCheck, 
@@ -13,14 +16,15 @@ import {
 import toast from 'react-hot-toast';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
 import { 
-  calculateLocalizedPrice, 
-  prepareMasterMenuPayload, 
-  ENTERPRISE_ROLES
+  calculateLocalizedPrice
 } from '../../utils/enterpriseMenuSync';
 
 export default function Restaurants() {
   const navigate = useNavigate();
-  const { staffDoc, restaurant: currentRestaurant, switchRestaurant } = useAuthStore();
+  const user = useAuthStore(s => s.user);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const currentRestaurant = useAuthStore(s => s.restaurant);
+  const switchRestaurant = useAuthStore(s => s.switchRestaurant);
   const [restaurants, setRestaurants] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name:'', address:'', phone:'', currency:'INR' });
@@ -44,6 +48,12 @@ export default function Restaurants() {
     lowStockList: []
   });
   const [analyticsDays, setAnalyticsDays] = useState(30);
+  const [analyticsCurrency, setAnalyticsCurrency] = useState('INR');
+  const analyticsRequest = useRef(0);
+  const sourceMenuRequest = useRef(0);
+  const staffRequest = useRef(0);
+  const [analyticsError, setAnalyticsError] = useState('');
+  const [staffError, setStaffError] = useState('');
 
   // Master Menu Hub States
   const [sourceOutletId, setSourceOutletId] = useState('');
@@ -63,6 +73,13 @@ export default function Restaurants() {
   const [loadingAllStaff, setLoadingAllStaff] = useState(false);
 
   const isSuperAdmin = staffDoc?.role === 'super_admin';
+  const reportCurrencies = [...new Set(restaurants.map(branch => branch.currency || 'INR'))];
+  const reportCurrency = reportCurrencies.includes(analyticsCurrency) ? analyticsCurrency : reportCurrencies[0] || 'INR';
+  const sourceRestaurant = restaurants.find(branch => branch.id === sourceOutletId);
+  const availableMenuTargets = menuTargets(sourceRestaurant, restaurants);
+  const businessMenuBranches = restaurants.filter(branch => sameBusiness(sourceRestaurant, branch));
+
+  useEffect(() => () => { analyticsRequest.current++; sourceMenuRequest.current++; staffRequest.current++; }, []);
 
   // Listen to registered users when super_admin to display owner email, name, and phone
   useEffect(() => {
@@ -110,41 +127,43 @@ export default function Restaurants() {
   }, [isSuperAdmin, currentRestaurant]);
 
   const fetchConsolidatedData = useCallback(async () => {
-    if (restaurants.length === 0) return;
+    const request = ++analyticsRequest.current;
     setLoadingAnalytics(true);
+    setAnalyticsError('');
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - analyticsDays);
 
+      const endDate = new Date();
       const results = await Promise.all(
-        restaurants.map(async (r) => {
+        restaurants.filter(branch => (branch.currency || 'INR') === reportCurrency).map(async (r) => {
           // Bounded fetch of recent orders, inventory, and staff for each branch
-          const [ordersSnap, inventorySnap, staffSnap] = await Promise.all([
+          const [ordersSnap, textOrdersSnap, inventorySnap, staffSnap] = await Promise.all([
             getDocs(query(
               collection(db, 'restaurants', r.id, 'orders'),
-              where('createdAt', '>=', startDate)
+              where('createdAt', '>=', startDate),
+              where('createdAt', '<=', endDate)
+            )),
+            getDocs(query(
+              collection(db, 'restaurants', r.id, 'orders'),
+              where('createdAt', '>=', startDate.toISOString()),
+              where('createdAt', '<=', endDate.toISOString())
             )),
             getDocs(collection(db, 'restaurants', r.id, 'inventory')),
             getDocs(collection(db, 'restaurants', r.id, 'staff'))
           ]);
 
-          const rawOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          const orders = rawOrders.filter(o => o.status === 'billed');
-          const inventory = inventorySnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          const staff = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const summary = summarizeOutlet(r, [ordersSnap, textOrdersSnap], startDate, endDate);
+          const inventory = inventorySnap.docs.map(d => ({ ...d.data(), id: d.id }));
+          const staff = staffSnap.docs.map(d => ({ ...d.data(), id: d.id }));
 
-          const revenue = orders.reduce((sum, o) => sum + (o.total ?? 0), 0);
           const lowStockIngredients = inventory.filter(ing => ing.qty <= ing.minQty);
           const lowStockCount = lowStockIngredients.length;
 
           return {
-            id: r.id,
-            name: r.name,
-            currency: r.currency || 'INR',
-            revenue,
-            ordersCount: orders.length,
+            ...summary,
             lowStockCount,
-            staffCount: staff.length,
+            staffCount: staff.filter(member => member.active !== false).length,
             lowStockIngredients: lowStockIngredients.map(ing => ({
               id: ing.id,
               name: ing.name,
@@ -165,6 +184,7 @@ export default function Restaurants() {
       const totalStaff = results.reduce((sum, res) => sum + res.staffCount, 0);
       const lowStockList = results.flatMap(res => res.lowStockIngredients);
 
+      if (request !== analyticsRequest.current) return;
       setAnalyticsData({
         outletsData: results,
         totalRevenue,
@@ -175,153 +195,75 @@ export default function Restaurants() {
       });
     } catch (err) {
       console.error("Error loading consolidated analytics:", err);
-      toast.error("Failed to load consolidated analytics");
+      if (request === analyticsRequest.current) setAnalyticsError("Sales data could not be loaded. Try syncing again.");
     } finally {
-      setLoadingAnalytics(false);
+      if (request === analyticsRequest.current) setLoadingAnalytics(false);
     }
-  }, [restaurants, analyticsDays]);
+  }, [restaurants, analyticsDays, reportCurrency]);
 
   useEffect(() => {
-    if (activeTab === 'analytics' && restaurants.length > 0) {
+    if (activeTab === 'analytics') {
       Promise.resolve().then(() => {
         fetchConsolidatedData();
       });
     }
   }, [activeTab, restaurants.length, fetchConsolidatedData]);
 
-  // Master Menu fetch for source outlet
   const fetchSourceMenu = useCallback(async (outletId) => {
-    if (!outletId) return;
+    const request = ++sourceMenuRequest.current;
+    setSourceCategories([]);
+    if (!outletId) { setLoadingSourceMenu(false); return; }
     setLoadingSourceMenu(true);
     try {
-      const snap = await getDocs(collection(db, 'restaurants', outletId, 'menu'));
-      const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setSourceCategories(cats);
-    } catch (e) {
-      console.warn("Could not load source menu:", e);
-      toast.error("Failed to load source outlet menu");
+      const snapshot = await getDocs(collection(db, 'restaurants', outletId, 'menu'));
+      if (request === sourceMenuRequest.current) setSourceCategories(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+    } catch (error) {
+      if (request === sourceMenuRequest.current) toast.error('Unable to load source menu: ' + error.message);
     } finally {
-      setLoadingSourceMenu(false);
+      if (request === sourceMenuRequest.current) setLoadingSourceMenu(false);
     }
   }, []);
 
   useEffect(() => {
-    if (sourceOutletId) {
-      fetchSourceMenu(sourceOutletId);
-    } else if (restaurants.length > 0) {
-      setSourceOutletId(restaurants[0].id);
-    }
-  }, [sourceOutletId, restaurants, fetchSourceMenu]);
+    if (activeTab === 'menu_hub') fetchSourceMenu(sourceOutletId);
+    const invalidate = () => { sourceMenuRequest.current++; };
+    return invalidate;
+  }, [activeTab, sourceOutletId, fetchSourceMenu]);
 
   // Push master menu to selected target outlets with localized pricing
   const handlePushMasterMenu = async () => {
-    if (!sourceOutletId) { toast.error("Select a source master outlet"); return; }
-    if (targetOutletIds.length === 0) { toast.error("Select at least one target branch"); return; }
-    if (sourceCategories.length === 0) { toast.error("Source outlet has no menu categories to push"); return; }
-
+    if (!sourceOutletId || !targetOutletIds.length) { toast.error('Select a source and target branches.'); return; }
+    if (pushingMenu || loadingSourceMenu) return;
     setPushingMenu(true);
-    const toastId = toast.loading(`Propagating master menu across ${targetOutletIds.length} branches...`);
-
+    const toastId = toast.loading('Updating selected branch menus…');
     try {
-      const adjustment = {
-        type: markupType,
-        value: Number(markupValue) || 0,
-        roundTo: Number(roundTo) || null
-      };
-
-      const payload = prepareMasterMenuPayload(sourceCategories, { adjustment });
-
-      for (const targetId of targetOutletIds) {
-        // Query existing categories on target to upsert in-place and avoid duplicate categories
-        const existingSnap = await getDocs(collection(db, 'restaurants', targetId, 'menu'));
-        const existingCatsByName = new Map();
-        existingSnap.docs.forEach(d => {
-          const dData = d.data();
-          if (dData.name) existingCatsByName.set(dData.name.trim().toLowerCase(), d.id);
-        });
-
-        for (const cat of payload) {
-          const catKey = (cat.name || '').trim().toLowerCase();
-          const existingDocId = existingCatsByName.get(catKey);
-
-          const catData = {
-            name: cat.name,
-            emoji: cat.emoji || '🍽️',
-            items: cat.items,
-            taxRate: cat.taxRate ?? null,
-            updatedAt: serverTimestamp(),
-            pushedFromMaster: sourceOutletId
-          };
-
-          if (existingDocId) {
-            await updateDoc(doc(db, 'restaurants', targetId, 'menu', existingDocId), catData);
-          } else {
-            await addDoc(collection(db, 'restaurants', targetId, 'menu'), catData);
-          }
-        }
-      }
-
-      toast.success(`Master menu successfully synchronized to ${targetOutletIds.length} outlet(s)!`, { id: toastId, icon: '🚀' });
-    } catch (err) {
-      console.error("Master menu push error:", err);
-      toast.error(`Push failed: ${err.message}`, { id: toastId });
-    } finally {
-      setPushingMenu(false);
-    }
+      const count = await pushBranchMenu(sourceOutletId, targetOutletIds, {
+        type: markupType, value: Number(markupValue), roundTo: roundTo == null ? null : Number(roundTo),
+      });
+      toast.success(`Menu synchronized to ${count} branch(es).`, { id: toastId });
+    } catch (error) {
+      toast.error(`Menu update could not be confirmed: ${error.message}. Refresh before retrying.`, { id: toastId });
+    } finally { setPushingMenu(false); }
   };
 
-  // Global 86'ing tool across all outlets
   const handleGlobal86 = async () => {
-    if (!global86Dish.trim()) { toast.error("Enter a dish name to 86/restore"); return; }
+    if (running86 || !sourceRestaurant || !global86Dish.trim()) return;
     setRunning86(true);
-    const toastId = toast.loading(`Updating ${global86Dish} across all outlets...`);
-
+    const toastId = toast.loading('Updating availability within the selected business…');
     try {
-      let updatedBranches = 0;
-      const targetDishNorm = global86Dish.trim().toLowerCase();
-
-      for (const r of restaurants) {
-        const snap = await getDocs(collection(db, 'restaurants', r.id, 'menu'));
-        let branchHadItem = false;
-
-        for (const catDoc of snap.docs) {
-          const catData = catDoc.data();
-          const items = catData.items || [];
-          let catModified = false;
-
-          const updatedItems = items.map(item => {
-            if (item.name && item.name.toLowerCase().includes(targetDishNorm)) {
-              catModified = true;
-              branchHadItem = true;
-              return { ...item, available: global86Status, eightySixedAt: global86Status ? null : new Date().toISOString() };
-            }
-            return item;
-          });
-
-          if (catModified) {
-            await updateDoc(doc(db, 'restaurants', r.id, 'menu', catDoc.id), {
-              items: updatedItems,
-              updatedAt: serverTimestamp()
-            });
-          }
-        }
-        if (branchHadItem) updatedBranches++;
-      }
-
-      toast.success(`${global86Dish} marked as ${global86Status ? 'Available' : '86\'d (Sold Out)'} across ${updatedBranches} branch(es)!`, { id: toastId, icon: global86Status ? '✅' : '🚫' });
+      const count = await setBusinessDishAvailability(sourceOutletId, businessMenuBranches.map(branch => branch.id), global86Dish, global86Status);
+      toast.success(`${global86Dish} ${global86Status ? 'available' : 'sold out'} in ${count} branch(es).`, { id: toastId });
       setGlobal86Dish('');
-    } catch (e) {
-      console.error("Global 86 error:", e);
-      toast.error(`Global 86 failed: ${e.message}`, { id: toastId });
-    } finally {
-      setRunning86(false);
-    }
+    } catch (error) {
+      toast.error(`Availability update could not be confirmed: ${error.message}. Refresh before retrying.`, { id: toastId });
+    } finally { setRunning86(false); }
   };
 
   // Fetch all staff across branches for staff_roles tab
   const fetchAllStaff = useCallback(async () => {
-    if (restaurants.length === 0) return;
+    const request = ++staffRequest.current;
     setLoadingAllStaff(true);
+    setStaffError('');
     try {
       const results = await Promise.all(
         restaurants.map(async (r) => {
@@ -334,11 +276,14 @@ export default function Restaurants() {
           }));
         })
       );
-      setAllStaffList(results.flat());
+      if (request === staffRequest.current) setAllStaffList(results.flat());
     } catch (e) {
       console.warn("Could not load all staff:", e);
+      if (request !== staffRequest.current) return;
+      setAllStaffList([]);
+      setStaffError("Staff could not be loaded. Try refreshing again.");
     } finally {
-      setLoadingAllStaff(false);
+      if (request === staffRequest.current) setLoadingAllStaff(false);
     }
   }, [restaurants]);
 
@@ -352,6 +297,7 @@ export default function Restaurants() {
     if (!form.name.trim()) { toast.error('Enter restaurant name'); return; }
     setSaving(true);
     try {
+      const effectiveUid = user?.uid || staffDoc?.id || staffDoc?.uid;
       const ref = await addDoc(collection(db, 'restaurants'), {
         name: form.name.trim(),
         address: form.address.trim(),
@@ -360,10 +306,10 @@ export default function Restaurants() {
         modes: ['pos'],
         taxConfig: { type: 'none' },
         createdAt: serverTimestamp(),
-        ownerUid: staffDoc?.uid,
-        status: 'approved', // Manual creation by super admin is pre-approved
+        ownerUid: effectiveUid,
+        status: isSuperAdmin ? 'approved' : 'pending',
       });
-      toast.success(`Restaurant created! ID: ${ref.id}`);
+      toast.success(isSuperAdmin ? `Restaurant created! ID: ${ref.id}` : `Branch registered! Pending approval by Super Admin.`);
       setShowForm(false);
       setSaving(false);
       setForm({ name:'', address:'', phone:'', currency:'INR' });
@@ -381,8 +327,9 @@ export default function Restaurants() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleEnterConsole = (restaurantItem) => {
-    switchRestaurant(restaurantItem);
+  const handleEnterConsole = async (restaurantItem) => {
+    const result = await switchRestaurant(restaurantItem);
+    if (!result?.ok) { toast.error(result?.error || 'Unable to open branch.'); return; }
     toast.success(`Switched active context to ${restaurantItem.name}`);
     navigate('/dashboard');
   };
@@ -405,7 +352,7 @@ export default function Restaurants() {
       await updateDoc(docRef, { status: newStatus });
       toast.success(`Restaurant account ${newStatus === 'approved' ? 'approved & activated' : 'suspended'}!`);
     } catch (e) {
-      toast.error('Failed to update status: ' + e.message);
+      throw new Error('Failed to update branch status: ' + e.message);
     }
   };
 
@@ -464,35 +411,35 @@ export default function Restaurants() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
         <div>
           <h2 className="text-title2">
-            {isSuperAdmin ? 'Registered Accounts' : 'Restaurants'}
+            {isSuperAdmin ? 'Businesses & Branches' : 'Restaurants'}
           </h2>
           <p className="text-secondary text-subhead" style={{ marginTop: 2 }}>
             {isSuperAdmin
-              ? 'Verify, approve, and manage registered restaurant accounts across the platform'
+              ? 'Connect branches, record manual payments, and manage renewals'
               : 'Manage all your restaurant branches'}
           </p>
         </div>
-        {activeTab === 'outlets' ? (
+        {activeTab === 'outlets' ? (!isSuperAdmin && (
           <button className="btn btn-primary" id="add-restaurant-btn" onClick={() => setShowForm(true)}>
             <Plus size={16}/> {isSuperAdmin ? 'Register New Account' : 'New Restaurant'}
           </button>
-        ) : (
+        )) : (
           <button
             className="btn btn-secondary"
-            onClick={fetchConsolidatedData}
-            disabled={loadingAnalytics}
+            onClick={activeTab === 'analytics' ? fetchConsolidatedData : activeTab === 'staff_roles' ? fetchAllStaff : () => fetchSourceMenu(sourceOutletId)}
+            disabled={activeTab === 'analytics' ? loadingAnalytics : activeTab === 'staff_roles' ? loadingAllStaff : loadingSourceMenu || !sourceOutletId}
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             id="sync-analytics-btn"
           >
             <RefreshCw size={14} className={loadingAnalytics ? 'spin-anim' : ''} />
-            {loadingAnalytics ? 'Syncing...' : 'Sync Analytics'}
+            {activeTab === 'analytics' ? (loadingAnalytics ? 'Syncing…' : 'Sync Analytics') : activeTab === 'staff_roles' ? 'Refresh Staff' : 'Refresh Source Menu'}
           </button>
         )}
       </div>
 
       <div className="nav-tabs no-scrollbar touch-scroll-x">
         {[
-          { key: 'outlets', label: isSuperAdmin ? 'Accounts Directory' : 'Outlets Directory', icon: isSuperAdmin ? ShieldCheck : Building2 },
+          { key: 'outlets', label: isSuperAdmin ? 'Branches & Payments' : 'Outlets Directory', icon: isSuperAdmin ? ShieldCheck : Building2 },
           { key: 'analytics', label: isSuperAdmin ? 'Platform & Franchise Analytics' : 'Consolidated Analytics & P&L', icon: BarChart3 },
           { key: 'menu_hub', label: 'Master Menu Hub & Push', icon: Layers },
           { key: 'staff_roles', label: isSuperAdmin ? 'Global Staff Directory' : 'Franchise Staff & Roles', icon: Users }
@@ -511,10 +458,11 @@ export default function Restaurants() {
       </div>
 
       {/* ── Tab Content: Accounts & Outlets Directory ────────────── */}
-      {activeTab === 'outlets' && (
+      {activeTab === 'outlets' && isSuperAdmin && <BranchManagement restaurants={restaurants} usersMap={usersMap} onEnter={handleEnterConsole} onStatusChange={updateRestaurantStatus} />}
+      {activeTab === 'outlets' && !isSuperAdmin && (
         <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
-          {/* Pending Approval Alert Banner for Super Admin */}
-          {isSuperAdmin && pendingCount > 0 && (
+          {/* Pending Approval Alert Banner for Franchise Owner */}
+          {pendingCount > 0 && (
             <div style={{
               background: 'rgba(245, 158, 11, 0.12)',
               border: '1.5px solid rgba(245, 158, 11, 0.4)',
@@ -530,10 +478,10 @@ export default function Restaurants() {
                 <AlertCircle size={22} color="#f59e0b" style={{ flexShrink: 0 }} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-label)' }}>
-                    {pendingCount} Account{pendingCount > 1 ? 's' : ''} Awaiting Approval
+                    {pendingCount} Branch{pendingCount > 1 ? 'es' : ''} Awaiting Approval
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
-                    New registrations need Super Admin verification before they can access the full terminal and live POS.
+                    New branch registrations require Super Admin activation before switching.
                   </div>
                 </div>
               </div>
@@ -547,7 +495,7 @@ export default function Restaurants() {
                   fontWeight: 600
                 }}
               >
-                Review Pending ({pendingCount})
+                View Pending ({pendingCount})
               </button>
             </div>
           )}
@@ -778,71 +726,30 @@ export default function Restaurants() {
                     </a>
                   </div>
 
-                  {/* Operational Action Controls */}
-                  {isSuperAdmin && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', paddingTop: '8px', borderTop: '1px solid var(--color-separator)' }}>
-                      {/* If Pending: Approve vs Reject */}
-                      {isPending && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            className="btn btn-success btn-sm"
-                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 700 }}
-                            onClick={() => updateRestaurantStatus(r.id, 'approved')}
-                          >
-                            <CheckCircle2 size={14} /> Approve & Activate
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                            onClick={() => handleDeleteRestaurant(r)}
-                            title="Reject and delete this registration"
-                          >
-                            <XCircle size={14} /> Reject
-                          </button>
-                        </div>
-                      )}
-
-                      {/* If Approved: Open Outlet Console + Suspend Toggle */}
-                      {isApproved && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 600 }}
-                            onClick={() => handleEnterConsole(r)}
-                          >
-                            <Rocket size={14} /> Open Outlet Console
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--color-label-secondary)' }}
-                            onClick={() => updateRestaurantStatus(r.id, 'suspended')}
-                          >
-                            Suspend
-                          </button>
-                        </div>
-                      )}
-
-                      {/* If Suspended: Reactivate + Delete */}
-                      {isSuspended && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            className="btn btn-success btn-sm"
-                            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 700 }}
-                            onClick={() => updateRestaurantStatus(r.id, 'approved')}
-                          >
-                            <CheckCircle2 size={14} /> Reactivate Account
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                            onClick={() => handleDeleteRestaurant(r)}
-                          >
-                            <Trash2 size={13} /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Operational Action Controls for Branch Owner */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', paddingTop: '8px', borderTop: '1px solid var(--color-separator)' }}>
+                    {r.id === currentRestaurant?.id ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '6px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', color: '#10b981', fontSize: '12px', fontWeight: 700 }}>
+                        <CheckCircle2 size={14} /> Active Branch
+                      </div>
+                    ) : isApproved ? (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 600 }}
+                        onClick={() => handleEnterConsole(r)}
+                      >
+                        <Rocket size={14} /> Switch to Branch
+                      </button>
+                    ) : isPending ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '6px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px', color: '#f59e0b', fontSize: '11px', fontWeight: 600 }}>
+                        <Clock size={13} /> Pending Super Admin Approval
+                      </div>
+                    ) : isSuspended ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '6px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', color: '#ef4444', fontSize: '11px', fontWeight: 600 }}>
+                        <AlertCircle size={13} /> Branch Suspended · Contact Support
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
@@ -898,8 +805,14 @@ export default function Restaurants() {
 
       {activeTab === 'analytics' && !loadingAnalytics && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-          {/* Time range selector */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+          {analyticsError && <p className="branch-notice" role="alert">{analyticsError}</p>}
+          {/* Compare and total branches in one currency at a time. */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <label className="branch-field">Report currency
+              <select aria-label="Report currency" className="form-select" value={reportCurrency} onChange={event => setAnalyticsCurrency(event.target.value)}>
+                {reportCurrencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+              </select>
+            </label>
             {[
               { days: 7, label: 'Last 7 Days' },
               { days: 30, label: 'Last 30 Days' },
@@ -921,14 +834,14 @@ export default function Restaurants() {
               <div className="stat-card-icon" style={{ backgroundColor: 'var(--color-accent-light)' }}>
                 <Building2 size={20} color="var(--color-accent)" />
               </div>
-              <div className="stat-card-value">{restaurants.length}</div>
+              <div className="stat-card-value">{analyticsData.outletsData.length}</div>
               <div className="stat-card-label" style={{ color: 'var(--color-label-secondary)' }}>Total Outlets</div>
             </div>
             <div className="stat-card">
               <div className="stat-card-icon" style={{ backgroundColor: 'rgba(52, 199, 89, 0.15)' }}>
                 <TrendingUp size={20} color="#34C759" />
               </div>
-              <div className="stat-card-value">{formatCurrency(analyticsData.totalRevenue, 'INR')}</div>
+              <div className="stat-card-value">{formatCurrency(analyticsData.totalRevenue, reportCurrency)}</div>
               <div className="stat-card-label" style={{ color: 'var(--color-label-secondary)' }}>Group Sales Revenue</div>
             </div>
             <div className="stat-card">
@@ -1221,7 +1134,7 @@ export default function Restaurants() {
                 type="button"
                 className="btn btn-primary"
                 id="push-master-menu-btn"
-                disabled={pushingMenu || targetOutletIds.length === 0}
+                disabled={pushingMenu || loadingSourceMenu || !sourceRestaurant || targetOutletIds.length === 0}
                 onClick={handlePushMasterMenu}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, height: 38 }}
               >
@@ -1232,7 +1145,7 @@ export default function Restaurants() {
           </div>
 
           {/* Sync Configuration Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'var(--space-4)' }}>
             {/* Step 1: Source & Targets */}
             <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--color-separator)', paddingBottom: 8 }}>
@@ -1241,14 +1154,15 @@ export default function Restaurants() {
               </div>
 
               <div>
-                <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Source Master Outlet</label>
+                <label htmlFor="source-outlet-select" className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Source Master Outlet</label>
                 <select
                   className="form-select"
                   id="source-outlet-select"
                   value={sourceOutletId}
-                  onChange={e => setSourceOutletId(e.target.value)}
+                  onChange={e => { sourceMenuRequest.current++; setSourceCategories([]); setSourceOutletId(e.target.value); setTargetOutletIds([]); }}
                   style={{ height: 36, fontSize: 12.5 }}
                 >
+                  <option value="">Choose a source branch</option>
                   {restaurants.map(r => (
                     <option key={r.id} value={r.id}>{r.name} ({r.id.slice(0, 8)}...)</option>
                   ))}
@@ -1263,16 +1177,16 @@ export default function Restaurants() {
                     className="btn btn-link btn-xs"
                     style={{ fontSize: 11, padding: 0 }}
                     onClick={() => {
-                      const otherIds = restaurants.filter(r => r.id !== sourceOutletId).map(r => r.id);
+                      const otherIds = availableMenuTargets.map(branch => branch.id);
                       setTargetOutletIds(targetOutletIds.length === otherIds.length ? [] : otherIds);
                     }}
                   >
-                    {targetOutletIds.length === restaurants.filter(r => r.id !== sourceOutletId).length ? 'Deselect All' : 'Select All'}
+                    {targetOutletIds.length > 0 && targetOutletIds.length === availableMenuTargets.length ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', paddingRight: 4 }}>
-                  {restaurants.filter(r => r.id !== sourceOutletId).map(r => {
+                  {availableMenuTargets.map(r => {
                     const isChecked = targetOutletIds.includes(r.id);
                     return (
                       <label 
@@ -1302,9 +1216,9 @@ export default function Restaurants() {
                       </label>
                     );
                   })}
-                  {restaurants.length <= 1 && (
+                  {availableMenuTargets.length === 0 && (
                     <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', padding: 8 }}>
-                      Create additional branch outlets in Outlets Directory to push master menus.
+                      Choose a source branch. Targets must belong to the same business and use the same currency.
                     </div>
                   )}
                 </div>
@@ -1370,9 +1284,9 @@ export default function Restaurants() {
 
               {/* Sample Calculation Preview */}
               <div style={{ background: 'var(--color-bg-secondary)', padding: '10px 12px', borderRadius: 8, fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                Sample Dish ($20.00 base): Target outlet price will be{' '}
+                Sample dish ({formatCurrency(20, sourceRestaurant?.currency || 'INR')} base): Target outlet price will be{' '}
                 <strong style={{ color: 'var(--color-label)', fontSize: 12 }}>
-                  ${calculateLocalizedPrice(20, { type: markupType, value: markupValue, roundTo }).toFixed(2)}
+                  {formatCurrency(calculateLocalizedPrice(20, { type: markupType, value: markupValue, roundTo }), sourceRestaurant?.currency || 'INR')}
                 </strong>
                 {markupType === 'percent' && markupValue !== 0 && ` (${markupValue > 0 ? `+${markupValue}%` : `${markupValue}%`})`}
               </div>
@@ -1382,11 +1296,11 @@ export default function Restaurants() {
             <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--color-separator)', paddingBottom: 8 }}>
                 <Flame size={16} color="#ef4444" />
-                <span style={{ fontWeight: 800, fontSize: 13.5 }}>3. Global 86'ing Across All Outlets</span>
+                <span style={{ fontWeight: 800, fontSize: 13.5 }}>3. Business-wide Availability</span>
               </div>
 
               <p style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', margin: 0 }}>
-                Instant supply-chain emergency control: 86 a dish across all franchise outlets in 1 click.
+                Update exact dish-name matches within the source business only. Other businesses are excluded.
               </p>
 
               <div>
@@ -1394,7 +1308,7 @@ export default function Restaurants() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Avocado Toast or Salmon"
+                  placeholder="Enter the full dish name"
                   value={global86Dish}
                   onChange={e => setGlobal86Dish(e.target.value)}
                   style={{ height: 36, fontSize: 12.5 }}
@@ -1424,11 +1338,11 @@ export default function Restaurants() {
                 type="button"
                 className="btn btn-secondary btn-sm"
                 id="apply-global-86-btn"
-                disabled={running86 || !global86Dish.trim()}
+                disabled={running86 || !sourceRestaurant || !global86Dish.trim()}
                 onClick={handleGlobal86}
                 style={{ fontWeight: 700, height: 34 }}
               >
-                {running86 ? 'Applying...' : 'Apply Across All Outlets'}
+                {running86 ? 'Updating…' : `Apply to source business (${businessMenuBranches.length} branches)`}
               </button>
             </div>
           </div>
@@ -1504,58 +1418,12 @@ export default function Restaurants() {
                 <ShieldCheck size={22} />
               </div>
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Franchise Roles &amp; Staff Hierarchy</h3>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Staff Directory</h3>
                 <p style={{ fontSize: 12, color: 'var(--color-label-secondary)', margin: '2px 0 0' }}>
-                  Centralized multi-store permission tiers and cross-branch staff assignment.
+                  View actual staff assignments and active status for each branch.
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* 4 Tier Role Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-4)' }}>
-            {Object.values(ENTERPRISE_ROLES).map(role => (
-              <div 
-                key={role.id} 
-                className="card card-padded"
-                style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: `3px solid ${role.badgeColor}` }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-label)' }}>{role.title}</span>
-                  <span style={{ fontSize: 10, background: `${role.badgeColor}22`, color: role.badgeColor, padding: '2px 7px', borderRadius: 6, fontWeight: 800 }}>
-                    {role.id.toUpperCase()}
-                  </span>
-                </div>
-
-                <p style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', margin: 0, minHeight: 36, lineHeight: 1.4 }}>
-                  {role.description}
-                </p>
-
-                <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label-secondary)', marginBottom: 6 }}>
-                    Granted Capabilities ({role.permissions.length}):
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {role.permissions.map(perm => (
-                      <span 
-                        key={perm}
-                        style={{ 
-                          fontSize: 9.5, 
-                          padding: '2px 6px', 
-                          borderRadius: 4, 
-                          background: 'var(--color-bg-secondary)', 
-                          border: '1px solid var(--color-separator)',
-                          fontWeight: 600,
-                          color: 'var(--color-label)'
-                        }}
-                      >
-                        ✓ {perm.replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
 
           {/* Cross-Store Staff Overview Directory */}
@@ -1564,7 +1432,7 @@ export default function Restaurants() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Users size={16} color="var(--color-accent)" />
                 <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>
-                  Cross-Branch Staff Directory ({allStaffList.length} employees)
+                  Cross-Branch Staff Directory ({allStaffList.length} assignments)
                 </h4>
               </div>
               <button
@@ -1578,6 +1446,7 @@ export default function Restaurants() {
               </button>
             </div>
 
+            {staffError && <p role="alert" className="branch-notice">{staffError}</p>}
             {loadingAllStaff ? (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-label-secondary)' }}>
                 Loading staff across all branches...
@@ -1602,7 +1471,7 @@ export default function Restaurants() {
                     {allStaffList.map((emp, i) => {
                       const isOwner = emp.role === 'admin' || emp.role === 'franchise_owner';
                       return (
-                        <tr key={emp.id || i} style={{ borderBottom: '1px solid var(--color-separator-opaque, rgba(255,255,255,0.04))' }}>
+                        <tr key={`${emp.restaurantId}:${emp.id || i}`} style={{ borderBottom: '1px solid var(--color-separator-opaque, rgba(255,255,255,0.04))' }}>
                           <td style={{ padding: '8px 10px', fontWeight: 700 }}>
                             👤 {emp.name || 'Staff Member'}
                           </td>
@@ -1626,11 +1495,11 @@ export default function Restaurants() {
                           </td>
                           <td style={{ padding: '8px 10px' }}>
                             <span className={`badge ${isOwner ? 'badge-blue' : 'badge-green'}`} style={{ fontSize: 10 }}>
-                              {isOwner ? 'Global (All Stores)' : 'Branch Dedicated'}
+                              {emp.role === 'super_admin' ? 'Platform administrator' : 'Branch assigned'}
                             </span>
                           </td>
                           <td style={{ padding: '8px 10px' }}>
-                            <span style={{ color: '#10b981', fontWeight: 700, fontSize: 11 }}>● Active</span>
+                            <span style={{ color: emp.active === false ? 'var(--color-red)' : '#10b981', fontWeight: 700, fontSize: 11 }}>{emp.active === false ? '● Inactive' : '● Active'}</span>
                           </td>
                         </tr>
                       );
