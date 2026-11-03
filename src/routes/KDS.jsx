@@ -23,7 +23,8 @@ import {
   Keyboard,
   X,
   LogOut,
-  ArrowLeft
+  ArrowLeft,
+  Bell
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -218,7 +219,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
         </div>
         
         {/* Action & Status Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           {handleRingWaiter && (
             <button
               type="button"
@@ -229,25 +230,26 @@ const KDSTicketCard = memo(function KDSTicketCard({
                 setTimeout(() => setHeaderRang(false), 2500);
               }}
               style={{
-                background: headerRang ? '#10b981' : '#f59e0b',
-                border: 'none',
-                color: headerRang ? '#ffffff' : '#000000',
-                borderRadius: 8,
-                padding: '4px 9px',
+                background: headerRang ? 'var(--color-green)' : 'rgba(245, 158, 11, 0.12)',
+                border: headerRang ? '1px solid var(--color-green)' : '1px solid rgba(245, 158, 11, 0.35)',
+                color: headerRang ? '#ffffff' : '#f59e0b',
+                borderRadius: 7,
+                padding: '0 8px',
+                height: 28,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
                 fontSize: 11,
                 fontWeight: 800,
-                boxShadow: headerRang 
-                  ? '0 1px 6px rgba(16, 185, 129, 0.5)' 
-                  : '0 1px 6px rgba(245, 158, 11, 0.4)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
                 transition: 'all 0.15s ease'
               }}
-              title="Alert server/runner to collect order from pass"
+              title="Alert waiter/runner to come to pass"
             >
-              <span>{headerRang ? '✓ Rang!' : '🔔 Ring Waiter'}</span>
+              <Bell size={12} />
+              <span>{headerRang ? 'Rang!' : 'Ring'}</span>
             </button>
           )}
 
@@ -265,32 +267,41 @@ const KDSTicketCard = memo(function KDSTicketCard({
             style={{
               background: 'var(--color-bg-secondary)',
               border: '1px solid var(--color-separator-opaque)',
-              color: 'var(--color-label)',
-              borderRadius: 8,
-              padding: '4px 8px',
+              color: 'var(--color-label-secondary)',
+              borderRadius: 7,
+              padding: '0 8px',
+              height: 28,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
+              gap: 3,
               fontSize: 11,
               fontWeight: 700,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
               transition: 'all 0.15s ease'
             }}
             title="Print Kitchen Ticket to Thermal Printer"
           >
             <Printer size={13} />
-            <span>Print</span>
           </button>
 
           {/* Status Pill */}
           <div style={{
-            padding: '4px 10px',
-            borderRadius: 8,
-            fontSize: 11,
+            padding: '0 8px',
+            height: 28,
+            borderRadius: 7,
+            fontSize: 10.5,
             fontWeight: 800,
+            letterSpacing: '0.04em',
             background: order.status === 'pending' ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
             color: order.status === 'pending' ? 'var(--color-yellow)' : 'var(--color-purple)',
-            border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)'
+            border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}>
             {order.status === 'pending' ? 'TO COOK' : 'COOKING'}
           </div>
@@ -456,14 +467,16 @@ const KDSTicketCard = memo(function KDSTicketCard({
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {activeStation === 'All' && item.station && (
+                        {activeStation === 'All' && item.station && item.station !== 'Kitchen' && item.station !== 'Default' && (
                           <span style={{
                             fontSize: 9,
-                            padding: '2px 6px',
+                            padding: '2px 5px',
                             borderRadius: 4,
                             background: 'var(--color-fill-secondary)',
                             color: 'var(--color-label-secondary)',
-                            fontWeight: 700
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em'
                           }}>
                             {item.station}
                           </span>
@@ -480,38 +493,42 @@ const KDSTicketCard = memo(function KDSTicketCard({
                               }, 2500);
                             }}
                             style={{
-                              fontSize: 11,
-                              padding: '3px 8px',
-                              borderRadius: 6,
+                              fontSize: 10.5,
+                              padding: '2px 6px',
+                              height: 24,
+                              borderRadius: 5,
                               fontWeight: 800,
-                              background: rangItems[originalIndex] ? '#10b981' : '#f59e0b',
-                              color: rangItems[originalIndex] ? '#ffffff' : '#000000',
-                              border: 'none',
+                              background: rangItems[originalIndex] ? 'var(--color-green)' : 'rgba(245, 158, 11, 0.15)',
+                              color: rangItems[originalIndex] ? '#ffffff' : '#f59e0b',
+                              border: rangItems[originalIndex] ? '1px solid var(--color-green)' : '1px solid rgba(245, 158, 11, 0.35)',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 3,
-                              boxShadow: rangItems[originalIndex]
-                                ? '0 1px 6px rgba(16, 185, 129, 0.5)'
-                                : '0 1px 6px rgba(245, 158, 11, 0.4)',
+                              flexShrink: 0,
                               transition: 'all 0.15s ease'
                             }}
                             title="Ring Waiter / Food Runner for this dish"
                           >
-                            {rangItems[originalIndex] ? '✓ Rang!' : '🔔 Ring'}
+                            <Bell size={11} />
+                            <span>{rangItems[originalIndex] ? 'Rang!' : 'Ring'}</span>
                           </button>
                         )}
                         <span style={{
-                          fontSize: 11,
-                          padding: '3px 8px',
-                          borderRadius: 6,
+                          fontSize: 10.5,
+                          padding: '2px 7px',
+                          height: 24,
+                          borderRadius: 5,
                           fontWeight: 800,
-                          background: isReady ? 'var(--color-green-light)' : (isPreparing ? 'var(--color-purple-light)' : 'var(--color-yellow-light)'),
+                          background: isReady ? 'var(--color-green-light)' : (isPreparing ? 'var(--color-purple-light)' : 'rgba(245, 158, 11, 0.1)'),
                           color: isReady ? 'var(--color-green)' : (isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)'),
-                          border: isReady ? '1px solid var(--color-green)' : (isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-yellow)'),
-                          display: 'flex',
+                          border: isReady ? '1px solid var(--color-green)' : (isPreparing ? '1px solid var(--color-purple)' : '1px solid rgba(245, 158, 11, 0.3)'),
+                          display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 3
+                          justifyContent: 'center',
+                          gap: 3,
+                          flexShrink: 0,
+                          letterSpacing: '0.02em'
                         }}>
                           {isReady ? '✓ Ready' : (isPreparing ? '🍳 Cooking' : 'To Cook')}
                         </span>
@@ -541,21 +558,25 @@ const KDSTicketCard = memo(function KDSTicketCard({
       </div>
 
       {/* Card Action Bump Bar */}
-      <div className="kds-order-action" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+      <div className="kds-order-action">
         {allStationReady ? (
-          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
             <div style={{
               flex: 1,
               textAlign: 'center',
               color: 'var(--color-green)',
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: 800,
-              padding: '10px 0',
+              padding: '9px 0',
               background: 'var(--color-green-light)',
-              borderRadius: 10,
-              border: '1px solid var(--color-green)'
+              borderRadius: 9,
+              border: '1px solid var(--color-green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5
             }}>
-              ✓ All Ready
+              <CheckCircle2 size={15} /> All Ready at Pass
             </div>
             {handleRingWaiter && (
               <button
@@ -566,10 +587,10 @@ const KDSTicketCard = memo(function KDSTicketCard({
                   setTimeout(() => setHeaderRang(false), 2500);
                 }}
                 style={{
-                  background: headerRang ? '#10b981' : '#f59e0b',
+                  background: headerRang ? 'var(--color-green)' : '#f59e0b',
                   color: headerRang ? '#ffffff' : '#000000',
                   border: 'none',
-                  borderRadius: 10,
+                  borderRadius: 9,
                   padding: '0 14px',
                   fontWeight: 800,
                   fontSize: 12,
@@ -579,21 +600,23 @@ const KDSTicketCard = memo(function KDSTicketCard({
                   gap: 5,
                   boxShadow: headerRang 
                     ? '0 2px 8px rgba(16, 185, 129, 0.5)' 
-                    : '0 2px 8px rgba(245, 158, 11, 0.4)',
+                    : '0 2px 8px rgba(245, 158, 11, 0.35)',
                   transition: 'all 0.15s ease'
                 }}
                 title="Ring Server: Buzz waiter to pick up order"
               >
-                <span>{headerRang ? '✓ Rang!' : '🔔 Ring Waiter'}</span>
+                <Bell size={13} />
+                <span>{headerRang ? '✓ Rang!' : 'Ring Waiter'}</span>
               </button>
             )}
           </div>
         ) : (
-          <>
-            {anyStationPending && (
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            {order.status === 'pending' && anyStationPending && (
               <button
                 className="kds-cook-btn"
                 onClick={() => handleStartPreparing(order, activeStation)}
+                style={{ flex: 1, padding: '9px 12px', fontSize: 12.5 }}
               >
                 🍳 Start Cooking
               </button>
@@ -601,11 +624,11 @@ const KDSTicketCard = memo(function KDSTicketCard({
             <button
               className="kds-ready-btn"
               onClick={() => handleMarkReady(order, activeStation)}
-              style={{ flex: anyStationPending ? 1.2 : 1 }}
+              style={{ flex: 1, padding: '9px 12px', fontSize: 12.5 }}
             >
-              <Check size={16} strokeWidth={3} /> Mark All Ready
+              <Check size={15} strokeWidth={3} /> Mark All Ready
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>
