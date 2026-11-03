@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { Building2, CreditCard, Link2, Plus, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -105,6 +105,27 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
   const owners = Object.values(usersMap).filter(owner => owner.role === 'admin').sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
   const ungrouped = groupsAvailable ? restaurants.filter(branch => !branch.businessGroupId || !groups.some(group => group.id === branch.businessGroupId)) : restaurants;
   const groupMap = Object.fromEntries(groups.map(group => [group.id, group]));
+
+  const ungroupedBrands = useMemo(() => {
+    const map = new Map();
+    ungrouped.forEach(branch => {
+      const key = branch.ownerUid || branch.id;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(branch);
+    });
+
+    return Array.from(map.entries()).map(([ownerUid, branchList]) => {
+      const owner = usersMap[ownerUid];
+      const mainBranch = branchList.find(b => b.isMainBranch) || branchList.find(b => !b.parentRestaurantId) || branchList[0];
+      const brandTitle = mainBranch?.name || 'Restaurant Brand';
+      return {
+        ownerUid,
+        owner,
+        brandTitle,
+        branches: branchList.sort((a, b) => (a.id === mainBranch?.id ? -1 : 1))
+      };
+    });
+  }, [ungrouped, usersMap]);
   const pendingCount = restaurants.filter(branch => ['pending', 'trial_pending'].includes(branch.status)).length;
   const overdueCount = restaurants.filter(branch => subscriptionStatus(branch, subscriptions[branch.id]).key === 'overdue').length;
   const dueCount = restaurants.filter(branch => subscriptionStatus(branch, subscriptions[branch.id]).key === 'due_soon').length;
@@ -131,10 +152,10 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
   const update = (key, value) => setForm(state => ({ ...state, [key]: value }));
   const toggleBranch = id => update('restaurantIds', form.restaurantIds.includes(id) ? form.restaurantIds.filter(value => value !== id) : [...form.restaurantIds, id]);
 
-  function openNewBranch(groupId = groups[0]?.id || '') {
+  function openNewBranch(groupId = groups[0]?.id || '', ownerUid = '') {
     open('branch', {}, { 
       groupId, 
-      ownerUid: owners[0]?.id || '', 
+      ownerUid: ownerUid || owners[0]?.id || '', 
       name: '', 
       address: '', 
       phone: '', 
@@ -197,11 +218,10 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
           <p className="text-secondary">{branch.address || 'Address not added'}</p>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          {(branch.isMainBranch || !branch.parentRestaurantId) && (
-            <span className="badge badge-purple" style={{ fontSize: '10px' }}>Main HQ</span>
-          )}
-          {branch.parentRestaurantId && (
-            <span className="badge badge-blue" style={{ fontSize: '10px' }}>Outlet</span>
+          {branch.isMainBranch || (!branch.parentRestaurantId && branch.isMainBranch !== false) ? (
+            <span className="badge badge-purple" style={{ fontSize: '10px' }}>⭐ Main HQ</span>
+          ) : (
+            <span className="badge badge-blue" style={{ fontSize: '10px' }}>📍 Outlet</span>
           )}
           <span className={`badge ${branch.status === 'suspended' ? 'badge-red' : branch.status === 'approved' ? 'badge-green' : 'badge-orange'}`}>
             {branch.status === 'suspended' ? 'Suspended' : branch.status === 'approved' ? 'Approved' : 'Pending approval'}
@@ -280,10 +300,48 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
         {visible.length ? <div className="branch-grid">{visible.map(renderBranch)}</div> : <p className="text-secondary branch-empty">Connect an existing branch or add this business’s first branch.</p>}
       </section>;
     })}
-    {ungrouped.filter(matches).length > 0 && <section className="card branch-group" aria-label={groupsAvailable ? 'Ungrouped branches' : 'Branches'}>
-      <div className="branch-group-header"><h3>{groupsAvailable ? 'Restaurant Brands (Main HQ & Outlets)' : 'Branches'}</h3><p className="text-secondary">{groupsAvailable ? 'Main headquarters and individual outlets. You can manage billing, add sub-outlets, or connect branches under a shared brand.' : 'Business grouping is unavailable. You can still open branch consoles and manage approvals.'}</p></div>
-      <div className="branch-grid">{ungrouped.filter(matches).map(renderBranch)}</div>
-    </section>}
+    {ungrouped.filter(matches).length > 0 && (
+      <section className="card branch-group" aria-label={groupsAvailable ? 'Ungrouped branches' : 'Branches'}>
+        <div className="branch-group-header">
+          <h3>{groupsAvailable ? 'Restaurant Brands (Main HQ & Outlets)' : 'Branches'}</h3>
+          <p className="text-secondary">
+            {groupsAvailable
+              ? 'Main headquarters and multi-branch outlets grouped by restaurant brand.'
+              : 'Business grouping is unavailable. You can still open branch consoles and manage approvals.'}
+          </p>
+        </div>
+        {ungroupedBrands.map(brand => {
+          const visible = brand.branches.filter(matches);
+          if (!visible.length && (search || filter !== 'all')) return null;
+          return (
+            <div key={brand.ownerUid || brand.brandTitle} style={{ borderBottom: '1px solid var(--color-separator)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-separator)' }}>
+                <div>
+                  <strong style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🏢 {brand.brandTitle}
+                    <span className="badge badge-purple" style={{ fontSize: '10px' }}>
+                      {brand.branches.length} Outlet{brand.branches.length === 1 ? '' : 's'}
+                    </span>
+                  </strong>
+                  <p className="text-secondary" style={{ fontSize: '11px', margin: '2px 0 0' }}>
+                    {brand.owner?.name || 'Owner'} · {brand.owner?.email || brand.ownerUid}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => openNewBranch('', brand.ownerUid)}>
+                    <Plus size={14} /> Add Outlet
+                  </button>
+                  <button className="btn btn-secondary btn-sm" disabled={!ready || !brand.branches.length} onClick={() => openPayment(brand.branches)}>
+                    Record Payment
+                  </button>
+                </div>
+              </div>
+              <div className="branch-grid">{visible.map(renderBranch)}</div>
+            </div>
+          );
+        })}
+      </section>
+    )}
     {!shownCount && <div className="card card-padded branch-empty">{restaurants.length ? 'No branches match your filters.' : 'Create a business, then add its first branch.'}</div>}
 
     {modal && <Modal title={modal.type === 'group' ? 'Create business' : modal.type === 'connect' ? `Connect branches · ${modal.name}` : modal.type === 'branch' ? 'New branch' : modal.type === 'fee' ? `Branch fee · ${modal.name}` : modal.type === 'history' ? `Payment history · ${modal.name}` : 'Record manual payment'} onClose={closeModal} saving={saving} onSubmit={submit}

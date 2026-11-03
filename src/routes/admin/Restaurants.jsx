@@ -644,12 +644,11 @@ export default function Restaurants() {
                           {r.name}
                         </div>
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                          {(r.isMainBranch || !r.parentRestaurantId) && (
+                          {r.isMainBranch || (!r.parentRestaurantId && r.isMainBranch !== false) ? (
                             <span className="badge badge-purple" style={{ fontSize: 9, fontWeight: 700 }}>
                               ⭐ Main HQ
                             </span>
-                          )}
-                          {r.parentRestaurantId && (
+                          ) : (
                             <span className="badge badge-blue" style={{ fontSize: 9 }}>
                               📍 Outlet
                             </span>
