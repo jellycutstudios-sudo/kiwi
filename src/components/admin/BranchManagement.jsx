@@ -132,12 +132,16 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
   const toggleBranch = id => update('restaurantIds', form.restaurantIds.includes(id) ? form.restaurantIds.filter(value => value !== id) : [...form.restaurantIds, id]);
 
   function openNewBranch(groupId = groups[0]?.id || '') {
-    if (!groups.length) {
-      toast('Create a business first to group branches under an owner.', { icon: '🏢' });
-      open('group', {}, { name: '', ownerUid: '', restaurantIds: [] });
-      return;
-    }
-    open('branch', {}, { groupId, name: '', address: '', phone: '', currency: 'INR', fee: '', cycle: 'monthly' });
+    open('branch', {}, { 
+      groupId, 
+      ownerUid: owners[0]?.id || '', 
+      name: '', 
+      address: '', 
+      phone: '', 
+      currency: 'INR', 
+      fee: '', 
+      cycle: 'monthly' 
+    });
   }
 
   function openPayment(branches) {
@@ -281,11 +285,26 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
         {!eligibleBranches.length && <p className="text-secondary">{form.ownerUid || modal.type === 'connect' ? 'No ungrouped branches for this owner.' : 'Choose an owner to see their branches.'}</p>}
       </div>}
       {modal.type === 'branch' && <>
-        <Field label="Business"><select required className="form-select" value={form.groupId} onChange={e => update('groupId', e.target.value)}>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select></Field>
-        <Field label="Branch name"><input required className="form-input" maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} placeholder="Downtown" /></Field>
-        <Field label="Address"><input className="form-input" maxLength={300} value={form.address} onChange={e => update('address', e.target.value)} /></Field>
-        <Field label="Phone"><input className="form-input" type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} /></Field>
-        <p className="text-secondary">The branch starts pending approval. Record its first payment to renew and activate it.</p>
+        {groups.length > 0 && (
+          <Field label="Business (Optional)">
+            <select className="form-select" value={form.groupId} onChange={e => update('groupId', e.target.value)}>
+              <option value="">No Business (Standalone Branch)</option>
+              {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </Field>
+        )}
+        {!form.groupId && (
+          <Field label="Owner account">
+            <select required className="form-select" value={form.ownerUid} onChange={e => update('ownerUid', e.target.value)}>
+              <option value="">Select registered owner</option>
+              {owners.map(owner => <option value={owner.id} key={owner.id}>{owner.name || owner.email} · {owner.email || owner.id}</option>)}
+            </select>
+          </Field>
+        )}
+        <Field label="Branch name"><input required className="form-input" maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Downtown Outlet" /></Field>
+        <Field label="Address"><input className="form-input" maxLength={300} value={form.address} onChange={e => update('address', e.target.value)} placeholder="Street, City" /></Field>
+        <Field label="Phone"><input className="form-input" type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+91..." /></Field>
+        <p className="text-secondary">The branch starts pending approval. Record its first payment or click Approve to activate it.</p>
       </>}
       {['branch', 'fee'].includes(modal.type) && <>
         <Field label="Billing currency"><CurrencySelect value={form.currency} disabled={modal.type === 'fee' && Boolean(subscriptions[modal.branchId]?.lastPaymentId)} onChange={value => update('currency', value)} /></Field>

@@ -50,27 +50,43 @@ export async function connectBranches(groupId, restaurantIds) {
 
 export async function createBranch(input) {
   const createdBy = actor();
-  if (!input.name.trim() || !input.groupId) throw new Error('Enter a branch name and choose a business.');
+  if (!input.name.trim()) throw new Error('Enter a branch name.');
+  if (!input.groupId && !input.ownerUid) throw new Error('Choose an owner account or business.');
   const feeMinor = toMinorUnits(input.fee, input.currency, true);
   if (!BILLING_CYCLES.includes(input.cycle)) throw new Error('Choose a billing cycle.');
   const ref = doc(collection(db, 'restaurants'));
   await runTransaction(db, async tx => {
-    const group = await tx.get(doc(db, 'businessGroups', input.groupId));
-    if (!group.exists()) throw new Error('Business group no longer exists.');
-    const owner = await tx.get(doc(db, 'users', group.data().ownerUid));
-    if (!owner.exists() || owner.data().role !== 'admin') throw new Error('Business owner account is unavailable.');
-    tx.set(ref, {
+    let ownerUid = input.ownerUid;
+    let businessGroupId = input.groupId || null;
+    let owner = null;
+
+    if (input.groupId) {
+      const group = await tx.get(doc(db, 'businessGroups', input.groupId));
+      if (!group.exists()) throw new Error('Business group no longer exists.');
+      ownerUid = group.data().ownerUid;
+      businessGroupId = input.groupId;
+    }
+
+    if (ownerUid) {
+      owner = await tx.get(doc(db, 'users', ownerUid));
+      if (!owner.exists() || owner.data().role !== 'admin') throw new Error('Business owner account is unavailable.');
+    }
+
+    const payload = {
       name: input.name.trim(), address: input.address.trim(), phone: input.phone.trim(),
-      currency: input.currency, ownerUid: group.data().ownerUid, email: owner.data().email || '',
-      businessGroupId: input.groupId, status: 'pending', modes: ['pos'], taxConfig: { type: 'none' },
+      currency: input.currency, ownerUid: ownerUid || createdBy, email: owner?.data()?.email || '',
+      status: input.status || 'pending', modes: ['pos'], taxConfig: { type: 'none' },
       createdAt: serverTimestamp(), createdBy,
-    });
+    };
+    if (businessGroupId) payload.businessGroupId = businessGroupId;
+
+    tx.set(ref, payload);
     tx.set(doc(db, 'branchSubscriptions', ref.id), {
       feeMinor, currency: input.currency, cycle: input.cycle, paidThrough: null,
       updatedAt: serverTimestamp(), updatedBy: createdBy,
     });
     // Owners without an initial branch can sign in to this branch after activation.
-    if (!owner.data().restaurantId) tx.update(owner.ref, { restaurantId: ref.id });
+    if (owner && !owner.data().restaurantId) tx.update(owner.ref, { restaurantId: ref.id });
   });
   return ref.id;
 }
