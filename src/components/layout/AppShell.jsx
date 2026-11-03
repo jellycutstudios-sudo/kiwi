@@ -330,20 +330,10 @@ export default function AppShell() {
               <div className="pos-dietary-topbar-pills" role="toolbar" aria-label="Dietary filters">
                 <button
                   type="button"
-                  id="topbar-dietary-all"
-                  onClick={() => setDietaryFilter('all')}
-                  className={`pos-dietary-pill ${dietaryFilter === 'all' ? 'active' : ''}`}
-                  title="Show all items"
-                >
-                  <span>All</span>
-                </button>
-
-                <button
-                  type="button"
                   id="topbar-dietary-veg"
                   onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
                   className={`pos-dietary-pill veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-                  title="Show Vegetarian items only"
+                  title="Filter Vegetarian items (tap again to clear)"
                 >
                   <span className="food-badge-veg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
                   <span>Veg</span>
@@ -354,7 +344,7 @@ export default function AppShell() {
                   id="topbar-dietary-nonveg"
                   onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
                   className={`pos-dietary-pill nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-                  title="Show Non-Vegetarian items only"
+                  title="Filter Non-Vegetarian items (tap again to clear)"
                 >
                   <span className="food-badge-nonveg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
                   <span>Non-Veg</span>
@@ -365,7 +355,7 @@ export default function AppShell() {
                   id="topbar-dietary-bestseller"
                   onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
                   className={`pos-dietary-pill popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-                  title="Show Bestseller & Popular items"
+                  title="Filter Bestseller & Popular items (tap again to clear)"
                 >
                   <span style={{ fontSize: '12px' }}>🔥</span>
                   <span>Popular</span>
