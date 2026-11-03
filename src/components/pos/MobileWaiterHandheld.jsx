@@ -7,7 +7,8 @@ import {
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useOrderStore } from '../../stores/orderStore';
 import { useTableStore } from '../../stores/tableStore';
-import { hapticTap } from '../../utils/soundNotifications';
+import { hapticTap, playNotificationTone, vibrateDevice } from '../../utils/soundNotifications';
+import { localSyncChannel } from '../../utils/localSyncChannel';
 import toast from 'react-hot-toast';
 import ModifierModal from './ModifierModal';
 
@@ -117,6 +118,62 @@ export default function MobileWaiterHandheld({
     const unsub = subscribe(restaurant.id);
     return unsub;
   }, [restaurant?.id, subscribe]);
+
+  const [foodReadyAlert, setFoodReadyAlert] = useState(null);
+  const markOrderOrItemsServed = useOrderStore(s => s.markOrderOrItemsServed);
+
+  // Real-time kitchen food ready alerts via local sync channel
+  useEffect(() => {
+    const unsub = localSyncChannel.subscribe((msg) => {
+      if (msg.type === 'FOOD_READY_ALERT' && msg.payload) {
+        const payload = msg.payload;
+        try {
+          playNotificationTone('kitchen-bell', 1.0);
+          vibrateDevice([250, 150, 250]);
+        } catch {}
+
+        setFoodReadyAlert({
+          tableName: payload.tableName || 'Table',
+          itemName: payload.itemName || 'Food Plated at Pass',
+          orderId: payload.orderId,
+          timestamp: payload.timestamp || Date.now()
+        });
+      } else if (msg.type === 'LOCAL_FOOD_SERVED' && msg.payload) {
+        setFoodReadyAlert(prev => prev?.orderId === msg.payload.orderId ? null : prev);
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  // Listen to active orders in tableOrders for any recent ready dishes
+  useEffect(() => {
+    if (!tableOrders) return;
+    const now = Date.now();
+    for (const order of Object.values(tableOrders)) {
+      if (order?.lastFoodReadyAlert?.timestamp) {
+        const ageMs = now - order.lastFoodReadyAlert.timestamp;
+        if (ageMs < 300000 && (!foodReadyAlert || foodReadyAlert.timestamp < order.lastFoodReadyAlert.timestamp)) {
+          setFoodReadyAlert({
+            tableName: order.lastFoodReadyAlert.tableName,
+            itemName: order.lastFoodReadyAlert.itemName,
+            orderId: order.id,
+            timestamp: order.lastFoodReadyAlert.timestamp
+          });
+          break;
+        }
+      }
+    }
+  }, [tableOrders]);
+
+  const handleAcknowledgePickedUp = async (orderId) => {
+    hapticTap('medium');
+    setFoodReadyAlert(null);
+    if (orderId && restaurant?.id) {
+      await markOrderOrItemsServed(restaurant.id, orderId);
+      toast.success('Food marked as Picked Up & Served! ✓');
+    }
+  };
 
   // Count held items
   const heldItems = useMemo(() => {
@@ -295,6 +352,41 @@ export default function MobileWaiterHandheld({
           </button>
         </div>
       </header>
+
+      {/* ── Kitchen Food Ready Pocket Alert Banner ─────────────────── */}
+      {foodReadyAlert && (
+        <div className="handheld-ready-banner animate-slide-down">
+          <div className="handheld-ready-banner-info">
+            <span className="handheld-ready-bell">🔔</span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{foodReadyAlert.tableName}</span>
+                <span className="handheld-ready-tag">FOOD READY</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.9)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {foodReadyAlert.itemName}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              className="handheld-ready-pickup-btn"
+              onClick={() => handleAcknowledgePickedUp(foodReadyAlert.orderId)}
+            >
+              ✓ Picked Up
+            </button>
+            <button
+              type="button"
+              className="handheld-ready-dismiss-btn"
+              onClick={() => setFoodReadyAlert(null)}
+              title="Dismiss alert"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Quick Search & Dietary Filter Strip ─────────────────────── */}
       <div className="handheld-filter-strip">
@@ -812,26 +904,38 @@ export default function MobileWaiterHandheld({
                   const activeOrder = tableOrders[tbl.id];
                   const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
                   const isCurrent = tbl.id === tableId;
+                  const readyItems = (activeOrder?.items || []).filter(i => i.status === 'ready');
+                  const hasFoodReady = activeOrder && (activeOrder.status === 'ready' || readyItems.length > 0);
 
                   return (
                     <button
                       key={tbl.id}
                       type="button"
-                      className={`handheld-table-card ${isOccupied ? 'occupied' : 'free'} ${isCurrent ? 'current' : ''}`}
+                      className={`handheld-table-card ${hasFoodReady ? 'ready' : (isOccupied ? 'occupied' : 'free')} ${isCurrent ? 'current' : ''}`}
                       onClick={() => handleSelectTable(tbl)}
                     >
                       <div className="handheld-table-card-top">
                         <span className="handheld-table-card-title">Table {tbl.name}</span>
-                        <span className={`handheld-table-status-dot ${isOccupied ? 'occupied' : 'free'}`} />
+                        {hasFoodReady ? (
+                          <span style={{ fontSize: 9.5, background: '#10b981', color: '#000', padding: '1px 5px', borderRadius: 4, fontWeight: 900 }}>
+                            🔔 READY
+                          </span>
+                        ) : (
+                          <span className={`handheld-table-status-dot ${isOccupied ? 'occupied' : 'free'}`} />
+                        )}
                       </div>
                       
                       <div className="handheld-table-card-meta">
                         <span>👥 {tbl.capacity || 2} Seats</span>
-                        {isOccupied && activeOrder?.total && (
+                        {hasFoodReady ? (
+                          <span style={{ fontWeight: 800, color: '#10b981', fontSize: 11 }}>
+                            {readyItems.length > 0 ? `${readyItems.length} at Pass` : 'Food at Pass'}
+                          </span>
+                        ) : isOccupied && activeOrder?.total ? (
                           <span style={{ fontWeight: 800, color: 'var(--color-accent)' }}>
                             {formatCurrency(activeOrder.total, currency)}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </button>
                   );

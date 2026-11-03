@@ -54,6 +54,7 @@ export default function TableMap() {
   const deleteTable = useTableStore(s => s.deleteTable);
 
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
+  const markOrderOrItemsServed = useOrderStore(s => s.markOrderOrItemsServed);
   const loadOrderToCart = useOrderStore(s => s.loadOrderToCart);
   const settleOrder = useOrderStore(s => s.settleOrder);
   const clearCart = useOrderStore(s => s.clearCart);
@@ -1315,7 +1316,8 @@ export default function TableMap() {
             .map(t => {
               const order = tableOrders[t.id];
               const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
-              const isFoodReady = hasOrder && order.status === 'ready';
+              const readyItems = (order?.items || []).filter(i => i.status === 'ready');
+              const isFoodReady = hasOrder && (order.status === 'ready' || readyItems.length > 0);
               const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
               const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
               const resForTable = reservations.find(r => r.tableId === t.id);
@@ -1324,6 +1326,19 @@ export default function TableMap() {
               if (hasOrder && order) {
                 elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
               }
+
+              let passElapsedSecs = 0;
+              if (isFoodReady && order) {
+                const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
+                if (readyTs) {
+                  const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
+                  if (!isNaN(ms)) {
+                    passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
+                  }
+                }
+              }
+              const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
+              const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
 
               return (
                 <div
@@ -1360,7 +1375,13 @@ export default function TableMap() {
                     </div>
 
                     {isFoodReady ? (
-                      <span className="tm-badge tm-badge--ready">🔔 READY</span>
+                      <span
+                        className={`tm-badge tm-badge--ready ${isPassOverdue ? 'tm-badge--overdue' : ''}`}
+                        style={isPassOverdue ? { background: '#ef4444', color: '#fff', border: '1px solid #dc2626' } : undefined}
+                      >
+                        <span style={{ fontSize: 11 }}>{isPassOverdue ? '⚠️' : '🔔'}</span>
+                        <span>{isPassOverdue ? `PASS ${passTimerStr}` : `READY ${passTimerStr}`}</span>
+                      </span>
                     ) : effectiveStatus === 'occupied' ? (
                       <span
                         className={`tm-badge ${elapsedMins >= 720 ? 'tm-badge--stale' : 'tm-badge--occupied'}`}
@@ -1467,7 +1488,8 @@ export default function TableMap() {
                 {resolvedTables.map(t => {
                   const order = tableOrders[t.id];
                   const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
-                  const isFoodReady = hasOrder && order.status === 'ready';
+                  const readyItems = (order?.items || []).filter(i => i.status === 'ready');
+                  const isFoodReady = hasOrder && (order.status === 'ready' || readyItems.length > 0);
                   const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
                   const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
                   const isSelected = selected === t.id;
@@ -1485,6 +1507,19 @@ export default function TableMap() {
                     elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
                   }
                   const ec = elapsedColor(elapsedMins);
+
+                  let passElapsedSecs = 0;
+                  if (isFoodReady && order) {
+                    const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
+                    if (readyTs) {
+                      const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
+                      if (!isNaN(ms)) {
+                        passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
+                      }
+                    }
+                  }
+                  const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
+                  const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
 
                   return (
                     <button
@@ -1504,6 +1539,8 @@ export default function TableMap() {
                         outline: isEditSelected ? '2px solid #3b82f6' : 'none',
                         boxShadow: isEditSelected
                           ? '0 0 0 4px rgba(59,130,246,0.35), 0 8px 24px rgba(0,0,0,0.35)'
+                          : isPassOverdue
+                          ? '0 0 0 3px #ef4444, 0 0 28px rgba(239, 68, 68, 0.85)'
                           : isFoodReady
                           ? '0 0 0 3px #10b981, 0 0 24px rgba(16, 185, 129, 0.75)'
                           : undefined,
@@ -1515,7 +1552,7 @@ export default function TableMap() {
                         isEditingLayout
                           ? `Drag to reposition ${t.name}, click to edit properties`
                           : isFoodReady
-                          ? `🔔 Food ready at pass for ${t.name}! Click to view & serve`
+                          ? `🔔 Food ready at pass for ${t.name} (${passTimerStr})! Click to view & serve`
                           : effectiveStatus === 'free'
                           ? `Click to start order at ${t.name}`
                           : `Click to manage ${t.name}`
@@ -1526,13 +1563,13 @@ export default function TableMap() {
                       {/* Pulsing Food Ready Badge */}
                       {!isEditingLayout && isFoodReady && (
                         <span
-                          className="tm-ready-pulse-badge"
+                          className={`tm-ready-pulse-badge ${isPassOverdue ? 'tm-ready-overdue' : ''}`}
                           style={{
                             position: 'absolute',
                             top: -12,
                             left: '50%',
                             transform: 'translateX(-50%)',
-                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            background: isPassOverdue ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                             color: '#ffffff',
                             borderRadius: 999,
                             padding: '2px 8px',
@@ -1541,16 +1578,16 @@ export default function TableMap() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 4,
-                            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.6)',
+                            boxShadow: isPassOverdue ? '0 2px 14px rgba(239, 68, 68, 0.8)' : '0 2px 10px rgba(16, 185, 129, 0.6)',
                             border: '2px solid #ffffff',
                             zIndex: 25,
                             letterSpacing: '0.3px',
                             textTransform: 'uppercase',
                             whiteSpace: 'nowrap'
                           }}
-                          title="Food plated & ready for pickup at pass!"
+                          title={isPassOverdue ? `⚠️ Food waiting at pass for ${passTimerStr}!` : `🔔 Food plated & ready for pickup (${passTimerStr})`}
                         >
-                          <span style={{ fontSize: 11 }}>🔔</span> READY
+                          <span style={{ fontSize: 11 }}>{isPassOverdue ? '⚠️' : '🔔'}</span> {isPassOverdue ? `PASS ${passTimerStr}` : `READY ${passTimerStr}`}
                         </span>
                       )}
 
@@ -2044,15 +2081,15 @@ export default function TableMap() {
                       </div>
 
                       {/* Advance kitchen status button */}
-                      {selOrder.status === 'pending' || selOrder.status === 'preparing' ? (
+                      {selOrder.status === 'ready' || (selOrder.items || []).some(i => i.status === 'ready') ? (
+                        <button className="btn btn-sm" style={{ height: 36, width: '100%', background: '#10b981', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, borderRadius: 8, boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)' }}
+                          onClick={async () => { await markOrderOrItemsServed(restaurant.id, selOrder.id); toast.success('Food Picked Up & Served! ✓'); }}>
+                          <Utensils size={15} /> Food Picked Up / Served ✓
+                        </button>
+                      ) : (selOrder.status === 'pending' || selOrder.status === 'preparing') ? (
                         <button className="btn btn-secondary btn-sm" style={{ height: 32, width: '100%', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12 }}
                           onClick={async () => { await updateOrderStatus(restaurant.id, selOrder.id, 'ready'); toast.success('Order marked ready!'); }}>
                           <CheckCircle2 size={14} color="#10b981" /> Advance to Ready
-                        </button>
-                      ) : selOrder.status === 'ready' ? (
-                        <button className="btn btn-sm" style={{ height: 32, width: '100%', background: '#10b981', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12 }}
-                          onClick={async () => { await updateOrderStatus(restaurant.id, selOrder.id, 'served'); toast.success('Served to table! ✓'); }}>
-                          <Utensils size={14} /> Mark as Served
                         </button>
                       ) : null}
                     </div>

@@ -1545,6 +1545,45 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
+  markOrderOrItemsServed: async (restaurantId, orderId, itemIndex = null) => {
+    const active = get().activeOrders || [];
+    const target = active.find(o => o.id === orderId);
+    if (!target) return;
+
+    const updatedItems = (target.items || []).map((item, idx) => {
+      if (itemIndex === null || itemIndex === idx || (Array.isArray(itemIndex) && itemIndex.includes(idx))) {
+        return { ...item, status: 'served', servedAt: item.servedAt || new Date().toISOString() };
+      }
+      return item;
+    });
+
+    const activeItems = updatedItems.filter(i => i.status !== 'cancelled' && i.status !== 'void');
+    const allServed = activeItems.length > 0 && activeItems.every(i => i.status === 'served');
+    const newStatus = allServed ? 'served' : target.status;
+
+    const updates = {
+      items: updatedItems,
+      status: newStatus,
+      lastFoodReadyAlert: null,
+      servedAt: allServed ? new Date().toISOString() : target.servedAt
+    };
+
+    get().patchActiveOrder(orderId, updates);
+    localSyncChannel.broadcast('LOCAL_FOOD_SERVED', { orderId, restaurantId });
+
+    try {
+      if (orderId && typeof navigator !== 'undefined' && navigator.onLine) {
+        await useAuthStore.getState().ensureAnonymousAuth();
+        await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', orderId), {
+          ...updates,
+          updatedAt: serverTimestamp()
+        });
+      }
+    } catch (e) {
+      console.warn('[useOrderStore] markOrderOrItemsServed cloud sync deferred:', e?.message);
+    }
+  },
+
   markOnlineOrdersRead: () => {
     const currentOnline = get().onlineOrders || [];
     const existingRead = get().readOnlineOrderIds || [];

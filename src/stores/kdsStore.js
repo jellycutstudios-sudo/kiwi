@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { useAuthStore } from './authStore';
 import { useOrderStore } from './orderStore';
 import { useOfflineQueueStore } from './offlineQueueStore';
+import { localSyncChannel } from '../utils/localSyncChannel';
 
 export const useKdsStore = create(() => ({
   updateKDSItemStatus: async (restaurantId, order, itemIndex, newStatus) => {
@@ -15,7 +16,11 @@ export const useKdsStore = create(() => ({
 
     const updatedItems = (order?.items || []).map((item, idx) => {
       if (idx === itemIndex) {
-        return { ...item, status: newStatus };
+        return { 
+          ...item, 
+          status: newStatus,
+          ...(newStatus === 'ready' ? { readyAt: item.readyAt || new Date().toISOString() } : {})
+        };
       }
       return item;
     });
@@ -26,6 +31,20 @@ export const useKdsStore = create(() => ({
 
     let overallStatus = order.status;
     const updates = { items: updatedItems };
+
+    if (newStatus === 'ready') {
+      const alertData = {
+        timestamp: Date.now(),
+        itemName: order?.items?.[itemIndex]?.name || 'Dish',
+        tableId: order?.tableId || null,
+        tableName: order?.tableName || (order?.tableId ? `Table ${order.tableId}` : 'Takeaway'),
+        waiterId: order?.waiterId || null,
+        waiterName: order?.waiterName || order?.serverName || null,
+        orderId: order?.id
+      };
+      updates.lastFoodReadyAlert = alertData;
+      localSyncChannel.broadcast('FOOD_READY_ALERT', alertData);
+    }
 
     if (newStatus === 'preparing' && (order.status === 'pending' || order.status === 'ready')) {
       overallStatus = 'preparing';
@@ -88,7 +107,11 @@ export const useKdsStore = create(() => ({
 
     const updatedItems = (order?.items || []).map(item => {
       if (stationName === 'All' || item.station === stationName) {
-        return { ...item, status: newStatus };
+        return { 
+          ...item, 
+          status: newStatus,
+          ...(newStatus === 'ready' ? { readyAt: item.readyAt || new Date().toISOString() } : {})
+        };
       }
       return item;
     });
@@ -99,6 +122,20 @@ export const useKdsStore = create(() => ({
 
     let overallStatus = order.status;
     const updates = { items: updatedItems };
+
+    if (newStatus === 'ready') {
+      const alertData = {
+        timestamp: Date.now(),
+        itemName: stationName === 'All' ? 'Entire Order' : `${stationName} Dishes`,
+        tableId: order?.tableId || null,
+        tableName: order?.tableName || (order?.tableId ? `Table ${order.tableId}` : 'Takeaway'),
+        waiterId: order?.waiterId || null,
+        waiterName: order?.waiterName || order?.serverName || null,
+        orderId: order?.id
+      };
+      updates.lastFoodReadyAlert = alertData;
+      localSyncChannel.broadcast('FOOD_READY_ALERT', alertData);
+    }
 
     if (newStatus === 'preparing' && (order.status === 'pending' || order.status === 'ready')) {
       overallStatus = 'preparing';
@@ -151,4 +188,28 @@ export const useKdsStore = create(() => ({
       console.warn('[useKdsStore] updateKDSStationStatus cloud sync deferred:', e?.message);
     }
   },
+
+  ringWaiterForOrder: async (restaurantId, order, customItemName = null) => {
+    const alertData = {
+      timestamp: Date.now(),
+      itemName: customItemName || (order?.items || []).filter(i => i.status === 'ready').map(i => i.name).join(', ') || 'Food Plated at Pass',
+      tableId: order?.tableId || null,
+      tableName: order?.tableName || (order?.tableId ? `Table ${order.tableId}` : 'Takeaway'),
+      waiterId: order?.waiterId || null,
+      waiterName: order?.waiterName || order?.serverName || null,
+      orderId: order?.id
+    };
+    useOrderStore.getState().patchActiveOrder(order.id, { lastFoodReadyAlert: alertData });
+    localSyncChannel.broadcast('FOOD_READY_ALERT', alertData);
+
+    try {
+      if (order.id && typeof navigator !== 'undefined' && navigator.onLine) {
+        await updateDoc(doc(db, 'restaurants', restaurantId, 'orders', order.id), {
+          lastFoodReadyAlert: alertData
+        });
+      }
+    } catch (e) {
+      console.warn('[useKdsStore] ringWaiterForOrder cloud sync deferred:', e?.message);
+    }
+  }
 }));

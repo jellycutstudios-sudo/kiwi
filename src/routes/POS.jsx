@@ -33,7 +33,8 @@ import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
 import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { hapticTap } from '../utils/soundNotifications';
+import { hapticTap, playNotificationTone, vibrateDevice } from '../utils/soundNotifications';
+import { localSyncChannel } from '../utils/localSyncChannel';
 
 const POS_CATEGORY_THEMES = [
   'pos-cat-theme-amber',
@@ -404,6 +405,73 @@ export default function POS() {
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
 
+
+  // Global Real-time Kitchen Food Ready Alerts
+  useEffect(() => {
+    const unsub = localSyncChannel.subscribe((msg) => {
+      if (msg.type === 'FOOD_READY_ALERT' && msg.payload) {
+        const payload = msg.payload;
+        try {
+          playNotificationTone('kitchen-bell', 1.0);
+          vibrateDevice([250, 150, 250]);
+        } catch {}
+
+        toast.custom((t) => (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)',
+            color: '#ffffff',
+            padding: '10px 14px',
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            border: '1.5px solid #10b981',
+            minWidth: 280,
+            maxWidth: 400,
+            animation: 'tableReadyPulseGlow 2.5s infinite ease-in-out'
+          }}>
+            <span style={{ fontSize: 22 }}>🔔</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{payload.tableName || 'Table'}</span>
+                <span style={{ background: '#ffffff', color: '#065f46', fontSize: 9.5, fontWeight: 900, padding: '1px 5px', borderRadius: 4 }}>READY</span>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {payload.itemName || 'Dishes ready at kitchen pass'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                toast.dismiss(t.id);
+                if (payload.orderId && restaurant?.id) {
+                  await useOrderStore.getState().markOrderOrItemsServed(restaurant.id, payload.orderId);
+                  toast.success('Food Picked Up! ✓');
+                }
+              }}
+              style={{
+                background: '#ffffff',
+                color: '#065f46',
+                border: 'none',
+                fontWeight: 800,
+                fontSize: 11.5,
+                padding: '6px 11px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                flexShrink: 0,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+              }}
+            >
+              ✓ Picked Up
+            </button>
+          </div>
+        ), { duration: 15000, position: 'top-center' });
+      }
+    });
+
+    return () => unsub();
+  }, [restaurant?.id]);
 
   // Global Hardware Barcode Scanner Listener (HID Keyboard Event)
   useEffect(() => {

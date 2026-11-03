@@ -110,6 +110,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
   cycleItemStatus,
   handleStartPreparing,
   handleMarkReady,
+  handleRingWaiter,
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -434,6 +435,32 @@ const KDSTicketCard = memo(function KDSTicketCard({
                             {item.station}
                           </span>
                         )}
+                        {isReady && handleRingWaiter && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRingWaiter(order, item.name);
+                            }}
+                            style={{
+                              fontSize: 11,
+                              padding: '2px 7px',
+                              borderRadius: 6,
+                              fontWeight: 800,
+                              background: '#f59e0b',
+                              color: '#000000',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                              boxShadow: '0 1px 4px rgba(245, 158, 11, 0.4)'
+                            }}
+                            title="Ring Waiter / Food Runner for this dish"
+                          >
+                            🔔 Ring
+                          </button>
+                        )}
                         <span style={{
                           fontSize: 11,
                           padding: '3px 8px',
@@ -476,18 +503,43 @@ const KDSTicketCard = memo(function KDSTicketCard({
       {/* Card Action Bump Bar */}
       <div className="kds-order-action" style={{ display: 'flex', gap: 'var(--space-2)' }}>
         {allStationReady ? (
-          <div style={{
-            flex: 1,
-            textAlign: 'center',
-            color: 'var(--color-green)',
-            fontSize: 13,
-            fontWeight: 800,
-            padding: '10px 0',
-            background: 'var(--color-green-light)',
-            borderRadius: 10,
-            border: '1px solid var(--color-green)'
-          }}>
-            ✓ All Items Ready for Serving
+          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+            <div style={{
+              flex: 1,
+              textAlign: 'center',
+              color: 'var(--color-green)',
+              fontSize: 13,
+              fontWeight: 800,
+              padding: '10px 0',
+              background: 'var(--color-green-light)',
+              borderRadius: 10,
+              border: '1px solid var(--color-green)'
+            }}>
+              ✓ All Ready
+            </div>
+            {handleRingWaiter && (
+              <button
+                type="button"
+                onClick={() => handleRingWaiter(order, 'Entire Order')}
+                style={{
+                  background: '#f59e0b',
+                  color: '#000000',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '0 14px',
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)'
+                }}
+                title="Ring Server: Buzz waiter to pick up order"
+              >
+                <span>🔔 Ring Waiter</span>
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -524,7 +576,7 @@ export default function KDS() {
   const isDedicatedKitchen = userRole === 'kitchen';
   const modes = useMemo(() => getActiveModes(restaurant), [restaurant]);
   const activeOrders = useOrderStore(s => s.activeOrders);
-  const { updateKDSItemStatus, updateKDSStationStatus } = useKdsStore();
+  const { updateKDSItemStatus, updateKDSStationStatus, ringWaiterForOrder } = useKdsStore();
   const { callSpecificToken } = useTokenStore();
   
   const [activeStation, setActiveStation] = useState('All');
@@ -742,6 +794,11 @@ export default function KDS() {
     
     await updateKDSItemStatus(restaurant.id, order, itemIndex, nextStatus);
   }, [restaurant?.id, updateKDSItemStatus]);
+
+  const handleRingWaiter = useCallback(async (order, itemName = null) => {
+    await ringWaiterForOrder(restaurant.id, order, itemName);
+    toast.success(`Rang waiter for ${order.tableName ? `Table ${order.tableName}` : (order.tableId ? `Table ${order.tableId}` : 'Order')}! 🔔`, { icon: '📢' });
+  }, [restaurant?.id, ringWaiterForOrder]);
 
   // ── Commercial Hardware Bump Bar & Keyboard Shortcuts ──
   useEffect(() => {
@@ -1232,6 +1289,7 @@ export default function KDS() {
                 cycleItemStatus={cycleItemStatus}
                 handleStartPreparing={handleStartPreparing}
                 handleMarkReady={handleMarkReady}
+                handleRingWaiter={handleRingWaiter}
               />
             ))}
           </div>
