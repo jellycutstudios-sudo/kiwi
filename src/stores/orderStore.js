@@ -1327,8 +1327,10 @@ export const useOrderStore = create((set, get) => ({
 
           const playChime = () => {
             try {
+              // High-loudness penetrating synthesizer alert for busy restaurants
+              playNotificationTone('loud-siren', 1.0);
               const audio = new Audio('/sounds/order-chime.wav');
-              audio.play().catch(e => console.log('Chime playback blocked/failed:', e));
+              audio.play().catch(() => {});
             } catch (err) {
               console.warn('Failed to play order chime:', err);
             }
@@ -1369,7 +1371,8 @@ export const useOrderStore = create((set, get) => ({
                 const shouldPlayWaiter = isWaiter && notifConfig.waiterFoodReadyChime !== false;
 
                 if (shouldPlayCashier || shouldPlayWaiter) {
-                  playNotificationTone(tone, 0.6);
+                  const effectiveVolume = notifConfig.soundVolume === 'soft' ? 0.6 : notifConfig.soundVolume === 'normal' ? 0.8 : 1.0;
+                  playNotificationTone(tone, effectiveVolume);
                   if (notifConfig.vibrateOnReady !== false) {
                     vibrateDevice([200, 100, 200]);
                   }
@@ -1749,6 +1752,7 @@ localSyncChannel.subscribe((msg) => {
     });
     // Trigger audio chime for new kitchen ticket on other tabs
     try {
+      playNotificationTone('loud-siren', 1.0);
       const audio = new Audio('/sounds/order-chime.wav');
       audio.play().catch(() => {});
     } catch {}

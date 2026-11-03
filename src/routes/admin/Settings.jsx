@@ -3514,7 +3514,7 @@ export default function Settings() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <select
                         className="form-input"
-                        value={settings.notifications?.readySoundTone ?? 'reception-bell'}
+                        value={settings.notifications?.readySoundTone ?? 'loud-siren'}
                         onChange={e => updateField('notifications', { ...(settings.notifications || {}), readySoundTone: e.target.value })}
                         style={{ flex: 1, minWidth: 200 }}
                       >
@@ -3528,12 +3528,52 @@ export default function Settings() {
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
-                        onClick={() => playNotificationTone(settings.notifications?.readySoundTone ?? 'reception-bell', 0.6)}
+                        onClick={() => {
+                          const vol = settings.notifications?.soundVolume === 'soft' ? 0.6 : settings.notifications?.soundVolume === 'normal' ? 0.8 : 1.0;
+                          playNotificationTone(settings.notifications?.readySoundTone ?? 'loud-siren', vol);
+                        }}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40 }}
                         title="Click to preview the selected chime sound"
                       >
                         <Volume2 size={16} /> Test Sound
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Volume Level & Busy Kitchen Boost */}
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-separator-opaque)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    marginTop: 4
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-label)' }}>
+                          Alert Volume & Loudness Level
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                          Boosts speaker audio gain to cut through kitchen hood fans, fryers, dishwashing and dining noise
+                        </div>
+                      </div>
+                      <span className="badge badge-purple" style={{ fontSize: 10, fontWeight: 700 }}>
+                        {settings.notifications?.soundVolume === 'normal' ? 'Normal (80%)' : settings.notifications?.soundVolume === 'soft' ? 'Soft (60%)' : '🔥 Max Loudness (100% Boost)'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <select
+                        className="form-input"
+                        value={settings.notifications?.soundVolume ?? 'boost'}
+                        onChange={e => updateField('notifications', { ...(settings.notifications || {}), soundVolume: e.target.value })}
+                        style={{ flex: 1, minWidth: 200 }}
+                      >
+                        <option value="boost">🔥 Maximum Loudness (100% Boost — Best for Busy Kitchens)</option>
+                        <option value="normal">🔉 Normal / Standard (80%)</option>
+                        <option value="soft">🔈 Soft / Quiet (60%)</option>
+                      </select>
                     </div>
                   </div>
                 </div>

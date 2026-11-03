@@ -30,27 +30,11 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { getKitchenStations } from '../utils/stations';
 import { getOrderTimestampMs, getOrderElapsedSeconds, formatOrderStopwatch } from '../utils/timezoneUtils';
 import { getActiveModes } from '../hooks/useBusinessConfig';
+import { playNotificationTone } from '../utils/soundNotifications';
 
-// Pleasant Web Audio synthesizer for kitchen notifications
+// High-Decibel Web Audio synthesizer for kitchen notifications (cuts through kitchen exhaust & noise)
 function playKitchenChime() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.4);
-  } catch {
-    // Ignore audio context block if user hasn't interacted
-  }
+  playNotificationTone('loud-siren', 1.0);
 }
 
 // Pure helper for ticket urgency styling
