@@ -4,11 +4,13 @@ import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight, FileSpreadsheet, Languages, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getKitchenStations } from '../../utils/stations';
 import MenuCsvModal from '../../components/admin/MenuCsvModal';
+import { translateDishWithAI, batchTranslateDishesWithAI } from '../../services/aiMenuTranslator';
+import { transliterateFood } from '../../utils/foodTransliteration';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -72,7 +74,9 @@ export default function MenuEditor() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '' });
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
+  const [itemForm, setItemForm] = useState({ name: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
+  const [isAiTranslating, setIsAiTranslating] = useState(false);
+  const [isBatchTranslating, setIsBatchTranslating] = useState(false);
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -134,6 +138,8 @@ export default function MenuEditor() {
     setEditItem(null);
     setItemForm({
       name: '',
+      mlName: '',
+      hiName: '',
       price: '',
       description: '',
       emoji: '',
@@ -162,6 +168,8 @@ export default function MenuEditor() {
     const isVegDefault = isVegetarianItem(item);
     setItemForm({
       name: item.name,
+      mlName: item.mlName ?? item.name_ml ?? '',
+      hiName: item.hiName ?? item.name_hi ?? '',
       price: item.price,
       description: item.description ?? '',
       emoji: item.emoji ?? '',
@@ -181,6 +189,73 @@ export default function MenuEditor() {
     setShowAdvancedDetails(Boolean(item.barcode || item.description || item.taxRate != null || (item.unit && item.unit !== 'pcs')));
     setActiveTab('general');
     setShowItemForm(true);
+  };
+
+  const handleAiTranslateItem = async () => {
+    if (!itemForm.name?.trim()) {
+      toast.error('Enter dish name first');
+      return;
+    }
+    setIsAiTranslating(true);
+    try {
+      const res = await translateDishWithAI(itemForm.name, restaurant);
+      setItemForm(f => ({
+        ...f,
+        mlName: res.ml || f.mlName,
+        hiName: res.hi || f.hiName
+      }));
+      toast.success('Generated Malayalam & Hindi pronunciation script!');
+    } catch {
+      toast.error('Could not generate native names');
+    } finally {
+      setIsAiTranslating(false);
+    }
+  };
+
+  const handleBatchAiTranslateCategory = async () => {
+    const cat = categories.find(c => c.id === activeCatId);
+    if (!cat || !cat.items || cat.items.length === 0) {
+      toast.error('No items in this category to translate');
+      return;
+    }
+    const unpolishedItems = cat.items.filter(i => !i.mlName || !i.hiName);
+    const targetItems = unpolishedItems.length > 0 ? unpolishedItems : cat.items;
+    
+    setIsBatchTranslating(true);
+    const toastId = toast.loading(`Translating ${targetItems.length} dishes with AI...`);
+    try {
+      const names = targetItems.map(i => i.name);
+      const translations = await batchTranslateDishesWithAI(names, restaurant);
+      
+      const updatedItems = cat.items.map(item => {
+        const tr = translations[item.name];
+        if (tr) {
+          return {
+            ...item,
+            mlName: tr.ml || item.mlName || transliterateFood(item.name, 'ml'),
+            hiName: tr.hi || item.hiName || transliterateFood(item.name, 'hi')
+          };
+        }
+        return item;
+      });
+
+      const updatedCats = categories.map(c => c.id === activeCatId ? { ...c, items: updatedItems } : c);
+      useMenuStore.getState().setCategories(updatedCats);
+      try {
+        localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+      } catch {}
+
+      if (restaurant?.id && !restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', activeCatId), { items: updatedItems });
+      }
+
+      toast.success(`Updated ${targetItems.length} dishes with professional native script!`, { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Batch translation failed: ' + err.message, { id: toastId });
+    } finally {
+      setIsBatchTranslating(false);
+    }
   };
 
   const toggleGroupCollapse = (groupId) => {
@@ -454,6 +529,8 @@ export default function MenuEditor() {
     const newItem = {
       id: editItem?.id ?? generateId(),
       name: cleanName,
+      mlName: itemForm.mlName?.trim() || '',
+      hiName: itemForm.hiName?.trim() || '',
       price: parsedPrice,
       description: itemForm.description.trim(),
       emoji: itemForm.emoji.trim() || '🍽️',
@@ -816,6 +893,20 @@ export default function MenuEditor() {
                   <List size={13} />
                 </button>
               </div>
+
+              {activeCatId && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleBatchAiTranslateCategory}
+                  disabled={isBatchTranslating}
+                  title="Translate all dishes in this category to native Malayalam & Hindi using AI"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: 28 }}
+                >
+                  <Sparkles size={13} className={isBatchTranslating ? 'animate-spin' : ''} />
+                  <span>{isBatchTranslating ? 'Translating…' : '✨ AI Polish All'}</span>
+                </button>
+              )}
 
               {activeCatId && (
                 <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={openAddItemModal}>
@@ -1377,6 +1468,68 @@ export default function MenuEditor() {
                     onChange={e => setItemForm(f=>({...f,name:e.target.value}))} 
                     style={{ height: 42, fontSize: '14px' }}
                   />
+                </div>
+
+                {/* Waiter Local Language Display & AI Translator */}
+                <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-separator-opaque, #333)', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '-4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Languages size={14} style={{ color: 'var(--color-accent)' }} />
+                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--color-label)' }}>
+                        Waiter Pronunciation Script
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAiTranslateItem}
+                      disabled={isAiTranslating || !itemForm.name?.trim()}
+                      className="btn btn-ghost"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--color-accent)',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        cursor: itemForm.name?.trim() ? 'pointer' : 'not-allowed',
+                        opacity: itemForm.name?.trim() ? 1 : 0.6
+                      }}
+                      title="Generate native phonetic transliterations using AI"
+                    >
+                      <Sparkles size={11} className={isAiTranslating ? 'animate-spin' : ''} />
+                      <span>{isAiTranslating ? 'Translating…' : '✨ AI Polish'}</span>
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
+                        🌴 Malayalam (മലയാളം)
+                      </label>
+                      <input
+                        className="form-input"
+                        placeholder={itemForm.name ? transliterateFood(itemForm.name, 'ml') : 'ഗാർലിക് ചിക്കൻ'}
+                        value={itemForm.mlName || ''}
+                        onChange={e => setItemForm(f => ({ ...f, mlName: e.target.value }))}
+                        style={{ height: 34, fontSize: '12.5px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
+                        🇮🇳 Hindi (हिंदी)
+                      </label>
+                      <input
+                        className="form-input"
+                        placeholder={itemForm.name ? transliterateFood(itemForm.name, 'hi') : 'गार्लिक चिकन'}
+                        value={itemForm.hiName || ''}
+                        onChange={e => setItemForm(f => ({ ...f, hiName: e.target.value }))}
+                        style={{ height: 34, fontSize: '12.5px' }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Row 2: Price & Kitchen Station */}

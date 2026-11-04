@@ -50,7 +50,7 @@ export function getEffectiveGroqApiKey(restaurant = {}) {
   const custom = (
     restaurant?.groqApiKey ||
     (typeof localStorage !== 'undefined' ? localStorage.getItem('dineos_groq_api_key') : null) ||
-    import.meta.env.VITE_GROQ_API_KEY ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GROQ_API_KEY) ||
     ''
   ).trim();
 

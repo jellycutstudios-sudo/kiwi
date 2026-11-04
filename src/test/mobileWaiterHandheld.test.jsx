@@ -312,6 +312,35 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     expect(screen.getByText('Garlic Chicken')).toBeTruthy();
   });
 
+  it('prioritizes item.mlName and item.hiName custom translations over transliterator', () => {
+    const dishes = [
+      { id: 'dish_custom', name: 'Chef Special Tacos', mlName: 'ഷെഫ് സ്പെഷ്യൽ ടാക്കോസ്', hiName: 'शेफ स्पेशल टैकोस', price: 350, isVeg: false, categoryId: 'cat_mains' }
+    ];
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="INR"
+        menuItems={dishes}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // Switch to Malayalam
+    const langBtn = screen.getByLabelText('Switch Language');
+    fireEvent.click(langBtn);
+    fireEvent.click(screen.getByText('മലയാളം'));
+
+    // Custom mlName is displayed
+    expect(screen.getByText('ഷെഫ് സ്പെഷ്യൽ ടാക്കോസ്')).toBeTruthy();
+  });
+
   it('allows waiter to toggle between 2-column grid and list view mode', () => {
     render(
       <MobileWaiterHandheld

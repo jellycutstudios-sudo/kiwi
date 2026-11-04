@@ -247,12 +247,13 @@ export default function MobileWaiterHandheld({
       
       // Search across English and phonetic native scripts
       if (searchQuery.trim()) {
+        // Search across English and phonetic native scripts (including custom translations)
         const query = searchQuery.toLowerCase().trim();
         const matchesName = item.name?.toLowerCase().includes(query);
         const matchesDesc = item.description?.toLowerCase().includes(query);
-        const translitMl = transliterateFood(item.name, 'ml').toLowerCase();
-        const translitHi = transliterateFood(item.name, 'hi').toLowerCase();
-        const matchesNative = translitMl.includes(query) || translitHi.includes(query);
+        const mlText = (item.mlName || item.name_ml || transliterateFood(item.name, 'ml')).toLowerCase();
+        const hiText = (item.hiName || item.name_hi || transliterateFood(item.name, 'hi')).toLowerCase();
+        const matchesNative = mlText.includes(query) || hiText.includes(query);
         if (!matchesName && !matchesDesc && !matchesNative) return false;
       }
       return true;
@@ -530,10 +531,11 @@ export default function MobileWaiterHandheld({
             }
 
             // Phonetic Script Resolution:
-            // In Malayalam/Hindi mode: Display native phonetic script prominently (e.g. "ഗാർലിക് ചിക്കൻ") with English original subtitled
+            // Custom item translations (mlName / hiName) take top precedence, followed by smart phonetic transliteration
+            const customNative = item[`${waiterLang}Name`] || item[`name_${waiterLang}`] || item[`name${waiterLang.toUpperCase()}`];
             const nativeScript = waiterLang === 'en'
               ? null
-              : (item[`name_${waiterLang}`] || item[`name${waiterLang.toUpperCase()}`] || transliterateFood(item.name, waiterLang));
+              : (customNative || transliterateFood(item.name, waiterLang));
             const primaryTitle = nativeScript || item.name;
             const subtitleText = nativeScript ? item.name : null;
 
