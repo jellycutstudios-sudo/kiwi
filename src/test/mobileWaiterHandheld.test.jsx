@@ -55,6 +55,11 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
+    } catch (_) {}
     useOrderStore.getState().clearCart();
     useTableStore.setState({
       tables: [
@@ -304,7 +309,8 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     expect(screen.getByText('മലയാളം')).toBeTruthy();
 
     // Select Malayalam
-    fireEvent.click(screen.getByText('മലയാളം'));
+    const mlOption = screen.getAllByText('മലയാളം').find(el => el.closest('.handheld-lang-option')) || screen.getAllByText('മലയാളം')[0];
+    fireEvent.click(mlOption);
 
     // Phonetic Malayalam script "ഗാർലിക് ചിക്കൻ" is rendered as primary title
     expect(screen.getByText('ഗാർലിക് ചിക്കൻ')).toBeTruthy();
@@ -335,7 +341,8 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     // Switch to Malayalam
     const langBtn = screen.getByLabelText('Switch Language');
     fireEvent.click(langBtn);
-    fireEvent.click(screen.getByText('മലയാളം'));
+    const mlOption = screen.getAllByText('മലയാളം').find(el => el.closest('.handheld-lang-option')) || screen.getAllByText('മലയാളം')[0];
+    fireEvent.click(mlOption);
 
     // Custom mlName is displayed
     expect(screen.getByText('ഷെഫ് സ്പെഷ്യൽ ടാക്കോസ്')).toBeTruthy();
