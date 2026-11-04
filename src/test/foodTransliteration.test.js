@@ -16,6 +16,7 @@ describe('Food Transliteration Engine', () => {
     expect(transliterateFood('Passionfruit Mango Fizz', 'ml')).toBe('പാഷൻഫ്രൂട്ട് മാംഗോ ഫിസ്');
     expect(transliterateFood('Iced Matcha Latte', 'ml')).toBe('ഐസ്ഡ് മാച്ച ലാറ്റെ');
     expect(transliterateFood('Fresh Lemonade', 'ml')).toBe('ഫ്രഷ് ലെമനേഡ്');
+    expect(transliterateFood('Beef Birria Tacos', 'ml')).toBe('ബീഫ് ബിരിയ ടാക്കോസ്');
   });
 
   it('transliterates all waiter mobile screenshot items to natural Hindi', () => {
@@ -27,6 +28,7 @@ describe('Food Transliteration Engine', () => {
     expect(transliterateFood('Passionfruit Mango Fizz', 'hi')).toBe('पैशनफ्रूट मैंगो फ़िज़');
     expect(transliterateFood('Iced Matcha Latte', 'hi')).toBe('आइस माचा लाते');
     expect(transliterateFood('Fresh Lemonade', 'hi')).toBe('फ्रेश लेमनेड');
+    expect(transliterateFood('Beef Birria Tacos', 'hi')).toBe('बीफ बिरिया टैकोस');
   });
 
   it('transliterates popular Italian dishes to Malayalam', () => {

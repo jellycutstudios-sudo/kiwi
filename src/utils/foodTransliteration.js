@@ -109,6 +109,14 @@ const CULINARY_DICT = {
   wedges:     { ml: 'വെഡ്ജസ്',     hi: 'वेजेस' },
   rings:      { ml: 'റിങ്സ്',      hi: 'रिंग्स' },
   tacos:      { ml: 'ടാക്കോസ്',    hi: 'टैकोस' },
+  taco:       { ml: 'ടാക്കോ',      hi: 'टैको' },
+  birria:     { ml: 'ബിരിയ',       hi: 'बिरिया' },
+  fajita:     { ml: 'ഫജീത',        hi: 'फहीता' },
+  enchilada:  { ml: 'എൻചിലാഡ',     hi: 'एनचिलाडा' },
+  guacamole:  { ml: 'ഗ്വാക്കാമോളി', hi: 'गुआकामोल' },
+  salsa:      { ml: 'സൽസ',        hi: 'साल्सा' },
+  churros:    { ml: 'ചുറോസ്',      hi: 'चुरोस' },
+  teriyaki:   { ml: 'ടെരിയാക്കി',  hi: 'तेरियाकी' },
   nachos:     { ml: 'നാച്ചോസ്',    hi: 'नाचोस' },
   quesadilla: { ml: 'കെസഡിയ',     hi: 'केसाडिला' },
   burrito:    { ml: 'ബുറിറ്റോ',     hi: 'बरिटो' },
@@ -303,7 +311,10 @@ const DISH_PHRASES = {
   'cold brew coffee':       { ml: 'കോൾഡ് ബ്രൂ കോഫി',      hi: 'कोल्ड ब्रू कॉफ़ी' },
   'fresh lime soda':        { ml: 'ഫ്രഷ് ലൈം സോഡ',       hi: 'फ्रेश लाइम सोडा' },
   'chocolate lava cake':    { ml: 'ചോക്ലേറ്റ് ലാവ കേക്ക്', hi: 'चॉकलेट लावा केक' },
-  'new york cheesecake':    { ml: 'ന്യൂയോർക്ക് ചീസ്കേക്ക്', hi: 'न्यू यॉर्क चीज़केक' }
+  'new york cheesecake':    { ml: 'ന്യൂയോർക്ക് ചീസ്കേക്ക്', hi: 'न्यू यॉर्क चीज़केक' },
+  'beef birria tacos':      { ml: 'ബീഫ് ബിരിയ ടാക്കോസ്',    hi: 'बीफ बिरिया टैकोस' },
+  'chicken birria tacos':   { ml: 'ചിക്കൻ ബിരിയ ടാക്കോസ്',   hi: 'चिकन बिरिया टैकोस' },
+  'birria tacos':           { ml: 'ബിരിയ ടാക്കോസ്',        hi: 'बिरिया टैकोस' }
 };
 
 /**
@@ -613,7 +624,47 @@ function transliterateFallback(word, targetLang) {
       continue;
     }
 
-    // 5. Vowel Digraphs (Attaches Matra to previous consonant or independent vowel)
+    // Vowel combinations that sound like 'ia', 'io', 'ua'
+    if (rem.startsWith('ia')) {
+      if (prevWasConsonant) {
+        out += isMl ? 'ിയ' : 'िया';
+      } else {
+        out += isMl ? 'യാ' : 'या';
+      }
+      prevWasConsonant = false;
+      i += 2;
+      continue;
+    }
+    if (rem.startsWith('io')) {
+      if (prevWasConsonant) {
+        out += isMl ? 'ിയോ' : 'ियो';
+      } else {
+        out += isMl ? 'യോ' : 'यो';
+      }
+      prevWasConsonant = false;
+      i += 2;
+      continue;
+    }
+    if (rem.startsWith('ua')) {
+      if (prevWasConsonant) {
+        out += isMl ? 'ുവ' : 'ुवा';
+      } else {
+        out += isMl ? 'ഉവ' : 'उवा';
+      }
+      prevWasConsonant = false;
+      i += 2;
+      continue;
+    }
+
+    // Double 'rr' pronounced as single liquid consonant
+    if (rem.startsWith('rr')) {
+      out += isMl ? 'ര' : 'र';
+      prevWasConsonant = true;
+      i += 2;
+      continue;
+    }
+
+    // Vowel Digraphs (Attaches Matra to previous consonant or independent vowel)
     if (rem.startsWith('ee') || rem.startsWith('ea')) {
       out += prevWasConsonant ? (isMl ? 'ീ' : 'ी') : (isMl ? 'ഈ' : 'ई');
       prevWasConsonant = false;
@@ -652,12 +703,12 @@ function transliterateFallback(word, targetLang) {
       break;
     }
 
-    // Single Vowels
+    // Single Vowels (Never output raw matras without a consonant to prevent dotted circle ◌)
     if (c === 'a') {
       if (prevWasConsonant) {
         out += isMl ? 'ാ' : 'ा';
       } else {
-        out += isMl ? (isAtStart ? 'ആ' : 'ാ') : (isAtStart ? 'आ' : 'ा');
+        out += isMl ? (isAtStart ? 'ആ' : 'യ') : (isAtStart ? 'आ' : 'या');
       }
       prevWasConsonant = false;
       i++;
@@ -667,7 +718,7 @@ function transliterateFallback(word, targetLang) {
       if (prevWasConsonant) {
         out += isMl ? 'െ' : 'े';
       } else {
-        out += isMl ? 'എ' : 'ए';
+        out += isMl ? (isAtStart ? 'എ' : 'യെ') : (isAtStart ? 'ए' : 'ए');
       }
       prevWasConsonant = false;
       i++;
@@ -677,7 +728,7 @@ function transliterateFallback(word, targetLang) {
       if (prevWasConsonant) {
         out += isMl ? 'ി' : 'ि';
       } else {
-        out += isMl ? 'ഇ' : 'इ';
+        out += isMl ? (isAtStart ? 'ഇ' : 'യി') : (isAtStart ? 'इ' : 'ई');
       }
       prevWasConsonant = false;
       i++;
@@ -687,7 +738,7 @@ function transliterateFallback(word, targetLang) {
       if (prevWasConsonant) {
         out += isMl ? 'ോ' : 'ो';
       } else {
-        out += isMl ? 'ഒ' : 'ओ';
+        out += isMl ? (isAtStart ? 'ഒ' : 'യോ') : (isAtStart ? 'ओ' : 'ओ');
       }
       prevWasConsonant = false;
       i++;
@@ -697,7 +748,7 @@ function transliterateFallback(word, targetLang) {
       if (prevWasConsonant) {
         out += isMl ? 'ു' : 'ु';
       } else {
-        out += isMl ? 'ഉ' : 'उ';
+        out += isMl ? (isAtStart ? 'ഉ' : 'യു') : (isAtStart ? 'उ' : 'उ');
       }
       prevWasConsonant = false;
       i++;
