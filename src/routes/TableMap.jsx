@@ -62,15 +62,21 @@ export default function TableMap() {
   const setOrderType = useOrderStore(s => s.setOrderType);
   const activeOrders = useOrderStore(s => s.activeOrders);
 
-  useWakeLock(true);
+  const isFloorStaff = ['waiter', 'server', 'runner', 'captain'].includes(staffDoc?.role);
+  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+  // Battery conservation: Keep screen awake on wall/desktop monitors; allow mobile waiter phones to sleep
+  useWakeLock(!isFloorStaff && !isMobileScreen);
 
   const [selected, setSelected] = useState(null);
   const [reservations, setReservations] = useState([]);
 
-  // Live ticker for elapsed times
+  // Live ticker for elapsed times (paused when app is hidden/pocketed)
   const [nowTime, setNowTime] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNowTime(Date.now()), 60000);
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      setNowTime(Date.now());
+    }, 60000);
     return () => clearInterval(id);
   }, []);
 

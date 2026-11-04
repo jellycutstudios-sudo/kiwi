@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
-import { collection, onSnapshot, doc, getDoc, setDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, setDoc, query, where, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { 
@@ -282,12 +282,13 @@ export default function DeliveryHub() {
     return unsub;
   }, [restaurant?.id]);
 
-  // 2. Fetch delivery orders for analytics (last 30 days)
+  // 2. Fetch delivery orders for analytics (bounded to most recent 250)
   useEffect(() => {
     if (!restaurant?.id) return;
     const q = query(
       collection(db, 'restaurants', restaurant.id, 'orders'),
-      where('type', '==', 'online')
+      where('type', '==', 'online'),
+      limit(250)
     );
 
     const unsub = onSnapshot(q, snap => {
@@ -295,15 +296,28 @@ export default function DeliveryHub() {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(o => o.source && o.source !== 'native'); // Only delivery orders
       setOrders(ords);
+    }, (err) => {
+      console.warn('Delivery orders query failed:', err);
     });
     return unsub;
   }, [restaurant?.id]);
 
-  // 3. Fetch delivery overrides, status settings, and sync logs for each active platform
+  // Primitive stable fingerprint of active integrations to prevent unnecessary listener resets
+  const activeIntegrationKey = useMemo(() => {
+    return ALL_PLATFORMS
+      .filter(p => integrations[p]?.enabled || integrations[p]?.apiKey || integrations[p]?.merchantId || integrations[p]?.vendorId)
+      .sort()
+      .join(',');
+  }, [integrations]);
+
+  // 3. Fetch delivery overrides, status settings, and sync logs for relevant platforms only
   useEffect(() => {
     if (!restaurant?.id) return;
 
-    const platforms = ALL_PLATFORMS;
+    // Filter to only platforms relevant or configured for this restaurant (drops from 32 down to relevant channels)
+    const platforms = ALL_PLATFORMS.filter(platform => 
+      isPlatformRelevantToRestaurant(platform, restaurant, integrations)
+    );
     const overrideUnsubs = [];
     const logUnsubs = [];
 
@@ -356,11 +370,15 @@ export default function DeliveryHub() {
       overrideUnsubs.forEach(fn => fn());
       logUnsubs.forEach(fn => fn());
     };
-  }, [restaurant?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally gated by activeIntegrationKey to prevent tear-down loops
+  }, [restaurant?.id, restaurant?.country, restaurant?.currency, activeIntegrationKey]);
 
   // 4. Timer interval for live countdowns & checking schedules / auto-resumes
   useEffect(() => {
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return; // Pause timer updates while tab/window is hidden or screen is off
+      }
       setNow(new Date());
     }, 1000);
     return () => clearInterval(interval);

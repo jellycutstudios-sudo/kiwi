@@ -1638,7 +1638,7 @@ export const useOrderStore = create((set, get) => ({
     // If all items are served -> 'served'
     // If there are still items cooking/pending -> retain 'preparing' (or 'pending')
     // If all uncooked are finished and some are ready -> 'ready'
-    let newStatus = target.status;
+    let newStatus;
     if (allServed) {
       newStatus = 'served';
     } else if (hasUncooked) {

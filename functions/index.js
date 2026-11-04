@@ -39,6 +39,21 @@ exports.syncPublicOrderTracking = onDocumentWritten('restaurants/{restaurantId}/
   }
 
   const order = after.data();
+
+  // Optimization: Do not duplicate internal Dine-In POS orders that have no external customer tracking
+  const isCustomerFacing = order.type === 'online' ||
+    order.source === 'online' ||
+    order.orderType === 'delivery' ||
+    order.orderType === 'takeaway' ||
+    Boolean(order.customerPhone) ||
+    Boolean(order.enableTracking) ||
+    Boolean(order.publicTracking) ||
+    Boolean(order.qrOrder);
+
+  if (!isCustomerFacing) {
+    return null;
+  }
+
   await writePublicOrderTracking(trackingRef, order);
   return null;
 });

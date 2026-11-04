@@ -165,6 +165,13 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
   useEffect(() => {
     if (!restaurant?.id) return;
+    const integrations = useAuthStore.getState().restaurant?.deliveryIntegrations || restaurant?.deliveryIntegrations || {};
+    const hasActiveIntegrations = Object.values(integrations).some(c => c?.enabled === true);
+    if (!hasActiveIntegrations) {
+      setAnyPlatformPaused(false);
+      return;
+    }
+
     const q = collection(db, 'restaurants', restaurant.id, 'deliverySettings');
     const unsub = onSnapshot(q, (snap) => {
       let paused = false;

@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useMenuStore } from '../stores/menuStore';
+import { useTableStore } from '../stores/tableStore';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -29,7 +30,10 @@ const LiveDateTime = memo(function LiveDateTime() {
   const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      setCurrentTime(new Date());
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -436,10 +440,15 @@ export default function Dashboard() {
       limit(500)
     );
     
-    // Also get total tables count for turnover calculation
-    getDocs(collection(db, 'restaurants', restaurant.id, 'tables')).then(snap => {
-      setTablesCount(snap.size || 0);
-    }).catch(e => console.error(e));
+    // Total tables count for turnover calculation (read from shared in-memory tableStore first)
+    const storeTables = useTableStore.getState().tables;
+    if (storeTables && storeTables.length > 0) {
+      setTablesCount(storeTables.length);
+    } else {
+      getDocs(collection(db, 'restaurants', restaurant.id, 'tables')).then(snap => {
+        setTablesCount(snap.size || 0);
+      }).catch(e => console.error(e));
+    }
 
     const computeTodayStats = (rawDocs) => {
       // Merge local offline orders & active orders so local-only mode and offline sales are fully reflected

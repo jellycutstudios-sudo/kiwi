@@ -66,17 +66,17 @@ export default function Reservations() {
     partySize: '2'
   });
 
-  // 1. Fetch tables list
+  // 1. Fetch tables list (uses shared memory tableStore to eliminate duplicate Firestore listener)
   useEffect(() => {
-    if (!restaurant?.id) return;
-    const storeTables = useTableStore.getState().tables;
-    if (storeTables && storeTables.length > 0) {
-      setTables(storeTables);
-    }
-    return onSnapshot(collection(db, 'restaurants', restaurant.id, 'tables'), snap => {
-      setTables(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, () => {});
-  }, [restaurant?.id]);
+    const syncTables = () => {
+      const storeTables = useTableStore.getState().tables;
+      if (Array.isArray(storeTables) && storeTables.length > 0) {
+        setTables(storeTables);
+      }
+    };
+    syncTables();
+    return useTableStore.subscribe(syncTables);
+  }, []);
 
   // 2. Fetch reservations in real-time
   useEffect(() => {

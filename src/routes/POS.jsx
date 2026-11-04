@@ -162,7 +162,6 @@ export default function POS() {
     }))
   );
   const { issueToken } = useTokenStore();
-  useWakeLock(true);
   const { categories, loading: loadingMenu, search, setSearch, menuDensity, catFirstOverview, setCatFirstOverview } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
@@ -231,6 +230,9 @@ export default function POS() {
 
   // Floor staff (waiters/servers/runners) are always locked into Waiter Mode
   const isEffectiveHandheld = isFloorStaff || handheldMode;
+
+  // Battery conservation: Screen wake lock active on fixed counter POS; allowed to sleep on mobile handhelds
+  useWakeLock(!isEffectiveHandheld);
 
   const toggleHandheldMode = (enable) => {
     setHandheldMode(enable);

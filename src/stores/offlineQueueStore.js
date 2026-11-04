@@ -339,11 +339,36 @@ export const useOfflineQueueStore = create((set, get) => {
         }
       };
 
+      // Resume instant connectivity check when waiter unlocks device or switches back to tab
+      const handleVisibilityChange = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          fetch('/favicon.ico', { method: 'HEAD', cache: 'no-store' })
+            .then(res => {
+              const reachable = res !== null;
+              if (reachable !== get().isOnline) {
+                set({ isOnline: reachable });
+                if (reachable && get().queue.length > 0) {
+                  get().processQueue();
+                }
+              }
+            })
+            .catch(() => {});
+        }
+      };
+
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+      }
 
       // Periodic check: Ping light endpoint every 25 seconds to verify true internet reachability
       heartbeatTimer = setInterval(async () => {
+        // Battery conservation: do not wake up device Wi-Fi/cellular radio if screen is off or app is in pocket
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          return;
+        }
+
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
           if (get().isOnline) set({ isOnline: false });
           return;
@@ -367,6 +392,9 @@ export const useOfflineQueueStore = create((set, get) => {
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
         if (heartbeatTimer) clearInterval(heartbeatTimer);
         isListenerAttached = false;
       };
