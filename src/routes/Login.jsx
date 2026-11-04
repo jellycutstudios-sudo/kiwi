@@ -215,9 +215,18 @@ export default function Login() {
           await cred.user.delete();
         } catch {}
       }
-      const errorMsg = err.code === 'auth/email-already-in-use'
-        ? (isEmail ? 'This email is already registered.' : 'This mobile number is already registered.')
-        : err.message;
+      let errorMsg;
+      if (err.code === 'auth/email-already-in-use') {
+        errorMsg = isEmail ? 'This email is already registered.' : 'This mobile number is already registered.';
+      } else if (err.code === 'auth/network-request-failed') {
+        errorMsg = 'Unable to reach the authentication server. Please check your internet connection or disable any ad blockers / Brave Shields for this page.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMsg = 'Password should be at least 6 characters.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Invalid email address format.';
+      } else {
+        errorMsg = err.message || 'An unexpected error occurred.';
+      }
       toast.error('Registration failed: ' + errorMsg);
     } finally {
       setRegistering(false);
