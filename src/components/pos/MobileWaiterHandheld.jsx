@@ -2,13 +2,15 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Search, X, Plus, Minus, Flame, 
   ChevronUp, ChevronDown, Printer, CreditCard, 
-  Split, ArrowLeft, Trash2, SlidersHorizontal, FileText 
+  Split, ArrowLeft, Trash2, SlidersHorizontal, FileText,
+  Languages, LayoutGrid, List, Check
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useOrderStore } from '../../stores/orderStore';
 import { useTableStore } from '../../stores/tableStore';
 import { hapticTap, playNotificationTone, vibrateDevice } from '../../utils/soundNotifications';
 import { localSyncChannel } from '../../utils/localSyncChannel';
+import { transliterateFood, SUPPORTED_WAITER_LANGUAGES } from '../../utils/foodTransliteration';
 import toast from 'react-hot-toast';
 import ModifierModal from './ModifierModal';
 
@@ -75,6 +77,45 @@ export default function MobileWaiterHandheld({
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'non-veg' | 'bestseller'
   
+  // Waiter Language & Script Preference ('en' | 'ml' | 'hi')
+  const [waiterLang, setWaiterLang] = useState(() => {
+    try {
+      return localStorage.getItem('kiwi_waiter_lang') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
+  const [showLangSheet, setShowLangSheet] = useState(false);
+
+  // Layout View Mode ('grid' = 2-Column Touch Tiles | 'list' = Compact List)
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('kiwi_waiter_view_mode') || 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const handleSelectLang = (code) => {
+    setWaiterLang(code);
+    setShowLangSheet(false);
+    hapticTap('success');
+    try {
+      localStorage.setItem('kiwi_waiter_lang', code);
+    } catch {}
+    const langObj = SUPPORTED_WAITER_LANGUAGES.find(l => l.code === code);
+    toast.success(`Language: ${langObj?.native || code}`, { icon: '🌐' });
+  };
+
+  const handleToggleViewMode = () => {
+    const next = viewMode === 'grid' ? 'list' : 'grid';
+    setViewMode(next);
+    hapticTap('light');
+    try {
+      localStorage.setItem('kiwi_waiter_view_mode', next);
+    } catch {}
+  };
+
   // Sheet States
   const [showTableSheet, setShowTableSheet] = useState(false);
   const [showCartSheet, setShowCartSheet] = useState(false);
@@ -204,12 +245,15 @@ export default function MobileWaiterHandheld({
       if (dietaryFilter === 'non-veg' && item.isVeg) return false;
       if (dietaryFilter === 'bestseller' && !item.isBestseller && !item.bestseller && !item.popular) return false;
       
-      // Search
+      // Search across English and phonetic native scripts
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+        const query = searchQuery.toLowerCase().trim();
         const matchesName = item.name?.toLowerCase().includes(query);
         const matchesDesc = item.description?.toLowerCase().includes(query);
-        if (!matchesName && !matchesDesc) return false;
+        const translitMl = transliterateFood(item.name, 'ml').toLowerCase();
+        const translitHi = transliterateFood(item.name, 'hi').toLowerCase();
+        const matchesNative = translitMl.includes(query) || translitHi.includes(query);
+        if (!matchesName && !matchesDesc && !matchesNative) return false;
       }
       return true;
     });
@@ -342,6 +386,29 @@ export default function MobileWaiterHandheld({
             </button>
           )}
 
+          {/* Language Switcher Pill */}
+          <button
+            type="button"
+            className={`handheld-lang-btn ${waiterLang !== 'en' ? 'active-lang' : ''}`}
+            onClick={() => { hapticTap('light'); setShowLangSheet(true); }}
+            title="Switch Waiter Language (Phonetic Malayalam / Hindi / English)"
+            aria-label="Switch Language"
+          >
+            <Languages size={13} />
+            <span>{SUPPORTED_WAITER_LANGUAGES.find(l => l.code === waiterLang)?.native || 'EN'}</span>
+          </button>
+
+          {/* Grid / List View Toggle */}
+          <button
+            type="button"
+            className="handheld-view-toggle-btn"
+            onClick={handleToggleViewMode}
+            title={viewMode === 'grid' ? "Switch to List View" : "Switch to 2-Column Grid View"}
+            aria-label="Toggle View Mode"
+          >
+            {viewMode === 'grid' ? <List size={14} /> : <LayoutGrid size={14} />}
+          </button>
+
           <button
             type="button"
             className="handheld-exit-btn"
@@ -443,9 +510,9 @@ export default function MobileWaiterHandheld({
         </div>
       </div>
 
-      {/* ── Menu Grid (Thumb-Target Optimized) ──────────────────────── */}
-      <main className="handheld-menu-scroll">
-        <div className="handheld-menu-grid">
+      {/* ── Menu Grid / List (Thumb-Target Optimized) ─────────────────── */}
+      <main className={`handheld-menu-scroll ${viewMode === 'grid' ? 'grid-view' : 'list-view'}`}>
+        <div className={`handheld-menu-layout ${viewMode === 'grid' ? 'handheld-grid' : 'handheld-list'}`}>
           {filteredItems.map(item => {
             const hasModifiers = Boolean(item.modifierGroups && item.modifierGroups.length > 0);
             const cartItemsForItem = items.filter(i => i.id === item.id || i.menuItemId === item.id);
@@ -462,35 +529,91 @@ export default function MobileWaiterHandheld({
               }
             }
 
+            // Phonetic Script Resolution:
+            // In Malayalam/Hindi mode: Display native phonetic script prominently (e.g. "ഗാർലിക് ചിക്കൻ") with English original subtitled
+            const nativeScript = waiterLang === 'en'
+              ? null
+              : (item[`name_${waiterLang}`] || item[`name${waiterLang.toUpperCase()}`] || transliterateFood(item.name, waiterLang));
+            const primaryTitle = nativeScript || item.name;
+            const subtitleText = nativeScript ? item.name : null;
+
+            const handleCardTap = () => {
+              if (item.available === false) return;
+              if (hasModifiers) {
+                hapticTap('light');
+                setActiveModifierItem(item);
+              } else if (cartQty === 0) {
+                hapticTap('light');
+                addItem(item);
+              }
+            };
+
+            const handleIncrement = (e) => {
+              if (e) e.stopPropagation();
+              hapticTap('light');
+              if (hasModifiers) {
+                setActiveModifierItem(item);
+              } else if (cartQty === 0) {
+                addItem(item);
+              } else {
+                updateQty(item.id, cartQty + 1);
+              }
+            };
+
+            const handleDecrement = (e) => {
+              if (e) e.stopPropagation();
+              hapticTap('light');
+              if (hasModifiers) {
+                if (singleCartItem) {
+                  updateQty(singleCartItem.id, singleCartItem.qty - 1, singleCartItem.selectedModifiers);
+                } else {
+                  setShowCartSheet(true);
+                }
+              } else {
+                updateQty(item.id, cartQty - 1);
+              }
+            };
+
             return (
               <div 
                 key={item.id} 
-                className={`handheld-item-card ${cartQty > 0 ? 'selected' : ''}`}
-                onClick={() => {
-                  if (item.available === false) return;
-                  if (hasModifiers) {
-                    hapticTap('light');
-                    setActiveModifierItem(item);
-                  } else if (cartQty === 0) {
-                    hapticTap('light');
-                    addItem(item);
-                  }
-                }}
+                className={`handheld-item-card ${viewMode === 'grid' ? 'grid-card' : 'list-card'} ${cartQty > 0 ? 'selected' : ''}`}
+                onClick={handleCardTap}
               >
-                <div className="handheld-item-info">
-                  <div className="handheld-item-title-row">
-                    <span className={item.isVeg ? "food-badge-veg" : "food-badge-nonveg"} />
-                    <span className="handheld-item-name">{item.name}</span>
+                {/* Visual badge for current cart quantity on card */}
+                {cartQty > 0 && (
+                  <div className="handheld-card-badge">
+                    <span>{cartQty}</span>
                   </div>
-                  <div className="handheld-item-price-row">
+                )}
+
+                <div className="handheld-item-header">
+                  <div className="handheld-dietary-price">
+                    <span className={item.isVeg ? "food-badge-veg" : "food-badge-nonveg"} />
                     <span className="handheld-item-price">{priceLabel}</span>
+                  </div>
+
+                  <div className="handheld-badge-tags">
                     {hasModifiers && (
-                      <span className="handheld-item-pill" style={{ background: '#3b82f622', color: 'var(--color-accent, #3b82f6)', fontWeight: 700 }}>
+                      <span className="handheld-item-pill options">
                         Options
                       </span>
                     )}
                     {item.isBestseller && (
                       <span className="handheld-item-pill bestseller">Popular</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="handheld-item-info">
+                  <div className="handheld-item-name-wrap">
+                    <span className={`handheld-item-name ${waiterLang !== 'en' ? 'native-font' : ''}`}>
+                      {primaryTitle}
+                    </span>
+                    {subtitleText && (
+                      <span className="handheld-item-subname">
+                        {subtitleText}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -502,37 +625,19 @@ export default function MobileWaiterHandheld({
                       <button
                         type="button"
                         className="handheld-step-btn minus"
-                        onClick={() => {
-                          hapticTap('light');
-                          if (hasModifiers) {
-                            if (singleCartItem) {
-                              updateQty(singleCartItem.id, singleCartItem.qty - 1, singleCartItem.selectedModifiers);
-                            } else {
-                              setShowCartSheet(true);
-                            }
-                          } else {
-                            updateQty(item.id, cartQty - 1);
-                          }
-                        }}
+                        onClick={handleDecrement}
                         aria-label="Decrease quantity"
                       >
-                        <Minus size={13} strokeWidth={2.5} />
+                        <Minus size={15} strokeWidth={2.8} />
                       </button>
                       <span className="handheld-step-qty">{cartQty}</span>
                       <button
                         type="button"
                         className="handheld-step-btn plus"
-                        onClick={() => {
-                          hapticTap('light');
-                          if (hasModifiers) {
-                            setActiveModifierItem(item);
-                          } else {
-                            updateQty(item.id, cartQty + 1);
-                          }
-                        }}
+                        onClick={handleIncrement}
                         aria-label={hasModifiers ? "Choose options to add" : "Increase quantity"}
                       >
-                        <Plus size={13} strokeWidth={2.5} />
+                        <Plus size={15} strokeWidth={2.8} />
                       </button>
 
                       <button
@@ -555,18 +660,11 @@ export default function MobileWaiterHandheld({
                     <button
                       type="button"
                       className="handheld-add-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        hapticTap('light');
-                        if (hasModifiers) {
-                          setActiveModifierItem(item);
-                        } else {
-                          addItem(item);
-                        }
-                      }}
+                      onClick={handleIncrement}
                       aria-label={`Add ${item.name}`}
                     >
-                      <Plus size={15} strokeWidth={3} />
+                      <Plus size={16} strokeWidth={3} />
+                      {viewMode === 'grid' && <span className="handheld-add-label">Add</span>}
                     </button>
                   )}
                 </div>
@@ -1106,6 +1204,67 @@ export default function MobileWaiterHandheld({
               >
                 Save Course &amp; Tags
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Waiter Dish Language & Script Switcher Sheet ───────────── */}
+      {showLangSheet && (
+        <div className="handheld-sheet-backdrop animate-fade-in" onClick={() => setShowLangSheet(false)}>
+          <div className="handheld-sheet animate-slide-up" onClick={e => e.stopPropagation()} style={{ maxHeight: '60vh' }}>
+            <div className="handheld-sheet-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Languages size={18} style={{ color: 'var(--color-accent, #38bdf8)' }} />
+                <div>
+                  <h3 className="handheld-sheet-title" style={{ margin: 0, fontSize: 15 }}>Waiter Dish Script</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-label-secondary, #94a3b8)' }}>
+                    Dishes written phonetically in native script for instant table reading
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                className="handheld-sheet-close"
+                onClick={() => setShowLangSheet(false)}
+                aria-label="Close language selector"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="handheld-lang-options-list">
+              {SUPPORTED_WAITER_LANGUAGES.map(lang => {
+                const isSelected = waiterLang === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    className={`handheld-lang-option-row ${isSelected ? 'active' : ''}`}
+                    onClick={() => handleSelectLang(lang.code)}
+                  >
+                    <div className="handheld-lang-option-left">
+                      <span className="handheld-lang-flag">{lang.flag}</span>
+                      <div className="handheld-lang-option-text">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className="handheld-lang-native">{lang.native}</span>
+                          <span className="handheld-lang-code">({lang.label})</span>
+                        </div>
+                        <span className="handheld-lang-sub">
+                          {lang.code === 'ml' && 'Phonetic Malayalam — e.g. ഗാർലിക് ചിക്കൻ'}
+                          {lang.code === 'hi' && 'Phonetic Hindi — e.g. गार्लिक चिकन'}
+                          {lang.code === 'en' && 'Standard English Menu Names'}
+                        </span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="handheld-lang-check">
+                        <Check size={16} strokeWidth={3} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

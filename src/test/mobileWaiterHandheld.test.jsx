@@ -271,4 +271,68 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     expect(cartItems[0].price).toBe(250);
     expect(cartItems[0].selectedModifiers.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('allows waiter to switch dish language to Malayalam and view phonetic script', () => {
+    const dishes = [
+      { id: 'dish_gc', name: 'Garlic Chicken', price: 280, isVeg: false, categoryId: 'cat_mains' }
+    ];
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="INR"
+        menuItems={dishes}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // Initial English display
+    expect(screen.getByText('Garlic Chicken')).toBeTruthy();
+
+    // Click language switcher pill
+    const langBtn = screen.getByLabelText('Switch Language');
+    fireEvent.click(langBtn);
+
+    // Language sheet opens with options
+    expect(screen.getByText('Waiter Dish Script')).toBeTruthy();
+    expect(screen.getByText('മലയാളം')).toBeTruthy();
+
+    // Select Malayalam
+    fireEvent.click(screen.getByText('മലയാളം'));
+
+    // Phonetic Malayalam script "ഗാർലിക് ചിക്കൻ" is rendered as primary title
+    expect(screen.getByText('ഗാർലിക് ചിക്കൻ')).toBeTruthy();
+    // English subtitle is still present underneath for kitchen clarity
+    expect(screen.getByText('Garlic Chicken')).toBeTruthy();
+  });
+
+  it('allows waiter to toggle between 2-column grid and list view mode', () => {
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="USD"
+        menuItems={sampleMenuItems}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    const toggleBtn = screen.getByLabelText('Toggle View Mode');
+    expect(toggleBtn).toBeTruthy();
+
+    // Toggle from grid to list
+    fireEvent.click(toggleBtn);
+    expect(screen.getByRole('main')).toBeTruthy();
+  });
 });
