@@ -145,13 +145,14 @@ export default function StaffManager() {
         const shouldSyncCloud = !restaurant.localStorageOnly;
         if (shouldSyncCloud) {
           const batch = writeBatch(db);
-          batch.update(doc(db, 'restaurants', restaurant.id, 'staff', editId), {
+          batch.set(doc(db, 'restaurants', restaurant.id, 'staff', editId), {
             name: form.name.trim(),
             role: form.role,
+            active: isActive,
             email: form.email?.trim() || null,
             salaryType: form.salaryType,
             updatedAt: new Date()
-          });
+          }, { merge: true });
           batch.set(doc(db, 'restaurants', restaurant.id, 'staff_credentials', editId), {
             staffId: editId,
             pin: targetPin,
@@ -274,10 +275,10 @@ export default function StaffManager() {
       const shouldSyncCloud = !restaurant.localStorageOnly;
       if (shouldSyncCloud) {
         const batch = writeBatch(db);
-        batch.update(doc(db, 'restaurants', restaurant.id, 'staff', id), {
+        batch.set(doc(db, 'restaurants', restaurant.id, 'staff', id), {
           active: nextActive,
           updatedAt: new Date()
-        });
+        }, { merge: true });
         if (targetPin) {
           batch.set(doc(db, 'restaurants', restaurant.id, 'staff_auth', targetPin), {
             active: nextActive,
