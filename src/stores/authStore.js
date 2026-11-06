@@ -125,6 +125,10 @@ export const useAuthStore = create(
           }
 
           const cred = await signInWithEmailAndPassword(auth, targetEmail, password);
+          // Ensure ID token is fully resolved to prevent Firestore auth propagation race
+          try {
+            await cred.user.getIdToken();
+          } catch {}
           return await get().loadUserData(cred.user);
         } catch (e) {
           const isInvalidCred = e.code === 'auth/invalid-credential' 
@@ -133,7 +137,7 @@ export const useAuthStore = create(
             || e.code === 'auth/invalid-email';
           const msg = isInvalidCred
             ? 'Invalid mobile number, email, or password'
-            : e.message;
+            : (e.code === 'permission-denied' ? 'Permission denied. Please try again.' : e.message);
           set({ loading: false, error: msg });
           return { ok: false, error: msg };
         } finally {
@@ -461,15 +465,39 @@ export const useAuthStore = create(
         if (get().user?.uid !== firebaseUser.uid) set({ user: null, staffDoc: null, restaurant: null, loading: true });
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userSnap = await getDoc(userDocRef);
+          let userSnap;
+          try {
+            userSnap = await getDoc(userDocRef);
+          } catch (userDocErr) {
+            if (userDocErr?.code === 'permission-denied') {
+              console.warn('[loadUserData] Initial read permission-denied, refreshing token and retrying...');
+              try {
+                if (firebaseUser.getIdToken) {
+                  await firebaseUser.getIdToken(true);
+                }
+              } catch {}
+              await new Promise(r => setTimeout(r, 250));
+              userSnap = await getDoc(userDocRef);
+            } else {
+              throw userDocErr;
+            }
+          }
 
           if (userSnap.exists()) {
             const userData = { id: userSnap.id, ...userSnap.data() };
             let restData = null;
             if (userData.restaurantId && userData.role !== 'super_admin') {
               const restDocRef = doc(db, 'restaurants', userData.restaurantId);
-              const restDoc = await getDoc(restDocRef);
-              if (restDoc.exists()) {
+              let restDoc = null;
+              try {
+                restDoc = await getDoc(restDocRef);
+              } catch (restErr) {
+                if (restErr?.code === 'permission-denied') {
+                  await new Promise(r => setTimeout(r, 200));
+                  restDoc = await getDoc(restDocRef).catch(() => null);
+                }
+              }
+              if (restDoc?.exists()) {
                 restData = { id: userData.restaurantId, ...restDoc.data() };
                 if (restData.status === 'suspended' && userData.role !== 'admin' && userData.role !== 'super_admin') {
                   set({ loading: false, error: 'Restaurant account has been suspended. Please contact support.' });
@@ -491,14 +519,20 @@ export const useAuthStore = create(
               }
             }
             if (userData.role === 'admin') {
-              const owned = await getDocs(query(collection(db, 'restaurants'), where('ownerUid', '==', firebaseUser.uid)));
-              const branches = owned.docs.map(branch => ({ ...branch.data(), id: branch.id }));
-              const previousId = get().restaurant?.id;
-              // A suspended primary branch must not lock the owner out of other paid branches.
-              restData = branches.find(branch => branch.id === previousId && branch.status === 'approved')
-                || branches.find(branch => branch.id === restData?.id && branch.status === 'approved')
-                || branches.find(branch => branch.status === 'approved')
-                || restData || branches[0] || null;
+              try {
+                const owned = await getDocs(query(collection(db, 'restaurants'), where('ownerUid', '==', firebaseUser.uid)));
+                const branches = owned.docs.map(branch => ({ ...branch.data(), id: branch.id }));
+                const previousId = get().restaurant?.id;
+                // A suspended primary branch must not lock the owner out of other paid branches.
+                restData = branches.find(branch => branch.id === previousId && branch.status === 'approved')
+                  || branches.find(branch => branch.id === restData?.id && branch.status === 'approved')
+                  || branches.find(branch => branch.status === 'approved')
+                  || restData || branches[0] || null;
+              } catch (ownedErr) {
+                console.warn('[loadUserData] querying owned branches error:', ownedErr);
+                // Non-fatal: if querying all branches fails, fallback to primary restData
+                if (!restData) throw ownedErr;
+              }
             }
             // For super_admin, restData intentionally stays null so they enter the global Platform Console
             if (sequence !== authLoadSequence) return { ok: false, error: 'Session changed. Sign in again.' };
@@ -518,8 +552,11 @@ export const useAuthStore = create(
           }
         } catch (e) {
           console.error("loadUserData error:", e);
-          if (sequence === authLoadSequence) set({ user: null, staffDoc: null, restaurant: null, loading: false, error: e.message });
-          return { ok: false, error: e.message };
+          const userFriendlyError = e?.code === 'permission-denied'
+            ? 'Account profile access denied. Please try again or contact support.'
+            : (e.message || 'Failed to load user profile');
+          if (sequence === authLoadSequence) set({ user: null, staffDoc: null, restaurant: null, loading: false, error: userFriendlyError });
+          return { ok: false, error: userFriendlyError };
         }
       },
 
