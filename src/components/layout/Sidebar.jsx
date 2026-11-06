@@ -954,42 +954,26 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             </div>
           ) : (
             <div className="sidebar-actions-collapsed">
-              <button
-                className="btn btn-secondary btn-icon"
-                onClick={() => setShowGuide(true)}
-                title="Help & Guide"
-                style={{ width: '34px', height: '34px', borderRadius: '8px' }}
-              >
-                <BookOpen size={14} />
-              </button>
-              <ThemeToggle />
-              <button
-                className="btn btn-secondary btn-icon"
-                onClick={handleSignOut}
-                title="Sign out"
-                style={{ width: '34px', height: '34px', borderRadius: '8px', color: 'var(--color-red)' }}
-              >
-                <LogOut size={14} />
-              </button>
               {!mobileOpen && (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-icon sidebar-collapse-btn"
-                  style={{ 
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
+                  className="sidebar-collapsed-action-btn sidebar-collapse-btn"
                   onClick={() => setCollapsed(!collapsed)}
-                  title="Expand menu"
-                  aria-label="Expand menu"
+                  title="Expand sidebar"
+                  aria-label="Expand sidebar"
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={17} />
                 </button>
               )}
+              <button
+                type="button"
+                className="sidebar-collapsed-action-btn sidebar-collapsed-logout-btn"
+                onClick={handleSignOut}
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           )}
         </div>

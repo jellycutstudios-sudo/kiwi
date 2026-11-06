@@ -973,6 +973,76 @@ ul, ol { list-style: none; }
   gap: 6px;
   width: 100%;
   align-items: center;
+  padding: 2px 0;
+}
+
+.sidebar-collapsed-action-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--color-label-secondary);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0 !important;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.sidebar-collapsed-action-btn:hover {
+  background: var(--color-fill) !important;
+  border-color: var(--color-separator) !important;
+  color: var(--color-label);
+  transform: translateY(-1px);
+}
+
+.sidebar-collapsed-action-btn:active {
+  transform: translateY(1px) scale(0.96);
+}
+
+/* Expand toggle button */
+.sidebar-actions-collapsed .sidebar-collapse-btn {
+  color: var(--color-label);
+}
+
+.sidebar-actions-collapsed .sidebar-collapse-btn:hover {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #10b981 !important;
+}
+
+/* Logout button */
+.sidebar-collapsed-logout-btn {
+  color: var(--color-red, #ef4444) !important;
+}
+
+.sidebar-collapsed-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+  color: #ef4444 !important;
+}
+
+/* Dark mode overrides for compact sidebar footer */
+[data-theme="dark"] .sidebar-collapsed-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-actions-collapsed .sidebar-collapse-btn:hover {
+  background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .sidebar-collapsed-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border-color: rgba(239, 68, 68, 0.38) !important;
+  color: #f87171 !important;
 }
 
 /* Theme toggle sizing in compact sidebar footer */
@@ -997,21 +1067,6 @@ ul, ol { list-style: none; }
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
-}
-
-.sidebar-actions-collapsed .sidebar-collapse-btn {
-  width: 34px !important;
-  height: 34px !important;
-  min-height: 34px !important;
-  border-radius: 8px !important;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-separator);
-  color: var(--color-label);
-}
-
-.sidebar-actions-collapsed .sidebar-collapse-btn:hover {
-  background: var(--color-fill);
-  color: var(--color-accent);
 }
 
 /* Dark mode overrides for compact sidebar footer */
