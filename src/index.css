@@ -992,9 +992,26 @@ ul, ol { list-style: none; }
   border-radius: 8px !important;
   flex-shrink: 0;
   padding: 0 !important;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar-actions-collapsed .sidebar-collapse-btn {
+  width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 8px !important;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label);
+}
+
+.sidebar-actions-collapsed .sidebar-collapse-btn:hover {
+  background: var(--color-fill);
+  color: var(--color-accent);
 }
 
 /* Dark mode overrides for compact sidebar footer */
@@ -10441,9 +10458,6 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
     height: 38px;
     min-height: 38px !important;
     padding: 0 !important;
-  }
-  .sidebar-collapse-btn {
-    display: none !important;
   }
 
   /* Form inputs — MUST be at least 16px on touch/mobile screens to prevent iOS Safari auto-zoom */

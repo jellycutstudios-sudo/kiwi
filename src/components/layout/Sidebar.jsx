@@ -249,14 +249,17 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       {/* Header */}
       <div 
         className="sidebar-header" 
+        onClick={isCollapsed ? () => setCollapsed(false) : undefined}
         style={{ 
           display: 'flex', 
           justifyContent: isCollapsed ? 'center' : 'space-between', 
           alignItems: 'center', 
           width: '100%',
           padding: isCollapsed ? 0 : '0 var(--space-4)',
-          height: '58px'
+          height: '58px',
+          cursor: isCollapsed ? 'pointer' : 'default'
         }}
+        title={isCollapsed ? "Expand menu" : undefined}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: isCollapsed ? 'center' : 'flex-start', width: isCollapsed ? '100%' : 'auto' }}>
           <img src="/ricon.svg" alt="DineOS" style={{ width: '32px', height: '32px', display: 'block' }} />
@@ -970,6 +973,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               </button>
               {!mobileOpen && (
                 <button
+                  type="button"
                   className="btn btn-secondary btn-icon sidebar-collapse-btn"
                   style={{ 
                     width: '34px',
@@ -980,10 +984,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                     justifyContent: 'center'
                   }}
                   onClick={() => setCollapsed(!collapsed)}
-                  title="Expand sidebar"
-                  aria-label="Expand sidebar"
+                  title="Expand menu"
+                  aria-label="Expand menu"
                 >
-                  <ChevronRight size={14} />
+                  <ChevronRight size={16} />
                 </button>
               )}
             </div>
