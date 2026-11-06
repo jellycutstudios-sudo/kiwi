@@ -187,7 +187,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               type="button"
               className={`cart-addon-btn ${filterStatus === 'free' ? 'active' : ''}`}
               onClick={() => setFilterStatus('free')}
-              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#15803d', touchAction: 'manipulation' }}
+              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#34d399', fontWeight: 700, touchAction: 'manipulation' }}
             >
               Free ({counts.free})
             </button>
@@ -195,7 +195,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               type="button"
               className={`cart-addon-btn ${filterStatus === 'occupied' ? 'active' : ''}`}
               onClick={() => setFilterStatus('occupied')}
-              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#be123c', touchAction: 'manipulation' }}
+              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#fb7185', fontWeight: 700, touchAction: 'manipulation' }}
             >
               Occupied ({counts.occupied})
             </button>
@@ -204,7 +204,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 type="button"
                 className={`cart-addon-btn ${filterStatus === 'reserved' ? 'active' : ''}`}
                 onClick={() => setFilterStatus('reserved')}
-                style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#b45309', touchAction: 'manipulation' }}
+                style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#fbbf24', fontWeight: 700, touchAction: 'manipulation' }}
               >
                 ⭐ Reserved ({counts.reserved})
               </button>
@@ -255,23 +255,50 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 </span>
                 <button
                   type="button"
-                  className={`dietary-chip ${selectedZone === 'all' ? 'active' : ''}`}
                   onClick={() => setSelectedZone('all')}
-                  style={{ minHeight: 24, padding: '3px 9px', fontSize: 11 }}
+                  style={{
+                    minHeight: 24,
+                    padding: '3px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    border: '1px solid',
+                    borderColor: selectedZone === 'all' ? '#10b981' : 'var(--color-separator)',
+                    background: selectedZone === 'all' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                    color: selectedZone === 'all' ? '#34d399' : 'var(--color-label-secondary)',
+                    cursor: 'pointer',
+                    boxShadow: selectedZone === 'all' ? '0 0 8px rgba(16, 185, 129, 0.2)' : 'none',
+                    transition: 'all 0.12s ease'
+                  }}
                 >
                   All Zones
                 </button>
-                {zones.map(z => (
-                  <button
-                    key={z.id}
-                    type="button"
-                    className={`dietary-chip ${selectedZone === z.id ? 'active' : ''}`}
-                    onClick={() => setSelectedZone(z.id)}
-                    style={{ minHeight: 24, padding: '3px 9px', fontSize: 11 }}
-                  >
-                    {z.label} ({z.count})
-                  </button>
-                ))}
+                {zones.map(z => {
+                  const isActive = selectedZone === z.id;
+                  return (
+                    <button
+                      key={z.id}
+                      type="button"
+                      onClick={() => setSelectedZone(z.id)}
+                      style={{
+                        minHeight: 24,
+                        padding: '3px 10px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        borderRadius: 999,
+                        border: '1px solid',
+                        borderColor: isActive ? '#10b981' : 'var(--color-separator)',
+                        background: isActive ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                        color: isActive ? '#34d399' : 'var(--color-label-secondary)',
+                        cursor: 'pointer',
+                        boxShadow: isActive ? '0 0 8px rgba(16, 185, 129, 0.2)' : 'none',
+                        transition: 'all 0.12s ease'
+                      }}
+                    >
+                      {z.label} ({z.count})
+                    </button>
+                  );
+                })}
               </div>
             ) : <div />}
 
@@ -286,28 +313,32 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 { label: '4+', min: 4 },
                 { label: '6+', min: 6 },
                 { label: '8+', min: 8 },
-              ].map(opt => (
-                <button
-                  key={opt.min}
-                  type="button"
-                  onClick={() => setMinSeats(opt.min)}
-                  style={{
-                    height: 24,
-                    padding: '0 7px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    border: '1px solid',
-                    borderColor: minSeats === opt.min ? 'var(--color-label)' : 'var(--color-separator)',
-                    background: minSeats === opt.min ? 'var(--color-label)' : 'transparent',
-                    color: minSeats === opt.min ? 'var(--color-bg)' : 'var(--color-label-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.12s ease',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              ].map(opt => {
+                const isActive = minSeats === opt.min;
+                return (
+                  <button
+                    key={opt.min}
+                    type="button"
+                    onClick={() => setMinSeats(opt.min)}
+                    style={{
+                      height: 24,
+                      padding: '0 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      border: '1px solid',
+                      borderColor: isActive ? '#10b981' : 'var(--color-separator)',
+                      background: isActive ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                      color: isActive ? '#34d399' : 'var(--color-label-secondary)',
+                      boxShadow: isActive ? '0 0 8px rgba(16, 185, 129, 0.25)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.12s ease',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -342,11 +373,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                     <div className="table-compact-bottom">
                       <span className="table-compact-status-badge">
                         <span className={`table-compact-status-dot ${status}`} />
-                        <span style={{
-                          textTransform: 'capitalize',
-                          color: isFoodReady ? '#047857' : (status === 'free' ? '#15803d' : (status === 'occupied' ? '#be123c' : '#b45309')),
-                          fontWeight: isFoodReady ? 800 : undefined,
-                        }}>
+                        <span className={`table-compact-status-text ${status}`}>
                           {isFoodReady ? 'Ready' : status}
                         </span>
                       </span>
