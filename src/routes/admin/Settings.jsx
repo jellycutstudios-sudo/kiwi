@@ -431,7 +431,7 @@ export default function Settings() {
       const snap = await getDocs(q);
       const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (!orders.length) {
-        toast('No billed orders found to export', { icon: 'ℹ️', id: toastId });
+        toast('No billed orders found to export', { id: toastId });
         return;
       }
       const fname = `tally_sales_${(restaurant.name || 'restaurant').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xml`;
@@ -1102,8 +1102,8 @@ export default function Settings() {
                           New Update Ready
                         </span>
                       ) : (
-                        <span className="badge badge-green" style={{ fontSize: 11 }}>
-                          ✓ Up to Date
+                        <span className="badge badge-green" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Check size={12} /> Up to Date
                         </span>
                       )}
                     </div>

@@ -245,9 +245,9 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {isMainHQ ? (
-            <span className="badge badge-purple" style={{ fontSize: '10px' }}>⭐ Main HQ</span>
+            <span className="badge badge-purple" style={{ fontSize: '10px' }}>Main HQ</span>
           ) : (
-            <span className="badge badge-blue" style={{ fontSize: '10px' }}>📍 Outlet</span>
+            <span className="badge badge-blue" style={{ fontSize: '10px' }}>Outlet</span>
           )}
           <span className={`badge ${branch.status === 'suspended' ? 'badge-red' : branch.status === 'approved' ? 'badge-green' : 'badge-orange'}`}>
             {branch.status === 'suspended' ? 'Suspended' : branch.status === 'approved' ? 'Approved' : 'Pending approval'}
@@ -342,7 +342,9 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
             </div>
             <div className="brand-header-titles">
               <div className="brand-header-title-row">
-                <strong className="brand-title">🏢 {group.name}</strong>
+                <strong className="brand-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Building2 size={15} /> {group.name}
+                </strong>
                 <span className="badge badge-purple" style={{ fontSize: '10.5px' }}>
                   {allBranches.length} Branch{allBranches.length === 1 ? '' : 'es'}
                 </span>
@@ -396,7 +398,9 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
                   </div>
                   <div className="brand-header-titles">
                     <div className="brand-header-title-row">
-                      <strong className="brand-title">🏢 {brand.brandTitle}</strong>
+                      <strong className="brand-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Building2 size={15} /> {brand.brandTitle}
+                      </strong>
                       {isMulti ? (
                         <span className="badge badge-purple" style={{ fontSize: '10.5px' }}>
                           {brand.branches.length} Outlets (Multi-Branch)
@@ -409,7 +413,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
                     </div>
                     <p className="brand-header-subtitle">
                       {brand.owner?.name || 'Owner'} · {brand.owner?.email || brand.ownerUid}
-                      {brand.branches[0]?.address ? ` · 📍 ${brand.branches[0].address}` : ''}
+                      {brand.branches[0]?.address ? ` · ${brand.branches[0].address}` : ''}
                     </p>
                   </div>
                 </div>
@@ -426,8 +430,8 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
                 <div className="brand-accordion-content">
                   {isMulti && (
                     <div className="brand-chain-banner">
-                      <span>🏛️ Brand Structure:</span>
-                      <strong>⭐ Main HQ</strong> + <strong>📍 {brand.branches.length - 1} Sub-Outlet{brand.branches.length > 2 ? 's' : ''}</strong>
+                      <span>Brand Structure:</span>
+                      <strong>Main HQ</strong> + <strong>{brand.branches.length - 1} Sub-Outlet{brand.branches.length > 2 ? 's' : ''}</strong>
                     </div>
                   )}
                   <div className="branch-grid">{visible.map(renderBranch)}</div>

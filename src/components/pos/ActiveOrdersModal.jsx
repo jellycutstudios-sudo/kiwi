@@ -5,7 +5,7 @@ import { printReceipt } from '../../utils/print';
 import { getOrderElapsedSeconds } from '../../utils/timezoneUtils';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
-  Edit2
+  Edit2, Bell, FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -83,7 +83,7 @@ export default function ActiveOrdersModal({
     setSettlingId(order.id);
     try {
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
-      toast.success(`Order settled via CASH ✓ Bill closed`, { icon: '💵' });
+      toast.success(`Order settled via CASH ✓ Bill closed`);
       // Background print paid receipt
       setTimeout(() => {
         printReceipt({
@@ -104,7 +104,7 @@ export default function ActiveOrdersModal({
   const handleMarkComplete = async (order) => {
     try {
       await updateOrderStatus(restaurant.id, order.id, 'completed');
-      toast.success(`Order handed over & completed! ✓`, { icon: '🛍️' });
+      toast.success(`Order handed over & completed! ✓`);
     } catch (err) {
       toast.error('Update failed: ' + err.message);
     }
@@ -148,7 +148,7 @@ export default function ActiveOrdersModal({
           background: 'var(--color-bg-secondary)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>📋</span>
+            <FileText size={22} color="var(--color-accent, #38bdf8)" />
             <div>
               <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-label)' }}>
                 Running Orders & Kitchen Pass
@@ -200,25 +200,28 @@ export default function ActiveOrdersModal({
                 background: filterType === 'ready' ? '#10b981' : (readyCount > 0 ? 'rgba(16, 185, 129, 0.15)' : undefined),
                 color: filterType === 'ready' ? '#fff' : (readyCount > 0 ? '#10b981' : undefined),
                 borderColor: readyCount > 0 ? 'rgba(16, 185, 129, 0.4)' : undefined,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5
               }}
             >
-              🔔 Ready ({readyCount})
+              <Bell size={12} /> Ready ({readyCount})
             </button>
             <button
               type="button"
               className={`btn btn-xs ${filterType === 'takeaway' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setFilterType('takeaway')}
-              style={{ fontWeight: 700, borderRadius: 20, height: 28 }}
+              style={{ fontWeight: 700, borderRadius: 20, height: 28, display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              🛍️ Takeaway ({takeawayCount})
+              <ShoppingBag size={12} /> Takeaway ({takeawayCount})
             </button>
             <button
               type="button"
               className={`btn btn-xs ${filterType === 'dine-in' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setFilterType('dine-in')}
-              style={{ fontWeight: 700, borderRadius: 20, height: 28 }}
+              style={{ fontWeight: 700, borderRadius: 20, height: 28, display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              🍽️ Dine In
+              <Utensils size={12} /> Dine In
             </button>
           </div>
 
@@ -248,7 +251,7 @@ export default function ActiveOrdersModal({
               alignItems: 'center',
               gap: 8
             }}>
-              <span style={{ fontSize: 36 }}>✨</span>
+              <FileText size={32} color="var(--color-label-tertiary)" />
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No active orders found</div>
               <div style={{ fontSize: 12 }}>All kitchen orders have been served, settled, or completed!</div>
             </div>

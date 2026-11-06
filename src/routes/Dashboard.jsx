@@ -13,7 +13,7 @@ import {
   ShoppingCart, TrendingUp, Clock, CheckCircle2,
   Sparkles, Lightbulb, Flame, Snowflake, Percent, Calendar, AlertCircle,
   Zap, X, Check, ArrowUp, ArrowDown, CalendarClock, XCircle, Bot,
-  Wallet
+  Wallet, Banknote, QrCode, CreditCard, Utensils
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InfoTooltip from '../components/shared/InfoTooltip';
@@ -116,7 +116,7 @@ export default function Dashboard() {
         }
       });
       await batch.commit();
-      toast.success(`Archived ${priorShiftOrders.length} prior-shift tab(s) and freed tables!`, { icon: '🧹' });
+      toast.success(`Archived ${priorShiftOrders.length} prior-shift tab(s) and freed tables!`);
     } catch (err) {
       toast.error('Failed to archive prior-shift tabs: ' + err.message);
     } finally {
@@ -164,7 +164,7 @@ export default function Dashboard() {
       // Close modal immediately for instant, zero-delay UX
       setSettleOrderModal(null);
       const label = order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : `#${order.id.slice(-6).toUpperCase()}`);
-      toast.success(`${label} settled for ${formatCurrency(order.total, currency)} via ${method.toUpperCase()}!`, { icon: '💰' });
+      toast.success(`${label} settled for ${formatCurrency(order.total, currency)} via ${method.toUpperCase()}!`);
       await settleOrder(restaurant.id, order.id, method, order.total);
     } catch (err) {
       toast.error('Failed to settle order: ' + err.message);
@@ -249,7 +249,7 @@ export default function Dashboard() {
       order.items.forEach(item => {
         const key = item.name;
         if (!counts[key]) {
-          counts[key] = { name: item.name, qty: 0, revenue: 0, emoji: item.emoji ?? '🍽️' };
+          counts[key] = { name: item.name, qty: 0, revenue: 0 };
         }
         counts[key].qty += item.qty ?? 0;
         counts[key].revenue += (item.price ?? 0) * (item.qty ?? 0);
@@ -263,7 +263,7 @@ export default function Dashboard() {
     const counts = {};
     // Seed all menu items with 0 sales
     menuItems.forEach(item => {
-      counts[item.name] = { name: item.name, qty: 0, price: item.price, emoji: item.emoji ?? '🍽️' };
+      counts[item.name] = { name: item.name, qty: 0, price: item.price };
     });
     // Add sales counts
     analyticsOrders.forEach(order => {
@@ -541,7 +541,7 @@ export default function Dashboard() {
       const itemCounts = {};
       combined.filter(d => d.status !== 'cancelled' && d.status !== 'void').forEach(o => {
         (o.items || []).forEach(i => {
-          if (!itemCounts[i.name]) itemCounts[i.name] = { name: i.name, qty: 0, emoji: i.emoji || '🍽️' };
+          if (!itemCounts[i.name]) itemCounts[i.name] = { name: i.name, qty: 0 };
           itemCounts[i.name].qty += (Number(i.qty) || 1);
         });
       });
@@ -841,7 +841,7 @@ export default function Dashboard() {
             }}
           >
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-            <span>💰 Settled Revenue</span>
+            <span>Settled Revenue</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'settled' ? '#10b981' : 'var(--color-label-tertiary)' }}>
               ({formatCurrency(todayStats.settledSales, currency)})
             </span>
@@ -866,7 +866,7 @@ export default function Dashboard() {
             }}
           >
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
-            <span>⚡ Live Open Tabs</span>
+            <span>Live Open Tabs</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'open' ? '#f59e0b' : 'var(--color-label-tertiary)' }}>
               ({formatCurrency(effectiveOpenSales, currency)})
             </span>
@@ -891,7 +891,7 @@ export default function Dashboard() {
             }}
           >
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
-            <span>📊 Gross Shift Total</span>
+            <span>Gross Shift Total</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'pipeline' ? '#3b82f6' : 'var(--color-label-tertiary)' }}>
               ({formatCurrency(effectiveTotalSales, currency)})
             </span>
@@ -1234,7 +1234,9 @@ export default function Dashboard() {
                       <Zap size={11} fill="#fff" /> Settle
                     </button>
                   ) : (
-                    <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>✓ Paid</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
+                      <CheckCircle2 size={13} color="#10b981" /> Paid
+                    </span>
                   )}
                 </div>
               </div>
@@ -1363,7 +1365,7 @@ export default function Dashboard() {
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '14px' }}>{item.emoji}</span>
+                          <Utensils size={13} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
                           {item.name}
                         </span>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)' }}>{item.qty} sold</span>
@@ -1389,7 +1391,7 @@ export default function Dashboard() {
                 {slowMovers.map((item, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
                     <span style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '13px' }}>{item.emoji}</span>
+                      <Utensils size={12} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
                       {item.name}
                     </span>
                     <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-label-tertiary)' }}>{item.qty} sold</span>
@@ -1513,7 +1515,7 @@ export default function Dashboard() {
                   onMouseEnter={e => e.currentTarget.style.borderColor = '#10b981'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
                 >
-                  <span style={{ fontSize: '20px' }}>💵</span>
+                  <Banknote size={22} color="#10b981" />
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>Cash</span>
                 </button>
 
@@ -1537,7 +1539,7 @@ export default function Dashboard() {
                   onMouseEnter={e => e.currentTarget.style.borderColor = '#8b5cf6'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
                 >
-                  <span style={{ fontSize: '20px' }}>📱</span>
+                  <QrCode size={22} color="#8b5cf6" />
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>UPI / QR</span>
                 </button>
 
@@ -1561,7 +1563,7 @@ export default function Dashboard() {
                   onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-separator)'}
                 >
-                  <span style={{ fontSize: '20px' }}>💳</span>
+                  <CreditCard size={22} color="#3b82f6" />
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>Card</span>
                 </button>
               </div>

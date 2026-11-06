@@ -13,7 +13,7 @@ import {
   ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
-  Copy, Wand2, Sparkles
+  Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
@@ -300,12 +300,12 @@ export default function TableMap() {
         batch.update(ref, updatesMap.get(t.id));
       });
       await batch.commit();
-      toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align', icon: '📐' });
+      toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align' });
     } catch (e) {
       console.warn('Batch write failed, attempting individual updates:', e);
       try {
         await Promise.all(sorted.map(t => updateTable(restaurant.id, t.id, updatesMap.get(t.id))));
-        toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align', icon: '📐' });
+        toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align' });
       } catch (err) {
         toast.error('Failed to save layout: ' + err.message, { id: 'auto-align' });
       }
@@ -373,7 +373,7 @@ export default function TableMap() {
         floor: activeFloor,
         section: activeFloor,
       });
-      toast.success(`Table ${nextName} added to ${activeFloor}! Drag to position it.`, { icon: '🍽️' });
+      toast.success(`Table ${nextName} added to ${activeFloor}! Drag to position it.`);
     } catch (err) {
       toast.error('Failed to add table: ' + err.message);
     }
@@ -443,7 +443,7 @@ export default function TableMap() {
       setActiveFloor(floor);
       setViewMode('map');
       setShowBulkModal(false);
-      toast.success(`Created ${count} tables (${prefix}${startNum}–${prefix}${startNum + count - 1})!`, { id: 'bulk-create', icon: '✨' });
+      toast.success(`Created ${count} tables (${prefix}${startNum}–${prefix}${startNum + count - 1})!`, { id: 'bulk-create' });
     } catch (err) {
       toast.error('Bulk creation error: ' + err.message, { id: 'bulk-create' });
     }
@@ -483,7 +483,7 @@ export default function TableMap() {
         section: activeFloor,
       });
       setShowPresetsMenu(false);
-      toast.success(`${preset.label} (${nextName}) added!`, { icon: preset.icon || '🍽️' });
+      toast.success(`${preset.label} (${nextName}) added!`);
     } catch (err) {
       toast.error('Failed to add preset table: ' + err.message);
     }
@@ -524,7 +524,7 @@ export default function TableMap() {
       });
 
       setSelectedEditTableId(duplicated.id);
-      toast.success(`Duplicated ${sourceTable.name} into ${nextName}!`, { icon: '📋' });
+      toast.success(`Duplicated ${sourceTable.name} into ${nextName}!`);
     } catch (err) {
       toast.error('Failed to duplicate table: ' + err.message);
     }
@@ -576,9 +576,9 @@ export default function TableMap() {
           h: 90,
           floor: cleanName,
         });
-        toast.success(`Floor "${cleanName}" created with Table ${prefix}1!`, { icon: '🏗️' });
+        toast.success(`Floor "${cleanName}" created with Table ${prefix}1!`);
       } else {
-        toast.success(`Floor "${cleanName}" created! Add tables to design your layout.`, { icon: '🏗️' });
+        toast.success(`Floor "${cleanName}" created! Add tables to design your layout.`);
       }
 
       setNewFloorName('');
@@ -875,7 +875,7 @@ export default function TableMap() {
       await settleOrder(restaurant.id, selectedOrder.id, method, selectedOrder.total);
       await freeTable(restaurant.id, selected);
       setSelected(null);
-      toast.success(`Settled via ${method.toUpperCase()} ✓ Table freed`, { icon: '💳' });
+      toast.success(`Settled via ${method.toUpperCase()} ✓ Table freed`);
     } catch (err) { toast.error('Settle failed: ' + err.message); }
     finally { setIsSettling(false); }
   };
@@ -883,7 +883,7 @@ export default function TableMap() {
   const handlePrintBill = () => {
     if (!selectedOrder) return;
     printReceipt({ restaurant, order: selectedOrder, items: selectedOrder.items, taxInfo: selectedOrder.taxInfo, staffName: selectedOrder.customerName || 'Waiter' });
-    toast.success('Bill sent to printer!', { icon: '🖨️' });
+    toast.success('Bill sent to printer!');
   };
 
   const handleAddItems = () => {
@@ -1055,7 +1055,9 @@ export default function TableMap() {
                 className={`tm-pill ${statusFilter === 'reserved' ? 'tm-pill--active tm-pill--reserved' : ''}`}
                 onClick={() => setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved')}
               >
-                <span className="tm-pill-dot tm-pill-dot--reserved">⭐</span>
+                <span className="tm-pill-dot tm-pill-dot--reserved" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <Star size={10} fill="#eab308" color="#eab308" />
+                </span>
                 <span>Reserved</span>
                 <span className="tm-pill-count">({floorMetrics.reserved})</span>
               </button>
@@ -1235,11 +1237,11 @@ export default function TableMap() {
                   minWidth: 160
                 }}>
                   {[
-                    { label: '2-Top Bistro', capacity: 2, shape: 'rect', w: 80, h: 75, icon: '🪑' },
-                    { label: '4-Top Family', capacity: 4, shape: 'rect', w: 105, h: 75, icon: '🍽️' },
-                    { label: '6-Top Banquet', capacity: 6, shape: 'rect', w: 140, h: 80, icon: '🥘' },
-                    { label: 'Round Booth', capacity: 4, shape: 'round', w: 95, h: 95, icon: '⭕' },
-                    { label: 'Bar Stool', capacity: 1, shape: 'round', w: 60, h: 60, icon: '🍸' },
+                    { label: '2-Top Bistro', capacity: 2, shape: 'rect', w: 80, h: 75 },
+                    { label: '4-Top Family', capacity: 4, shape: 'rect', w: 105, h: 75 },
+                    { label: '6-Top Banquet', capacity: 6, shape: 'rect', w: 140, h: 80 },
+                    { label: 'Round Booth', capacity: 4, shape: 'round', w: 95, h: 95 },
+                    { label: 'Bar Stool', capacity: 1, shape: 'round', w: 60, h: 60 },
                   ].map(p => (
                     <button
                       key={p.label}
@@ -1248,7 +1250,7 @@ export default function TableMap() {
                       onClick={() => handleAddPresetTable(p)}
                       style={{ justifyContent: 'flex-start', gap: 8, padding: '6px 10px', fontSize: 12, borderRadius: 8 }}
                     >
-                      <span>{p.icon}</span>
+                      <Users size={13} color="var(--color-label-secondary)" />
                       <span style={{ fontWeight: 600 }}>{p.label}</span>
                       <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', marginLeft: 'auto' }}>{p.capacity}p</span>
                     </button>
@@ -1375,9 +1377,13 @@ export default function TableMap() {
                     <div className="tm-card-title-group" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span className="tm-card-name">{t.name}</span>
                       {order && (order.isOffline || order.id?.startsWith('offline_')) && (
-                        <span title="Local offline order on device" style={{ fontSize: 10, color: '#38bdf8', fontWeight: 800 }}>⚡</span>
+                        <span title="Local offline order on device" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <Zap size={10} color="#38bdf8" />
+                        </span>
                       )}
-                      <span className="tm-card-cap">👥{t.capacity}</span>
+                      <span className="tm-card-cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                        <Users size={10} /> {t.capacity}
+                      </span>
                     </div>
 
                     {isFoodReady ? (
@@ -1385,8 +1391,8 @@ export default function TableMap() {
                         className={`tm-badge tm-badge--ready ${isPassOverdue ? 'tm-badge--overdue' : ''}`}
                         style={isPassOverdue ? { background: '#ef4444', color: '#fff', border: '1px solid #dc2626' } : undefined}
                       >
-                        <span style={{ fontSize: 11 }}>{isPassOverdue ? '⚠️' : '🔔'}</span>
-                        <span>{isPassOverdue ? `PASS ${passTimerStr}` : `READY ${passTimerStr}`}</span>
+                        <span style={{ fontSize: 11 }}>{isPassOverdue ? 'PASS' : 'READY'}</span>
+                        <span>{passTimerStr}</span>
                       </span>
                     ) : effectiveStatus === 'occupied' ? (
                       <span
@@ -1422,15 +1428,15 @@ export default function TableMap() {
 
                       {/* Server Attribution */}
                       {(order.assignedWaiterName || order.staffName) && (
-                        <div className="tm-card-server-row">
-                          👤 {order.assignedWaiterName || order.staffName}
+                        <div className="tm-card-server-row" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <User size={10} /> {order.assignedWaiterName || order.staffName}
                         </div>
                       )}
 
                       {/* Order Note (Clean typography line, matching card flow without stretching) */}
                       {order.note && (
                         <div className="tm-card-note-row" title={`Table Note: ${order.note}`}>
-                          <span className="tm-card-note-icon">📝</span>
+                          <span className="tm-card-note-icon"><FileText size={10} /></span>
                           <span className="tm-card-note-text">{order.note}</span>
                         </div>
                       )}
@@ -1558,7 +1564,7 @@ export default function TableMap() {
                         isEditingLayout
                           ? `Drag to reposition ${t.name}, click to edit properties`
                           : isFoodReady
-                          ? `🔔 Food ready at pass for ${t.name} (${passTimerStr})! Click to view & serve`
+                          ? `Food ready at pass for ${t.name} (${passTimerStr})! Click to view & serve`
                           : effectiveStatus === 'free'
                           ? `Click to start order at ${t.name}`
                           : `Click to manage ${t.name}`
@@ -1591,21 +1597,25 @@ export default function TableMap() {
                             textTransform: 'uppercase',
                             whiteSpace: 'nowrap'
                           }}
-                          title={isPassOverdue ? `⚠️ Food waiting at pass for ${passTimerStr}!` : `🔔 Food plated & ready for pickup (${passTimerStr})`}
+                          title={isPassOverdue ? `Food waiting at pass for ${passTimerStr}!` : `Food plated & ready for pickup (${passTimerStr})`}
                         >
-                          <span style={{ fontSize: 11 }}>{isPassOverdue ? '⚠️' : '🔔'}</span> {isPassOverdue ? `PASS ${passTimerStr}` : `READY ${passTimerStr}`}
+                          <span style={{ fontSize: 11 }}>{isPassOverdue ? 'PASS' : 'READY'}</span> {passTimerStr}
                         </span>
                       )}
 
                       <span className="table-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         {t.name}
                         {order && (order.isOffline || order.id?.startsWith('offline_')) && (
-                          <span title="Local offline order on device" style={{ fontSize: 10, color: '#38bdf8', fontWeight: 800 }}>⚡</span>
+                          <span title="Local offline order on device" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <Zap size={10} color="#38bdf8" />
+                          </span>
                         )}
                       </span>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                        <span className="table-capacity">👥 {t.capacity}p</span>
+                        <span className="table-capacity" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                          <Users size={10} /> {t.capacity}p
+                        </span>
                         {!isEditingLayout && hasOrder && elapsedMins > 0 && (
                           <span style={{
                             fontSize: '9px',
@@ -1616,9 +1626,9 @@ export default function TableMap() {
                             color: elapsedMins >= 720 ? '#ffffff' : ec.color,
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '2px'
+                            gap: '3px'
                           }}>
-                            ⏱️ {elapsedMins < 60 ? `${elapsedMins}m` : elapsedMins < 720 ? `${Math.floor(elapsedMins / 60)}h` : 'STALE'}
+                            <Clock size={9} /> {elapsedMins < 60 ? `${elapsedMins}m` : elapsedMins < 720 ? `${Math.floor(elapsedMins / 60)}h` : 'STALE'}
                           </span>
                         )}
                       </div>
@@ -1643,23 +1653,26 @@ export default function TableMap() {
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3
                           }}
                           title={`Table Note: ${order.note}`}
                         >
-                          📝 {order.note}
+                          <FileText size={9} /> {order.note}
                         </span>
                       )}
 
                       {!isEditingLayout && isReserved && effectiveStatus === 'free' && (
                         <span style={{ position: 'absolute', top: -6, right: -6, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', boxShadow: '0 2px 6px rgba(217,119,6,.35)', fontWeight: 'bold', border: '2px solid #fff', zIndex: 4 }} title="Reserved Today">
-                          ⭐
+                          <Star size={11} fill="#fff" color="#fff" />
                         </span>
                       )}
 
                       {/* Quick action hint on hover for free tables in service mode */}
                       {!isEditingLayout && effectiveStatus === 'free' && (
-                        <span className="tm-quick-hint">⚡ Start</span>
+                        <span className="tm-quick-hint">Start</span>
                       )}
 
                       {/* Edit mode indicator on table card */}
@@ -1689,7 +1702,7 @@ export default function TableMap() {
 
                 {tables.length === 0 && (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-label-tertiary)', gap: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 40 }}>🗺️</div>
+                    <MapIcon size={44} color="var(--color-label-tertiary)" />
                     <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--color-label)' }}>No tables configured yet</div>
                     <div style={{ fontSize: 13 }}>Click below to create your first table in this floor plan</div>
                     <button type="button" className="btn btn-primary btn-sm" onClick={handleAddTable} style={{ marginTop: 8, gap: 5 }}>
@@ -1768,7 +1781,7 @@ export default function TableMap() {
                         gap: 6
                       }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: selOrder.status === 'ready' ? '#10b981' : '#ef4444' }} />
-                        {selOrder.status === 'ready' ? '🔔 Food Ready at Pass' : 'Occupied'}
+                        {selOrder.status === 'ready' ? 'Food Ready at Pass' : 'Occupied'}
                       </span>
                     ) : (
                       <span style={{
@@ -1836,7 +1849,7 @@ export default function TableMap() {
                         alignItems: 'center',
                         gap: 4
                       }}>
-                        👤 {selOrder.assignedWaiterName || selOrder.staffName || 'Walter'}
+                        <User size={12} /> {selOrder.assignedWaiterName || selOrder.staffName || 'Walter'}
                       </span>
                     )}
 
@@ -1883,7 +1896,7 @@ export default function TableMap() {
                     }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#dc2626' }}>
-                          ⚠️ Overdue Tab ({Math.floor(selElapsedMins / 60)}h old)
+                          Overdue Tab ({Math.floor(selElapsedMins / 60)}h old)
                         </span>
                         <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
                           This order was started in an earlier shift. If the guest has left, clear it to release the table.
@@ -1968,7 +1981,7 @@ export default function TableMap() {
                       alignItems: 'flex-start',
                       gap: 10
                     }}>
-                      <span style={{ fontSize: 16, lineHeight: 1 }}>📝</span>
+                      <FileText size={16} color="#b45309" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#b45309' }}>
                           Table Note / Instructions
@@ -2104,7 +2117,7 @@ export default function TableMap() {
                     {/* Settle Bill 1-Touch Payment Tiles */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>💳</span> Settle Bill
+                        <CreditCard size={13} /> Settle Bill
                       </div>
                       {selOrder.paymentMethod === 'unpaid' ? (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
@@ -2215,12 +2228,12 @@ export default function TableMap() {
                   if (resForTable) {
                     return (
                       <div className="tm-reservation-card">
-                        <div className="tm-res-header">📅 Reserved at {resForTable.time}</div>
+                        <div className="tm-res-header" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={13} /> Reserved at {resForTable.time}</div>
                         <div className="tm-res-name">{resForTable.name}</div>
                         <div className="tm-res-detail">{resForTable.phone} · {resForTable.partySize} guests</div>
                         {resForTable.notes && <div className="tm-res-notes">{resForTable.notes}</div>}
                         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                          <button className="btn btn-primary" style={{ flex: 1, height: 36, fontSize: 13, background: '#f59e0b', border: 'none' }}
+                          <button className="btn btn-primary" style={{ flex: 1, height: 36, fontSize: 13, background: '#f59e0b', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                             onClick={async () => {
                               try {
                                 await updateDoc(doc(db, 'restaurants', restaurant.id, 'reservations', resForTable.id), { status: 'seated' });
@@ -2229,11 +2242,11 @@ export default function TableMap() {
                                 setSelected(null);
                               } catch (e) { toast.error('Failed: ' + e.message); }
                             }}>
-                            🪑 Seat Guest
+                            <DoorOpen size={14} /> Seat Guest
                           </button>
-                          <button className="btn btn-primary" style={{ flex: 1, height: 36, fontSize: 13 }}
+                          <button className="btn btn-primary" style={{ flex: 1, height: 36, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                             onClick={() => { clearCart(); setTable(selectedTable.id, selectedTable.name); setOrderType('dine-in'); toast.success(`Order started for ${selectedTable.name}`); navigate('/pos'); }}>
-                            ⚡ Start Order
+                            <Zap size={14} /> Start Order
                           </button>
                         </div>
                       </div>
@@ -2242,7 +2255,7 @@ export default function TableMap() {
                   if (selectedTable.status === 'occupied') {
                     return (
                       <div className="tm-free-cta" style={{ border: '1.5px dashed #f59e0b', borderRadius: 12, padding: 18, background: 'rgba(245, 158, 11, 0.05)' }}>
-                        <div className="tm-free-icon">⚠️</div>
+                        <div className="tm-free-icon" style={{ display: 'flex', justifyContent: 'center' }}><AlertCircle size={28} color="#d97706" /></div>
                         <div className="tm-free-label" style={{ color: '#d97706' }}>Table Marked Busy</div>
                         <div className="tm-free-hint">No active order was found attached to this table. Free it or start a new order.</div>
                         <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%' }}>
@@ -2259,7 +2272,7 @@ export default function TableMap() {
                           </button>
                           <button
                             className="btn btn-primary"
-                            style={{ flex: 1, height: 40, fontWeight: 700 }}
+                            style={{ flex: 1, height: 40, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                             onClick={() => {
                               clearCart();
                               setTable(selectedTable.id, selectedTable.name);
@@ -2268,7 +2281,7 @@ export default function TableMap() {
                               navigate('/pos');
                             }}
                           >
-                            ⚡ Start Order
+                            <Zap size={14} /> Start Order
                           </button>
                         </div>
                       </div>
@@ -2276,12 +2289,12 @@ export default function TableMap() {
                   }
                   return (
                     <div className="tm-free-cta">
-                      <div className="tm-free-icon">🍽️</div>
+                      <div className="tm-free-icon" style={{ display: 'flex', justifyContent: 'center' }}><Utensils size={32} color="var(--color-label-tertiary)" /></div>
                       <div className="tm-free-label">Table Available</div>
                       <div className="tm-free-hint">Tap to start a new dine-in order</div>
                       <button className="btn btn-primary" style={{ width: '100%', height: 42, marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}
                         onClick={() => { clearCart(); setTable(selectedTable.id, selectedTable.name); setOrderType('dine-in'); toast.success(`Order started for ${selectedTable.name}`); navigate('/pos'); }}>
-                        ⚡ Start Order for {selectedTable.name}
+                        <Zap size={14} /> Start Order for {selectedTable.name}
                       </button>
                     </div>
                   );
@@ -2333,7 +2346,7 @@ export default function TableMap() {
                 borderBottom: '1px solid var(--color-separator)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>🪑</span>
+                  <LayoutGrid size={20} color="var(--color-accent, #38bdf8)" />
                   <div>
                     <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
                       Table {selectedEditTable.name}
@@ -2361,7 +2374,7 @@ export default function TableMap() {
                         const activeOrder = tableOrders[selectedEditTable.id];
                         const hasActiveOrder = (activeOrder && !['billed', 'cancelled'].includes(activeOrder.status)) || selectedEditTable.status === 'occupied';
                         if (hasActiveOrder) {
-                          toast.error(`Cannot delete Table ${selectedEditTable.name} while an order is active. Please settle or move the order first.`, { duration: 5000, icon: '⚠️' });
+                          toast.error(`Cannot delete Table ${selectedEditTable.name} while an order is active. Please settle or move the order first.`, { duration: 5000 });
                           return;
                         }
                         if (window.confirm(`Permanently delete Table ${selectedEditTable.name}? This cannot be undone.`)) {
@@ -2404,7 +2417,7 @@ export default function TableMap() {
                       }
                       const duplicate = tables.find(t => t.id !== selectedEditTable.id && (t.floor || 'Ground Floor') === (selectedEditTable.floor || 'Ground Floor') && (t.name || '').trim().toLowerCase() === trimmed.toLowerCase());
                       if (duplicate) {
-                        toast.error(`A table named "${trimmed}" already exists on this floor!`, { icon: '⚠️' });
+                        toast.error(`A table named "${trimmed}" already exists on this floor!`);
                       }
                     }}
                     placeholder="e.g. T1, Bar 2, Patio 4"
@@ -2658,7 +2671,9 @@ export default function TableMap() {
         <div className="modal-overlay" onClick={() => setShowTransfer(false)}>
           <div className="modal animate-slide-up" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">🔀 Move Table</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ArrowRightLeft size={16} /> Move Table
+              </h3>
               <button className="btn btn-secondary btn-icon" onClick={() => setShowTransfer(false)}><X size={16} /></button>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2676,7 +2691,7 @@ export default function TableMap() {
                       if (res.ok) { toast.success(`Moved to ${t.name}!`); setSelected(null); setShowTransfer(false); }
                       else toast.error('Move failed: ' + res.error);
                     }}>
-                    <span style={{ fontWeight: 700 }}>🪑 {t.name}</span>
+                    <span style={{ fontWeight: 700 }}>{t.name}</span>
                     <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>{t.capacity} seats</span>
                   </button>
                 ))}
@@ -2699,7 +2714,9 @@ export default function TableMap() {
         <div className="modal-overlay" onClick={() => setShowMerge(false)}>
           <div className="modal animate-slide-up" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">🔗 Merge Bills</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <GitMerge size={16} /> Merge Bills
+              </h3>
               <button className="btn btn-secondary btn-icon" onClick={() => setShowMerge(false)}><X size={16} /></button>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2719,7 +2736,7 @@ export default function TableMap() {
                       if (res.ok) { toast.success(`Merged into ${t.name}!`); setSelected(null); setShowMerge(false); }
                       else toast.error('Merge failed: ' + res.error);
                     }}>
-                    <span style={{ fontWeight: 700 }}>🪑 {t.name}</span>
+                    <span style={{ fontWeight: 700 }}>{t.name}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(tableOrders[t.id]?.total ?? 0, currency)}</span>
                   </button>
                 ))}
@@ -2752,7 +2769,7 @@ export default function TableMap() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--color-separator)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 20 }}>📱</span>
+                <QrCode size={20} color="#8b5cf6" />
                 <div>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>Collect UPI Payment</h3>
                   <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>{upiOrderToSettle.tableName} · Scan &amp; confirm when paid</span>
@@ -2782,7 +2799,7 @@ export default function TableMap() {
 
               {/* App logos & VPA */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label)' }}>📲 Scan with any UPI app</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label)' }}>Scan with any UPI app</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {['GPay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
                     <span key={app} style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-label-secondary)', padding: '2px 6px', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-separator-opaque)' }}>{app}</span>
@@ -2790,7 +2807,7 @@ export default function TableMap() {
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>VPA: <strong style={{ color: 'var(--color-accent)' }}>{restaurant?.upiConfig?.vpa || 'demo@upi'}</strong></div>
                 {!restaurant?.upiConfig?.vpa && (
-                  <div style={{ fontSize: 9, color: 'var(--color-orange)', background: 'rgba(255,149,0,0.1)', padding: '2px 8px', borderRadius: 'var(--radius-sm)' }}>⚠️ Demo VPA — configure in Settings</div>
+                  <div style={{ fontSize: 9, color: 'var(--color-orange)', background: 'rgba(255,149,0,0.1)', padding: '2px 8px', borderRadius: 'var(--radius-sm)' }}>Demo VPA — configure in Settings</div>
                 )}
               </div>
 
@@ -2818,7 +2835,7 @@ export default function TableMap() {
                     await freeTable(restaurant.id, tableId);
                     clearUpiSettle();
                     setSelected(null);
-                    toast.success('Bill settled via UPI! Table freed.', { icon: '💳' });
+                    toast.success('Bill settled via UPI! Table freed.');
                   } catch (err) { toast.error('Settle failed: ' + err.message); }
                   finally { setSettlingUpi(false); }
                 }}
@@ -2871,7 +2888,7 @@ export default function TableMap() {
               borderBottom: '1px solid var(--color-separator)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 20 }}>🏗️</span>
+                <Building2 size={22} color="#3b82f6" />
                 <div>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
                     Add New Dining Floor / Area
@@ -3018,7 +3035,7 @@ export default function TableMap() {
               background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04))'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 24 }}>⚡</span>
+                <Zap size={22} color="#6366f1" />
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--color-label)' }}>
                     Bulk Table Generator
@@ -3135,7 +3152,7 @@ export default function TableMap() {
                     className={`fpe-segment-btn ${bulkShape === 'round' ? 'active' : ''}`}
                     onClick={() => setBulkShape('round')}
                   >
-                    <span>⭕</span> Circle
+                    <span>○</span> Circle
                   </button>
                 </div>
               </div>
@@ -3150,7 +3167,7 @@ export default function TableMap() {
                 alignItems: 'center',
                 gap: 12
               }}>
-                <span style={{ fontSize: 24 }}>✨</span>
+                <Sparkles size={22} color="#6366f1" />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     Instant Creation Preview

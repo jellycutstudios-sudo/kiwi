@@ -45,6 +45,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
   // Restaurant Resolution
   const [restaurant, setRestaurant] = useState(initialRestaurant || authRestaurant || null);
+  const [, setLoadingRest] = useState(!initialRestaurant && !authRestaurant);
   const restaurantId = paramId || restaurant?.id || authRestaurant?.id;
   const categories = initialCategories || storeCategories;
 

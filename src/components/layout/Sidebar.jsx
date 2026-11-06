@@ -10,7 +10,8 @@ import {
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Settings, Building2, ChevronLeft, ChevronRight, LogOut,
   Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
-  ChevronDown, ChevronUp, Copy, Check, ShieldCheck, Plus
+  ChevronDown, ChevronUp, Copy, Check, ShieldCheck, Plus,
+  Eye, MapPin, Star
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HelpGuide from '../shared/HelpGuide';
@@ -299,10 +300,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '14px',
             flexShrink: 0
           }}>
-            🛡️
+            <ShieldCheck size={16} />
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
@@ -337,10 +337,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '12px',
               flexShrink: 0
             }}>
-              👁️
+              <Eye size={13} />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -359,9 +358,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
               toast.success('Exited to Platform Console');
               navigate('/admin/restaurants');
             }}
-            style={{ width: '100%', height: '26px', fontSize: '11px', padding: '0 6px', fontWeight: 600 }}
+            style={{ width: '100%', height: '26px', fontSize: '11px', padding: '0 6px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
           >
-            ✕ Exit to Platform Console
+            <X size={12} /> Exit to Platform Console
           </button>
         </div>
       )}
@@ -388,10 +387,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '13px',
             flexShrink: 0
           }}>
-            📍
+            <MapPin size={15} />
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
@@ -448,7 +446,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 if (!restIdToShow) return;
                 navigator.clipboard.writeText(restIdToShow);
                 setCopiedId(true);
-                toast.success(`Copied Restaurant ID: ${restIdToShow}`, { id: 'copy-rest-id', icon: '📋' });
+                toast.success(`Copied Restaurant ID: ${restIdToShow}`, { id: 'copy-rest-id' });
                 setTimeout(() => setCopiedId(false), 2000);
               }}
               style={{
@@ -527,7 +525,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                       const result = await switchRestaurant(out);
                       if (!result?.ok) { toast.error(result?.error || 'Unable to switch branch.'); return; }
                       setOutletMenuOpen(false);
-                      toast.success(`Switched to ${out.name}`, { icon: '📍' });
+                      toast.success(`Switched to ${out.name}`);
                     }}
                     style={{
                       display: 'flex',
@@ -553,17 +551,21 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                         whiteSpace: 'nowrap',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '5px'
+                        gap: '6px'
                       }}>
-                        <span>{(out.isMainBranch || (!out.parentRestaurantId && out.isMainBranch !== false)) ? '⭐' : '📍'}</span>
+                        {(out.isMainBranch || (!out.parentRestaurantId && out.isMainBranch !== false)) ? (
+                          <Star size={12} color="#8b5cf6" style={{ flexShrink: 0 }} />
+                        ) : (
+                          <MapPin size={12} color="#10b981" style={{ flexShrink: 0 }} />
+                        )}
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{out.name}</span>
                         {(out.isMainBranch || (!out.parentRestaurantId && out.isMainBranch !== false)) && (
                           <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.2)', color: '#8b5cf6', fontWeight: 700, flexShrink: 0 }}>HQ</span>
                         )}
                       </span>
                       {out.address && (
-                        <span style={{ fontSize: '10px', color: 'var(--color-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          📍 {out.address}
+                        <span style={{ fontSize: '10px', color: 'var(--color-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <MapPin size={10} style={{ flexShrink: 0 }} /> {out.address}
                         </span>
                       )}
                     </div>

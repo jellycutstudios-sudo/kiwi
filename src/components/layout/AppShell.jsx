@@ -11,7 +11,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { 
   Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid, ArrowLeft 
+  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap
 } from 'lucide-react';
 import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
@@ -89,13 +89,12 @@ export default function AppShell() {
       return;
     }
     if (!isOnline) {
-      toast('🛡️ Offline Mode active — POS, tables & receipts work without internet.', {
+      toast('Offline Mode active — POS, tables & receipts work without internet.', {
         id: 'offline-mode-status',
-        icon: '🛡️',
         duration: 4000
       });
     } else {
-      toast.success('🌐 Connection restored — cloud auto-sync active.', {
+      toast.success('Connection restored — cloud auto-sync active.', {
         id: 'offline-mode-status',
         duration: 3000
       });
@@ -162,7 +161,6 @@ export default function AppShell() {
       ), {
         id: 'sw-update-toast',
         duration: Infinity,
-        icon: '🚀',
         style: {
           background: 'var(--color-bg-elevated)',
           color: 'var(--color-label)',
@@ -357,7 +355,7 @@ export default function AppShell() {
                   className={`pos-dietary-pill popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
                   title="Filter Bestseller & Popular items (tap again to clear)"
                 >
-                  <span style={{ fontSize: '12px' }}>🔥</span>
+                  <Flame size={12} />
                   <span>Popular</span>
                 </button>
               </div>
@@ -384,7 +382,7 @@ export default function AppShell() {
                     className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
                     id="pos-switch-keys-btn"
                   >
-                    <span className="density-bolt-icon">⚡</span>
+                    <Zap size={12} className="density-bolt-icon" />
                     <span className="density-label density-label--full">Fast Keys</span>
                     <span className="density-label density-label--short">Keys</span>
                   </button>
@@ -572,9 +570,9 @@ export default function AppShell() {
                 if (unreadOnlineCount > 0) {
                   const count = unreadOnlineCount;
                   markOnlineOrdersRead();
-                  toast.success(`Marked ${count} pending online orders as read.`, { icon: '📭' });
+                  toast.success(`Marked ${count} pending online orders as read.`);
                 } else {
-                  toast('You don\'t have any new notifications.', { icon: '📭' });
+                  toast('You don\'t have any new notifications.');
                 }
               }}
               title="Notifications"
@@ -612,7 +610,7 @@ export default function AppShell() {
           <div className="modal animate-slide-up" style={{ maxWidth: '90%', width: '400px' }}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                🔍 {t('search')} Menu
+                <Search size={16} /> {t('search')} Menu
               </h3>
               <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setIsSearchOpen(false)}>
                 <X size={16} />
