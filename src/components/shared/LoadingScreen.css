@@ -43,11 +43,12 @@
 
 /* Crisp Brand Mark */
 .dine-loading-logo {
-  width: 38px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   display: block;
-  filter: brightness(0) invert(1);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
   animation: dineBreathe 2.4s ease-in-out infinite;
 }
 

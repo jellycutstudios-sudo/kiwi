@@ -23,6 +23,7 @@ import ThemeToggle from '../shared/ThemeToggle';
 import { triggerMorningCheer } from '../../utils/morningCheer';
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import OfflineSyncModal from '../pos/OfflineSyncModal';
+import PwaInstallModal from '../shared/PwaInstallModal';
 
 const PAGE_TITLES = {
   '/dashboard':         'dashboard',
@@ -103,7 +104,14 @@ export default function AppShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
-  const [showIosInstallModal, setShowIosInstallModal] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+
+  // Global listener so any component can open the install modal via window.dispatchEvent(new CustomEvent('open-install-modal'))
+  useEffect(() => {
+    const handleOpenInstall = () => setShowInstallModal(true);
+    window.addEventListener('open-install-modal', handleOpenInstall);
+    return () => window.removeEventListener('open-install-modal', handleOpenInstall);
+  }, []);
 
   const hasUpdate = useUpdateStore(s => s.hasUpdate);
   const isUpdating = useUpdateStore(s => s.isUpdating);
@@ -437,13 +445,7 @@ export default function AppShell() {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  if (canInstall) {
-                    promptInstall();
-                  } else if (isIOS) {
-                    setShowIosInstallModal(true);
-                  }
-                }}
+                onClick={() => setShowInstallModal(true)}
                 style={{
                   height: '32px',
                   padding: '0 10px',
@@ -645,41 +647,15 @@ export default function AppShell() {
         </div>
       )}
 
-      {/* iOS Add to Home Screen Instructions Modal */}
-      {showIosInstallModal && (
-        <div 
-          className="modal-overlay" 
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }} 
-          onClick={e => e.target === e.currentTarget && setShowIosInstallModal(false)}
-        >
-          <div className="modal animate-slide-up" style={{ maxWidth: '380px', width: '100%', padding: 'var(--space-4)' }}>
-            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-separator)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Smartphone size={20} color="var(--color-accent)" />
-                <h3 className="modal-title" style={{ margin: 0, fontSize: '16px' }}>Install DineOS App</h3>
-              </div>
-              <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setShowIosInstallModal(false)}>
-                <X size={16} />
-              </button>
-            </div>
-            <div className="modal-body" style={{ padding: 'var(--space-4) 0', fontSize: '13px', lineHeight: 1.6, color: 'var(--color-label)' }}>
-              <p style={{ margin: '0 0 12px 0', color: 'var(--color-label-secondary)' }}>
-                Install DineOS on your iPad or iPhone home screen for uninterrupted fullscreen and offline access:
-              </p>
-              <ol style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <li>Tap the <strong>Share</strong> button at the bottom of Safari (square with arrow <strong>↑</strong>).</li>
-                <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
-                <li>Tap <strong>Add</strong> in the top-right corner to finish.</li>
-              </ol>
-            </div>
-            <div className="modal-footer" style={{ marginTop: 'var(--space-2)' }}>
-              <button className="btn btn-primary" style={{ width: '100%', height: '38px' }} onClick={() => setShowIosInstallModal(false)}>
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Unified PWA Install Modal */}
+      <PwaInstallModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+        canInstall={canInstall}
+        promptInstall={promptInstall}
+        isIOS={isIOS}
+        isStandalone={isStandalone}
+      />
 
       {/* Interactive Food Ready Alert Banner - shown on /tables and /pos for fast pass pickup */}
       {(location.pathname === '/tables' || location.pathname === '/pos') && !location.search.includes('edit=true') && <WaiterReadySlidePopup />}
