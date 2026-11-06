@@ -2411,9 +2411,9 @@ export default function Settings() {
                   justifyContent: 'space-between',
                   gap: 12,
                   padding: '9px 12px',
-                  background: 'var(--color-bg-secondary)',
+                  background: 'rgba(255, 255, 255, 0.04)',
                   borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-separator-opaque)'
+                  border: '1px solid rgba(255, 255, 255, 0.18)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <span style={{
@@ -2421,15 +2421,19 @@ export default function Settings() {
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',
-                      color: 'var(--color-label-tertiary)',
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      color: '#ffffff',
+                      padding: '2px 7px',
+                      borderRadius: 4,
                       flexShrink: 0
                     }}>
                       Kiosk URL
                     </span>
                     <span style={{
                       fontFamily: 'var(--font-mono)',
-                      fontSize: '12px',
-                      color: 'var(--color-label-secondary)',
+                      fontSize: '12.5px',
+                      fontWeight: 500,
+                      color: '#f8fafc',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
@@ -2457,7 +2461,7 @@ export default function Settings() {
                 }}>
                   {/* Station Name */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
                       Kiosk Station Name
                     </label>
                     <input
@@ -2468,14 +2472,14 @@ export default function Settings() {
                       onChange={e => updateField('kioskConfig.stationName', e.target.value)}
                       style={{ fontSize: '12.5px' }}
                     />
-                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                    <span style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: 4, display: 'block' }}>
                       Identifies this kiosk terminal on kitchen tickets &amp; orders.
                     </span>
                   </div>
 
                   {/* Inactivity Timeout */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
                       Inactivity Reset Timer
                     </label>
                     <select
@@ -2489,14 +2493,14 @@ export default function Settings() {
                       <option value={90}>90 Seconds (Relaxed)</option>
                       <option value={120}>120 Seconds (Extended)</option>
                     </select>
-                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                    <span style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: 4, display: 'block' }}>
                       Resets to attract screen when left unattended.
                     </span>
                   </div>
 
                   {/* Payment Options */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
                       Allowed Payment Methods
                     </label>
                     <select
@@ -2509,14 +2513,14 @@ export default function Settings() {
                       <option value="upi_only">UPI QR Only (100% Pre-paid)</option>
                       <option value="counter_only">Pay at Counter Only (Cashier)</option>
                     </select>
-                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                    <span style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: 4, display: 'block' }}>
                       Payment choices presented at checkout.
                     </span>
                   </div>
 
                   {/* Allowed Dining Modes */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
                       Dining Format Choices
                     </label>
                     <select
@@ -2529,7 +2533,7 @@ export default function Settings() {
                       <option value="dine-in">Dine-In Only (Eat Here)</option>
                       <option value="takeaway">Takeaway Only (Pack to go)</option>
                     </select>
-                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                    <span style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: 4, display: 'block' }}>
                       Service format choices offered to guests.
                     </span>
                   </div>
@@ -2542,16 +2546,16 @@ export default function Settings() {
                   justifyContent: 'space-between',
                   gap: 16,
                   padding: '12px 14px',
-                  background: 'var(--color-bg-secondary)',
+                  background: 'rgba(255, 255, 255, 0.04)',
                   borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-separator-opaque)'
+                  border: '1px solid rgba(255, 255, 255, 0.18)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
                       width: 32,
                       height: 32,
                       borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'rgba(16, 185, 129, 0.15)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -2560,10 +2564,10 @@ export default function Settings() {
                       <Printer size={16} color="var(--color-accent)" />
                     </div>
                     <div>
-                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-label)' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
                         Auto-Print Token Slip
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 2 }}>
+                      <div style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: 2 }}>
                         Automatically cuts a physical token ticket if a thermal printer is attached.
                       </div>
                     </div>
@@ -2576,17 +2580,17 @@ export default function Settings() {
 
                 {/* Kiosk Hero Typography & Branding Section */}
                 <div style={{
-                  borderTop: '1px solid var(--color-separator-opaque)',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.15)',
                   paddingTop: 'var(--space-3)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 'var(--space-3)'
                 }}>
                   <div>
-                    <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: 'var(--color-label)' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: '#ffffff' }}>
                       Kiosk Branding &amp; Screen Appearance
                     </h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#cbd5e1' }}>
                       Customize the hero headline, subtitle, and logo displayed on the kiosk screen.
                     </p>
                   </div>
@@ -2597,16 +2601,16 @@ export default function Settings() {
                     alignItems: 'center',
                     gap: 14,
                     padding: '12px 14px',
-                    background: 'var(--color-bg-secondary)',
+                    background: 'rgba(255, 255, 255, 0.04)',
                     borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--color-separator-opaque)'
+                    border: '1px solid rgba(255, 255, 255, 0.18)'
                   }}>
                     <div style={{
                       width: 44,
                       height: 44,
                       borderRadius: 'var(--radius-md)',
                       background: 'var(--color-bg)',
-                      border: '1px solid var(--color-separator-opaque)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -2620,15 +2624,15 @@ export default function Settings() {
                           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         />
                       ) : (
-                        <Store size={20} color="var(--color-label-tertiary)" />
+                        <Store size={20} color="#cbd5e1" />
                       )}
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 160 }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label)' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#ffffff' }}>
                         {settings.kioskConfig?.logoUrl ? 'Custom Kiosk Logo' : (settings.receiptConfig?.logoUrl || settings.logo ? 'Using Main Brand / Receipt Logo' : 'No Logo Uploaded')}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                      <span style={{ fontSize: '11.5px', color: '#cbd5e1' }}>
                         Featured on the kiosk top navigation and attract screen.
                       </span>
                     </div>
@@ -2682,7 +2686,7 @@ export default function Settings() {
                     gap: 'var(--space-3)'
                   }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 600 }}>
+                      <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
                         Hero Headline
                       </label>
                       <input
@@ -2696,7 +2700,7 @@ export default function Settings() {
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 600 }}>
+                      <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
                         Hero Subtitle / Tagline
                       </label>
                       <input
@@ -2743,9 +2747,9 @@ export default function Settings() {
                     justifyContent: 'space-between',
                     gap: 12,
                     padding: '9px 12px',
-                    background: 'var(--color-bg-secondary)',
+                    background: 'rgba(255, 255, 255, 0.04)',
                     borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--color-separator-opaque)'
+                    border: '1px solid rgba(255, 255, 255, 0.18)'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                       <span style={{
@@ -2753,15 +2757,19 @@ export default function Settings() {
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em',
-                        color: 'var(--color-label-tertiary)',
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        color: '#ffffff',
+                        padding: '2px 7px',
+                        borderRadius: 4,
                         flexShrink: 0
                       }}>
                         Display URL
                       </span>
                       <span style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '12px',
-                        color: 'var(--color-label-secondary)',
+                        fontSize: '12.5px',
+                        fontWeight: 500,
+                        color: '#f8fafc',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
@@ -2816,24 +2824,30 @@ export default function Settings() {
                             justifyContent: 'space-between',
                             gap: 12,
                             padding: '9px 12px',
-                            background: 'var(--color-bg-secondary)',
+                            background: 'rgba(255, 255, 255, 0.04)',
                             borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--color-separator-opaque)'
+                            border: '1px solid rgba(255, 255, 255, 0.18)'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                             <span style={{
-                              fontSize: '12px',
+                              fontSize: '11px',
                               fontWeight: 700,
-                              color: 'var(--color-label)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              background: 'rgba(255, 255, 255, 0.12)',
+                              color: '#ffffff',
+                              padding: '2px 7px',
+                              borderRadius: 4,
                               flexShrink: 0
                             }}>
                               {s.name}
                             </span>
                             <span style={{
                               fontFamily: 'var(--font-mono)',
-                              fontSize: '12px',
-                              color: 'var(--color-label-secondary)',
+                              fontSize: '12.5px',
+                              fontWeight: 500,
+                              color: '#f8fafc',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis'
