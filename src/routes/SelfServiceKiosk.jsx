@@ -22,6 +22,7 @@ import {
   Clock, Printer, Utensils, ShoppingBag, Receipt,
   LayoutGrid, Tag, TrendingUp
 } from 'lucide-react';
+import { getItemVisuals } from '../utils/itemVisuals';
 import './SelfServiceKiosk.css';
 
 function formatKioskDate(date) {
@@ -936,15 +937,41 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
                   {/* Right Bleeding Circular Plate Photo */}
                   <div className="kiosk-dish-card-right">
-                    <div className="kiosk-dish-plate-circle">
-                      {dishImg ? (
-                        <img src={dishImg} alt={item.name} className="kiosk-dish-plate-img" loading="lazy" />
-                      ) : (
-                        <div className="kiosk-dish-plate-fallback">
-                          <Utensils size={34} color="#a1a1aa" />
+                    {(() => {
+                      if (dishImg) {
+                        return (
+                          <div className="kiosk-dish-plate-circle">
+                            <img src={dishImg} alt={item.name} className="kiosk-dish-plate-img" loading="lazy" />
+                          </div>
+                        );
+                      }
+                      const visuals = getItemVisuals(item);
+                      return (
+                        <div
+                          className="kiosk-dish-plate-circle"
+                          style={{
+                            background: visuals.bg,
+                            border: `1.5px solid ${visuals.border}`,
+                            boxShadow: `0 4px 18px ${visuals.glow}`
+                          }}
+                        >
+                          <div className="kiosk-dish-plate-fallback">
+                            <span
+                              className="kiosk-dish-monogram"
+                              style={{
+                                color: visuals.color,
+                                fontSize: '26px',
+                                fontWeight: 800,
+                                letterSpacing: '-0.02em',
+                                lineHeight: 1
+                              }}
+                            >
+                              {visuals.monogram}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

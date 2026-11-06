@@ -35,6 +35,7 @@ import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap, playNotificationTone, vibrateDevice } from '../utils/soundNotifications';
 import { localSyncChannel } from '../utils/localSyncChannel';
+import { getItemVisuals } from '../utils/itemVisuals';
 
 const POS_CATEGORY_THEMES = [
   'pos-cat-theme-amber',
@@ -1678,10 +1679,30 @@ export default function POS() {
                     <div className="menu-item-qty-badge">{qty}</div>
                   )}
                   <div className="menu-item-img-wrap">
-                    {item.imageUrl || item.image
-                      ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
-                      : <div className="menu-item-img-placeholder"><UtensilsCrossed size={24} color="var(--color-label-tertiary)" /></div>
-                    }
+                    {item.imageUrl || item.image ? (
+                      <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
+                    ) : (() => {
+                      const visuals = getItemVisuals(item);
+                      return (
+                        <div
+                          className="menu-item-img-placeholder"
+                          style={{
+                            background: visuals.bg,
+                            borderBottom: `1px solid ${visuals.border}`
+                          }}
+                        >
+                          <span
+                            className="menu-item-monogram"
+                            style={{
+                              color: visuals.color,
+                              textShadow: `0 0 18px ${visuals.glow}`
+                            }}
+                          >
+                            {visuals.monogram}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="menu-item-body">
                     <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

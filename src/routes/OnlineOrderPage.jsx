@@ -13,6 +13,7 @@ import ModifierModal from '../components/pos/ModifierModal';
 import toast from 'react-hot-toast';
 import LoadingScreen from '../components/shared/LoadingScreen';
 import { triggerHaptic, triggerHapticSuccess } from '../utils/haptics';
+import { getItemVisuals } from '../utils/itemVisuals';
 
 // Helper to determine dietary category (Veg vs Non-Veg)
 const isVegetarianItem = (item) => {
@@ -1840,21 +1841,36 @@ export default function OnlineOrderPage() {
                             ) : null}
 
                             {/* Fallback box if no photo */}
-                            <div
-                              style={{
-                                width: 118,
-                                height: 96,
-                                borderRadius: '14px',
-                                background: 'linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary))',
-                                border: '1px solid var(--color-separator-opaque)',
-                                display: (item.imageUrl || item.image) ? 'none' : 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 36
-                              }}
-                            >
-                              {item.emoji || '🍽️'}
-                            </div>
+                            {(() => {
+                              const visuals = getItemVisuals(item);
+                              return (
+                                <div
+                                  style={{
+                                    width: 118,
+                                    height: 96,
+                                    borderRadius: '14px',
+                                    background: visuals.bg,
+                                    border: `1px solid ${visuals.border}`,
+                                    display: (item.imageUrl || item.image) ? 'none' : 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: `0 4px 14px ${visuals.glow}`
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      color: visuals.color,
+                                      fontSize: 26,
+                                      fontWeight: 800,
+                                      letterSpacing: '-0.02em',
+                                      lineHeight: 1
+                                    }}
+                                  >
+                                    {visuals.monogram}
+                                  </span>
+                                </div>
+                              );
+                            })()}
 
                             {/* Overlapping Floating Button */}
                             <div style={{

@@ -11,6 +11,7 @@ import { getKitchenStations } from '../../utils/stations';
 import MenuCsvModal from '../../components/admin/MenuCsvModal';
 import { translateDishWithAI, batchTranslateDishesWithAI } from '../../services/aiMenuTranslator';
 import { transliterateFood } from '../../utils/foodTransliteration';
+import { getItemVisuals } from '../../utils/itemVisuals';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -1127,11 +1128,32 @@ export default function MenuEditor() {
                       <div className="menu-editor-card-media">
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt={item.name} className="menu-editor-card-img" />
-                        ) : (
-                          <div className="menu-editor-card-emoji-placeholder">
-                            <span>{item.emoji ?? '🍽️'}</span>
-                          </div>
-                        )}
+                        ) : (() => {
+                          const visuals = getItemVisuals(item);
+                          return (
+                            <div
+                              className="menu-editor-card-emoji-placeholder"
+                              style={{
+                                background: visuals.bg,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: visuals.color,
+                                  fontSize: 28,
+                                  fontWeight: 800,
+                                  letterSpacing: '-0.02em',
+                                  lineHeight: 1
+                                }}
+                              >
+                                {visuals.monogram}
+                              </span>
+                            </div>
+                          );
+                        })()}
 
                         {/* Top floating badges */}
                         <div className="menu-editor-card-top-badges">
@@ -1270,9 +1292,29 @@ export default function MenuEditor() {
                         <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--color-separator)', flexShrink: 0 }}>
                           <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
-                      ) : (
-                        <div style={{ fontSize: 28, flexShrink: 0 }}>{item.emoji ?? '🍽️'}</div>
-                      )}
+                      ) : (() => {
+                        const visuals = getItemVisuals(item);
+                        return (
+                          <div
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 'var(--radius-md)',
+                              overflow: 'hidden',
+                              border: `1.5px solid ${visuals.border}`,
+                              background: visuals.bg,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}
+                          >
+                            <span style={{ color: visuals.color, fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                              {visuals.monogram}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       <div style={{ flex: 1, minWidth: 150 }}>
                         <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span
