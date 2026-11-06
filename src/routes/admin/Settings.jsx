@@ -9,7 +9,7 @@ import {
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, ArrowRight, Tv, ExternalLink,
   Download, ShieldCheck, Bot, Zap, Lock, Mail,
-  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown
+  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown, Monitor
 } from 'lucide-react';
 import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
@@ -2381,14 +2381,15 @@ export default function Settings() {
             <>
               {/* Self-Service Touch Kiosk */}
               <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Smartphone size={18} color="var(--color-accent)" />
-                      <h3 className="text-title3" style={{ margin: 0 }}>Self-Service Touch Kiosk (/kiosk)</h3>
+                      <Monitor size={18} color="var(--color-accent)" />
+                      <h3 className="text-title3" style={{ margin: 0 }}>Self-Service Touch Kiosk</h3>
                     </div>
                     <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                      Run on ground floor tablets or standing touchscreens for customer self-ordering with dynamic UPI QR and token ticketing.
+                      Run on tablets or standing touch displays for guest self-ordering with dynamic UPI QR and token ticketing.
                     </p>
                   </div>
                   <a 
@@ -2396,30 +2397,69 @@ export default function Settings() {
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="btn btn-primary btn-sm"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
-                    <ExternalLink size={14} /> Launch Kiosk Screen
+                    <ExternalLink size={13} />
+                    <span>Launch Kiosk Screen</span>
                   </a>
                 </div>
 
-                <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
-                  <input
-                    className="form-input"
-                    readOnly
-                    value={`${window.location.origin}/kiosk/${restaurant?.id}`}
-                    style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
-                  />
-                  <button className="btn btn-secondary" id="copy-kiosk-link-btn" onClick={copyKioskLink} type="button">
-                    {copiedKiosk ? <Check size={16}/> : <Copy size={16}/>}
-                    {copiedKiosk ? 'Copied!' : 'Copy Link'}
+                {/* Minimal Kiosk URL Strip */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '9px 12px',
+                  background: 'var(--color-bg-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-separator-opaque)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      color: 'var(--color-label-tertiary)',
+                      flexShrink: 0
+                    }}>
+                      Kiosk URL
+                    </span>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '12px',
+                      color: 'var(--color-label-secondary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {`${window.location.origin}/kiosk/${restaurant?.id}`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    id="copy-kiosk-link-btn"
+                    onClick={copyKioskLink}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+                  >
+                    {copiedKiosk ? <Check size={12} color="var(--color-green)" /> : <Copy size={12} />}
+                    <span>{copiedKiosk ? 'Copied' : 'Copy Link'}</span>
                   </button>
                 </div>
 
-                {/* Kiosk Configuration Controls */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
-                  {/* Kiosk Station Name / Location */}
+                {/* Configuration Controls (Organized 2-Column Grid) */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: 'var(--space-3) var(--space-4)'
+                }}>
+                  {/* Station Name */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px' }}>Kiosk Station Name</label>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                      Kiosk Station Name
+                    </label>
                     <input
                       type="text"
                       className="form-input"
@@ -2428,114 +2468,145 @@ export default function Settings() {
                       onChange={e => updateField('kioskConfig.stationName', e.target.value)}
                       style={{ fontSize: '12.5px' }}
                     />
-                    <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', marginTop: 2, display: 'block' }}>
-                      Identifies this kiosk terminal on kitchen tickets &amp; orders (e.g. "Ground Floor Kiosk", "Floor 1 Kiosk").
+                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                      Identifies this kiosk terminal on kitchen tickets &amp; orders.
                     </span>
                   </div>
 
                   {/* Inactivity Timeout */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px' }}>Inactivity Reset Timer</label>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                      Inactivity Reset Timer
+                    </label>
                     <select
                       className="form-select"
                       value={settings.kioskConfig?.inactivityTimeout ?? 60}
                       onChange={e => updateField('kioskConfig.inactivityTimeout', Number(e.target.value))}
+                      style={{ fontSize: '12.5px' }}
                     >
-                      <option value={30}>30 Seconds (Fast reset)</option>
+                      <option value={30}>30 Seconds (Fast Reset)</option>
                       <option value={60}>60 Seconds (Recommended)</option>
-                      <option value={90}>90 Seconds (More reading time)</option>
+                      <option value={90}>90 Seconds (Relaxed)</option>
                       <option value={120}>120 Seconds (Extended)</option>
                     </select>
+                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                      Resets to attract screen when left unattended.
+                    </span>
                   </div>
 
                   {/* Payment Options */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px' }}>Allowed Payment Methods</label>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                      Allowed Payment Methods
+                    </label>
                     <select
                       className="form-select"
                       value={settings.kioskConfig?.allowedPayment ?? 'both'}
                       onChange={e => updateField('kioskConfig.allowedPayment', e.target.value)}
+                      style={{ fontSize: '12.5px' }}
                     >
-                      <option value="both">Both Dynamic UPI QR &amp; Pay at Counter</option>
+                      <option value="both">Dynamic UPI QR &amp; Pay at Counter</option>
                       <option value="upi_only">UPI QR Only (100% Pre-paid)</option>
-                      <option value="counter_only">Pay at Counter Only (Cash at Cashier)</option>
+                      <option value="counter_only">Pay at Counter Only (Cashier)</option>
                     </select>
+                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                      Payment choices presented at checkout.
+                    </span>
                   </div>
 
                   {/* Allowed Dining Modes */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12px' }}>Dining Format Choices</label>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+                      Dining Format Choices
+                    </label>
                     <select
                       className="form-select"
                       value={settings.kioskConfig?.allowedDining ?? 'both'}
                       onChange={e => updateField('kioskConfig.allowedDining', e.target.value)}
+                      style={{ fontSize: '12.5px' }}
                     >
                       <option value="both">Both Dine-In &amp; Takeaway Choices</option>
                       <option value="dine-in">Dine-In Only (Eat Here)</option>
                       <option value="takeaway">Takeaway Only (Pack to go)</option>
                     </select>
-                  </div>
-
-                  {/* Auto-Print Token Slip */}
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '10px 14px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>Auto-Print Token Slip</span>
-                      <ToggleSwitch
-                        checked={settings.kioskConfig?.autoPrintToken !== false}
-                        onChange={val => updateField('kioskConfig.autoPrintToken', val)}
-                      />
-                    </div>
-                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4 }}>
-                      Automatically cuts a physical token ticket if a thermal printer is attached.
+                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4, display: 'block' }}>
+                      Service format choices offered to guests.
                     </span>
                   </div>
                 </div>
 
-                {/* Kiosk Hero Headline, Subtitle & Logo Customization */}
-                <div style={{ marginTop: 'var(--space-2)', padding: '14px 16px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                    <div>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>Kiosk Branding &amp; Logo</span>
-                      <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
-                        Customize the hero headline, subtitle, and emblem logo displayed on the kiosk screen.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Hero Headline</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="DO YOU HAVE ANY ORDER TODAY?"
-                        value={settings.kioskConfig?.headline ?? ''}
-                        onChange={e => updateField('kioskConfig.headline', e.target.value)}
-                        style={{ fontSize: '12.5px' }}
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Hero Subtitle / Tagline</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="FRESHLY PREPARED. MADE FOR YOU TODAY."
-                        value={settings.kioskConfig?.subtitle ?? ''}
-                        onChange={e => updateField('kioskConfig.subtitle', e.target.value)}
-                        style={{ fontSize: '12.5px' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Logo Source & Upload */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', paddingTop: 4 }}>
+                {/* Auto-Print Token Slip - Clean Integrated Switch Row */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  padding: '12px 14px',
+                  background: 'var(--color-bg-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-separator-opaque)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: '50%',
+                      width: 32,
+                      height: 32,
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <Printer size={16} color="var(--color-accent)" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-label)' }}>
+                        Auto-Print Token Slip
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 2 }}>
+                        Automatically cuts a physical token ticket if a thermal printer is attached.
+                      </div>
+                    </div>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.kioskConfig?.autoPrintToken !== false}
+                    onChange={val => updateField('kioskConfig.autoPrintToken', val)}
+                  />
+                </div>
+
+                {/* Kiosk Hero Typography & Branding Section */}
+                <div style={{
+                  borderTop: '1px solid var(--color-separator-opaque)',
+                  paddingTop: 'var(--space-3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-3)'
+                }}>
+                  <div>
+                    <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: 'var(--color-label)' }}>
+                      Kiosk Branding &amp; Screen Appearance
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
+                      Customize the hero headline, subtitle, and logo displayed on the kiosk screen.
+                    </p>
+                  </div>
+
+                  {/* Logo Source & Upload Row */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '12px 14px',
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-separator-opaque)'
+                  }}>
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 'var(--radius-md)',
                       background: 'var(--color-bg)',
-                      border: '1.5px dashed var(--color-separator)',
+                      border: '1px solid var(--color-separator-opaque)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -2549,53 +2620,93 @@ export default function Settings() {
                           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         />
                       ) : (
-                        <Store size={22} color="var(--color-label-tertiary)" />
+                        <Store size={20} color="var(--color-label-tertiary)" />
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 200 }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600 }}>
-                        {settings.kioskConfig?.logoUrl ? 'Using Dedicated Kiosk Logo' : (settings.receiptConfig?.logoUrl || settings.logo ? 'Using Main Brand / Receipt Logo' : 'No Logo Uploaded')}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 160 }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label)' }}>
+                        {settings.kioskConfig?.logoUrl ? 'Custom Kiosk Logo' : (settings.receiptConfig?.logoUrl || settings.logo ? 'Using Main Brand / Receipt Logo' : 'No Logo Uploaded')}
                       </span>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <input
-                          type="file"
-                          id="settings-kiosk-logo-file"
-                          accept="image/png, image/jpeg, image/webp, image/svg+xml"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              updateField('kioskConfig.logoUrl', ev.target.result);
-                              toast.success('Custom Kiosk logo updated!');
-                            };
-                            reader.readAsDataURL(file);
-                          }}
-                        />
+                      <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                        Featured on the kiosk top navigation and attract screen.
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                      <input
+                        type="file"
+                        id="settings-kiosk-logo-file"
+                        accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            updateField('kioskConfig.logoUrl', ev.target.result);
+                            toast.success('Custom Kiosk logo updated!');
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => document.getElementById('settings-kiosk-logo-file')?.click()}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                      >
+                        <Upload size={12} />
+                        <span>{settings.kioskConfig?.logoUrl ? 'Change Logo' : 'Upload Custom Logo'}</span>
+                      </button>
+                      {settings.kioskConfig?.logoUrl && (
                         <button
                           type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => document.getElementById('settings-kiosk-logo-file')?.click()}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => {
+                            updateField('kioskConfig.logoUrl', '');
+                            toast.success('Reset to Receipt / Brand logo');
+                          }}
+                          style={{ color: 'var(--color-red)' }}
                         >
-                          <Upload size={12} /> Upload Custom Kiosk Logo
+                          Reset
                         </button>
-                        {settings.kioskConfig?.logoUrl && (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs"
-                            onClick={() => {
-                              updateField('kioskConfig.logoUrl', '');
-                              toast.success('Reset to Receipt / Brand logo');
-                            }}
-                            style={{ color: 'var(--color-red)' }}
-                          >
-                            Reset to Receipt Logo
-                          </button>
-                        )}
-                      </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Headline & Subtitle Inputs */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: 'var(--space-3)'
+                  }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 600 }}>
+                        Hero Headline
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="DO YOU HAVE ANY ORDER TODAY?"
+                        value={settings.kioskConfig?.headline ?? ''}
+                        onChange={e => updateField('kioskConfig.headline', e.target.value)}
+                        style={{ fontSize: '12.5px' }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 600 }}>
+                        Hero Subtitle / Tagline
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="FRESHLY PREPARED. MADE FOR YOU TODAY."
+                        value={settings.kioskConfig?.subtitle ?? ''}
+                        onChange={e => updateField('kioskConfig.subtitle', e.target.value)}
+                        style={{ fontSize: '12.5px' }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -2603,37 +2714,71 @@ export default function Settings() {
 
               {/* QSR TV Token Display (Only when token mode is active) */}
               {(settings.modes ?? []).includes('token') && (
-                <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Tv size={18} color="var(--color-accent)" />
-                      <h3 className="text-title3" style={{ margin: 0 }}>QSR Live Token TV Display</h3>
+                <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Tv size={18} color="var(--color-accent)" />
+                        <h3 className="text-title3" style={{ margin: 0 }}>QSR Live Token TV Display</h3>
+                      </div>
+                      <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                        Open this URL on a TV or monitor in your waiting lounge or collection counter to show live preparing and ready tokens.
+                      </p>
                     </div>
-                    <p className="text-secondary text-footnote">
-                      Open this URL on a TV or monitor in your waiting lounge or collection counter to show live preparing and ready tokens.
-                    </p>
-                  </div>
-                  <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
-                    <input
-                      className="form-input"
-                      readOnly
-                      value={`${window.location.origin}/display/tokens/${restaurant?.id}`}
-                      style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
-                    />
-                    <button className="btn btn-primary" id="copy-token-link-btn" onClick={copyTokenDisplayLink} type="button">
-                      {copiedToken ? <Check size={16}/> : <Copy size={16}/>}
-                      {copiedToken ? 'Copied!' : 'Copy Link'}
-                    </button>
                     <a 
                       href={`/display/tokens/${restaurant?.id}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="btn btn-secondary"
-                      title="Open on screen"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                     >
-                      <ExternalLink size={14} /> Open Screen
+                      <ExternalLink size={13} />
+                      <span>Open Screen</span>
                     </a>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: '9px 12px',
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-separator-opaque)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        color: 'var(--color-label-tertiary)',
+                        flexShrink: 0
+                      }}>
+                        Display URL
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '12px',
+                        color: 'var(--color-label-secondary)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {`${window.location.origin}/display/tokens/${restaurant?.id}`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      id="copy-token-link-btn"
+                      onClick={copyTokenDisplayLink}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+                    >
+                      {copiedToken ? <Check size={12} color="var(--color-green)" /> : <Copy size={12} />}
+                      <span>{copiedToken ? 'Copied' : 'Copy Link'}</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -2648,55 +2793,81 @@ export default function Settings() {
                         Broadcast marketing offers, animated combo deals, and live menu boards onto smart TVs.
                       </p>
                     </div>
-                    <a href="/admin/posters" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      Manage Screens in Poster Studio →
+                    <a href="/admin/posters" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span>Manage in Poster Studio</span>
+                      <ArrowRight size={13} />
                     </a>
                   </div>
 
-                {slideshowList.length === 0 ? (
-                  <div style={{ padding: 'var(--space-4)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                    <p className="text-secondary text-caption1" style={{ margin: 0 }}>
-                      No TV Screen channels created yet. Go to <a href="/admin/posters" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>TV Poster Boards</a> to design your first screen.
-                    </p>
-                  </div>
-                ) : (
-                  <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-                    {slideshowList.map(s => (
-                      <div key={s.id} style={{ display:'flex', flexDirection:'column', gap:'6px', padding: '12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
-                        <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
-                          <input
-                            className="form-input"
-                            readOnly
-                            value={`${window.location.origin}/display/slides/${restaurant?.id}/${s.id}`}
-                            style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg)' }}
-                          />
-                          <button 
-                            className="btn btn-primary btn-sm" 
-                            style={{ minWidth: '85px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                            onClick={() => copySlideshowLink(s.id)} 
-                            type="button"
-                          >
-                            {copiedSlideshowId === s.id ? <Check size={14}/> : <Copy size={14}/>}
-                            {copiedSlideshowId === s.id ? 'Copied!' : 'Copy'}
-                          </button>
-                          <a 
-                            href={`/display/slides/${restaurant?.id}/${s.id}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn btn-secondary btn-sm btn-icon"
-                            title="Open on screen"
-                            style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <ExternalLink size={14} />
-                          </a>
+                  {slideshowList.length === 0 ? (
+                    <div style={{ padding: 'var(--space-4)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                      <p className="text-secondary text-caption1" style={{ margin: 0 }}>
+                        No TV Screen channels created yet. Go to <a href="/admin/posters" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>TV Poster Boards</a> to design your first screen.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {slideshowList.map(s => (
+                        <div
+                          key={s.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            padding: '9px 12px',
+                            background: 'var(--color-bg-secondary)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--color-separator-opaque)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              color: 'var(--color-label)',
+                              flexShrink: 0
+                            }}>
+                              {s.name}
+                            </span>
+                            <span style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '12px',
+                              color: 'var(--color-label-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {`${window.location.origin}/display/slides/${restaurant?.id}/${s.id}`}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-xs"
+                              onClick={() => copySlideshowLink(s.id)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            >
+                              {copiedSlideshowId === s.id ? <Check size={12} color="var(--color-green)" /> : <Copy size={12} />}
+                              <span>{copiedSlideshowId === s.id ? 'Copied' : 'Copy'}</span>
+                            </button>
+                            <a
+                              href={`/display/slides/${restaurant?.id}/${s.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary btn-xs btn-icon"
+                              title="Open on screen"
+                              style={{ width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
           </>
         )}
 
