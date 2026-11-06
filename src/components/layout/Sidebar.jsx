@@ -281,7 +281,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Super Admin Platform Pill (Global Scope) */}
       {!isCollapsed && isSuperAdmin && !restaurant && (
-        <div style={{
+        <div className="sidebar-outlet-card" style={{
           margin: '10px 12px 4px',
           padding: '10px 12px',
           background: 'rgba(59, 130, 246, 0.08)',
@@ -317,7 +317,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Super Admin Tenant Inspection Pill (When inspecting a single outlet) */}
       {!isCollapsed && isSuperAdmin && restaurant && (
-        <div style={{
+        <div className="sidebar-outlet-card" style={{
           margin: '10px 12px 4px',
           padding: '10px 12px',
           background: 'rgba(245, 158, 11, 0.10)',
@@ -367,7 +367,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
       {/* Normal Restaurant Info Pill & Multi-Branch Switcher */}
       {!isCollapsed && !isSuperAdmin && restaurant?.name && (
-        <div style={{
+        <div className="sidebar-outlet-card" style={{
           margin: '10px 12px 4px',
           padding: '10px 12px',
           background: 'var(--color-bg-secondary)',
@@ -879,191 +879,102 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       </nav>
 
       {/* Footer / Profile & Action Strip */}
-      <div className="sidebar-footer" style={{ padding: isCollapsed ? 'var(--space-3) var(--space-2)' : '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderTop: '1px solid var(--color-separator)' }}>
+      <div className="sidebar-footer">
         {hasUpdate && (
           <button
             type="button"
-            className="btn btn-sm"
+            className="btn btn-sm sidebar-update-btn"
             onClick={applyUpdate}
-            style={{
-              width: '100%',
-              marginBottom: 'var(--space-2)',
-              height: '38px',
-              fontSize: '12px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              color: '#fff',
-              background: 'linear-gradient(135deg, #f97316, #ef4444)',
-              border: 'none',
-              borderRadius: '10px',
-              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
-              cursor: 'pointer'
-            }}
             title="A new version of DineOS is ready to install"
           >
-            <RefreshCw size={14} className={isUpdating ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={isUpdating ? 'animate-spin' : ''} />
             {!isCollapsed && (isUpdating ? 'Updating...' : 'Update App')}
           </button>
         )}
 
-        {/* User Card when expanded */}
+        {/* User Card when expanded with integrated quick logout */}
         {!isCollapsed && (
-          <div style={{
-            width: '100%',
-            background: 'var(--color-bg-secondary)',
-            border: '1px solid var(--color-separator)',
-            borderRadius: '12px',
-            padding: '10px 12px',
-            marginBottom: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
+          <div className="sidebar-user-card">
             {/* Initials Avatar */}
-            <div style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '13px',
-              flexShrink: 0
-            }}>
+            <div className="sidebar-user-avatar">
               {staffInitials}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--color-label)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }} title={displayName}>
+            <div className="sidebar-user-details">
+              <div className="sidebar-user-name" title={displayName}>
                 {displayName}
               </div>
-              <div style={{
-                fontSize: '11px',
-                color: 'var(--color-label-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                <span style={{ textTransform: 'capitalize' }}>{staffDoc?.role === 'super_admin' ? 'Super Admin' : (staffDoc?.role ?? 'Staff')}</span>
+              <div className="sidebar-user-role">
+                <span className="sidebar-user-role-dot" />
+                <span>{staffDoc?.role === 'super_admin' ? 'Super Admin' : (staffDoc?.role ?? 'Staff')}</span>
               </div>
             </div>
+
+            {/* Quick Logout icon button directly in user row */}
+            <button
+              type="button"
+              className="sidebar-user-logout-btn"
+              onClick={handleSignOut}
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut size={13} />
+            </button>
           </div>
         )}
 
-        {/* Bottom Actions: Guide, Theme, Logout, Collapse */}
-        <div style={{ width: '100%' }}>
+        {/* Bottom Actions: Guide + Theme (+ Collapse if desktop) */}
+        <div className="sidebar-actions-wrap">
           {!isCollapsed ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-              {/* Utility row: Guide + Theme + Collapse */}
-              <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowGuide(true)}
-                  title="Help & Guide"
-                  style={{
-                    flex: 1,
-                    height: '38px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    borderRadius: '10px'
-                  }}
-                >
-                  <BookOpen size={15} />
-                  <span>Guide</span>
-                </button>
-
-                <ThemeToggle className="sidebar-theme-toggle" />
-
-                {!mobileOpen && (
-                  <button
-                    className="btn btn-secondary btn-icon sidebar-collapse-btn"
-                    style={{ 
-                      width: '38px',
-                      height: '38px',
-                      flexShrink: 0,
-                      borderRadius: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    onClick={() => setCollapsed(!collapsed)}
-                    title="Collapse sidebar"
-                    aria-label="Collapse sidebar"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                )}
-              </div>
-
-              {/* Logout Button */}
+            <div className="sidebar-actions-row">
               <button
                 type="button"
-                className="btn btn-secondary"
-                onClick={handleSignOut}
-                title="Sign out"
-                style={{
-                  width: '100%',
-                  height: '38px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '10px',
-                  color: 'var(--color-red)',
-                  borderColor: 'rgba(239, 68, 68, 0.25)',
-                  background: 'rgba(239, 68, 68, 0.05)'
-                }}
+                className="btn btn-secondary sidebar-action-guide-btn"
+                onClick={() => setShowGuide(true)}
+                title="Help & Guide"
               >
-                <LogOut size={15} />
-                <span>Logout</span>
+                <BookOpen size={13} />
+                <span>Guide</span>
               </button>
+
+              <ThemeToggle className="sidebar-theme-toggle" />
+
+              {!mobileOpen && (
+                <button
+                  className="btn btn-secondary btn-icon sidebar-collapse-btn"
+                  onClick={() => setCollapsed(!collapsed)}
+                  title="Collapse sidebar"
+                  aria-label="Collapse sidebar"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+              )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
+            <div className="sidebar-actions-collapsed">
               <button
                 className="btn btn-secondary btn-icon"
                 onClick={() => setShowGuide(true)}
                 title="Help & Guide"
-                style={{ width: '38px', height: '38px', borderRadius: '10px' }}
+                style={{ width: '34px', height: '34px', borderRadius: '8px' }}
               >
-                <BookOpen size={16} />
+                <BookOpen size={14} />
               </button>
               <ThemeToggle />
               <button
                 className="btn btn-secondary btn-icon"
                 onClick={handleSignOut}
                 title="Sign out"
-                style={{ width: '38px', height: '38px', borderRadius: '10px', color: 'var(--color-red)' }}
+                style={{ width: '34px', height: '34px', borderRadius: '8px', color: 'var(--color-red)' }}
               >
-                <LogOut size={16} />
+                <LogOut size={14} />
               </button>
               {!mobileOpen && (
                 <button
                   className="btn btn-secondary btn-icon sidebar-collapse-btn"
                   style={{ 
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
@@ -1072,7 +983,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   title="Expand sidebar"
                   aria-label="Expand sidebar"
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} />
                 </button>
               )}
             </div>
