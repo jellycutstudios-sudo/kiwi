@@ -38,6 +38,7 @@ const PendingApproval= lazyWithRetry(() => import('./routes/PendingApproval'));
 const LandingPage    = lazyWithRetry(() => import('./routes/LandingPage'));
 const PosterManager  = lazyWithRetry(() => import('./routes/admin/PosterManager'));
 const PosterDisplay  = lazyWithRetry(() => import('./routes/PosterDisplay'));
+const SelfServiceKiosk = lazyWithRetry(() => import('./routes/SelfServiceKiosk'));
 
 export default function App() {
   const { i18n } = useTranslation();
@@ -115,6 +116,8 @@ export default function App() {
           <Route path="/display/slides/:restaurantId/:slideshowId" element={<PosterDisplay />} />
           <Route path="/order/:restaurantId"          element={<OnlineOrderPage />} />
           <Route path="/menu/:restaurantId"           element={<OnlineOrderPage />} />
+          <Route path="/kiosk/:restaurantId"          element={<SelfServiceKiosk />} />
+          <Route path="/kiosk"                        element={<SelfServiceKiosk />} />
           <Route path="/login"                        element={isAuth ? (isApproved ? <Navigate to={defaultRouteForRole(userRole)} replace /> : <Navigate to="/pending-approval" replace />) : <Login />} />
           <Route path="/pending-approval"             element={isAuth ? (!isApproved ? <PendingApproval /> : <Navigate to="/" replace />) : <Navigate to="/login" replace />} />
 

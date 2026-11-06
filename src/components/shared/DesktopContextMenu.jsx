@@ -560,6 +560,35 @@ export default function DesktopContextMenu() {
           </button>
           <button
             type="button"
+            onClick={() => {
+              closeMenu();
+              navigate(restaurant?.id ? `/kiosk/${restaurant.id}` : '/kiosk');
+            }}
+            className="dineos-ctx-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '7px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '12.5px',
+              fontWeight: 500,
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+              <Monitor size={15} className="text-purple-400" />
+              <span>Launch Self-Order Kiosk</span>
+            </div>
+            <span style={{ fontSize: '10px', opacity: 0.6, fontFamily: 'monospace' }}>/kiosk</span>
+          </button>
+          <button
+            type="button"
             onClick={handleToggleTheme}
             className="dineos-ctx-item"
             style={{

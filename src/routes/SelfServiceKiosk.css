@@ -1,0 +1,869 @@
+/* Self-Service Kiosk Styles — Optimized for Touchscreens & Tablets */
+
+.kiosk-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #0b0d14;
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Source Sans 3", sans-serif;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Attract Screen (Screensaver) ─────────────────────────── */
+.kiosk-attract-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px 24px;
+  background: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #090a0f 80%);
+  cursor: pointer;
+  z-index: 100;
+  animation: kioskFadeIn 0.4s ease-out;
+}
+
+.kiosk-attract-top {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 900px;
+  align-items: center;
+}
+
+.kiosk-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kiosk-brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.kiosk-brand-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.kiosk-lang-pills {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.kiosk-lang-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kiosk-lang-pill.active {
+  background: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+.kiosk-attract-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  max-width: 600px;
+}
+
+.kiosk-attract-hero-icon {
+  width: 100px;
+  height: 100px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%);
+  border: 2px solid rgba(168, 85, 247, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52px;
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.3);
+  animation: kioskPulse 3s infinite ease-in-out;
+}
+
+.kiosk-attract-headline {
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.kiosk-attract-subline {
+  font-size: 17px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.kiosk-dine-choice-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 10px;
+}
+
+.kiosk-choice-btn {
+  flex: 1;
+  padding: 24px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(10px);
+}
+
+.kiosk-choice-btn:active {
+  transform: scale(0.96);
+  background: rgba(99, 102, 241, 0.25);
+  border-color: #6366f1;
+}
+
+.kiosk-choice-btn.primary {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
+}
+
+.kiosk-choice-btn-icon {
+  font-size: 38px;
+}
+
+.kiosk-choice-btn-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.kiosk-choice-btn-desc {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.kiosk-attract-footer {
+  font-size: 13px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── Main Ordering View ───────────────────────────────────── */
+.kiosk-main-screen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.kiosk-header {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(15, 23, 42, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  z-index: 20;
+}
+
+.kiosk-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.kiosk-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kiosk-header-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kiosk-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kiosk-inactivity-beacon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+/* ─── Body Layout: Vertical Categories + Dishes Grid ───────── */
+.kiosk-body {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 68px - 76px);
+  overflow: hidden;
+}
+
+.kiosk-categories-sidebar {
+  width: 140px;
+  background: rgba(15, 23, 42, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  gap: 6px;
+  padding: 12px 8px;
+  scrollbar-width: none;
+}
+
+.kiosk-categories-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+.kiosk-cat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px 6px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  gap: 6px;
+}
+
+.kiosk-cat-item.active {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #818cf8;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.kiosk-cat-icon {
+  font-size: 24px;
+}
+
+.kiosk-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px 20px 100px;
+}
+
+.kiosk-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kiosk-dietary-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.kiosk-dietary-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kiosk-dietary-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.kiosk-dietary-btn.veg.active {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #4ade80;
+}
+
+.kiosk-dietary-btn.nonveg.active {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+/* ─── Dishes Grid ─────────────────────────────────────────── */
+.kiosk-dish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.kiosk-dish-card {
+  display: flex;
+  flex-direction: column;
+  background: #151923;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  overflow: hidden;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.kiosk-dish-card:active {
+  transform: scale(0.98);
+  border-color: #6366f1;
+}
+
+.kiosk-dish-img-wrap {
+  width: 100%;
+  height: 130px;
+  background: #1e2433;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.kiosk-dish-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kiosk-dish-img-placeholder {
+  font-size: 42px;
+}
+
+.kiosk-dish-diet-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.kiosk-dish-diet-tag.veg {
+  border: 2px solid #22c55e;
+}
+.kiosk-dish-diet-tag.veg .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.kiosk-dish-diet-tag.nonveg {
+  border: 2px solid #ef4444;
+}
+.kiosk-dish-diet-tag.nonveg .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.kiosk-dish-info {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kiosk-dish-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.kiosk-dish-localized {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a5b4fc;
+  line-height: 1.2;
+}
+
+.kiosk-dish-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.kiosk-dish-price {
+  font-size: 16px;
+  font-weight: 900;
+  color: #10b981;
+}
+
+.kiosk-dish-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.kiosk-dish-add-btn:active {
+  transform: scale(0.92);
+  background: #4f46e5;
+}
+
+.kiosk-dish-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 10px;
+  padding: 3px 6px;
+}
+
+.kiosk-qty-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.kiosk-qty-count {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* ─── Bottom Floating Checkout Bar ─────────────────────────── */
+.kiosk-footer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 76px;
+  background: #111420;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 30;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.kiosk-footer-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.kiosk-cart-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #818cf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.kiosk-cart-badge-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kiosk-footer-total-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.kiosk-footer-total-label {
+  font-size: 12px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.kiosk-footer-total-amt {
+  font-size: 22px;
+  font-weight: 900;
+  color: #10b981;
+}
+
+.kiosk-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kiosk-view-cart-btn {
+  padding: 14px 28px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kiosk-view-cart-btn:active {
+  transform: scale(0.97);
+}
+
+/* ─── Modal & Drawers ──────────────────────────────────────── */
+.kiosk-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: kioskFadeIn 0.2s ease-out;
+}
+
+.kiosk-modal-box {
+  background: #151923;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+}
+
+.kiosk-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kiosk-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.kiosk-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kiosk-cart-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.kiosk-cart-item-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.kiosk-cart-item-sub {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ─── UPI Payment Modal ────────────────────────────────────── */
+.kiosk-upi-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px;
+  background: #0f121d;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 14px;
+}
+
+.kiosk-qr-image-wrap {
+  background: #ffffff;
+  padding: 14px;
+  border-radius: 16px;
+  display: inline-flex;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.kiosk-qr-image {
+  width: 200px;
+  height: 200px;
+  display: block;
+}
+
+.kiosk-upi-apps-icons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.kiosk-pay-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.kiosk-pay-option-btn {
+  padding: 20px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kiosk-pay-option-btn.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+}
+
+/* ─── Success & Token Celebration Screen ───────────────────── */
+.kiosk-success-screen {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, #064e3b 0%, #051c14 80%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  z-index: 200;
+  animation: kioskFadeIn 0.3s ease-out;
+  text-align: center;
+}
+
+.kiosk-token-hero-card {
+  background: #0f291e;
+  border: 2px solid #10b981;
+  border-radius: 30px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 20px 60px rgba(16, 185, 129, 0.35);
+}
+
+.kiosk-token-header-tag {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.kiosk-token-number-display {
+  font-size: 80px;
+  font-weight: 950;
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+  text-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+  margin: 10px 0;
+}
+
+.kiosk-token-instructions {
+  font-size: 15px;
+  color: #cbd5e1;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.kiosk-token-countdown {
+  font-size: 13px;
+  color: #6ee7b7;
+  font-weight: 700;
+}
+
+.kiosk-token-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.kiosk-token-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.kiosk-token-btn.primary {
+  background: #10b981;
+  color: #064e3b;
+}
+
+.kiosk-token-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ─── Animations ───────────────────────────────────────────── */
+@keyframes kioskFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes kioskPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
