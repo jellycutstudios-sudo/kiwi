@@ -2537,6 +2537,28 @@ export default function Settings() {
                       Service format choices offered to guests.
                     </span>
                   </div>
+
+                  {/* Kiosk Color Theme Palette */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
+                      Kiosk Visual Color Theme
+                    </label>
+                    <select
+                      className="form-select"
+                      value={settings.kioskConfig?.colorTheme ?? 'monochrome'}
+                      onChange={e => updateField('kioskConfig.colorTheme', e.target.value)}
+                      style={{ fontSize: '12.5px' }}
+                    >
+                      <option value="monochrome">Minimalist Black &amp; White (Universal / Recommended)</option>
+                      <option value="crimson">Crimson Red (Pizza &amp; Fast-Casual)</option>
+                      <option value="emerald">Emerald Mint (Cafe &amp; Organic)</option>
+                      <option value="amber">Warm Artisan Amber (Bakery &amp; Coffee)</option>
+                      <option value="indigo">Midnight Indigo (Modern Lounge &amp; Bar)</option>
+                    </select>
+                    <span style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: 4, display: 'block' }}>
+                      Accent palette used across welcome screen, buttons, and checkout pills.
+                    </span>
+                  </div>
                 </div>
 
                 {/* Auto-Print Token Slip - Clean Integrated Switch Row */}

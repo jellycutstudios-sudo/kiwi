@@ -5,6 +5,101 @@
   --kiosk-font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --kiosk-red: #dc2626;
   --kiosk-red-hover: #b91c1c;
+
+  /* Default Theme: Minimalist Black & White / Monochrome */
+  --kiosk-accent: #ffffff;
+  --kiosk-accent-hover: #f4f4f5;
+  --kiosk-accent-text: #090a0f;
+  --kiosk-accent-glow: rgba(255, 255, 255, 0.22);
+  --kiosk-hero-glow: rgba(255, 255, 255, 0.08);
+  --kiosk-hero-border: rgba(255, 255, 255, 0.25);
+  --kiosk-hero-color: #ffffff;
+  --kiosk-choice-primary-bg: #ffffff;
+  --kiosk-choice-primary-text: #090a0f;
+  --kiosk-choice-primary-border: #ffffff;
+  --kiosk-choice-primary-desc: rgba(9, 10, 15, 0.72);
+  --kiosk-choice-primary-glow: 0 16px 40px rgba(255, 255, 255, 0.22);
+}
+
+/* ─── Kiosk Color Themes ─────────────────────────────────────── */
+/* 1. Monochrome / Minimalist Noir (Universal - Default) */
+.kiosk-theme-monochrome {
+  --kiosk-accent: #ffffff;
+  --kiosk-accent-hover: #f4f4f5;
+  --kiosk-accent-text: #090a0f;
+  --kiosk-accent-glow: rgba(255, 255, 255, 0.22);
+  --kiosk-hero-glow: rgba(255, 255, 255, 0.08);
+  --kiosk-hero-border: rgba(255, 255, 255, 0.25);
+  --kiosk-hero-color: #ffffff;
+  --kiosk-choice-primary-bg: #ffffff;
+  --kiosk-choice-primary-text: #090a0f;
+  --kiosk-choice-primary-border: #ffffff;
+  --kiosk-choice-primary-desc: rgba(9, 10, 15, 0.72);
+  --kiosk-choice-primary-glow: 0 16px 40px rgba(255, 255, 255, 0.22);
+}
+
+/* 2. Crimson Red (Pizza & Fast-Casual) */
+.kiosk-theme-crimson {
+  --kiosk-accent: #e11d48;
+  --kiosk-accent-hover: #be123c;
+  --kiosk-accent-text: #ffffff;
+  --kiosk-accent-glow: rgba(225, 29, 72, 0.35);
+  --kiosk-hero-glow: rgba(225, 29, 72, 0.18);
+  --kiosk-hero-border: rgba(225, 29, 72, 0.4);
+  --kiosk-hero-color: #f43f5e;
+  --kiosk-choice-primary-bg: linear-gradient(135deg, #e11d48 0%, #b91c1c 100%);
+  --kiosk-choice-primary-text: #ffffff;
+  --kiosk-choice-primary-border: #f43f5e;
+  --kiosk-choice-primary-desc: rgba(255, 255, 255, 0.85);
+  --kiosk-choice-primary-glow: 0 12px 36px rgba(225, 29, 72, 0.4);
+}
+
+/* 3. Emerald Mint (Cafe & Healthy) */
+.kiosk-theme-emerald {
+  --kiosk-accent: #10b981;
+  --kiosk-accent-hover: #059669;
+  --kiosk-accent-text: #022c22;
+  --kiosk-accent-glow: rgba(16, 185, 129, 0.35);
+  --kiosk-hero-glow: rgba(16, 185, 129, 0.18);
+  --kiosk-hero-border: rgba(16, 185, 129, 0.4);
+  --kiosk-hero-color: #34d399;
+  --kiosk-choice-primary-bg: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --kiosk-choice-primary-text: #ffffff;
+  --kiosk-choice-primary-border: #34d399;
+  --kiosk-choice-primary-desc: rgba(255, 255, 255, 0.85);
+  --kiosk-choice-primary-glow: 0 12px 36px rgba(16, 185, 129, 0.4);
+}
+
+/* 4. Warm Artisan Amber (Bakery & Coffee) */
+.kiosk-theme-amber {
+  --kiosk-accent: #f59e0b;
+  --kiosk-accent-hover: #d97706;
+  --kiosk-accent-text: #451a03;
+  --kiosk-accent-glow: rgba(245, 158, 11, 0.35);
+  --kiosk-hero-glow: rgba(245, 158, 11, 0.18);
+  --kiosk-hero-border: rgba(245, 158, 11, 0.4);
+  --kiosk-hero-color: #fbbf24;
+  --kiosk-choice-primary-bg: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --kiosk-choice-primary-text: #ffffff;
+  --kiosk-choice-primary-border: #fbbf24;
+  --kiosk-choice-primary-desc: rgba(255, 255, 255, 0.85);
+  --kiosk-choice-primary-glow: 0 12px 36px rgba(245, 158, 11, 0.4);
+}
+
+/* 5. Midnight Indigo (Modern Lounge & Bar) */
+.kiosk-theme-indigo {
+  --kiosk-accent: #6366f1;
+  --kiosk-accent-hover: #4f46e5;
+  --kiosk-accent-text: #ffffff;
+  --kiosk-accent-glow: rgba(99, 102, 241, 0.35);
+  --kiosk-hero-glow: rgba(99, 102, 241, 0.18);
+  --kiosk-hero-border: rgba(99, 102, 241, 0.4);
+  --kiosk-hero-color: #818cf8;
+  --kiosk-choice-primary-bg: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --kiosk-choice-primary-text: #ffffff;
+  --kiosk-choice-primary-border: #818cf8;
+  --kiosk-choice-primary-desc: rgba(255, 255, 255, 0.85);
+  --kiosk-choice-primary-glow: 0 12px 36px rgba(99, 102, 241, 0.4);
 }
 
 .kiosk-container {
@@ -111,86 +206,116 @@
 }
 
 .kiosk-attract-hero-icon {
-  width: 90px;
-  height: 90px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
-  background: rgba(245, 158, 11, 0.12);
-  border: 2px solid rgba(245, 158, 11, 0.3);
+  background: var(--kiosk-hero-glow, rgba(255, 255, 255, 0.08));
+  border: 1.5px solid var(--kiosk-hero-border, rgba(255, 255, 255, 0.25));
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 40px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 35px var(--kiosk-hero-glow, rgba(255, 255, 255, 0.12));
   animation: kioskPulse 3s infinite ease-in-out;
 }
 
 .kiosk-attract-headline {
   font-family: var(--kiosk-font-display);
-  font-size: clamp(34px, 5.5vw, 54px);
-  font-weight: 700;
+  font-size: clamp(32px, 5.2vw, 50px);
+  font-weight: 800;
   color: #ffffff;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.015em;
   text-transform: uppercase;
-  line-height: 1.05;
+  line-height: 1.08;
 }
 
 .kiosk-attract-subline {
-  font-size: 16px;
+  font-size: 15.5px;
   color: #94a3b8;
   margin: 0;
   line-height: 1.5;
+  max-width: 520px;
 }
 
 .kiosk-dine-choice-row {
   display: flex;
   gap: 16px;
   width: 100%;
-  margin-top: 14px;
+  max-width: 540px;
+  margin-top: 10px;
 }
 
 .kiosk-choice-btn {
   flex: 1;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   border-radius: 20px;
-  padding: 24px 20px;
+  padding: 26px 20px;
   color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+.kiosk-choice-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.38);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
 .kiosk-choice-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .kiosk-choice-btn.primary {
-  background: linear-gradient(135deg, #e11d48 0%, #b91c1c 100%);
-  border-color: #f43f5e;
-  box-shadow: 0 10px 30px rgba(225, 29, 72, 0.35);
+  background: var(--kiosk-choice-primary-bg);
+  color: var(--kiosk-choice-primary-text);
+  border-color: var(--kiosk-choice-primary-border);
+  box-shadow: var(--kiosk-choice-primary-glow);
+}
+
+.kiosk-choice-btn.primary .kiosk-choice-btn-title {
+  color: var(--kiosk-choice-primary-text);
+}
+
+.kiosk-choice-btn.primary .kiosk-choice-btn-desc {
+  color: var(--kiosk-choice-primary-desc);
+}
+
+.kiosk-choice-btn.primary .kiosk-choice-btn-icon {
+  color: var(--kiosk-choice-primary-text);
 }
 
 .kiosk-choice-btn-title {
   font-family: var(--kiosk-font-display);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .kiosk-choice-btn-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
 }
 
 .kiosk-attract-footer {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: #64748b;
-  font-weight: 600;
+  color: #94a3b8;
+  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.02em;
 }
 
 /* ─── Main Menu Screen ─────────────────────────────────────── */
@@ -866,8 +991,8 @@
 }
 
 .kiosk-bar-checkout-pill {
-  background: var(--kiosk-red);
-  color: #ffffff;
+  background: var(--kiosk-accent);
+  color: var(--kiosk-accent-text);
   border: none;
   border-radius: 0 999px 999px 0;
   padding: 12px 24px;
@@ -880,11 +1005,12 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  box-shadow: 0 4px 18px var(--kiosk-accent-glow);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .kiosk-bar-checkout-pill:hover {
-  background: var(--kiosk-red-hover);
+  background: var(--kiosk-accent-hover);
 }
 
 .kiosk-bar-checkout-pill:active {
@@ -1134,8 +1260,8 @@
 .kiosk-detail-add-btn {
   width: 100%;
   height: 50px;
-  background: var(--kiosk-red);
-  color: #ffffff;
+  background: var(--kiosk-accent);
+  color: var(--kiosk-accent-text);
   border: none;
   border-radius: 14px;
   font-family: var(--kiosk-font-display);
@@ -1147,12 +1273,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
-  transition: background 0.15s ease;
+  box-shadow: 0 6px 18px var(--kiosk-accent-glow);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .kiosk-detail-add-btn:hover {
-  background: var(--kiosk-red-hover);
+  background: var(--kiosk-accent-hover);
 }
 
 .kiosk-detail-add-btn:active {
@@ -1361,8 +1487,8 @@
 .kiosk-cart-continue-btn {
   width: 100%;
   height: 50px;
-  background: var(--kiosk-red);
-  color: #ffffff;
+  background: var(--kiosk-accent);
+  color: var(--kiosk-accent-text);
   border: none;
   border-radius: 14px;
   font-family: var(--kiosk-font-display);
@@ -1374,12 +1500,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
-  transition: background 0.15s ease;
+  box-shadow: 0 6px 18px var(--kiosk-accent-glow);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .kiosk-cart-continue-btn:hover {
-  background: var(--kiosk-red-hover);
+  background: var(--kiosk-accent-hover);
 }
 
 .kiosk-cart-continue-btn:active {
@@ -1540,8 +1666,8 @@
 .kiosk-checkout-confirm-btn {
   width: 100%;
   height: 50px;
-  background: var(--kiosk-red);
-  color: #ffffff;
+  background: var(--kiosk-accent);
+  color: var(--kiosk-accent-text);
   border: none;
   border-radius: 14px;
   font-family: var(--kiosk-font-display);
@@ -1553,8 +1679,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
-  transition: background 0.15s ease;
+  box-shadow: 0 6px 18px var(--kiosk-accent-glow);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.kiosk-checkout-confirm-btn:hover {
+  background: var(--kiosk-accent-hover);
 }
 
 .kiosk-checkout-confirm-btn:disabled {

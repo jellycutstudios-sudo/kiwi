@@ -57,19 +57,21 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
   }, []);
 
   // Kiosk Flow States: 'attract' | 'menu' | 'success'
-  const [step, setStep] = useState('attract');
-  const [orderType, setOrderType] = useState('dine-in'); // 'dine-in' | 'takeaway'
-  const [lang, setLang] = useState('en'); // 'en' | 'ml' | 'hi'
-
   // Kiosk Config
   const configuredTimeout = Number(restaurant?.kioskConfig?.inactivityTimeout) || 60;
   const allowedPayment = restaurant?.kioskConfig?.allowedPayment || 'both';
+  const allowedDining = restaurant?.kioskConfig?.allowedDining || 'both';
+  const colorTheme = restaurant?.kioskConfig?.colorTheme || 'monochrome';
   const autoPrintToken = restaurant?.kioskConfig?.autoPrintToken !== false;
+
+  const [step, setStep] = useState('attract');
+  const [orderType, setOrderType] = useState(allowedDining === 'takeaway' ? 'takeaway' : 'dine-in'); // 'dine-in' | 'takeaway'
+  const [lang, setLang] = useState('en'); // 'en' | 'ml' | 'hi'
 
   // Active Logo Emblem: Kiosk specific logo -> Receipt logo -> Restaurant general logo
   const kioskLogo = restaurant?.kioskConfig?.logoUrl || restaurant?.receiptConfig?.logoUrl || restaurant?.logo || null;
-  const heroHeadline = restaurant?.kioskConfig?.headline || 'DO YOU HAVE ANY ORDER TODAY?';
-  const heroSubtitle = restaurant?.kioskConfig?.subtitle || 'FRESHLY PREPARED. MADE FOR YOU TODAY.';
+  const heroHeadline = restaurant?.kioskConfig?.headline || 'Touch Anywhere to Order';
+  const heroSubtitle = restaurant?.kioskConfig?.subtitle || 'Freshly prepared, fast checkout & automatic pickup token calling.';
   const stationName = restaurant?.kioskConfig?.stationName?.trim() || 'Ground Floor Kiosk';
 
   // Menu Navigation & Filtering
@@ -528,18 +530,18 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
   // ─── Render Step 1: Attract Screen (Screensaver) ────────────
   if (step === 'attract') {
     return (
-      <div className="kiosk-container kiosk-attract-screen" onClick={() => setStep('menu')}>
+      <div className={`kiosk-container kiosk-theme-${colorTheme} kiosk-attract-screen`} onClick={() => setStep('menu')}>
         {/* Top Header */}
         <div className="kiosk-attract-top" onClick={e => e.stopPropagation()}>
           <div className="kiosk-brand-badge">
             <div className="kiosk-brand-logo">
               {kioskLogo ? (
                 <img src={kioskLogo} alt={restaurant?.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              ) : <Utensils size={24} color="#94a3b8" />}
+              ) : <Utensils size={22} color="#cbd5e1" />}
             </div>
             <div>
               <div className="kiosk-brand-title">{restaurant?.name || 'Self-Service Kiosk'}</div>
-              <div style={{ fontSize: '13px', color: '#94a3b8' }}>Ground Floor Express Order</div>
+              <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>{stationName}</div>
             </div>
           </div>
 
@@ -561,56 +563,60 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
         {/* Center Attraction Hero */}
         <div className="kiosk-attract-center">
           <div className="kiosk-attract-hero-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Sparkles size={48} color="#f59e0b" />
+            <Sparkles size={36} color="var(--kiosk-hero-color, #ffffff)" />
           </div>
           <div className="kiosk-attract-headline">
-            Touch Anywhere to Order
+            {heroHeadline}
           </div>
           <p className="kiosk-attract-subline">
-            Freshly prepared, fast checkout & automatic pickup token calling.
+            {heroSubtitle}
           </p>
 
-          {/* Dining Choices */}
+          {/* Dining Choices (Respects allowedDining configuration) */}
           <div className="kiosk-dine-choice-row" onClick={e => e.stopPropagation()}>
-            <button
-              type="button"
-              className="kiosk-choice-btn primary"
-              onClick={() => {
-                setOrderType('dine-in');
-                setStep('menu');
-                hapticTap('medium');
-              }}
-            >
-              <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Utensils size={36} />
-              </span>
-              <span className="kiosk-choice-btn-title">Dine In</span>
-              <span className="kiosk-choice-btn-desc">Eat here at tables</span>
-            </button>
+            {allowedDining !== 'takeaway' && (
+              <button
+                type="button"
+                className="kiosk-choice-btn primary"
+                onClick={() => {
+                  setOrderType('dine-in');
+                  setStep('menu');
+                  hapticTap('medium');
+                }}
+              >
+                <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Utensils size={32} />
+                </span>
+                <span className="kiosk-choice-btn-title">Dine In</span>
+                <span className="kiosk-choice-btn-desc">Eat here at tables</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              className="kiosk-choice-btn"
-              onClick={() => {
-                setOrderType('takeaway');
-                setStep('menu');
-                hapticTap('medium');
-              }}
-            >
-              <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ShoppingBag size={36} />
-              </span>
-              <span className="kiosk-choice-btn-title">Takeaway</span>
-              <span className="kiosk-choice-btn-desc">Pack to go</span>
-            </button>
+            {allowedDining !== 'dine-in' && (
+              <button
+                type="button"
+                className={`kiosk-choice-btn ${allowedDining === 'takeaway' ? 'primary' : 'secondary'}`}
+                onClick={() => {
+                  setOrderType('takeaway');
+                  setStep('menu');
+                  hapticTap('medium');
+                }}
+              >
+                <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShoppingBag size={32} />
+                </span>
+                <span className="kiosk-choice-btn-title">Takeaway</span>
+                <span className="kiosk-choice-btn-desc">Pack to go</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="kiosk-attract-footer">
-          <span>Tap screen to begin</span>
-          <span>•</span>
-          <span>Pay via Instant UPI or Cash at Counter</span>
+          <span>Tap anywhere to begin</span>
+          <span style={{ opacity: 0.35 }}>•</span>
+          <span>Instant UPI QR or Pay at Counter</span>
         </div>
       </div>
     );
@@ -619,7 +625,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
   // ─── Render Step 3: Success Screen (Token Display) ──────────
   if (step === 'success' && placedOrderInfo) {
     return (
-      <div className="kiosk-container kiosk-success-screen">
+      <div className={`kiosk-container kiosk-theme-${colorTheme} kiosk-success-screen`}>
         <div className="kiosk-token-hero-card">
           <div className="kiosk-token-header-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {placedOrderInfo.orderType === 'dine-in' ? <Utensils size={14} /> : <ShoppingBag size={14} />}
@@ -677,7 +683,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
   // ─── Render Step 2: Main Menu Screen (Refactored to match uploaded UI) ─
   return (
-    <div className="kiosk-container kiosk-menu-screen" onClick={resetInactivityTimer}>
+    <div className={`kiosk-container kiosk-theme-${colorTheme} kiosk-menu-screen`} onClick={resetInactivityTimer}>
       {/* ── Top Ambient Navigation Bar ── */}
       <header className="kiosk-top-nav">
         <button
