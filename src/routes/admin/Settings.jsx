@@ -2474,6 +2474,115 @@ export default function Settings() {
                     </span>
                   </div>
                 </div>
+
+                {/* Kiosk Hero Headline, Subtitle & Logo Customization */}
+                <div style={{ marginTop: 'var(--space-2)', padding: '14px 16px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>Kiosk Branding &amp; Logo</span>
+                      <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
+                        Customize the hero headline, subtitle, and emblem logo displayed on the kiosk screen.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>Hero Headline</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="DO YOU HAVE ANY ORDER TODAY?"
+                        value={settings.kioskConfig?.headline ?? ''}
+                        onChange={e => updateField('kioskConfig.headline', e.target.value)}
+                        style={{ fontSize: '12.5px' }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>Hero Subtitle / Tagline</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="FRESHLY PREPARED. MADE FOR YOU TODAY."
+                        value={settings.kioskConfig?.subtitle ?? ''}
+                        onChange={e => updateField('kioskConfig.subtitle', e.target.value)}
+                        style={{ fontSize: '12.5px' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Logo Source & Upload */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', paddingTop: 4 }}>
+                    <div style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: 'var(--color-bg)',
+                      border: '1.5px dashed var(--color-separator)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {(settings.kioskConfig?.logoUrl || settings.receiptConfig?.logoUrl || settings.logo) ? (
+                        <img
+                          src={settings.kioskConfig?.logoUrl || settings.receiptConfig?.logoUrl || settings.logo}
+                          alt="Kiosk Logo"
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      ) : (
+                        <Store size={22} color="var(--color-label-tertiary)" />
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 200 }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>
+                        {settings.kioskConfig?.logoUrl ? 'Using Dedicated Kiosk Logo' : (settings.receiptConfig?.logoUrl || settings.logo ? 'Using Main Brand / Receipt Logo' : 'No Logo Uploaded')}
+                      </span>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="file"
+                          id="settings-kiosk-logo-file"
+                          accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              updateField('kioskConfig.logoUrl', ev.target.result);
+                              toast.success('Custom Kiosk logo updated!');
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => document.getElementById('settings-kiosk-logo-file')?.click()}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                        >
+                          <Upload size={12} /> Upload Custom Kiosk Logo
+                        </button>
+                        {settings.kioskConfig?.logoUrl && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => {
+                              updateField('kioskConfig.logoUrl', '');
+                              toast.success('Reset to Receipt / Brand logo');
+                            }}
+                            style={{ color: 'var(--color-red)' }}
+                          >
+                            Reset to Receipt Logo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* QSR TV Token Display (Only when token mode is active) */}

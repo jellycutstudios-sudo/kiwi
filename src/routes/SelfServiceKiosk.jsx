@@ -17,11 +17,22 @@ import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import { 
-  ShoppingCart, ArrowLeft, QrCode, Banknote, AlertTriangle, 
+  ArrowLeft, QrCode, Banknote, AlertTriangle, 
   Maximize2, Minimize2, Plus, Minus, Trash2, X, Search, ChevronRight,
-  Clock, Printer, Utensils, ShoppingBag, Sparkles, Layers, Receipt
+  Clock, Printer, Utensils, ShoppingBag, Sparkles, Receipt,
+  LayoutGrid, Tag, TrendingUp
 } from 'lucide-react';
 import './SelfServiceKiosk.css';
+
+function formatKioskDate(date) {
+  try {
+    const day = date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${day}, ${time}`;
+  } catch {
+    return '';
+  }
+}
 
 export default function SelfServiceKiosk({ initialRestaurant = null, initialCategories = null }) {
   const { restaurantId: paramId } = useParams();
@@ -34,9 +45,15 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
   // Restaurant Resolution
   const [restaurant, setRestaurant] = useState(initialRestaurant || authRestaurant || null);
-  const [loadingRest, setLoadingRest] = useState(!initialRestaurant && !authRestaurant);
   const restaurantId = paramId || restaurant?.id || authRestaurant?.id;
   const categories = initialCategories || storeCategories;
+
+  // Real-time clock for top header
+  const [currentTime, setCurrentTime] = useState(() => formatKioskDate(new Date()));
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(formatKioskDate(new Date())), 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Kiosk Flow States: 'attract' | 'menu' | 'success'
   const [step, setStep] = useState('attract');
@@ -48,16 +65,25 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
   const allowedPayment = restaurant?.kioskConfig?.allowedPayment || 'both';
   const autoPrintToken = restaurant?.kioskConfig?.autoPrintToken !== false;
 
+  // Active Logo Emblem: Kiosk specific logo -> Receipt logo -> Restaurant general logo
+  const kioskLogo = restaurant?.kioskConfig?.logoUrl || restaurant?.receiptConfig?.logoUrl || restaurant?.logo || null;
+  const heroHeadline = restaurant?.kioskConfig?.headline || 'DO YOU HAVE ANY ORDER TODAY?';
+  const heroSubtitle = restaurant?.kioskConfig?.subtitle || 'FRESHLY PREPARED. MADE FOR YOU TODAY.';
+
   // Menu Navigation & Filtering
   const [activeCategory, setActiveCategory] = useState('all');
-  const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'nonveg'
+  const [quickFilter, setQuickFilter] = useState('all'); // 'all' | 'discount' | 'trending' | 'veg' | 'nonveg'
   const [searchQuery, setSearchQuery] = useState('');
 
   // Cart & Modifiers
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedModifierItem, setSelectedModifierItem] = useState(null);
   const [cookingNote, setCookingNote] = useState('');
+
+  // Dish Customization & Detail Modal (Matching Reference Image 3)
+  const [selectedModifierItem, setSelectedModifierItem] = useState(null);
+  const [detailQty, setDetailQty] = useState(1);
+  const [selectedModifiers, setSelectedModifiers] = useState([]); // [{ modifierName, optionName, price }]
 
   // Checkout & Payment
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -147,280 +173,83 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
     return allMenuItems.filter(item => {
       if (item.available === false) return false;
       if (activeCategory !== 'all' && item.categoryId !== activeCategory) return false;
-      if (dietaryFilter === 'veg' && !item.isVeg) return false;
-      if (dietaryFilter === 'nonveg' && item.isVeg) return false;
-      if (searchQuery.trim()) {
-        const queryClean = searchQuery.toLowerCase().trim();
-        const matchesName = (item.name || '').toLowerCase().includes(queryClean);
-        const matchesMl = (item.mlName || '').includes(queryClean);
-        const matchesHi = (item.hiName || '').includes(queryClean);
-        if (!matchesName && !matchesMl && !matchesHi) return false;
+
+      // Quick filter
+      if (quickFilter === 'discount') {
+        const hasDiscount = Boolean(item.originalPrice && Number(item.originalPrice) > Number(item.price));
+        if (!hasDiscount) return false;
+      } else if (quickFilter === 'trending') {
+        const isTrending = Boolean(item.isBestseller || item.popular || item.bestseller);
+        if (!isTrending) return false;
+      } else if (quickFilter === 'veg' && !item.isVeg) {
+        return false;
+      } else if (quickFilter === 'nonveg' && item.isVeg) {
+        return false;
       }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (item.name || '').toLowerCase().includes(q);
+        const translit = transliterateFood(item.name || '', lang);
+        const translitMatch = translit.toLowerCase().includes(q);
+        const catMatch = (item.categoryName || '').toLowerCase().includes(q);
+        return nameMatch || translitMatch || catMatch;
+      }
+
       return true;
     });
-  }, [allMenuItems, activeCategory, dietaryFilter, searchQuery]);
+  }, [allMenuItems, activeCategory, quickFilter, searchQuery, lang]);
 
-  // ─── 3. Inactivity Watchdog ────────────────────────────────
-  const resetWatchdog = useCallback(() => {
+  // ─── 3. Inactivity Reset Watchdog ──────────────────────────
+  const resetInactivityTimer = useCallback(() => {
     setInactivityTimer(configuredTimeout);
     setShowInactivityWarning(false);
   }, [configuredTimeout]);
 
   useEffect(() => {
-    if (step === 'attract') return; // No timer needed on attract screensaver
+    if (step === 'attract') return;
 
     const interval = setInterval(() => {
       setInactivityTimer(prev => {
         if (prev <= 1) {
-          // Timeout expired -> reset completely
-          handleResetToAttract();
+          // Timeout reached: Hard reset back to screensaver
+          setStep('attract');
+          setCart([]);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setSelectedModifierItem(null);
+          setPlacedOrderInfo(null);
+          setShowInactivityWarning(false);
           return configuredTimeout;
         }
-        if (prev <= 11) {
+
+        if (prev === 12) {
           setShowInactivityWarning(true);
         }
+
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    const userActivityEvents = ['touchstart', 'touchmove', 'mousedown', 'keydown', 'scroll'];
+    const handleUserActivity = () => {
+      setInactivityTimer(configuredTimeout);
+      setShowInactivityWarning(false);
+    };
+
+    userActivityEvents.forEach(evt => window.addEventListener(evt, handleUserActivity, { passive: true }));
+
+    return () => {
+      clearInterval(interval);
+      userActivityEvents.forEach(evt => window.removeEventListener(evt, handleUserActivity));
+    };
   }, [step, configuredTimeout]);
 
-  // Reset watchdog on user interaction
-  useEffect(() => {
-    const handleActivity = () => resetWatchdog();
-    window.addEventListener('pointerdown', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    return () => {
-      window.removeEventListener('pointerdown', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-    };
-  }, [resetWatchdog]);
-
-  // Fullscreen Detection
-  useEffect(() => {
-    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
-  }, []);
-
-  const toggleFullscreen = () => {
-    try {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
-      }
-    } catch {}
-  };
-
-  // ─── 4. Cart Operations ────────────────────────────────────
-  const cartSubtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + (item.price * item.qty) + (item.modifierTotal || 0) * item.qty, 0);
-  }, [cart]);
-
-  const cartTotalQty = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.qty, 0);
-  }, [cart]);
-
-  const taxDetails = useMemo(() => {
-    if (!restaurant) return { taxTotal: 0, lines: [] };
-    const catsMap = {};
-    (categories || []).forEach(c => { catsMap[c.id] = c; });
-    return computeOrderTaxes(cart, catsMap, restaurant.taxConfig || {}, { orderType });
-  }, [cart, restaurant, categories, orderType]);
-
-  const cartGrandTotal = useMemo(() => {
-    return Math.max(0, cartSubtotal + (taxDetails.taxTotal || 0));
-  }, [cartSubtotal, taxDetails]);
-
-  const addToCart = (item, selectedModifiers = [], modifierTotal = 0) => {
-    hapticTap('light');
-    playNotificationTone('reception-bell', 0.2);
-
-    setCart(prev => {
-      const matchIndex = prev.findIndex(ci => 
-        ci.id === item.id && 
-        JSON.stringify(ci.selectedModifiers || []) === JSON.stringify(selectedModifiers)
-      );
-
-      if (matchIndex > -1) {
-        const next = [...prev];
-        next[matchIndex].qty += 1;
-        return next;
-      }
-
-      return [
-        ...prev,
-        {
-          id: item.id,
-          cartItemId: `${item.id}_${Date.now()}`,
-          name: item.name,
-          mlName: item.mlName,
-          hiName: item.hiName,
-          price: Number(item.price) || 0,
-          qty: 1,
-          isVeg: item.isVeg,
-          selectedModifiers,
-          modifierTotal,
-          station: item.station || 'Kitchen',
-          recipe: item.recipe || []
-        }
-      ];
-    });
-  };
-
-  const updateCartItemQty = (cartItemId, delta) => {
-    hapticTap('light');
-    setCart(prev => {
-      return prev.map(ci => {
-        if (ci.cartItemId === cartItemId) {
-          const nextQty = ci.qty + delta;
-          return nextQty > 0 ? { ...ci, qty: nextQty } : null;
-        }
-        return ci;
-      }).filter(Boolean);
-    });
-  };
-
-  const clearCartItem = (cartItemId) => {
-    hapticTap('medium');
-    setCart(prev => prev.filter(ci => ci.cartItemId !== cartItemId));
-  };
-
-  const handleResetToAttract = () => {
-    setCart([]);
-    setIsCartOpen(false);
-    setIsCheckoutOpen(false);
-    setSelectedModifierItem(null);
-    setPlacedOrderInfo(null);
-    setShowInactivityWarning(false);
-    setStep('attract');
-    setSearchQuery('');
-    setActiveCategory('all');
-  };
-
-  // ─── 5. Dynamic UPI QR Generation ──────────────────────────
-  useEffect(() => {
-    if (!isCheckoutOpen || paymentMethod !== 'upi' || cartGrandTotal <= 0) return;
-
-    const vpa = restaurant?.upiConfig?.vpa || 'dineos@upi';
-    const name = restaurant?.upiConfig?.name || restaurant?.name || 'Restaurant Kiosk';
-    const currency = restaurant?.currency || 'INR';
-    const sanitizedNote = `Kiosk Order ${Date.now().toString().slice(-4)}`;
-
-    const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(name)}&am=${cartGrandTotal.toFixed(2)}&cu=${currency}&tn=${encodeURIComponent(sanitizedNote)}`;
-
-    QRCode.toDataURL(upiUrl, {
-      width: 240,
-      margin: 1,
-      color: { dark: '#0f172a', light: '#ffffff' }
-    })
-      .then(url => setQrCodeUrl(url))
-      .catch(() => {
-        setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiUrl)}`);
-      });
-  }, [isCheckoutOpen, paymentMethod, cartGrandTotal, restaurant]);
-
-  // ─── 6. Place Kiosk Order ──────────────────────────────────
-  const handlePlaceOrder = async () => {
-    if (cart.length === 0 || isPlacingOrder || !restaurant?.id) return;
-
-    setIsPlacingOrder(true);
-    try {
-      // 1. Transactionally issue next Token Number
-      const tokenNum = await issueToken(restaurant.id);
-
-      // 2. Build order payload
-      const currency = restaurant.currency || 'INR';
-      const orderPayload = {
-        type: orderType,
-        orderType: orderType,
-        source: 'kiosk',
-        status: 'pending',
-        token: tokenNum,
-        tokenNumber: tokenNum,
-        floor: 'Ground Floor',
-        items: cart.map(i => ({
-          id: i.id,
-          name: i.name,
-          mlName: i.mlName || '',
-          hiName: i.hiName || '',
-          price: i.price,
-          qty: i.qty,
-          selectedModifiers: i.selectedModifiers || [],
-          modifierTotal: i.modifierTotal || 0,
-          station: i.station || 'Kitchen',
-          status: 'pending'
-        })),
-        subtotal: cartSubtotal,
-        taxAmount: taxDetails.taxTotal,
-        taxTotal: taxDetails.taxTotal,
-        taxLines: taxDetails.lines || [],
-        total: cartGrandTotal,
-        note: cookingNote.trim(),
-        paymentMethod: paymentMethod === 'upi' ? 'upi' : 'counter_cash',
-        paymentStatus: paymentMethod === 'upi' ? 'paid' : 'unpaid',
-        paid: paymentMethod === 'upi',
-        createdAt: serverTimestamp(),
-        currency
-      };
-
-      // 3. Save order to Firestore
-      const orderRef = doc(collection(db, 'restaurants', restaurant.id, 'orders'));
-      await setDoc(orderRef, orderPayload);
-
-      // 4. Trigger Token Print (optional, auto-prints if printer configured and enabled)
-      if (autoPrintToken) {
-        try {
-          printTokenTicket({
-            token: tokenNum,
-            orderType,
-            customerName: `Kiosk #${tokenNum}`,
-            restaurant,
-            isOffline: !navigator.onLine
-          });
-        } catch (err) {
-          console.debug('Kiosk auto-print skipped:', err);
-        }
-      }
-
-      // 5. Success state & Confetti
-      setPlacedOrderInfo({
-        id: orderRef.id,
-        token: tokenNum,
-        total: cartGrandTotal,
-        items: [...cart],
-        orderType,
-        currency,
-        paymentMethod
-      });
-
-      setCart([]);
-      setIsCheckoutOpen(false);
-      setIsCartOpen(false);
-      setStep('success');
-      setSuccessCountdown(15);
-
-      // Launch celebration confetti
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-      playNotificationTone('reception-bell', 0.8);
-      hapticTap('heavy');
-    } catch (err) {
-      console.error('[SelfServiceKiosk] Order failed:', err);
-      toast.error('Could not complete order. Please try again or ask counter staff.');
-    } finally {
-      setIsPlacingOrder(false);
-    }
-  };
-
-  // ─── 7. Success Screen Auto-Reset Countdown ────────────────
+  // ─── 4. Success Screen Auto-Reset Countdown ────────────────
   useEffect(() => {
     if (step !== 'success') return;
+    setSuccessCountdown(15);
 
     const timer = setInterval(() => {
       setSuccessCountdown(prev => {
@@ -435,26 +264,264 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
     return () => clearInterval(timer);
   }, [step]);
 
-  // Transliteration Helper
-  const getDishTitle = (item) => {
-    if (lang === 'ml') {
-      return item.mlName || transliterateFood(item.name, 'ml');
+  // Fullscreen Toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+        setIsFullscreen(false);
+      }
     }
-    if (lang === 'hi') {
-      return item.hiName || transliterateFood(item.name, 'hi');
-    }
-    return item.name;
   };
 
+  const handleResetToAttract = () => {
+    setStep('attract');
+    setCart([]);
+    setIsCartOpen(false);
+    setIsCheckoutOpen(false);
+    setSelectedModifierItem(null);
+    setPlacedOrderInfo(null);
+    setOrderType('dine-in');
+    setInactivityTimer(configuredTimeout);
+  };
+
+  // ─── 5. Cart Management ────────────────────────────────────
+  const addToCart = (item, selectedMods = [], extraModPrice = 0, quantity = 1) => {
+    hapticTap('light');
+    const basePrice = Number(item.price) || 0;
+    const finalItemPrice = basePrice + extraModPrice;
+    const modKey = (selectedMods || []).map(m => `${m.modifierName}:${m.optionName}`).sort().join('|');
+    const cartItemId = `${item.id}_${modKey}`;
+
+    setCart(prev => {
+      const existing = prev.find(i => i.cartItemId === cartItemId);
+      if (existing) {
+        return prev.map(i => i.cartItemId === cartItemId ? { ...i, qty: i.qty + quantity } : i);
+      }
+      return [...prev, {
+        cartItemId,
+        id: item.id,
+        name: item.name,
+        price: finalItemPrice,
+        basePrice,
+        qty: quantity,
+        imageUrl: item.imageUrl || item.image || '',
+        categoryName: item.categoryName,
+        isVeg: item.isVeg,
+        selectedModifiers: selectedMods,
+        mlName: item.mlName,
+        hiName: item.hiName
+      }];
+    });
+
+    playNotificationTone('pop');
+  };
+
+  const updateCartItemQty = (cartItemId, delta) => {
+    hapticTap('light');
+    setCart(prev => {
+      return prev.map(item => {
+        if (item.cartItemId !== cartItemId) return item;
+        const newQty = item.qty + delta;
+        return newQty > 0 ? { ...item, qty: newQty } : null;
+      }).filter(Boolean);
+    });
+  };
+
+  const clearCartItem = (cartItemId) => {
+    hapticTap('medium');
+    setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
+  };
+
+  // Open Dish Detail / Customization Modal (Image 3)
+  const handleOpenItemDetail = (item) => {
+    hapticTap('light');
+    setSelectedModifierItem(item);
+    setDetailQty(1);
+    setSelectedModifiers([]);
+  };
+
+  // Toggle modifier option selection in Detail Modal
+  const handleToggleOption = (mod, opt) => {
+    hapticTap('light');
+    const optPrice = Number(opt.price) || 0;
+    setSelectedModifiers(prev => {
+      const exists = prev.find(m => m.modifierName === mod.name && m.optionName === opt.name);
+      if (exists) {
+        return prev.filter(m => !(m.modifierName === mod.name && m.optionName === opt.name));
+      }
+      // If single-select option in group, replace existing in same modifier group
+      const filtered = prev.filter(m => m.modifierName !== mod.name);
+      return [...filtered, { modifierName: mod.name, optionName: opt.name, price: optPrice }];
+    });
+  };
+
+  // Add customized item from Detail Modal to cart
+  const handleAddDetailToCart = () => {
+    if (!selectedModifierItem) return;
+    const extraPrice = selectedModifiers.reduce((acc, m) => acc + (Number(m.price) || 0), 0);
+    addToCart(selectedModifierItem, selectedModifiers, extraPrice, detailQty);
+    setSelectedModifierItem(null);
+  };
+
+  // Totals & Financial Calculations
+  const cartSubtotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0);
+  }, [cart]);
+
+  const cartTotalQty = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.qty, 0);
+  }, [cart]);
+
+  const taxDetails = useMemo(() => {
+    const taxRate = Number(restaurant?.taxRate ?? 5);
+    const isInclusive = restaurant?.taxInclusive ?? false;
+    if (!cart || cart.length === 0) {
+      return { baseSubtotal: 0, taxTotal: 0, totalWithTax: 0, lines: [] };
+    }
+    const res = computeOrderTaxes(cart, {}, {
+      type: 'percentage',
+      mode: isInclusive ? 'inclusive' : 'exclusive',
+      defaultRate: taxRate
+    });
+    return {
+      baseSubtotal: res.baseSubtotal,
+      taxTotal: res.taxTotal,
+      totalWithTax: res.total || cartSubtotal,
+      lines: res.lines || []
+    };
+  }, [cart, cartSubtotal, restaurant]);
+
+  const cartGrandTotal = taxDetails.totalWithTax || cartSubtotal;
   const currencySymbol = restaurant?.currency || 'INR';
 
-  if (loadingRest && !restaurant) {
-    return (
-      <div className="kiosk-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#94a3b8' }}>Loading Kiosk...</div>
-      </div>
-    );
-  }
+  // ─── 6. Generate UPI QR Code ───────────────────────────────
+  useEffect(() => {
+    if (!isCheckoutOpen || paymentMethod !== 'upi' || cartGrandTotal <= 0) return;
+
+    const generateQr = async () => {
+      try {
+        const vpa = restaurant?.upiConfig?.vpa || 'kiwipos@upi';
+        const merchantName = restaurant?.upiConfig?.name || restaurant?.name || 'Self-Service Kiosk';
+        const note = `Kiosk Order ${Date.now().toString().slice(-4)}`;
+        const upiUri = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(merchantName)}&am=${cartGrandTotal.toFixed(2)}&cu=${currencySymbol}&tn=${encodeURIComponent(note)}`;
+
+        const dataUrl = await QRCode.toDataURL(upiUri, {
+          width: 320,
+          margin: 1,
+          color: { dark: '#090a0f', light: '#ffffff' }
+        });
+        setQrCodeUrl(dataUrl);
+      } catch (err) {
+        console.error('[SelfServiceKiosk] QR Generation error:', err);
+      }
+    };
+
+    generateQr();
+  }, [isCheckoutOpen, paymentMethod, cartGrandTotal, restaurant, currencySymbol]);
+
+  // ─── 7. Order Placement & Token Issuance ───────────────────
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0 || isPlacingOrder) return;
+    setIsPlacingOrder(true);
+    const toastId = toast.loading('Confirming your order & issuing token...');
+
+    try {
+      // 1. Issue Next QSR Pickup Token
+      let tokenNum = '1';
+      try {
+        tokenNum = await issueToken(restaurant.id);
+      } catch (tErr) {
+        console.warn('[SelfServiceKiosk] Issue token fallback:', tErr);
+        tokenNum = Math.floor(100 + Math.random() * 900).toString();
+      }
+
+      // 2. Prepare Order Payload
+      const orderId = `KIOSK-${Date.now().toString().slice(-6)}`;
+      const orderPayload = {
+        orderId,
+        id: orderId,
+        restaurantId: restaurant.id,
+        type: orderType, // 'dine-in' | 'takeaway'
+        source: 'kiosk',
+        status: 'pending',
+        token: tokenNum,
+        tableName: orderType === 'dine-in' ? 'Ground Floor Kiosk' : 'Takeaway Counter',
+        customerName: `Kiosk Token #${tokenNum}`,
+        customerPhone: '',
+        cookingNote: cookingNote.trim(),
+        paymentMethod: paymentMethod === 'upi' ? 'upi' : 'cash',
+        paymentStatus: paymentMethod === 'upi' ? 'paid' : 'unpaid',
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price) || 0,
+          qty: item.qty,
+          selectedModifiers: item.selectedModifiers || [],
+          prepState: 'fired',
+          categoryName: item.categoryName || 'General',
+          isVeg: Boolean(item.isVeg)
+        })),
+        subtotal: cartSubtotal,
+        taxTotal: taxDetails.taxTotal,
+        total: cartGrandTotal,
+        currency: currencySymbol,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // 3. Write Order to Firestore
+      const orderDocRef = doc(db, 'restaurants', restaurant.id, 'orders', orderId);
+      await setDoc(orderDocRef, orderPayload);
+
+      // 4. Auto-Print Token Slip if configured
+      if (autoPrintToken) {
+        try {
+          printTokenTicket({
+            token: tokenNum,
+            orderType,
+            customerName: `Express Kiosk #${tokenNum}`,
+            restaurant
+          });
+        } catch (printErr) {
+          console.warn('[SelfServiceKiosk] Print token skipped:', printErr);
+        }
+      }
+
+      // 5. Success Sound & Confetti
+      playNotificationTone('chime');
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      // 6. Transition to Success Screen
+      setPlacedOrderInfo({
+        orderId,
+        token: tokenNum,
+        orderType,
+        total: cartGrandTotal,
+        paymentMethod,
+        currency: currencySymbol
+      });
+
+      toast.success('Order placed successfully!', { id: toastId });
+      setIsCheckoutOpen(false);
+      setIsCartOpen(false);
+      setCart([]);
+      setCookingNote('');
+      setStep('success');
+    } catch (err) {
+      console.error('[SelfServiceKiosk] Place order error:', err);
+      toast.error('Failed to place order: ' + err.message, { id: toastId });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
 
   // ─── Render Step 1: Attract Screen (Screensaver) ────────────
   if (step === 'attract') {
@@ -464,8 +531,8 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
         <div className="kiosk-attract-top" onClick={e => e.stopPropagation()}>
           <div className="kiosk-brand-badge">
             <div className="kiosk-brand-logo">
-              {restaurant?.logo ? (
-                <img src={restaurant.logo} alt={restaurant?.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              {kioskLogo ? (
+                <img src={kioskLogo} alt={restaurant?.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : <Utensils size={24} color="#94a3b8" />}
             </div>
             <div>
@@ -561,9 +628,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             Your Pickup Token Number
           </div>
 
-          <div className="kiosk-token-number-display">
-            #{placedOrderInfo.token}
-          </div>
+          <div className="kiosk-token-number-display">{`#${placedOrderInfo.token}`}</div>
 
           <p className="kiosk-token-instructions">
             Please remember your token number or <strong>take a quick photo with your phone!</strong><br />
@@ -600,7 +665,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
               className="kiosk-token-btn primary"
               onClick={handleResetToAttract}
             >
-              Next Customer →
+              Next Customer / Start New Order
             </button>
           </div>
         </div>
@@ -608,34 +673,34 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
     );
   }
 
-  // ─── Render Step 2: Main Interactive Menu ───────────────────
+  // ─── Render Step 2: Main Menu Screen (Refactored to match uploaded UI) ─
   return (
-    <div className="kiosk-container kiosk-main-screen">
-      {/* ── Top Header ── */}
-      <header className="kiosk-header">
-        <div className="kiosk-header-left">
-          <button
-            type="button"
-            className="kiosk-reset-btn"
-            onClick={handleResetToAttract}
-            title="Start Over"
-          >
-            <ArrowLeft size={16} /> Start Over
-          </button>
+    <div className="kiosk-container kiosk-menu-screen" onClick={resetInactivityTimer}>
+      {/* ── Top Ambient Navigation Bar ── */}
+      <header className="kiosk-top-nav">
+        <button
+          type="button"
+          className="kiosk-nav-back-btn"
+          onClick={handleResetToAttract}
+        >
+          <ArrowLeft size={16} /> BACK
+        </button>
 
-          <button
-            type="button"
-            className="kiosk-header-type-badge"
-            onClick={() => setOrderType(ot => ot === 'dine-in' ? 'takeaway' : 'dine-in')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            {orderType === 'dine-in' ? <Utensils size={14} /> : <ShoppingBag size={14} />}
-            {orderType === 'dine-in' ? 'Dine In' : 'Takeaway'} (Tap to change)
-          </button>
+        <div className="kiosk-nav-center-info">
+          <span className="kiosk-nav-clock">{currentTime}</span>
+          <span className="kiosk-nav-station-tag">#011</span>
         </div>
 
-        <div className="kiosk-header-right">
-          {/* Language Switcher */}
+        <div className="kiosk-nav-right">
+          <button
+            type="button"
+            className="kiosk-nav-mode-pill"
+            onClick={() => setOrderType(ot => ot === 'dine-in' ? 'takeaway' : 'dine-in')}
+          >
+            {orderType === 'dine-in' ? <Utensils size={13} /> : <ShoppingBag size={13} />}
+            <span>{orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}</span>
+          </button>
+
           <div className="kiosk-lang-pills">
             {SUPPORTED_WAITER_LANGUAGES.map(l => (
               <button
@@ -649,185 +714,224 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             ))}
           </div>
 
-          {/* Inactivity Beacon */}
-          <div className="kiosk-inactivity-beacon">
-            <Clock size={13} /> {inactivityTimer}s
+          <div className="kiosk-inactivity-badge" title="Inactivity auto-reset timer">
+            <Clock size={12} /> {inactivityTimer}s
           </div>
 
-          {/* Fullscreen Button */}
           <button
             type="button"
-            className="kiosk-reset-btn"
-            style={{ color: '#94a3b8', borderColor: 'rgba(255,255,255,0.1)', background: 'transparent' }}
+            className="kiosk-fullscreen-btn"
             onClick={toggleFullscreen}
-            title="Toggle Kiosk Fullscreen"
+            title="Toggle Fullscreen"
           >
-            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
         </div>
       </header>
 
-      {/* ── Main Body: Categories Sidebar + Dishes Grid ── */}
-      <div className="kiosk-body">
-        {/* Categories Rail */}
-        <aside className="kiosk-categories-sidebar">
+      {/* ── Top Hero Banner (Matching Reference Image 1) ── */}
+      <div className="kiosk-hero-banner">
+        <div className="kiosk-hero-left">
+          <h1 className="kiosk-hero-title">
+            {heroHeadline}
+          </h1>
+          <p className="kiosk-hero-subtitle">
+            {heroSubtitle}
+          </p>
+        </div>
+
+        {/* Circular Restaurant Logo Emblem */}
+        <div className="kiosk-hero-right">
+          <div className="kiosk-hero-logo-emblem">
+            {kioskLogo ? (
+              <img src={kioskLogo} alt={restaurant?.name || 'Restaurant Logo'} className="kiosk-hero-logo-img" />
+            ) : (
+              <div className="kiosk-hero-logo-fallback">
+                <Utensils size={36} color="#ffffff" />
+                <span className="kiosk-hero-fallback-text">{restaurant?.name ? restaurant.name.slice(0, 8).toUpperCase() : 'KIWI'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Body Elevated Sheet (White container with rounded top corners) ── */}
+      <div className="kiosk-main-sheet">
+        {/* Left Category Rail */}
+        <aside className="kiosk-cat-rail">
+          {/* "ALL" Pill */}
           <button
             type="button"
-            className={`kiosk-cat-item ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
+            className={`kiosk-rail-all-btn ${activeCategory === 'all' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveCategory('all');
+              hapticTap('light');
+            }}
           >
-            <span className="kiosk-cat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Layers size={18} />
-            </span>
-            <span>All Items</span>
+            <div className="kiosk-rail-all-icon">
+              <LayoutGrid size={18} />
+            </div>
+            <span>ALL</span>
           </button>
 
-          {(categories || []).map(cat => (
-            <button
-              key={cat.id}
-              type="button"
-              className={`kiosk-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
-              onClick={() => setActiveCategory(cat.id)}
-            >
-              <span className="kiosk-cat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Utensils size={16} />
-              </span>
-              <span>{cat.name}</span>
-            </button>
-          ))}
+          {/* Specific Categories */}
+          {(categories || []).map(cat => {
+            const firstDishImg = (cat.items || []).find(i => i.imageUrl || i.image)?.imageUrl || '';
+            const isActive = activeCategory === cat.id;
+
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                className={`kiosk-rail-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveCategory(cat.id);
+                  hapticTap('light');
+                }}
+              >
+                <div className="kiosk-rail-thumb-wrap">
+                  {firstDishImg ? (
+                    <img src={firstDishImg} alt={cat.name} className="kiosk-rail-thumb-img" loading="lazy" />
+                  ) : (
+                    <div className="kiosk-rail-thumb-fallback">
+                      <Utensils size={15} />
+                    </div>
+                  )}
+                </div>
+                <span className="kiosk-rail-title">{cat.name}</span>
+              </button>
+            );
+          })}
         </aside>
 
-        {/* Content Area */}
-        <main className="kiosk-content-area">
-          {/* Filter Bar: Dietary + Quick Search */}
-          <div className="kiosk-filter-bar">
-            <div className="kiosk-dietary-pills">
+        {/* Right Content Area */}
+        <main className="kiosk-right-content">
+          {/* Top Filter Bar: Chips & Search (Matching Image 1) */}
+          <div className="kiosk-top-filter-bar">
+            <div className="kiosk-filter-chips">
               <button
                 type="button"
-                className={`kiosk-dietary-btn ${dietaryFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setDietaryFilter('all')}
+                className={`kiosk-filter-chip ${quickFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setQuickFilter('all')}
               >
-                All Foods
+                ALL
               </button>
               <button
                 type="button"
-                className={`kiosk-dietary-btn veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-                onClick={() => setDietaryFilter('veg')}
+                className={`kiosk-filter-chip ${quickFilter === 'discount' ? 'active' : ''}`}
+                onClick={() => setQuickFilter(q => q === 'discount' ? 'all' : 'discount')}
               >
-                <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#22c55e', marginRight: 6 }} />
-                Pure Veg
+                <Tag size={13} /> DISCOUNT
               </button>
               <button
                 type="button"
-                className={`kiosk-dietary-btn nonveg ${dietaryFilter === 'nonveg' ? 'active' : ''}`}
-                onClick={() => setDietaryFilter('nonveg')}
+                className={`kiosk-filter-chip ${quickFilter === 'trending' ? 'active' : ''}`}
+                onClick={() => setQuickFilter(q => q === 'trending' ? 'all' : 'trending')}
               >
-                <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ef4444', marginRight: 6 }} />
-                Non-Veg
+                <TrendingUp size={13} /> TRENDING
+              </button>
+              <button
+                type="button"
+                className={`kiosk-filter-chip ${quickFilter === 'veg' ? 'active' : ''}`}
+                onClick={() => setQuickFilter(q => q === 'veg' ? 'all' : 'veg')}
+              >
+                <span className="kiosk-dot-veg" /> PURE VEG
+              </button>
+              <button
+                type="button"
+                className={`kiosk-filter-chip ${quickFilter === 'nonveg' ? 'active' : ''}`}
+                onClick={() => setQuickFilter(q => q === 'nonveg' ? 'all' : 'nonveg')}
+              >
+                <span className="kiosk-dot-nonveg" /> NON-VEG
               </button>
             </div>
 
-            {/* Quick Search */}
-            <div style={{ position: 'relative', width: 220 }}>
-              <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+            {/* Quick Search Input */}
+            <div className="kiosk-search-wrap">
+              <Search size={14} className="kiosk-search-icon" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search food..."
-                style={{
-                  width: '100%',
-                  height: 38,
-                  paddingLeft: 34,
-                  paddingRight: 12,
-                  borderRadius: 10,
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: '#ffffff',
-                  fontSize: 13,
-                  outline: 'none'
-                }}
+                className="kiosk-search-input"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                  className="kiosk-search-clear"
                 >
-                  <X size={14} />
+                  <X size={13} />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Dishes Grid */}
-          <div className="kiosk-dish-grid">
+          {/* Dishes Grid (2 columns or 3 on wide screens - Matching Image 1) */}
+          <div className="kiosk-dishes-grid">
             {filteredItems.map(item => {
-              const inCart = cart.find(ci => ci.id === item.id);
-              const localizedTitle = getDishTitle(item);
+              const localizedTitle = transliterateFood(item.name, lang);
+              const hasDiscount = Boolean(item.originalPrice && Number(item.originalPrice) > Number(item.price));
+              const dishImg = item.imageUrl || item.image || '';
 
               return (
-                <div key={item.id} className="kiosk-dish-card">
-                  {/* Image with dietary tag */}
-                  <div className="kiosk-dish-img-wrap">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="kiosk-dish-img" loading="lazy" />
-                    ) : (
-                      <div className="kiosk-dish-img-placeholder" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Utensils size={32} color="#64748b" />
-                      </div>
-                    )}
-                    <div className={`kiosk-dish-diet-tag ${item.isVeg ? 'veg' : 'nonveg'}`}>
-                      <div className="dot" />
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="kiosk-dish-info">
-                    <div>
-                      <h4 className="kiosk-dish-title">{item.name}</h4>
-                      {lang !== 'en' && localizedTitle !== item.name && (
-                        <div className="kiosk-dish-localized">{localizedTitle}</div>
+                <div
+                  key={item.id}
+                  className="kiosk-dish-card"
+                  onClick={() => handleOpenItemDetail(item)}
+                >
+                  {/* Left Details */}
+                  <div className="kiosk-dish-card-left">
+                    <div className="kiosk-dish-badge-row">
+                      <span className={`kiosk-dish-diet-dot ${item.isVeg ? 'veg' : 'nonveg'}`} />
+                      {(item.isBestseller || item.popular || item.bestseller) && (
+                        <span className="kiosk-dish-popular-tag">TRENDING</span>
                       )}
                     </div>
 
-                    <div className="kiosk-dish-bottom">
-                      <span className="kiosk-dish-price">
+                    <h3 className="kiosk-dish-title">{item.name}</h3>
+                    {lang !== 'en' && localizedTitle !== item.name && (
+                      <div className="kiosk-dish-localized">{localizedTitle}</div>
+                    )}
+
+                    <div className="kiosk-dish-price-wrap">
+                      <span className={`kiosk-dish-price ${hasDiscount ? 'discounted' : ''}`}>
                         {formatCurrency(Number(item.price) || 0, currencySymbol)}
                       </span>
+                      {hasDiscount && (
+                        <span className="kiosk-dish-orig-price">
+                          {formatCurrency(Number(item.originalPrice), currencySymbol)}
+                        </span>
+                      )}
+                    </div>
 
-                      {inCart ? (
-                        <div className="kiosk-dish-qty-stepper">
-                          <button
-                            type="button"
-                            className="kiosk-qty-btn"
-                            onClick={() => updateCartItemQty(inCart.cartItemId, -1)}
-                          >
-                            <Minus size={13} />
-                          </button>
-                          <span className="kiosk-qty-count">{inCart.qty}</span>
-                          <button
-                            type="button"
-                            className="kiosk-qty-btn"
-                            onClick={() => updateCartItemQty(inCart.cartItemId, 1)}
-                          >
-                            <Plus size={13} />
-                          </button>
-                        </div>
+                    {/* Quick Add Button */}
+                    <button
+                      type="button"
+                      className="kiosk-dish-quick-add-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (Array.isArray(item.modifiers) && item.modifiers.length > 0) {
+                          handleOpenItemDetail(item);
+                        } else {
+                          addToCart(item);
+                        }
+                      }}
+                    >
+                      <Plus size={13} /> Add
+                    </button>
+                  </div>
+
+                  {/* Right Bleeding Circular Plate Photo */}
+                  <div className="kiosk-dish-card-right">
+                    <div className="kiosk-dish-plate-circle">
+                      {dishImg ? (
+                        <img src={dishImg} alt={item.name} className="kiosk-dish-plate-img" loading="lazy" />
                       ) : (
-                        <button
-                          type="button"
-                          className="kiosk-dish-add-btn"
-                          onClick={() => {
-                            if (Array.isArray(item.modifiers) && item.modifiers.length > 0) {
-                              setSelectedModifierItem(item);
-                            } else {
-                              addToCart(item);
-                            }
-                          }}
-                        >
-                          <Plus size={14} /> Add
-                        </button>
+                        <div className="kiosk-dish-plate-fallback">
+                          <Utensils size={34} color="#a1a1aa" />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -837,150 +941,236 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
           </div>
 
           {filteredItems.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                <Utensils size={40} color="#64748b" />
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc' }}>No dishes match this selection</div>
-              <div style={{ fontSize: 13, marginTop: 4 }}>Try clearing the search or switching dietary filters.</div>
+            <div className="kiosk-empty-items">
+              <Utensils size={42} color="#a1a1aa" style={{ marginBottom: 12 }} />
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#18181b' }}>No dishes match this selection</div>
+              <div style={{ fontSize: 13, marginTop: 4, color: '#71717a' }}>Try clearing filters or search query.</div>
             </div>
           )}
         </main>
       </div>
 
-      {/* ── Bottom Floating Checkout Bar ── */}
+      {/* ── Bottom Dual-Pill Floating Bar (Matching Image 1) ── */}
       {cart.length > 0 && (
-        <div className="kiosk-footer-bar">
-          <div className="kiosk-footer-summary" onClick={() => setIsCartOpen(true)} style={{ cursor: 'pointer' }}>
-            <div className="kiosk-cart-badge">
-              <ShoppingCart size={22} />
-              <div className="kiosk-cart-badge-count">{cartTotalQty}</div>
-            </div>
-            <div className="kiosk-footer-total-box">
-              <span className="kiosk-footer-total-label">Order Total ({cartTotalQty} items)</span>
-              <span className="kiosk-footer-total-amt">{formatCurrency(cartGrandTotal, currencySymbol)}</span>
-            </div>
-          </div>
-
-          <div className="kiosk-footer-actions">
+        <div className="kiosk-floating-bar-wrap">
+          <div className="kiosk-dual-pill-bar">
+            {/* Left Pill: Cart with Bag Icon & Count */}
             <button
               type="button"
-              className="kiosk-view-cart-btn"
+              className="kiosk-bar-cart-pill"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <ShoppingBag size={18} />
+              <span>CART</span>
+              <span className="kiosk-bar-cart-badge">{cartTotalQty}</span>
+            </button>
+
+            {/* Right Pill: Checkout with Receipt Icon & Price */}
+            <button
+              type="button"
+              className="kiosk-bar-checkout-pill"
               onClick={() => setIsCheckoutOpen(true)}
             >
-              Pay & Place Order <ChevronRight size={18} />
+              <Receipt size={17} />
+              <div className="kiosk-bar-checkout-meta">
+                <span className="kiosk-bar-checkout-cta">Pay &amp; Place Order</span>
+                <span className="kiosk-bar-order-total-micro">Order Total • {formatCurrency(cartGrandTotal, currencySymbol)}</span>
+              </div>
+              <ChevronRight size={17} />
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Modifier / Customization Modal ── */}
+      {/* ── Dish Customization & Detail Modal (Matching Image 3) ── */}
       {selectedModifierItem && (
         <div className="kiosk-modal-backdrop" onClick={() => setSelectedModifierItem(null)}>
-          <div className="kiosk-modal-box" onClick={e => e.stopPropagation()}>
-            <div className="kiosk-modal-header">
-              <div>
-                <h3 className="kiosk-modal-title">{selectedModifierItem.name}</h3>
-                <span style={{ fontSize: '13px', color: '#10b981', fontWeight: 700 }}>
-                  Base: {formatCurrency(Number(selectedModifierItem.price) || 0, currencySymbol)}
-                </span>
-              </div>
-              <button type="button" onClick={() => setSelectedModifierItem(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
+          <div className="kiosk-detail-modal-box" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className="kiosk-modal-close-x"
+              onClick={() => setSelectedModifierItem(null)}
+            >
+              <X size={20} />
+            </button>
 
-            <div className="kiosk-modal-body">
-              {(selectedModifierItem.modifiers || []).map(mod => (
-                <div key={mod.id || mod.name} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>{mod.name}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-                    {(mod.options || []).map(opt => (
-                      <button
-                        key={opt.name}
-                        type="button"
-                        className="kiosk-choice-btn"
-                        style={{ padding: '12px 10px', borderRadius: 12 }}
-                        onClick={() => {
-                          const modTotal = Number(opt.price) || 0;
-                          addToCart(selectedModifierItem, [{ modifierName: mod.name, optionName: opt.name, price: modTotal }], modTotal);
-                          setSelectedModifierItem(null);
-                        }}
-                      >
-                        <span style={{ fontSize: '13px', fontWeight: 700 }}>{opt.name}</span>
-                        {opt.price > 0 && (
-                          <span style={{ fontSize: '12px', color: '#10b981' }}>+{formatCurrency(opt.price, currencySymbol)}</span>
-                        )}
-                      </button>
-                    ))}
+            {/* Big Centered Circular Plate Photo */}
+            <div className="kiosk-detail-plate-hero">
+              <div className="kiosk-detail-plate-circle">
+                {(selectedModifierItem.imageUrl || selectedModifierItem.image) ? (
+                  <img
+                    src={selectedModifierItem.imageUrl || selectedModifierItem.image}
+                    alt={selectedModifierItem.name}
+                    className="kiosk-detail-plate-img"
+                  />
+                ) : (
+                  <div className="kiosk-detail-plate-fallback">
+                    <Utensils size={54} color="#a1a1aa" />
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* Title & Description */}
+            <div className="kiosk-detail-info">
+              <h2 className="kiosk-detail-title">{selectedModifierItem.name}</h2>
+              <p className="kiosk-detail-sub">
+                {selectedModifierItem.description || `${selectedModifierItem.categoryName || 'FRESH'} • FRESHLY PREPARED FOR YOU`}
+              </p>
+
+              {/* Price */}
+              <div className="kiosk-detail-price">
+                {formatCurrency(
+                  (Number(selectedModifierItem.price) + selectedModifiers.reduce((acc, m) => acc + (Number(m.price) || 0), 0)) * detailQty,
+                  currencySymbol
+                )}
+              </div>
+
+              {/* Centered Stepper */}
+              <div className="kiosk-detail-stepper">
+                <button
+                  type="button"
+                  className="kiosk-detail-step-btn"
+                  onClick={() => setDetailQty(q => Math.max(1, q - 1))}
+                >
+                  <Minus size={15} />
+                </button>
+                <span className="kiosk-detail-step-qty">{detailQty}</span>
+                <button
+                  type="button"
+                  className="kiosk-detail-step-btn plus"
+                  onClick={() => setDetailQty(q => q + 1)}
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modifiers Grid (2 columns - Matching Image 3) */}
+            {Array.isArray(selectedModifierItem.modifiers) && selectedModifierItem.modifiers.length > 0 && (
+              <div className="kiosk-detail-modifiers-wrap">
+                {selectedModifierItem.modifiers.map(mod => (
+                  <div key={mod.name} style={{ width: '100%' }}>
+                    <div className="kiosk-detail-mod-group-title">{mod.name.toUpperCase()}</div>
+                    <div className="kiosk-detail-options-grid">
+                      {(mod.options || []).map(opt => {
+                        const isSelected = selectedModifiers.some(
+                          m => m.modifierName === mod.name && m.optionName === opt.name
+                        );
+
+                        return (
+                          <button
+                            key={opt.name}
+                            type="button"
+                            className={`kiosk-detail-option-pill ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleToggleOption(mod, opt)}
+                          >
+                            <span className="kiosk-detail-opt-name">{opt.name.toUpperCase()}</span>
+                            <span className="kiosk-detail-opt-price">
+                              {opt.price > 0 ? `+${formatCurrency(opt.price, currencySymbol)}` : 'INCLUDED'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Bottom Add Button */}
+            <div className="kiosk-detail-bottom-cta">
               <button
                 type="button"
-                className="kiosk-view-cart-btn"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => {
-                  addToCart(selectedModifierItem);
-                  setSelectedModifierItem(null);
-                }}
+                className="kiosk-detail-add-btn"
+                onClick={handleAddDetailToCart}
               >
-                Add Standard ({formatCurrency(Number(selectedModifierItem.price) || 0, currencySymbol)})
+                ADD TO ORDER →
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Cart Review Drawer Modal ── */}
+      {/* ── Cart Drawer Modal (Matching Reference Image 2) ── */}
       {isCartOpen && (
         <div className="kiosk-modal-backdrop" onClick={() => setIsCartOpen(false)}>
-          <div className="kiosk-modal-box" onClick={e => e.stopPropagation()}>
-            <div className="kiosk-modal-header">
-              <h3 className="kiosk-modal-title">Your Order Cart</h3>
-              <button type="button" onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+          <div className="kiosk-cart-drawer-sheet" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="kiosk-cart-drawer-header">
+              <h2 className="kiosk-cart-drawer-title">CART</h2>
+              <button
+                type="button"
+                className="kiosk-modal-close-x"
+                onClick={() => setIsCartOpen(false)}
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="kiosk-modal-body">
+            {/* Scrollable Items List */}
+            <div className="kiosk-cart-drawer-items">
               {cart.map(ci => (
                 <div key={ci.cartItemId} className="kiosk-cart-item-row">
-                  <div>
-                    <div className="kiosk-cart-item-title">{ci.name}</div>
-                    <div className="kiosk-cart-item-sub">
-                      {formatCurrency(ci.price, currencySymbol)} x {ci.qty}
-                    </div>
+                  {/* Circular dish thumbnail */}
+                  <div className="kiosk-cart-item-thumb">
+                    {ci.imageUrl ? (
+                      <img src={ci.imageUrl} alt={ci.name} className="kiosk-cart-item-img" />
+                    ) : (
+                      <div className="kiosk-cart-item-fallback">
+                        <Utensils size={20} color="#a1a1aa" />
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div className="kiosk-dish-qty-stepper">
-                      <button type="button" className="kiosk-qty-btn" onClick={() => updateCartItemQty(ci.cartItemId, -1)}>
-                        <Minus size={13} />
-                      </button>
-                      <span className="kiosk-qty-count">{ci.qty}</span>
-                      <button type="button" className="kiosk-qty-btn" onClick={() => updateCartItemQty(ci.cartItemId, 1)}>
-                        <Plus size={13} />
-                      </button>
-                    </div>
+                  {/* Title & Modifiers */}
+                  <div className="kiosk-cart-item-info">
+                    <h4 className="kiosk-cart-item-name">{ci.name}</h4>
+                    {Array.isArray(ci.selectedModifiers) && ci.selectedModifiers.length > 0 && (
+                      <p className="kiosk-cart-item-mods">
+                        {ci.selectedModifiers.map(m => m.optionName).join(', ').toUpperCase()}
+                      </p>
+                    )}
+                  </div>
 
+                  {/* Stepper */}
+                  <div className="kiosk-cart-item-stepper">
                     <button
                       type="button"
-                      onClick={() => clearCartItem(ci.cartItemId)}
-                      style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                      className="kiosk-cart-step-btn"
+                      onClick={() => updateCartItemQty(ci.cartItemId, -1)}
                     >
-                      <Trash2 size={16} />
+                      <Minus size={13} />
+                    </button>
+                    <span className="kiosk-cart-step-num">{ci.qty}</span>
+                    <button
+                      type="button"
+                      className="kiosk-cart-step-btn plus"
+                      onClick={() => updateCartItemQty(ci.cartItemId, 1)}
+                    >
+                      <Plus size={13} />
                     </button>
                   </div>
+
+                  {/* Price */}
+                  <div className="kiosk-cart-item-price">
+                    {formatCurrency(Number(ci.price) * ci.qty, currencySymbol)}
+                  </div>
+
+                  {/* Delete Trash */}
+                  <button
+                    type="button"
+                    className="kiosk-cart-item-delete"
+                    onClick={() => clearCartItem(ci.cartItemId)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               ))}
 
-              {/* Cooking Note */}
-              <div style={{ marginTop: 8 }}>
-                <label style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 6 }}>
+              {/* Cooking Instructions (Optional) */}
+              <div className="kiosk-cart-notes-wrap">
+                <label className="kiosk-cart-notes-label">
                   Cooking Instructions / Allergies (Optional)
                 </label>
                 <textarea
@@ -988,139 +1178,113 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                   onChange={e => setCookingNote(e.target.value)}
                   placeholder="e.g. Less spicy, extra sauce, allergy note..."
                   rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#ffffff',
-                    fontSize: 13,
-                    resize: 'none',
-                    outline: 'none'
-                  }}
+                  className="kiosk-cart-notes-input"
                 />
               </div>
 
-              {/* Totals */}
-              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 14, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#94a3b8' }}>
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(cartSubtotal, currencySymbol)}</span>
-                </div>
-                {taxDetails.taxTotal > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#94a3b8' }}>
-                    <span>Taxes</span>
-                    <span>{formatCurrency(taxDetails.taxTotal, currencySymbol)}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 800, color: '#10b981', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
-                  <span>Grand Total</span>
-                  <span>{formatCurrency(cartGrandTotal, currencySymbol)}</span>
-                </div>
+              {/* Total Order Summary (Matching Image 2) */}
+              <div className="kiosk-cart-total-row">
+                <span className="kiosk-cart-total-label">TOTAL ORDER</span>
+                <span className="kiosk-cart-total-amt">
+                  {formatCurrency(cartGrandTotal, currencySymbol)}
+                </span>
               </div>
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* Bottom Button */}
+            <div className="kiosk-cart-drawer-cta-wrap">
               <button
                 type="button"
-                className="kiosk-view-cart-btn"
-                style={{ width: '100%', justifyContent: 'center' }}
+                className="kiosk-cart-continue-btn"
                 onClick={() => {
                   setIsCartOpen(false);
                   setIsCheckoutOpen(true);
                 }}
               >
-                Proceed to Payment ({formatCurrency(cartGrandTotal, currencySymbol)})
+                CONTINUE TO PAYMENT →
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Checkout & Payment Modal ── */}
+      {/* ── Checkout & Payment Modal (UPI QR & Counter) ── */}
       {isCheckoutOpen && (
         <div className="kiosk-modal-backdrop" onClick={() => !isPlacingOrder && setIsCheckoutOpen(false)}>
-          <div className="kiosk-modal-box" onClick={e => e.stopPropagation()}>
+          <div className="kiosk-checkout-modal-box" onClick={e => e.stopPropagation()}>
             <div className="kiosk-modal-header">
               <h3 className="kiosk-modal-title">Select Payment Method</h3>
               {!isPlacingOrder && (
-                <button type="button" onClick={() => setIsCheckoutOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                <button
+                  type="button"
+                  className="kiosk-modal-close-x"
+                  onClick={() => setIsCheckoutOpen(false)}
+                >
                   <X size={20} />
                 </button>
               )}
             </div>
 
             <div className="kiosk-modal-body">
-              {/* Payment Option Selector */}
+              {/* Payment Method Switcher Tabs */}
               {allowedPayment === 'both' && (
-                <div className="kiosk-pay-options-grid">
+                <div className="kiosk-payment-tabs">
                   <button
                     type="button"
-                    className={`kiosk-pay-option-btn ${paymentMethod === 'upi' ? 'active' : ''}`}
+                    className={`kiosk-pay-tab ${paymentMethod === 'upi' ? 'active' : ''}`}
                     onClick={() => setPaymentMethod('upi')}
                   >
-                    <QrCode size={30} style={{ color: '#818cf8' }} />
-                    <span style={{ fontSize: 15, fontWeight: 800 }}>Scan UPI QR</span>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>GPay, PhonePe, Paytm</span>
+                    <QrCode size={18} />
+                    <span>Instant UPI QR</span>
                   </button>
-
                   <button
                     type="button"
-                    className={`kiosk-pay-option-btn ${paymentMethod === 'counter' ? 'active' : ''}`}
+                    className={`kiosk-pay-tab ${paymentMethod === 'counter' ? 'active' : ''}`}
                     onClick={() => setPaymentMethod('counter')}
                   >
-                    <Banknote size={30} style={{ color: '#34d399' }} />
-                    <span style={{ fontSize: 15, fontWeight: 800 }}>Pay at Counter</span>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>Pay Cash to Cashier</span>
+                    <Banknote size={18} />
+                    <span>Pay at Counter</span>
                   </button>
                 </div>
               )}
 
-              {/* Dynamic QR Display for UPI */}
+              {/* UPI QR Display */}
               {paymentMethod === 'upi' ? (
                 <div className="kiosk-upi-card">
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>
-                    Scan with any UPI App to Pay
-                  </div>
-
-                  <div className="kiosk-qr-image-wrap">
+                  <div className="kiosk-upi-title">Scan with any UPI App to Pay</div>
+                  <div className="kiosk-upi-qr-frame">
                     {qrCodeUrl ? (
-                      <img src={qrCodeUrl} alt="UPI Payment QR" className="kiosk-qr-image" />
+                      <img src={qrCodeUrl} alt="UPI QR Code" className="kiosk-upi-qr-img" />
                     ) : (
-                      <div style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                        Generating QR...
-                      </div>
+                      <div className="kiosk-upi-qr-loading">Generating QR...</div>
                     )}
                   </div>
 
-                  <div style={{ fontSize: 20, fontWeight: 900, color: '#10b981' }}>
+                  <div className="kiosk-upi-amount-hero">
                     {formatCurrency(cartGrandTotal, currencySymbol)}
                   </div>
 
-                  <div className="kiosk-upi-apps-icons">
+                  <div className="kiosk-upi-apps-row">
                     <span>Google Pay</span> • <span>PhonePe</span> • <span>Paytm</span> • <span>BHIM</span>
                   </div>
                 </div>
               ) : (
-                <div style={{ padding: 20, borderRadius: 16, background: 'rgba(255,255,255,0.04)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <Receipt size={32} color="#38bdf8" />
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>Pay Cash at Ground Floor Counter</div>
-                  <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                <div className="kiosk-counter-card">
+                  <Receipt size={36} color="#38bdf8" />
+                  <div className="kiosk-counter-title">Pay Cash at Ground Floor Counter</div>
+                  <p className="kiosk-counter-desc">
                     Your order will be sent to the kitchen immediately. Please show your token number at the cash counter to complete payment.
                   </p>
                 </div>
               )}
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* Place Order CTA */}
+            <div className="kiosk-checkout-footer">
               <button
                 type="button"
-                className="kiosk-view-cart-btn"
+                className="kiosk-checkout-confirm-btn"
                 disabled={isPlacingOrder}
-                style={{ width: '100%', justifyContent: 'center' }}
                 onClick={handlePlaceOrder}
               >
                 {isPlacingOrder ? 'Confirming Order...' : (paymentMethod === 'upi' ? 'I Have Paid via UPI →' : 'Confirm Order & Get Token →')}
@@ -1133,7 +1297,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
       {/* ── Inactivity Warning Modal ── */}
       {showInactivityWarning && (
         <div className="kiosk-modal-backdrop" style={{ zIndex: 9999 }}>
-          <div className="kiosk-modal-box" style={{ maxWidth: 400, textAlign: 'center', padding: 24, gap: 16 }}>
+          <div className="kiosk-warning-box">
             <AlertTriangle size={48} style={{ color: '#f59e0b', margin: '0 auto' }} />
             <h3 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#ffffff' }}>Are you still there?</h3>
             <p style={{ margin: 0, fontSize: 14, color: '#94a3b8' }}>
@@ -1142,17 +1306,19 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
               <button
                 type="button"
-                className="kiosk-token-btn secondary"
+                className="kiosk-choice-btn"
                 onClick={handleResetToAttract}
+                style={{ flex: 1, padding: 12 }}
               >
                 Cancel Order
               </button>
               <button
                 type="button"
-                className="kiosk-token-btn primary"
-                onClick={resetWatchdog}
+                className="kiosk-choice-btn primary"
+                onClick={resetInactivityTimer}
+                style={{ flex: 1, padding: 12 }}
               >
-                I'm Still Ordering!
+                Continue Order
               </button>
             </div>
           </div>
