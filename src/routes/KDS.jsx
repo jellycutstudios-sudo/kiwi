@@ -24,7 +24,13 @@ import {
   X,
   LogOut,
   ArrowLeft,
-  Bell
+  Bell,
+  Monitor,
+  Utensils,
+  ShoppingBag,
+  Globe,
+  Megaphone,
+  FileText
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -175,7 +181,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
           padding: '2px 8px',
           borderRadius: 6
         }}>
-          <span>⏱️</span>
+          <Clock size={12} />
           <span>{stopwatch}</span>
         </div>
       </div>
@@ -206,11 +212,31 @@ const KDSTicketCard = memo(function KDSTicketCard({
                 }}
                 title="Tap to call token number on TV display"
               >
-                📢 #{String(order.token).padStart(3, '0')}
+                <Megaphone size={12} /> #{String(order.token).padStart(3, '0')}
               </button>
             )}
             <span>
-              {order.type === 'dine-in' ? (order.tableName ? `🪑 Table ${order.tableName}` : '🍽️ Dine-In') : (order.type === 'takeaway' ? '🛍️ Takeaway' : '🌐 Online')}
+              {order.source === 'kiosk' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Monitor size={13} color="#f59e0b" />
+                  <span>{order.tableName?.replace(/^Table\s+/i, '') || 'Kiosk'}</span>
+                </span>
+              ) : order.type === 'dine-in' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Utensils size={13} />
+                  <span>{order.tableName ? `Table ${order.tableName.replace(/^Table\s+/i, '')}` : 'Dine-In'}</span>
+                </span>
+              ) : order.type === 'takeaway' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <ShoppingBag size={13} />
+                  <span>Takeaway</span>
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Globe size={13} />
+                  <span>Online</span>
+                </span>
+              )}
             </span>
           </div>
           <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 3, fontWeight: 600 }}>
@@ -391,7 +417,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
                                 padding: '1px 6px',
                                 borderRadius: 5
                               }}>
-                                🪑 S{item.seatNumber}
+                                Seat {item.seatNumber}
                               </span>
                             )}
                           </span>
@@ -408,16 +434,21 @@ const KDSTicketCard = memo(function KDSTicketCard({
                                 padding: '2px 7px',
                                 borderRadius: 4,
                                 textTransform: 'uppercase',
-                                letterSpacing: '0.04em'
+                                letterSpacing: '0.04em',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3
                               }}>
-                                ⚠️ {a.replace(/_/g, ' ')}
+                                <AlertTriangle size={11} />
+                                {a.replace(/_/g, ' ')}
                               </span>
                             ))}
                           </div>
                         )}
                         {(item.itemNote || item.notes) && (
-                          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#f59e0b', marginTop: 3, paddingLeft: 38 }}>
-                            📝 {item.itemNote || item.notes}
+                          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#f59e0b', marginTop: 3, paddingLeft: 38, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <FileText size={11} />
+                            <span>{item.itemNote || item.notes}</span>
                           </div>
                         )}
                         {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
@@ -499,7 +530,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
                             gap: 3,
                             flexShrink: 0
                           }}>
-                            ✓ Picked Up
+                            <Check size={11} strokeWidth={2.5} /> Picked Up
                           </span>
                         ) : isReady ? (
                           <>
@@ -552,7 +583,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
                               flexShrink: 0,
                               letterSpacing: '0.02em'
                             }}>
-                              ✓ Ready
+                              <Check size={11} strokeWidth={2.5} /> Ready
                             </span>
                           </>
                         ) : (
@@ -572,7 +603,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
                             flexShrink: 0,
                             letterSpacing: '0.02em'
                           }}>
-                            {isPreparing ? '🍳 Cooking' : 'To Cook'}
+                            {isPreparing ? 'Cooking' : 'To Cook'}
                           </span>
                         )}
                       </div>
@@ -593,9 +624,13 @@ const KDSTicketCard = memo(function KDSTicketCard({
             padding: '6px 10px',
             borderRadius: 6,
             fontSize: 12,
-            fontWeight: 600
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
           }}>
-            📝 {order.note}
+            <FileText size={12} style={{ flexShrink: 0 }} />
+            <span>{order.note}</span>
           </div>
         )}
       </div>
@@ -649,7 +684,7 @@ const KDSTicketCard = memo(function KDSTicketCard({
                 title="Ring Server: Buzz waiter to pick up order"
               >
                 <Bell size={13} />
-                <span>{headerRang ? '✓ Rang!' : 'Ring Waiter'}</span>
+                <span>{headerRang ? 'Rang!' : 'Ring Waiter'}</span>
               </button>
             )}
           </div>
@@ -659,9 +694,9 @@ const KDSTicketCard = memo(function KDSTicketCard({
               <button
                 className="kds-cook-btn"
                 onClick={() => handleStartPreparing(order, activeStation)}
-                style={{ flex: 1, padding: '9px 12px', fontSize: 12.5 }}
+                style={{ flex: 1, padding: '9px 12px', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                🍳 Start Cooking
+                <ChefHat size={15} /> Start Cooking
               </button>
             )}
             <button
@@ -765,7 +800,7 @@ export default function KDS() {
     if (!restaurant?.id) return;
     try {
       await callSpecificToken(restaurant.id, tokenNumber);
-      toast.success(`Calling Token #${tokenNumber}!`, { icon: '📢' });
+      toast.success(`Calling Token #${tokenNumber}!`);
     } catch {
       toast.error("Failed to call token");
     }
@@ -839,7 +874,7 @@ export default function KDS() {
   const handleRecallOrder = useCallback(async (order) => {
     try {
       await updateKDSStationStatus(restaurant.id, order, 'All', 'preparing');
-      toast.success(`Recalled order to kitchen!`, { icon: '↩️' });
+      toast.success('Recalled order to kitchen!');
     } catch (err) {
       toast.error('Failed to recall order: ' + err.message);
     }
@@ -852,7 +887,7 @@ export default function KDS() {
     if (orderCount > prev && prev > 0) {
       if (soundEnabled) {
         playKitchenChime();
-        toast('New kitchen ticket received!', { icon: '🔔' });
+        toast('New kitchen ticket received!');
       }
     }
     prevCountRef.current = orderCount;
@@ -882,17 +917,17 @@ export default function KDS() {
 
   const handleStartPreparing = useCallback(async (order, station) => {
     await updateKDSStationStatus(restaurant.id, order, station, 'preparing');
-    toast('Station preparation started...', { icon: '🍳' });
+    toast('Station preparation started...');
   }, [restaurant?.id, updateKDSStationStatus]);
 
   const handleMarkReady = useCallback(async (order, station) => {
     await updateKDSStationStatus(restaurant.id, order, station, 'ready');
-    toast.success('Station items marked as ready!', { icon: '✅' });
+    toast.success('Station items marked as ready!');
 
     if (station === 'All' && order.token && modes.includes('token')) {
       try {
         await callSpecificToken(restaurant.id, order.token);
-        toast.success(`Auto-called Token #${order.token} on TV display!`, { icon: '📢' });
+        toast.success(`Auto-called Token #${order.token} on TV display!`);
       } catch (err) {
         console.error("Auto-call failed", err);
       }
@@ -907,7 +942,7 @@ export default function KDS() {
 
   const handleRingWaiter = useCallback(async (order, itemName = null) => {
     await ringWaiterForOrder(restaurant.id, order, itemName);
-    toast.success(`Rang waiter for ${order.tableName ? `Table ${order.tableName}` : (order.tableId ? `Table ${order.tableId}` : 'Order')}! 🔔`, { icon: '📢' });
+    toast.success(`Rang waiter for ${order.tableName ? `Table ${order.tableName}` : (order.tableId ? `Table ${order.tableId}` : 'Order')}!`);
   }, [restaurant?.id, ringWaiterForOrder]);
 
   // ── Commercial Hardware Bump Bar & Keyboard Shortcuts ──
@@ -926,7 +961,7 @@ export default function KDS() {
           e.preventDefault();
           handleMarkReady(targetOrder, activeStation);
           const identifier = (modes.includes('token') && targetOrder.token) ? targetOrder.token : targetOrder.id.slice(-4);
-          toast.success(`Bumped Ticket #${identifier} via Bump Bar [${e.key}]!`, { icon: '⚡' });
+          toast.success(`Bumped Ticket #${identifier} via Bump Bar [${e.key}]!`);
         }
         return;
       }
@@ -938,7 +973,7 @@ export default function KDS() {
           const oldestOrder = kdsOrders[0];
           handleMarkReady(oldestOrder, activeStation);
           const identifier = (modes.includes('token') && oldestOrder.token) ? oldestOrder.token : oldestOrder.id.slice(-4);
-          toast.success(`Bumped Ticket #${identifier} Ready!`, { icon: '⚡' });
+          toast.success(`Bumped Ticket #${identifier} Ready!`);
         }
         return;
       }
@@ -972,7 +1007,7 @@ export default function KDS() {
         e.preventDefault();
         const nextSort = kdsSortOrder === 'oldest' ? 'newest' : (kdsSortOrder === 'newest' ? 'urgency' : 'oldest');
         handleSortOrderChange(nextSort);
-        toast(`Sort: ${nextSort.toUpperCase()}`, { icon: '🔀' });
+        toast(`Sort: ${nextSort.toUpperCase()}`);
         return;
       }
 
@@ -1092,9 +1127,9 @@ export default function KDS() {
               setSoundEnabled(nextState);
               if (nextState) {
                 playKitchenChime();
-                toast.success('Chime enabled', { icon: '🔔' });
+                toast.success('Chime enabled');
               } else {
-                toast('Muted', { icon: '🔕' });
+                toast('Muted');
               }
             }}
             title={soundEnabled ? 'Sound is ON (Tap to mute)' : 'Sound is MUTED (Tap to unmute)'}
@@ -1220,7 +1255,9 @@ export default function KDS() {
                   fontWeight: 800,
                   fontSize: 12
                 }}>
-                  <span>✓ READY & PLATED</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <Check size={13} strokeWidth={3} /> READY & PLATED
+                  </span>
                   <span>Completed</span>
                 </div>
                 <div className="kds-order-header">
@@ -1239,7 +1276,22 @@ export default function KDS() {
                           Token #{order.token}
                         </span>
                       )}
-                      <span>{order.tableName ? `Table ${order.tableName}` : (order.type === 'takeaway' ? '🛍️ Takeaway' : (order.type === 'online' ? '🌐 Online' : 'Dine-In'))}</span>
+                      <span>
+                        {order.source === 'kiosk' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <Monitor size={12} color="#f59e0b" />
+                            <span>{order.tableName?.replace(/^Table\s+/i, '') || 'Kiosk'}</span>
+                          </span>
+                        ) : order.tableName ? (
+                          `Table ${order.tableName.replace(/^Table\s+/i, '')}`
+                        ) : order.type === 'takeaway' ? (
+                          'Takeaway'
+                        ) : order.type === 'online' ? (
+                          'Online'
+                        ) : (
+                          'Dine-In'
+                        )}
+                      </span>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 3 }}>
                       Order #{order.id.slice(-6).toUpperCase()}
@@ -1353,7 +1405,7 @@ export default function KDS() {
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
                   playKitchenChime();
-                  toast.success('Chime tested! Sound volume is working.', { icon: '🔔' });
+                  toast.success('Chime tested! Sound volume is working.');
                 }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', minHeight: 36, borderRadius: 'var(--radius-md)' }}
               >

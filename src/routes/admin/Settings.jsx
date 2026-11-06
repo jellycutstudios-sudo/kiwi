@@ -2417,6 +2417,22 @@ export default function Settings() {
 
                 {/* Kiosk Configuration Controls */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                  {/* Kiosk Station Name / Location */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Kiosk Station Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Ground Floor Kiosk, Station 1"
+                      value={settings.kioskConfig?.stationName ?? ''}
+                      onChange={e => updateField('kioskConfig.stationName', e.target.value)}
+                      style={{ fontSize: '12.5px' }}
+                    />
+                    <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', marginTop: 2, display: 'block' }}>
+                      Identifies this kiosk terminal on kitchen tickets &amp; orders (e.g. "Ground Floor Kiosk", "Floor 1 Kiosk").
+                    </span>
+                  </div>
+
                   {/* Inactivity Timeout */}
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontSize: '12px' }}>Inactivity Reset Timer</label>

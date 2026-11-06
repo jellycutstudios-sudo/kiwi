@@ -70,6 +70,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
   const kioskLogo = restaurant?.kioskConfig?.logoUrl || restaurant?.receiptConfig?.logoUrl || restaurant?.logo || null;
   const heroHeadline = restaurant?.kioskConfig?.headline || 'DO YOU HAVE ANY ORDER TODAY?';
   const heroSubtitle = restaurant?.kioskConfig?.subtitle || 'FRESHLY PREPARED. MADE FOR YOU TODAY.';
+  const stationName = restaurant?.kioskConfig?.stationName?.trim() || 'Ground Floor Kiosk';
 
   // Menu Navigation & Filtering
   const [activeCategory, setActiveCategory] = useState('all');
@@ -450,7 +451,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
         source: 'kiosk',
         status: 'pending',
         token: tokenNum,
-        tableName: orderType === 'dine-in' ? 'Ground Floor Kiosk' : 'Takeaway Counter',
+        tableName: orderType === 'dine-in' ? stationName : `${stationName} (Takeaway)`,
         customerName: `Kiosk Token #${tokenNum}`,
         customerPhone: '',
         cookingNote: cookingNote.trim(),
@@ -689,7 +690,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
         <div className="kiosk-nav-center-info">
           <span className="kiosk-nav-clock">{currentTime}</span>
-          <span className="kiosk-nav-station-tag">#011</span>
+          <span className="kiosk-nav-station-tag">{stationName}</span>
         </div>
 
         <div className="kiosk-nav-right">
