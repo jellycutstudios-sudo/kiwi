@@ -19,7 +19,7 @@ import toast from 'react-hot-toast';
 import { 
   ArrowLeft, QrCode, Banknote, AlertTriangle, 
   Maximize2, Minimize2, Plus, Minus, Trash2, X, Search, ChevronRight,
-  Clock, Printer, Utensils, ShoppingBag, Sparkles, Receipt,
+  Clock, Printer, Utensils, ShoppingBag, Receipt,
   LayoutGrid, Tag, TrendingUp
 } from 'lucide-react';
 import './SelfServiceKiosk.css';
@@ -562,9 +562,14 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
         {/* Center Attraction Hero */}
         <div className="kiosk-attract-center">
-          <div className="kiosk-attract-hero-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Sparkles size={36} color="var(--kiosk-hero-color, #ffffff)" />
+          <div className="kiosk-attract-emblem">
+            {kioskLogo ? (
+              <img src={kioskLogo} alt={restaurant?.name || 'Restaurant'} className="kiosk-attract-emblem-img" />
+            ) : (
+              <Utensils size={36} strokeWidth={1.75} />
+            )}
           </div>
+
           <div className="kiosk-attract-headline">
             {heroHeadline}
           </div>
@@ -577,36 +582,34 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             {allowedDining !== 'takeaway' && (
               <button
                 type="button"
-                className="kiosk-choice-btn primary"
+                className="kiosk-choice-btn"
                 onClick={() => {
                   setOrderType('dine-in');
                   setStep('menu');
                   hapticTap('medium');
                 }}
               >
-                <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Utensils size={32} />
+                <span className="kiosk-choice-btn-icon">
+                  <Utensils size={36} strokeWidth={1.8} />
                 </span>
                 <span className="kiosk-choice-btn-title">Dine In</span>
-                <span className="kiosk-choice-btn-desc">Eat here at tables</span>
               </button>
             )}
 
             {allowedDining !== 'dine-in' && (
               <button
                 type="button"
-                className={`kiosk-choice-btn ${allowedDining === 'takeaway' ? 'primary' : 'secondary'}`}
+                className="kiosk-choice-btn"
                 onClick={() => {
                   setOrderType('takeaway');
                   setStep('menu');
                   hapticTap('medium');
                 }}
               >
-                <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ShoppingBag size={32} />
+                <span className="kiosk-choice-btn-icon">
+                  <ShoppingBag size={36} strokeWidth={1.8} />
                 </span>
                 <span className="kiosk-choice-btn-title">Takeaway</span>
-                <span className="kiosk-choice-btn-desc">Pack to go</span>
               </button>
             )}
           </div>

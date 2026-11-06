@@ -126,8 +126,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 40px 24px;
-  background: radial-gradient(circle at 50% 25%, #1f222e 0%, #0d0e12 85%);
+  padding: clamp(24px, 4.5vh, 52px) clamp(20px, 4vw, 48px);
+  background: #090a0f;
+  background: radial-gradient(ellipse at 50% 40%, #151822 0%, #090a0f 75%);
   cursor: pointer;
   z-index: 100;
   animation: kioskFadeIn 0.35s ease-out;
@@ -137,45 +138,45 @@
   display: flex;
   justify-content: space-between;
   width: 100%;
-  max-width: 900px;
+  max-width: 920px;
   align-items: center;
 }
 
 .kiosk-brand-badge {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .kiosk-brand-logo {
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .kiosk-brand-title {
   font-family: var(--kiosk-font-display);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #ffffff;
+  letter-spacing: -0.01em;
+  color: #f8fafc;
   text-transform: uppercase;
 }
 
 .kiosk-lang-pills {
   display: flex;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   padding: 4px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .kiosk-lang-pill {
@@ -185,15 +186,15 @@
   background: transparent;
   color: #94a3b8;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .kiosk-lang-pill.active {
   background: #ffffff;
-  color: #111215;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #090a0f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .kiosk-attract-center {
@@ -201,35 +202,46 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 20px;
-  max-width: 620px;
+  gap: clamp(16px, 2.5vh, 26px);
+  max-width: 680px;
+  width: 100%;
+  margin: auto 0;
 }
 
-.kiosk-attract-hero-icon {
-  width: 76px;
-  height: 76px;
+.kiosk-attract-emblem {
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
-  background: var(--kiosk-hero-glow, rgba(255, 255, 255, 0.08));
-  border: 1.5px solid var(--kiosk-hero-border, rgba(255, 255, 255, 0.25));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 35px var(--kiosk-hero-glow, rgba(255, 255, 255, 0.12));
-  animation: kioskPulse 3s infinite ease-in-out;
+  overflow: hidden;
+  color: #f8fafc;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.kiosk-attract-emblem-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
 }
 
 .kiosk-attract-headline {
   font-family: var(--kiosk-font-display);
-  font-size: clamp(32px, 5.2vw, 50px);
+  font-size: clamp(28px, 4.4vw, 46px);
   font-weight: 800;
   color: #ffffff;
-  letter-spacing: 0.015em;
+  letter-spacing: -0.01em;
   text-transform: uppercase;
-  line-height: 1.08;
+  line-height: 1.15;
+  margin: 0;
 }
 
 .kiosk-attract-subline {
-  font-size: 15.5px;
+  font-size: clamp(14px, 1.6vw, 16px);
   color: #94a3b8;
   margin: 0;
   line-height: 1.5;
@@ -237,85 +249,204 @@
 }
 
 .kiosk-dine-choice-row {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: clamp(16px, 2.2vw, 24px);
   width: 100%;
-  max-width: 540px;
-  margin-top: 10px;
+  max-width: 580px;
+  margin-top: 8px;
 }
 
 .kiosk-choice-btn {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  padding: 26px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  padding: clamp(24px, 3.4vh, 36px) 24px;
+  min-height: clamp(125px, 15vh, 170px);
   color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 14px;
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .kiosk-choice-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.36);
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
 }
 
 .kiosk-choice-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.kiosk-choice-btn.primary {
-  background: var(--kiosk-choice-primary-bg);
-  color: var(--kiosk-choice-primary-text);
-  border-color: var(--kiosk-choice-primary-border);
-  box-shadow: var(--kiosk-choice-primary-glow);
+.kiosk-choice-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+  transition: transform 0.2s ease;
 }
 
-.kiosk-choice-btn.primary .kiosk-choice-btn-title {
-  color: var(--kiosk-choice-primary-text);
-}
-
-.kiosk-choice-btn.primary .kiosk-choice-btn-desc {
-  color: var(--kiosk-choice-primary-desc);
-}
-
-.kiosk-choice-btn.primary .kiosk-choice-btn-icon {
-  color: var(--kiosk-choice-primary-text);
+.kiosk-choice-btn:hover .kiosk-choice-btn-icon {
+  transform: scale(1.06);
 }
 
 .kiosk-choice-btn-title {
   font-family: var(--kiosk-font-display);
-  font-size: 22px;
-  font-weight: 800;
+  font-size: clamp(20px, 2.2vw, 24px);
+  font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  color: #ffffff;
 }
 
 .kiosk-choice-btn-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.72);
+  color: #94a3b8;
   font-weight: 500;
+}
+
+/* Primary variant retained for modal CTAs */
+.kiosk-choice-btn.primary {
+  background: #ffffff;
+  color: #090a0f;
+  border-color: #ffffff;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+}
+
+.kiosk-choice-btn.primary:hover {
+  background: #f4f4f5;
+  color: #090a0f;
+  border-color: #f4f4f5;
+}
+
+.kiosk-choice-btn.primary .kiosk-choice-btn-title {
+  color: #090a0f;
+}
+
+.kiosk-choice-btn.primary .kiosk-choice-btn-desc {
+  color: rgba(9, 10, 15, 0.72);
+}
+
+.kiosk-choice-btn.primary .kiosk-choice-btn-icon {
+  color: #090a0f;
 }
 
 .kiosk-attract-footer {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   font-size: 13px;
   color: #94a3b8;
   font-weight: 500;
-  padding: 8px 20px;
+  padding: 8px 24px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.01em;
+}
+
+/* ─── Kiosk Commercial Screen Media Queries ────────────────── */
+/* Tall Standing Portrait Kiosks (1080x1920, 21.5" - 32" Sunmi K2 / Elo) */
+@media (min-height: 1080px) and (orientation: portrait) {
+  .kiosk-attract-screen {
+    padding: 64px 44px;
+  }
+
+  .kiosk-attract-center {
+    gap: 32px;
+    max-width: 720px;
+  }
+
+  .kiosk-attract-emblem {
+    width: 104px;
+    height: 104px;
+  }
+
+  .kiosk-attract-headline {
+    font-size: 52px;
+  }
+
+  .kiosk-attract-subline {
+    font-size: 18px;
+    max-width: 580px;
+  }
+
+  .kiosk-dine-choice-row {
+    max-width: 660px;
+    gap: 28px;
+  }
+
+  .kiosk-choice-btn {
+    min-height: 190px;
+    padding: 38px 28px;
+    border-radius: 28px;
+  }
+
+  .kiosk-choice-btn-title {
+    font-size: 28px;
+  }
+
+  .kiosk-attract-footer {
+    font-size: 15px;
+    padding: 10px 28px;
+  }
+}
+
+/* Compact Countertop Tablets / Low-Height Terminals (<720px height) */
+@media (max-height: 720px) {
+  .kiosk-attract-screen {
+    padding: 18px 24px;
+  }
+
+  .kiosk-attract-center {
+    gap: 12px;
+  }
+
+  .kiosk-attract-emblem {
+    width: 60px;
+    height: 60px;
+  }
+
+  .kiosk-attract-headline {
+    font-size: 26px;
+  }
+
+  .kiosk-attract-subline {
+    font-size: 13.5px;
+  }
+
+  .kiosk-dine-choice-row {
+    margin-top: 4px;
+    gap: 12px;
+  }
+
+  .kiosk-choice-btn {
+    min-height: 105px;
+    padding: 16px 16px;
+    border-radius: 18px;
+    gap: 8px;
+  }
+
+  .kiosk-choice-btn-title {
+    font-size: 18px;
+  }
+
+  .kiosk-attract-footer {
+    font-size: 12px;
+    padding: 6px 16px;
+  }
 }
 
 /* ─── Main Menu Screen ─────────────────────────────────────── */
