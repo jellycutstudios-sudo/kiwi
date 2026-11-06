@@ -8,7 +8,7 @@ import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, ArrowRight, Tv, ExternalLink,
-  Download, ShieldCheck, Bot, Zap,
+  Download, ShieldCheck, Bot, Zap, Lock, Mail,
   Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown
 } from 'lucide-react';
 import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
@@ -29,94 +29,87 @@ import ToggleSwitch from '../../components/shared/ToggleSwitch';
 
 const MODES = [
   // 1. Core POS & Service Formats
-  { key: 'pos',              label: '🧾 Quick Counter Billing',   desc: 'Fast 1-tap cashier sales & receipts', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'table',            label: '🗺️ Table Management',       desc: 'Floor plan, visual tables & dining timers', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'token',            label: '🎫 QSR Token Queue',        desc: 'Token issuance & live TV queue screen', tab: 'displays', tabName: 'Displays' },
-  { key: 'barcode',          label: '🏷️ Barcode Scanner',        desc: 'USB & Bluetooth barcode gun scan-to-cart', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'pos',              label: 'Quick Counter Billing',   desc: 'Fast 1-tap cashier sales & receipts', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'table',            label: 'Table Management',       desc: 'Floor plan, visual tables & dining timers', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'token',            label: 'QSR Token Queue',        desc: 'Token issuance & live TV queue screen', tab: 'displays', tabName: 'Displays' },
+  { key: 'barcode',          label: 'Barcode Scanner',        desc: 'USB & Bluetooth barcode gun scan-to-cart', tab: 'workflows', tabName: 'Workflows' },
 
   // 2. Kitchen & Fulfillment
-  { key: 'kds',              label: '🍳 Kitchen Display & KOT',   desc: 'Paperless KDS & thermal kitchen tickets', tab: 'kitchen', tabName: 'Kitchen' },
+  { key: 'kds',              label: 'Kitchen Display & KOT',   desc: 'Paperless KDS & thermal kitchen tickets', tab: 'kitchen', tabName: 'Kitchen' },
 
   // 3. Sales Channels & Ordering
-  { key: 'online',           label: '📱 Online Storefront',       desc: 'Direct commission-free web ordering', tab: 'online-del', tabName: 'Online Store' },
-  { key: 'delivery_hub',     label: '🛵 Delivery Hub',            desc: 'Driver dispatch & aggregator sync', tab: 'online-del', tabName: 'Online Store' },
-  { key: 'reservations',     label: '📅 Table Reservations',      desc: 'Guest table bookings & waitlist queue', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'online',           label: 'Online Storefront',       desc: 'Direct commission-free web ordering', tab: 'online-del', tabName: 'Online Store' },
+  { key: 'delivery_hub',     label: 'Delivery Hub',            desc: 'Driver dispatch & aggregator sync', tab: 'online-del', tabName: 'Online Store' },
+  { key: 'reservations',     label: 'Table Reservations',      desc: 'Guest table bookings & waitlist queue', tab: 'workflows', tabName: 'Workflows' },
 
   // 4. Digital Displays & Front of House
-  { key: 'posters',          label: '📺 TV Signage & Posters',   desc: 'Promo menu boards & video slideshows', tab: 'displays', tabName: 'Displays' },
-  { key: 'kiosk',            label: '📱 Self-Service Touch Kiosk', desc: 'Customer touch ordering, UPI QR & token tickets', tab: 'displays', tabName: 'Displays' },
+  { key: 'posters',          label: 'TV Signage & Posters',   desc: 'Promo menu boards & video slideshows', tab: 'displays', tabName: 'Displays' },
+  { key: 'kiosk',            label: 'Self-Service Touch Kiosk', desc: 'Customer touch ordering, UPI QR & token tickets', tab: 'displays', tabName: 'Displays' },
 
   // 5. Trust, Privacy & Tax Shield
-  { key: 'customer_privacy', label: '🔒 Phone Privacy Shield',   desc: 'Mask guest phone numbers from staff', tab: 'security', tabName: 'Security' },
-  { key: 'audit_shield',     label: '📑 Void Audit Reasons',     desc: 'Mandatory reason logs for cancellations', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'data_vault',       label: '🗄️ 1-Click Data Dump',      desc: 'Export full database to JSON/CSV', isAction: 'vault' },
-  { key: 'tax_reconcile',    label: '📊 Tally & Tax Export',      desc: 'TallyPrime XML sync & tax reports', tab: 'tax-pay', tabName: 'Taxes & Cash', isAction: 'tally' },
+  { key: 'customer_privacy', label: 'Phone Privacy Shield',   desc: 'Mask guest phone numbers from staff', tab: 'security', tabName: 'Security' },
+  { key: 'audit_shield',     label: 'Void Audit Reasons',     desc: 'Mandatory reason logs for cancellations', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'data_vault',       label: '1-Click Data Dump',      desc: 'Export full database to JSON/CSV', isAction: 'vault' },
+  { key: 'tax_reconcile',    label: 'Tally & Tax Export',      desc: 'TallyPrime XML sync & tax reports', tab: 'tax-pay', tabName: 'Taxes & Cash', isAction: 'tally' },
 
   // 6. Back Office, People & Retention
-  { key: 'inventory',        label: '📦 Stock & Ingredients',    desc: 'Recipe margins, low-stock alerts & POs', tab: 'hardware', tabName: 'Hardware' },
-  { key: 'payroll',          label: '💸 Staff Payroll & Tips',   desc: 'Hourly wages, shifts & tip distributions', tab: 'workflows', tabName: 'Workflows' },
-  { key: 'till_shift',       label: '💵 Cash Drawer & Till',     desc: 'Opening float, cash drops & Z-Reports', tab: 'tax-pay', tabName: 'Taxes & Cash' },
-  { key: 'customers',        label: '🤝 Customer Directory',     desc: 'Guest CRM, visit history & VIP tags', tab: 'notifications', tabName: 'Alerts & Reports' },
-  { key: 'retention_crm',    label: '💬 WhatsApp Receipts',      desc: 'Paperless WhatsApp e-bills & reviews', tab: 'notifications', tabName: 'Alerts & Reports' },
+  { key: 'inventory',        label: 'Stock & Ingredients',    desc: 'Recipe margins, low-stock alerts & POs', tab: 'hardware', tabName: 'Hardware' },
+  { key: 'payroll',          label: 'Staff Payroll & Tips',   desc: 'Hourly wages, shifts & tip distributions', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'till_shift',       label: 'Cash Drawer & Till',     desc: 'Opening float, cash drops & Z-Reports', tab: 'tax-pay', tabName: 'Taxes & Cash' },
+  { key: 'customers',        label: 'Customer Directory',     desc: 'Guest CRM, visit history & VIP tags', tab: 'notifications', tabName: 'Alerts & Reports' },
+  { key: 'retention_crm',    label: 'WhatsApp Receipts',      desc: 'Paperless WhatsApp e-bills & reviews', tab: 'notifications', tabName: 'Alerts & Reports' },
 ];
 
 const MODULE_PILLARS = [
-  { id: 'core',       title: '⚡ Core Operations & Formats', badge: 'Core POS', keys: ['pos', 'table', 'token', 'barcode'] },
-  { id: 'kitchen',    title: '🍳 Kitchen & Fulfillment',    badge: 'Kitchen',  keys: ['kds'] },
-  { id: 'channels',   title: '🌐 Sales Channels',            badge: 'Ordering', keys: ['online', 'delivery_hub', 'reservations'] },
-  { id: 'displays',   title: '📺 Digital Displays & TV',     badge: 'Displays', keys: ['posters'] },
-  { id: 'privacy',    title: '🛡️ Privacy & Tax Shield',      badge: 'Security', keys: ['customer_privacy', 'audit_shield', 'data_vault', 'tax_reconcile'] },
-  { id: 'backoffice', title: '💼 Back Office & Operations',  badge: 'Admin',    keys: ['inventory', 'payroll', 'till_shift', 'customers', 'retention_crm'] }
+  { id: 'core',       title: 'Core Operations & Formats', badge: 'Core POS', keys: ['pos', 'table', 'token', 'barcode'] },
+  { id: 'kitchen',    title: 'Kitchen & Fulfillment',    badge: 'Kitchen',  keys: ['kds'] },
+  { id: 'channels',   title: 'Sales Channels',            badge: 'Ordering', keys: ['online', 'delivery_hub', 'reservations'] },
+  { id: 'displays',   title: 'Digital Displays & TV',     badge: 'Displays', keys: ['posters'] },
+  { id: 'privacy',    title: 'Privacy & Tax Shield',      badge: 'Security', keys: ['customer_privacy', 'audit_shield', 'data_vault', 'tax_reconcile'] },
+  { id: 'backoffice', title: 'Back Office & Operations',  badge: 'Admin',    keys: ['inventory', 'payroll', 'till_shift', 'customers', 'retention_crm'] }
 ];
 
 const MODULE_PRESETS = [
   {
     id: 'bill_only',
     name: 'Bill Only / Express Counter',
-    emoji: '🧾',
-    desc: 'Simple cashier billing. Punch items and print bill. No tables, no KDS screens.',
+        desc: 'Simple cashier billing. Punch items and print bill. No tables, no KDS screens.',
     modes: ['pos', 'till_shift']
   },
   {
     id: 'qsr',
     name: 'Quick Service / Fast Food',
-    emoji: '🍔',
-    desc: 'Counter queues, token display, KDS kitchen screens, fast cash/UPI & online store',
+        desc: 'Counter queues, token display, KDS kitchen screens, fast cash/UPI & online store',
     modes: ['pos', 'token', 'kds', 'online', 'posters', 'till_shift', 'retention_crm']
   },
   {
     id: 'dine_in',
     name: 'Full Restaurant & Dine-In',
-    emoji: '🍽️',
-    desc: 'Floor plan table maps, reservations, KDS, staff payroll, phone masking & tax audit',
+        desc: 'Floor plan table maps, reservations, KDS, staff payroll, phone masking & tax audit',
     modes: ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile']
   },
   {
     id: 'cafe',
     name: 'Cafe & Bakery',
-    emoji: '☕',
-    desc: 'Counter sales, barcode scanner, TV promos, customer loyalty & inventory',
+        desc: 'Counter sales, barcode scanner, TV promos, customer loyalty & inventory',
     modes: ['pos', 'token', 'barcode', 'posters', 'inventory', 'customers', 'till_shift', 'retention_crm']
   },
   {
     id: 'retail',
     name: 'Retail & Mini Mart',
-    emoji: '🛍️',
-    desc: 'High-speed barcode checkout, inventory management, customer database & cash drawer',
+        desc: 'High-speed barcode checkout, inventory management, customer database & cash drawer',
     modes: ['pos', 'barcode', 'inventory', 'customers', 'till_shift', 'customer_privacy']
   },
   {
     id: 'service',
     name: 'Salon & Spa Services',
-    emoji: '💇',
-    desc: 'Stylist / staff commission attribution, customer records, tipping & payroll',
+        desc: 'Stylist / staff commission attribution, customer records, tipping & payroll',
     modes: ['pos', 'customers', 'payroll', 'till_shift']
   },
   {
     id: 'cloud',
     name: 'Cloud / Dark Kitchen',
-    emoji: '🛵',
-    desc: 'Delivery hub aggregator sync, online store, KDS stations, inventory costing & data vault',
+        desc: 'Delivery hub aggregator sync, online store, KDS stations, inventory costing & data vault',
     modes: ['online', 'delivery_hub', 'kds', 'inventory', 'data_vault', 'tax_reconcile']
   }
 ];
@@ -231,7 +224,7 @@ export default function Settings() {
       setDiagResults(results);
       const logs = getRecentLogs();
       setRecentLogs(logs);
-      toast.success('System diagnostics complete!', { icon: '🩺' });
+      toast.success('System diagnostics complete!');
     } catch {
       toast.error('Diagnostics failed');
     } finally {
@@ -243,7 +236,7 @@ export default function Settings() {
     try {
       const report = generateDiagnosticReport();
       navigator.clipboard.writeText(report);
-      toast.success('Diagnostic report copied to clipboard!', { icon: '📋' });
+      toast.success('Diagnostic report copied to clipboard!');
     } catch (err) {
       toast.error('Failed to copy report: ' + err.message);
     }
@@ -302,7 +295,7 @@ export default function Settings() {
       try {
         localStorage.removeItem(`dineos_settings_draft_${restaurant?.id}`);
       } catch {}
-      toast('Unsaved changes discarded', { icon: '↩️' });
+      toast('Unsaved changes discarded');
     }
   };
 
@@ -826,7 +819,7 @@ export default function Settings() {
           gap: 12
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 18 }}>📝</span>
+            
             <div>
               <div style={{ fontSize: 'var(--text-subhead)', color: '#d97706', fontWeight: 700 }}>
                 Unsaved Settings Restored
@@ -1023,11 +1016,10 @@ export default function Settings() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '22px',
                           background: 'var(--color-bg)',
                           flexShrink: 0
                         }}>
-                          🍽️
+                          <Store size={22} color="var(--color-label-tertiary)" />
                         </div>
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 180px', minWidth: 0 }}>
@@ -1096,7 +1088,7 @@ export default function Settings() {
 
               {/* System Version & App Updates */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>⚡ System Version &amp; App Updates</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>System Version &amp; App Updates</h3>
                 <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
                   Manage software updates across all connected POS terminals, tablets, and mobile devices.
                 </p>
@@ -1107,7 +1099,7 @@ export default function Settings() {
                       <span className="badge badge-gray" style={{ fontSize: 11 }}>v1.0.0</span>
                       {hasUpdate ? (
                         <span className="badge badge-orange" style={{ fontSize: 11, background: 'rgba(249,115,22,0.2)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.4)' }}>
-                          🚀 New Update Ready
+                          New Update Ready
                         </span>
                       ) : (
                         <span className="badge badge-green" style={{ fontSize: 11 }}>
@@ -1190,9 +1182,8 @@ export default function Settings() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '18px'
                   }}>
-                    🔐
+                    <Lock size={18} color="var(--color-green)" />
                   </div>
                   <div>
                     <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--color-label)' }}>
@@ -1341,7 +1332,7 @@ export default function Settings() {
                                 background: res.status === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
                                 color: res.status === 'ok' ? '#10b981' : '#f59e0b'
                               }}>
-                                {res.status === 'ok' ? 'PASS ✅' : 'NOTICE ⚠️'}
+                                {res.status === 'ok' ? 'PASS' : 'NOTICE'}
                               </span>
                             </div>
                           ))}
@@ -1463,9 +1454,9 @@ export default function Settings() {
                         console.warn('[Settings] Failed to save allowCashierDashboard directly:', err);
                       }
                       if (enable) {
-                        toast.success('Cashiers can now view the Dashboard overview.', { icon: '📊' });
+                        toast.success('Cashiers can now view the Dashboard overview.');
                       } else {
-                        toast.success('Dashboard hidden from cashiers. Cashiers will land on the POS register.', { icon: '🔒' });
+                        toast.success('Dashboard hidden from cashiers. Cashiers will land on the POS register.');
                       }
                     }}
                   />
@@ -1486,7 +1477,7 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '22px' }}>🧩</span>
+                    
                     <h3 className="text-title3" style={{ margin: 0 }}>Active Modules &amp; POS Capabilities</h3>
                     <span style={{
                       fontSize: '11px',
@@ -1505,7 +1496,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* ⚡ Quick Format Presets Bar */}
+              {/* Quick Format Presets Bar */}
               <div style={{
                 background: 'var(--color-bg-secondary)',
                 border: '1px solid var(--color-separator)',
@@ -1562,7 +1553,7 @@ export default function Settings() {
                           if (isBillOnly && activeTab === 'kitchen') {
                             setActiveTab('workflows');
                           }
-                          toast.success(`Configured for ${preset.name}!`, { icon: preset.emoji });
+                          toast.success(`Configured for ${preset.name}!`, );
                         }}
                       >
                         <span>{preset.emoji}</span>
@@ -1579,7 +1570,7 @@ export default function Settings() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '22px' }}>🖥️</span>
+                      
                       <h3 className="text-title3" style={{ margin: 0 }}>POS Terminal Layout Template</h3>
                       <span style={{
                         fontSize: '11px',
@@ -1631,7 +1622,7 @@ export default function Settings() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
-                        📱 Template 1: Modern Grid
+                        Template 1: Modern Grid
                       </span>
                       {(!settings.posTemplate || settings.posTemplate === 'modern_grid') && (
                         <Check size={16} color="var(--color-accent)" strokeWidth={3} />
@@ -1677,7 +1668,7 @@ export default function Settings() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
-                        🍽️ Template 2: Left Category Sidebar
+                        Template 2: Left Category Sidebar
                       </span>
                       {settings.posTemplate === 'bistro_sidebar' && (
                         <Check size={16} color="var(--color-accent)" strokeWidth={3} />
@@ -1723,7 +1714,7 @@ export default function Settings() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
-                        🗂️ Template 3: Hybrid Category Cards
+                        Template 3: Hybrid Category Cards
                       </span>
                       {settings.posTemplate === 'category_first' && (
                         <Check size={16} color="var(--color-accent)" strokeWidth={3} />
@@ -1991,9 +1982,9 @@ export default function Settings() {
                     </div>
                     <div className="phone-req-segmented">
                       {[
-                        { id: 'optional', label: '⚡ Optional', mobileLabel: '⚡ Optional' },
-                        { id: 'loyalty_only', label: '🎁 Loyalty Prompt', mobileLabel: '🎁 Loyalty' },
-                        { id: 'mandatory', label: '🔒 Mandatory', mobileLabel: '🔒 Mandatory' }
+                        { id: 'optional', label: 'Optional', mobileLabel: 'Optional' },
+                        { id: 'loyalty_only', label: 'Loyalty Prompt', mobileLabel: 'Loyalty' },
+                        { id: 'mandatory', label: 'Mandatory', mobileLabel: 'Mandatory' }
                       ].map(opt => {
                         const isSelected = (settings.workflowConfig?.phoneRequirement ?? 'optional') === opt.id;
                         return (
@@ -2096,7 +2087,7 @@ export default function Settings() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>🎫</span> QSR Token &amp; Live Queue Configuration
+                        QSR Token &amp; Live Queue Configuration
                       </div>
                       <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>
                         Active via Token Module
@@ -2128,7 +2119,7 @@ export default function Settings() {
                       gap: 12
                     }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>🔊 Voice Token Callout on Customer Display</div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>Voice Token Callout on Customer Display</div>
                         <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
                           Synthetic audio announcement when order is marked ready or recalled.
                         </div>
@@ -2150,7 +2141,7 @@ export default function Settings() {
                       gap: 12
                     }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>🖨️ Auto-Print Token Slip on New Order</div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>Auto-Print Token Slip on New Order</div>
                         <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
                           Automatically print dedicated thermal token slip for customer waiting / collection queues.
                         </div>
@@ -2295,9 +2286,9 @@ export default function Settings() {
                       }
 
                       if (enable) {
-                        toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.', { icon: '💾' });
+                        toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.');
                       } else {
-                        toast('Cloud sync mode re-enabled.', { icon: '🌐' });
+                        toast('Cloud sync mode re-enabled.');
                       }
                     }}
                   />
@@ -2308,7 +2299,7 @@ export default function Settings() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', flexWrap: 'wrap' }}>
                       <span style={{ color: storageStatus?.persisted ? '#10b981' : '#f59e0b' }}>
-                        {storageStatus?.persisted ? '🛡️' : '⚠️'}
+                        {storageStatus?.persisted ? 'Protected' : 'Standard'}
                       </span>
                       <strong style={{ color: 'var(--color-label)' }}>Storage Protection:</strong>
                       <span style={{ color: storageStatus?.persisted ? '#10b981' : 'var(--color-label-secondary)', fontWeight: 600 }}>
@@ -2327,7 +2318,7 @@ export default function Settings() {
                         onClick={() => {
                           const res = exportLocalStoreBackup(restaurant);
                           if (res.ok) {
-                            toast.success(`Exported offline backup (${res.filename})`, { icon: '💾' });
+                            toast.success(`Exported offline backup (${res.filename})`);
                           }
                         }}
                       >
@@ -2346,7 +2337,7 @@ export default function Settings() {
                             reader.onload = (event) => {
                               const res = restoreLocalStoreBackup(event.target.result);
                               if (res.ok) {
-                                toast.success(`Restored ${res.restoredCount} records! Reloading...`, { icon: '✅' });
+                                toast.success(`Restored ${res.restoredCount} records! Reloading...`);
                                 setTimeout(() => window.location.reload(), 1200);
                               } else {
                                 toast.error('Failed to restore backup: ' + res.error);
@@ -2360,7 +2351,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* 🛡️ Sovereign Data Trust Banner (PetPooja Antidote) */}
+                {/* Sovereign Data Trust Banner (PetPooja Antidote) */}
                 <div style={{
                   marginTop: 'var(--space-2)',
                   padding: 'var(--space-3) var(--space-4)',
@@ -2547,7 +2538,7 @@ export default function Settings() {
                   <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
                     {slideshowList.map(s => (
                       <div key={s.id} style={{ display:'flex', flexDirection:'column', gap:'6px', padding: '12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>📺 {s.name}</span>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
                         <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
                           <input
                             className="form-input"
@@ -2736,7 +2727,7 @@ export default function Settings() {
               {/* Multi-Provider Smart Payment Terminal & EDC Hardware */}
               <div className="card card-padded">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                  <h3 className="text-title3" style={{ margin: 0 }}>💳 Smart Payment Terminal &amp; EDC Hardware</h3>
+                  <h3 className="text-title3" style={{ margin: 0 }}>Smart Payment Terminal &amp; EDC Hardware</h3>
                   <span className={`badge ${settings.terminalConfig?.enabled ? 'badge-success' : 'badge-neutral'}`}>
                     {settings.terminalConfig?.enabled ? 'Hardware Active' : 'Manual Mode'}
                   </span>
@@ -2923,7 +2914,7 @@ export default function Settings() {
                   {settings.terminalConfig?.provider === 'pax' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                       <div style={{ padding: 'var(--space-3)', background: 'rgba(56, 189, 248, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                        <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600 }}>📟 Pax A920 / A35 Smart POS (GCC & Global)</div>
+                        <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600 }}>Pax A920 / A35 Smart POS (GCC & Global)</div>
                         <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
                           Standard across Qatar (QAR), UAE (AED), Saudi Arabia, and Europe. Automatically wakes up the Pax screen with the exact bill amount via POSLink protocol.
                         </div>
@@ -2982,7 +2973,7 @@ export default function Settings() {
                   {settings.terminalConfig?.provider === 'adyen' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                       <div style={{ padding: 'var(--space-3)', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                        <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>🌐 Adyen Cloud Smart Terminal</div>
+                        <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>Adyen Cloud Smart Terminal</div>
                         <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
                           Cloud Terminal API triggers Adyen Smart Terminals (Castles Saturn, S1F2, e285) worldwide with zero local server setup.
                         </div>
@@ -3016,7 +3007,7 @@ export default function Settings() {
 
                   {settings.terminalConfig?.provider === 'manual' && (
                     <div style={{ padding: 'var(--space-3)', background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                      <div style={{ fontSize: 13, color: '#93c5fd', fontWeight: 600 }}>💡 Standalone Bank Machine Mode Active</div>
+                      <div style={{ fontSize: 13, color: '#93c5fd', fontWeight: 600 }}>Standalone Bank Machine Mode Active</div>
                       <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
                         No hardware API required. Cashier enters amount directly on their bank swipe machine. DineOS records card and UPI sales with manual authorization numbers.
                       </div>
@@ -3025,7 +3016,7 @@ export default function Settings() {
 
                   {settings.terminalConfig?.provider === 'simulator' && (
                     <div style={{ padding: 'var(--space-3)', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-md, 8px)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                      <div style={{ fontSize: 13, color: '#6ee7b7', fontWeight: 600 }}>🧪 Terminal Simulator Active</div>
+                      <div style={{ fontSize: 13, color: '#6ee7b7', fontWeight: 600 }}>Terminal Simulator Active</div>
                       <div className="text-secondary text-caption2" style={{ marginTop: 2 }}>
                         Enables realistic interactive testing in POS checkout. Staff can simulate card tap, chip insert, UPI scan, and decline without any real payment charges.
                       </div>
@@ -3052,7 +3043,7 @@ export default function Settings() {
                         }
                       }}
                     >
-                      🔌 Test Terminal Connection / Diagnostics
+                      Test Terminal Connection / Diagnostics
                     </button>
                   </div>
                 </div>
@@ -3060,7 +3051,7 @@ export default function Settings() {
 
               {/* UPI Payment Gateway */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>📱 UPI Payment Gateway</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>UPI Payment Gateway</h3>
                 <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
                   Configure Merchant details to collect instant zero-fee payments via dynamic UPI QR codes.
                 </p>
@@ -3107,7 +3098,7 @@ export default function Settings() {
                         toast.success('UPI configuration format is valid!');
                       }}
                     >
-                      🔌 Validate UPI VPA ID Format
+                      Validate UPI VPA ID Format
                     </button>
                   </div>
                 </div>
@@ -3199,7 +3190,7 @@ export default function Settings() {
                 </div>
               ) : (
                 <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', padding: '40px var(--space-6)' }}>
-                  <div style={{ fontSize: '48px' }}>📱</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-accent)' }}>Online Ordering</div>
                   <h3 className="text-title3">Online Ordering is Disabled</h3>
                   <p className="text-secondary text-footnote" style={{ maxWidth: '400px', lineHeight: '1.5' }}>
                     To configure your online store link, custom URL slug, description, and storefront branding, please enable the <strong>Online Orders</strong> mode in Setup & Features first.
@@ -3252,8 +3243,7 @@ export default function Settings() {
                       id: 'talabat',
                       name: 'Talabat',
                       region: 'Qatar & GCC',
-                      emoji: '🟧',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'Talabat Partner API Key', placeholder: 'talabat_api_key_...' },
                         { key: 'restaurantId', label: 'Talabat Restaurant / Chain ID', placeholder: 'talabat_branch_id_...' },
                         { key: 'storeId', label: 'Store Code (Optional)', placeholder: 'e.g. DOH-001' }
@@ -3263,8 +3253,7 @@ export default function Settings() {
                       id: 'snoonu',
                       name: 'Snoonu',
                       region: 'Qatar',
-                      emoji: '🔴',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'Snoonu Merchant API Token', placeholder: 'snoonu_token_...' },
                         { key: 'merchantId', label: 'Merchant ID', placeholder: 'snoonu_merchant_id_...' },
                         { key: 'branchId', label: 'Branch ID', placeholder: 'snoonu_branch_id_...' }
@@ -3274,8 +3263,7 @@ export default function Settings() {
                       id: 'rafeeq',
                       name: 'Rafeeq',
                       region: 'Qatar',
-                      emoji: '🟣',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'Rafeeq Partner API Token', placeholder: 'rafeeq_api_key_...' },
                         { key: 'vendorId', label: 'Vendor / Branch ID', placeholder: 'rafeeq_vendor_id_...' }
                       ]
@@ -3284,8 +3272,7 @@ export default function Settings() {
                       id: 'jahez',
                       name: 'Jahez',
                       region: 'Qatar & GCC',
-                      emoji: '🟨',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'Jahez API Key', placeholder: 'jahez_key_...' },
                         { key: 'branchId', label: 'Branch Code', placeholder: 'jahez_branch_code_...' }
                       ]
@@ -3294,8 +3281,7 @@ export default function Settings() {
                       id: 'deliveroo',
                       name: 'Deliveroo',
                       region: 'UAE, Qatar & Global',
-                      emoji: '🦘',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'API Key', placeholder: 'deliveroo_api_key_...' },
                         { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'deliveroo_restaurant_id_...' }
                       ]
@@ -3304,8 +3290,7 @@ export default function Settings() {
                       id: 'ubereats',
                       name: 'Uber Eats',
                       region: 'Global',
-                      emoji: '🚗',
-                      fields: [
+                                            fields: [
                         { key: 'clientId', label: 'Client ID', placeholder: 'client_id_...' },
                         { key: 'clientSecret', label: 'Client Secret', placeholder: 'client_secret_...', type: 'password' },
                         { key: 'storeId', label: 'Store ID', placeholder: 'store_id_...' }
@@ -3315,8 +3300,7 @@ export default function Settings() {
                       id: 'zomato',
                       name: 'Zomato',
                       region: 'India & UAE',
-                      emoji: '🍕',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'API Key', placeholder: 'zomato_api_key_...' },
                         { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'zomato_restaurant_id_...' }
                       ]
@@ -3325,8 +3309,7 @@ export default function Settings() {
                       id: 'swiggy',
                       name: 'Swiggy',
                       region: 'India',
-                      emoji: '🟠',
-                      fields: [
+                                            fields: [
                         { key: 'apiKey', label: 'API Key', placeholder: 'swiggy_api_key_...' },
                         { key: 'restaurantId', label: 'Restaurant ID', placeholder: 'swiggy_restaurant_id_...' }
                       ]
@@ -3468,7 +3451,7 @@ export default function Settings() {
                     <Bell size={20} />
                   </div>
                   <div>
-                    <h3 className="text-title3" style={{ margin: 0 }}>🔔 Kitchen & Service Live Alerts</h3>
+                    <h3 className="text-title3" style={{ margin: 0 }}>Kitchen & Service Live Alerts</h3>
                     <p className="text-secondary text-footnote" style={{ margin: 0, marginTop: 2 }}>
                       Configure sound alerts, tone presets, and waiter popups when kitchen marks food as ready.
                     </p>
@@ -3579,9 +3562,9 @@ export default function Settings() {
                           cursor: 'pointer'
                         }}
                       >
-                        <option value="smart_hybrid">⚡ Smart Hybrid (Tables to Waiter, Takeaway to Cashier, Order Creator) — Recommended</option>
-                        <option value="waiter_only">👤 Strict Waiters Only</option>
-                        <option value="all_staff">👥 All Staff, Cashiers & Managers</option>
+                        <option value="smart_hybrid">Smart Hybrid (Tables to Waiter, Takeaway to Cashier, Order Creator) — Recommended</option>
+                        <option value="waiter_only">Strict Waiters Only</option>
+                        <option value="all_staff">All Staff, Cashiers & Managers</option>
                       </select>
                     </div>
                   )}
@@ -3672,7 +3655,7 @@ export default function Settings() {
                         </div>
                       </div>
                       <span className="badge badge-purple" style={{ fontSize: 10, fontWeight: 700 }}>
-                        {settings.notifications?.soundVolume === 'normal' ? 'Normal (80%)' : settings.notifications?.soundVolume === 'soft' ? 'Soft (60%)' : '🔥 Max Loudness (100% Boost)'}
+                        {settings.notifications?.soundVolume === 'normal' ? 'Normal (80%)' : settings.notifications?.soundVolume === 'soft' ? 'Soft (60%)' : 'Max Loudness (100% Boost)'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -3682,9 +3665,9 @@ export default function Settings() {
                         onChange={e => updateField('notifications', { ...(settings.notifications || {}), soundVolume: e.target.value })}
                         style={{ flex: 1, minWidth: 200 }}
                       >
-                        <option value="boost">🔥 Maximum Loudness (100% Boost — Best for Busy Kitchens)</option>
-                        <option value="normal">🔉 Normal / Standard (80%)</option>
-                        <option value="soft">🔈 Soft / Quiet (60%)</option>
+                        <option value="boost">Maximum Loudness (100% Boost — Best for Busy Kitchens)</option>
+                        <option value="normal">Normal / Standard (80%)</option>
+                        <option value="soft">Soft / Quiet (60%)</option>
                       </select>
                     </div>
                   </div>
@@ -3692,7 +3675,7 @@ export default function Settings() {
               </div>
 
               <div className="card card-padded">
-                <h3 className="text-title3" style={{ marginBottom: 'var(--space-2)' }}>✉️ Daily Sales Email & Admin Notifications</h3>
+                <h3 className="text-title3" style={{ marginBottom: 'var(--space-2)' }}>Daily Sales Email & Admin Notifications</h3>
                 <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
                   Configure your Gmail account and app password to automatically dispatch daily end-of-day sales summaries directly to the owner.
                 </p>
@@ -3739,7 +3722,7 @@ export default function Settings() {
                   </div>
 
                   <div style={{ background: 'var(--color-bg-secondary)', padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-label-secondary)' }}>
-                    💡 <strong>How to get a Gmail App Password:</strong><br />
+                    <strong>How to get a Gmail App Password:</strong><br />
                     1. Enable 2-Step Verification on your Google Account.<br />
                     2. Go to <em>myaccount.google.com/apppasswords</em>.<br />
                     3. Create an app named "DineOS" and paste the generated 16-letter password above.
@@ -3763,7 +3746,8 @@ export default function Settings() {
                         disabled={sendingTestReport}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                       >
-                        {sendingTestReport ? 'Sending...' : '📨 Send Today\'s Report (Test Email)'}
+                        <Mail size={14} />
+                        {sendingTestReport ? 'Sending...' : "Send Today's Report (Test Email)"}
                       </button>
                     </div>
                   </div>
@@ -3797,9 +3781,8 @@ export default function Settings() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.25rem'
                   }}>
-                    🍳
+                    <ChefHat size={20} color="var(--color-accent)" />
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3814,9 +3797,9 @@ export default function Settings() {
                         background: (settings.kitchenConfig?.mode === 'disabled') ? 'var(--color-bg-tertiary)' : 'var(--color-accent-light)',
                         color: (settings.kitchenConfig?.mode === 'disabled') ? 'var(--color-label-tertiary)' : 'var(--color-accent)'
                       }}>
-                        {settings.kitchenConfig?.mode === 'display_only' ? '🖥️ Display Only (KDS)' :
-                         settings.kitchenConfig?.mode === 'printer_only' ? '🖨️ Thermal 3" Printer Only' :
-                         settings.kitchenConfig?.mode === 'disabled' ? '🚫 Disabled' : '⚡ Both (Display & 3" Thermal Print)'}
+                        {settings.kitchenConfig?.mode === 'display_only' ? 'Display Only (KDS)' :
+                         settings.kitchenConfig?.mode === 'printer_only' ? 'Thermal 3" Printer Only' :
+                         settings.kitchenConfig?.mode === 'disabled' ? 'Disabled' : 'Both (Display & 3" Thermal Print)'}
                       </span>
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
@@ -3853,13 +3836,11 @@ export default function Settings() {
                     height: '38px',
                     borderRadius: 'var(--radius-md)',
                     background: 'rgba(6, 182, 212, 0.15)',
-                    color: '#06b6d4',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.25rem'
                   }}>
-                    💳
+                    <CreditCard size={20} color="#06b6d4" />
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3875,8 +3856,8 @@ export default function Settings() {
                         color: settings.terminalConfig?.enabled ? 'var(--color-green)' : 'var(--color-label-tertiary)'
                       }}>
                         {settings.terminalConfig?.enabled
-                          ? `🟢 Active: ${(TERMINAL_PROVIDERS.find(p => p.id === (settings.terminalConfig?.provider || 'simulator'))?.name) || 'Smart EDC'}`
-                          : '⚪ Standalone / Manual Mode'}
+                          ? `Active: ${(TERMINAL_PROVIDERS.find(p => p.id === (settings.terminalConfig?.provider || 'simulator'))?.name) || 'Smart EDC'}`
+                          : 'Standalone / Manual Mode'}
                       </span>
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
@@ -3891,7 +3872,7 @@ export default function Settings() {
                   onClick={() => setActiveTab('tax-pay')}
                   style={{ height: '32px', fontSize: '12px' }}
                 >
-                  ⚙️ Manage Payment Machines
+                  Manage Payment Machines
                 </button>
               </div>
 
@@ -3899,7 +3880,7 @@ export default function Settings() {
               <div className="card card-padded">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
                   <div>
-                    <h3 className="text-title3" style={{ marginBottom: '2px' }}>🔌 Printer & Hardware Peripherals</h3>
+                    <h3 className="text-title3" style={{ marginBottom: '2px' }}>Printer & Hardware Peripherals</h3>
                     <p className="text-secondary text-footnote">
                       Manage receipts and kitchen tickets by configuring and routing multiple ESC/POS thermal printers.
                     </p>
@@ -4024,7 +4005,7 @@ export default function Settings() {
                               type="button"
                               className="btn btn-secondary btn-sm"
                               onClick={() => {
-                                toast.success(`Sending test print to ${printer.name}... 🖨️`);
+                                toast.success(`Sending test print to ${printer.name}...`);
                                 const testOrder = {
                                   id: 'TEST-' + Math.floor(1000 + Math.random() * 9000),
                                   type: printer.type === 'kitchen' ? 'dine-in' : 'takeaway',
@@ -4091,7 +4072,7 @@ export default function Settings() {
                   <div className="modal animate-slide-up" style={{ maxWidth: 460 }}>
                     <div className="modal-header">
                       <h2 className="modal-title">
-                        {activePrinterIndex >= 0 ? '📝 Edit Printer Config' : '🔌 Add New Printer'}
+                        {activePrinterIndex >= 0 ? 'Edit Printer Config' : 'Add New Printer'}
                       </h2>
                       <button className="btn btn-secondary btn-icon" onClick={() => setShowPrinterForm(false)} type="button">
                         <X size={16} />

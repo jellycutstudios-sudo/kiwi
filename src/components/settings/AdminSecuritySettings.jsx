@@ -75,7 +75,7 @@ export default function AdminSecuritySettings() {
       // 2. Safely update to the new password in Firebase Auth (Free Spark tier)
       await updatePassword(currentUser, newPassword.trim());
 
-      toast.success('Admin password updated successfully!', { icon: '🔐' });
+      toast.success('Admin password updated successfully!');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -105,7 +105,7 @@ export default function AdminSecuritySettings() {
     try {
       await sendPasswordResetEmail(auth, adminEmail);
       setResetSent(true);
-      toast.success(`Password reset email sent to ${adminEmail}!`, { icon: '📧' });
+      toast.success(`Password reset email sent to ${adminEmail}!`);
     } catch (err) {
       console.error('Failed to send reset email:', err);
       toast.error(err.message || 'Failed to send password reset email.');
@@ -408,10 +408,10 @@ export default function AdminSecuritySettings() {
 
             <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', lineHeight: 1.45, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div>
-                <strong>🔑 Admin Password:</strong> Used to access this management dashboard, financial reports, and settings. Never share this with cashiers or waitstaff.
+                <strong>Admin Password:</strong> Used to access this management dashboard, financial reports, and settings. Never share this with cashiers or waitstaff.
               </div>
               <div>
-                <strong>🔢 Staff & Cashier PIN:</strong> 4-digit PIN for swift order taking, drawer kicks, and terminal switching at the counter.
+                <strong>Staff & Cashier PIN:</strong> 4-digit PIN for swift order taking, drawer kicks, and terminal switching at the counter.
               </div>
             </div>
 

@@ -46,7 +46,7 @@ export default function ReceiptDesigner({ settings, updateField }) {
         threshold: opts.threshold,
         invert: opts.invert
       });
-      toast.success('Logo converted for thermal billing! 🖨️');
+      toast.success('Logo converted for thermal billing!');
     } catch (err) {
       console.error('[Thermal Logo Conversion Error]', err);
       toast.error('Failed to convert logo: ' + err.message);
@@ -123,7 +123,7 @@ export default function ReceiptDesigner({ settings, updateField }) {
       {/* Configuration Form */}
       <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div>
-          <h3 className="text-title3" style={{ marginBottom: '2px' }}>🧾 Receipt Customizer</h3>
+          <h3 className="text-title3" style={{ marginBottom: '2px' }}>Receipt Customizer</h3>
           <p className="text-secondary text-footnote">
             Upload your logo, convert it into high-contrast 1-bit thermal format, and customize customer receipts.
           </p>
@@ -375,7 +375,7 @@ export default function ReceiptDesigner({ settings, updateField }) {
               onClick={() => setPreviewThermalMode(!previewThermalMode)}
               style={{ height: '36px', width: '100%', fontSize: '12px' }}
             >
-              {previewThermalMode ? '🖨️ Thermal 1-Bit View' : '🎨 Original Color View'}
+              {previewThermalMode ? 'Thermal 1-Bit View' : 'Original Color View'}
             </button>
           </div>
         </div>

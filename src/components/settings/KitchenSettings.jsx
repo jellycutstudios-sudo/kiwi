@@ -71,11 +71,11 @@ export default function KitchenSettings({ settings, updateField }) {
       modeKey === 'both' ? 'Both (Display & Thermal 3" Print)' :
       modeKey === 'display_only' ? 'Display Screen Only (KDS)' :
       modeKey === 'printer_only' ? 'Thermal 3" Printer Only (KOT)' : 'Disabled'
-    }`, { icon: '🍳' });
+    }`);
   };
 
   const handleTestKitchenPrint = () => {
-    toast.success('Sending test 3-inch kitchen ticket to printer... 🖨️');
+    toast.success('Sending test 3-inch kitchen ticket to printer...');
     const testOrder = {
       id: 'KOT-' + Math.floor(1000 + Math.random() * 9000),
       type: 'dine-in',
@@ -118,7 +118,7 @@ export default function KitchenSettings({ settings, updateField }) {
       <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '1.4rem' }}>🍳</span>
+            <ChefHat size={20} color="var(--color-accent)" />
             <h3 className="text-title3" style={{ margin: 0 }}>Kitchen Order & KOT Routing</h3>
           </div>
           <p className="text-secondary text-footnote">
@@ -163,7 +163,7 @@ export default function KitchenSettings({ settings, updateField }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                   <span style={{ fontWeight: 'var(--weight-bold)', fontSize: '13px', color: 'var(--color-label-primary)' }}>
-                    ⚡ Both: Display Screen & 3" Thermal Printer
+                    Both: Display Screen & 3" Thermal Printer
                   </span>
                   <span style={{
                     fontSize: '9px',
@@ -214,7 +214,7 @@ export default function KitchenSettings({ settings, updateField }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 'var(--weight-bold)', fontSize: '13px', color: 'var(--color-label-primary)' }}>
-                    🖥️ Display Only (KDS Screen)
+                    Display Only (KDS Screen)
                   </span>
                   <span style={{
                     fontSize: '9px',
@@ -264,7 +264,7 @@ export default function KitchenSettings({ settings, updateField }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 'var(--weight-bold)', fontSize: '13px', color: 'var(--color-label-primary)' }}>
-                    🖨️ Thermal 3" Printer Only (Physical KOT)
+                    Thermal 3" Printer Only (Physical KOT)
                   </span>
                   <span style={{
                     fontSize: '9px',
@@ -309,7 +309,7 @@ export default function KitchenSettings({ settings, updateField }) {
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                🚫
+                <X size={16} />
               </div>
               <div style={{ flex: 1 }}>
                 <span style={{ fontWeight: 'var(--weight-semibold)', fontSize: '12.5px', color: 'var(--color-label-secondary)' }}>
@@ -597,7 +597,7 @@ export default function KitchenSettings({ settings, updateField }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h4 className="text-title3" style={{ margin: 0, fontSize: '15px' }}>
-              {isThermalActive ? '🖨️ 3" Thermal KOT Slip Preview' : '🖥️ Digital KDS Display Mode'}
+              {isThermalActive ? '3" Thermal KOT Slip Preview' : 'Digital KDS Display Mode'}
             </h4>
             <span className="text-secondary text-caption1">
               {isThermalActive ? `${paperSize === '80mm' ? '3-inch (80mm)' : '2-inch (58mm)'} Thermal Ticket` : 'No thermal paper is consumed'}
@@ -699,7 +699,7 @@ export default function KitchenSettings({ settings, updateField }) {
                 fontWeight: 'bold',
                 margin: '6px 0'
               }}>
-                ⚠️ Note: EXTRA CRISPY FRIES, NO ONIONS ON BURGER please!
+                Special Note: EXTRA CRISPY FRIES, NO ONIONS ON BURGER please!
               </div>
             )}
 

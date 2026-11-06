@@ -492,7 +492,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             {/* Terminal Top Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-2)' }}>
               <div style={{ fontSize: '10px', color: 'var(--color-label-secondary)', fontWeight: 'var(--weight-bold)', letterSpacing: '1px' }}>
-                📟 {((TERMINAL_PROVIDERS.find(p => p.id === (restaurant?.terminalConfig?.provider || 'simulator'))?.name) || 'TERMINAL').toUpperCase()}
+                {((TERMINAL_PROVIDERS.find(p => p.id === (restaurant?.terminalConfig?.provider || 'simulator'))?.name) || 'TERMINAL').toUpperCase()}
               </div>
               <button 
                 type="button" 
@@ -534,21 +534,21 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                     DEMO / SIMULATION MODE (TESTING ONLY)
                   </span>
                   <div style={{ color: '#38BDF8', fontSize: 13, fontWeight: 'bold' }}>AMOUNT: {formatCurrency(total, currency)}</div>
-                  <div className="blink" style={{ color: '#34D399', margin: '8px 0', fontSize: 14, fontWeight: 'bold' }}>📡 TAP / INSERT CARD OR SCAN UPI</div>
+                  <div className="blink" style={{ color: '#34D399', margin: '8px 0', fontSize: 14, fontWeight: 'bold' }}>TAP / INSERT CARD OR SCAN UPI</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button 
                       type="button" 
                       className="btn btn-success btn-sm"
                       onClick={() => processTerminalPayment('card')}
                     >
-                      💳 Simulate Card Tap
+                      Simulate Card Tap
                     </button>
                     <button 
                       type="button" 
                       className="btn btn-primary btn-sm"
                       onClick={() => processTerminalPayment('upi')}
                     >
-                      📱 Simulate UPI Scan
+                      Simulate UPI Scan
                     </button>
                   </div>
                 </div>
@@ -562,14 +562,14 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               )}
               {terminalStatus === 'success' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ color: '#34D399', fontSize: 42 }}>✓</div>
+                  <div style={{ color: '#34D399', fontSize: 32, fontWeight: 700 }}>✓</div>
                   <div style={{ color: '#34D399', fontWeight: 'bold', fontSize: 14 }}>TRANSACTION APPROVED</div>
                   <div style={{ color: '#9CA3AF', fontSize: 10 }}>PRINTING RECEIPT...</div>
                 </div>
               )}
               {terminalStatus === 'declined' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ color: '#F87171', fontSize: 42 }}>❌</div>
+                  <div style={{ color: '#F87171', fontSize: 32, fontWeight: 700 }}>✕</div>
                   <div style={{ color: '#F87171', fontWeight: 'bold', fontSize: 14 }}>PAYMENT DECLINED</div>
                   <div style={{ color: '#E5E7EB', fontSize: 11 }}>Reason: {terminalDeclineReason}</div>
                   <button 
@@ -597,10 +597,10 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               textAlign: 'left'
             }}>
               <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-label-secondary)', marginBottom: 2 }}>
-                ⚙️ SIMULATION CONTROLS
+                SIMULATION CONTROLS
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>⚡ Instant Approval Mode:</span>
+                <span>Instant Approval Mode:</span>
                 <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 
@@ -611,7 +611,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 </label>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>❌ Force Decline Transaction:</span>
+                <span>Force Decline Transaction:</span>
                 <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 
@@ -833,7 +833,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(16, 185, 129, 0.12)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: 12, fontWeight: 800, color: '#059669' }}>
-                        🎫 {giftCardCode} Applied
+                        {giftCardCode} Applied
                       </span>
                       <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
                         Deduction: <strong>-{formatCurrency(giftCardDeduction, currency)}</strong>
@@ -1489,7 +1489,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                       cursor: 'pointer'
                     }}
                   >
-                    ⚡ Wake Smart Reader
+                    Wake Smart Reader
                   </button>
                 )}
               </div>
@@ -1565,7 +1565,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                     className="btn btn-primary btn-sm"
                     style={{ fontSize: 11.5, fontWeight: 700, padding: '5px 12px', borderRadius: 8 }}
                   >
-                    ⚡ Wake Reader
+                    Wake Reader
                   </button>
                 </div>
 
@@ -1620,7 +1620,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               {/* Merchant Details & Instructions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontSize: 12, fontWeight: 'var(--weight-bold)', color: 'var(--color-label)' }}>
-                  📲 SCAN TO PAY WITH ANY UPI APP
+                  SCAN TO PAY WITH ANY UPI APP
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
                   Merchant VPA: <strong style={{ color: 'var(--color-accent)' }}>{restaurant?.upiConfig?.vpa || 'demo@upi'}</strong>
@@ -1639,7 +1639,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                     borderRadius: 'var(--radius-sm)',
                     marginTop: 4
                   }}>
-                    ⚠️ Using demo VPA fallback. Configure custom UPI VPA in Settings.
+                    Using demo VPA fallback. Configure custom UPI VPA in Settings.
                   </div>
                 )}
               </div>
@@ -1689,7 +1689,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                   }}
                   style={{ flex: 1, fontSize: 10, padding: '6px 0', height: 28 }}
                 >
-                  🔗 Copy UPI Link
+                  Copy UPI Link
                 </button>
               </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTableStore } from '../../stores/tableStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Search, LayoutGrid, Layers, ArrowDownUp, Users } from 'lucide-react';
+import { X, Search, LayoutGrid, Layers, ArrowDownUp, Users, Armchair } from 'lucide-react';
 
 export default function TableSelectModal({ restaurantId, currency = 'INR', tableOrders = {}, onSelect, onClose }) {
   const { t } = useTranslation();
@@ -111,7 +111,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         {/* Modal Header */}
         <div className="modal-header" style={{ padding: '14px 22px', borderBottom: '1px solid var(--color-separator)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>🪑</span>
+            <Armchair size={22} color="var(--color-primary)" />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <h2 className="modal-title" style={{ fontSize: 16.5, fontWeight: 800, color: 'var(--color-label)' }}>
@@ -189,7 +189,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               onClick={() => setFilterStatus('free')}
               style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#15803d', touchAction: 'manipulation' }}
             >
-              🟢 Free ({counts.free})
+              Free ({counts.free})
             </button>
             <button
               type="button"
@@ -197,7 +197,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               onClick={() => setFilterStatus('occupied')}
               style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#be123c', touchAction: 'manipulation' }}
             >
-              🔴 Occupied ({counts.occupied})
+              Occupied ({counts.occupied})
             </button>
             {counts.reserved > 0 && (
               <button
@@ -335,7 +335,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                     <div className="table-compact-card-top">
                       <span className="table-compact-name">{table.name}</span>
                       <span className="table-compact-capacity">
-                        🪑 {table.capacity || 4}p
+                        {table.capacity || 4}p
                       </span>
                     </div>
 
@@ -347,7 +347,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                           color: isFoodReady ? '#047857' : (status === 'free' ? '#15803d' : (status === 'occupied' ? '#be123c' : '#b45309')),
                           fontWeight: isFoodReady ? 800 : undefined,
                         }}>
-                          {isFoodReady ? '🔔 Ready' : status}
+                          {isFoodReady ? 'Ready' : status}
                         </span>
                       </span>
 
@@ -387,9 +387,9 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                     >
                       {/* Status Pill Badge */}
                       <span className={`table-3d-status-pill ${status}`}>
-                        {status === 'free' && '🟢 Free'}
-                        {status === 'occupied' && '🔴 Occupied'}
-                        {status === 'reserved' && '⭐ Reserved'}
+                        {status === 'free' && 'Free'}
+                        {status === 'occupied' && 'Occupied'}
+                        {status === 'reserved' && 'Reserved'}
                       </span>
 
                       {/* Bold Table Code */}
@@ -397,7 +397,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
 
                       {/* Capacity */}
                       <span className="table-3d-capacity">
-                        🪑 {table.capacity} seats
+                        {table.capacity} seats
                       </span>
 
                       {/* Live Active Order Total if Occupied */}
@@ -415,7 +415,9 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
 
           {filteredTables.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--color-label-tertiary)', padding: '40px 20px' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🪑</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                <Armchair size={32} color="var(--color-label-tertiary)" />
+              </div>
               <div style={{ fontWeight: 600 }}>No tables matching your criteria</div>
               <div style={{ fontSize: 12, marginTop: 4 }}>Try clearing search, changing zone, or adjusting party size.</div>
             </div>

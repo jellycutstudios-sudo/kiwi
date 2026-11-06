@@ -19,37 +19,9 @@ import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ArrowLeft, QrCode, Banknote, AlertTriangle, 
   Maximize2, Minimize2, Plus, Minus, Trash2, X, Search, ChevronRight,
-  Clock, Printer
+  Clock, Printer, Utensils, ShoppingBag, Sparkles, Layers, Receipt
 } from 'lucide-react';
 import './SelfServiceKiosk.css';
-
-// Standard Category Icons
-const CATEGORY_ICONS = {
-  burger: '🍔',
-  pizza: '🍕',
-  starter: '🥟',
-  appetizer: '🥗',
-  main: '🍛',
-  pasta: '🍝',
-  biryani: '🍚',
-  drink: '🥤',
-  beverage: '🍹',
-  coffee: '☕',
-  dessert: '🍰',
-  ice: '🍨',
-  side: '🍟',
-  wrap: '🌯',
-  taco: '🌮',
-  default: '🍽️'
-};
-
-function getCategoryIcon(name = '') {
-  const lower = name.toLowerCase();
-  for (const [key, icon] of Object.entries(CATEGORY_ICONS)) {
-    if (lower.includes(key)) return icon;
-  }
-  return CATEGORY_ICONS.default;
-}
 
 export default function SelfServiceKiosk({ initialRestaurant = null, initialCategories = null }) {
   const { restaurantId: paramId } = useParams();
@@ -494,7 +466,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             <div className="kiosk-brand-logo">
               {restaurant?.logo ? (
                 <img src={restaurant.logo} alt={restaurant?.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              ) : '🍽️'}
+              ) : <Utensils size={24} color="#94a3b8" />}
             </div>
             <div>
               <div className="kiosk-brand-title">{restaurant?.name || 'Self-Service Kiosk'}</div>
@@ -511,7 +483,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                 className={`kiosk-lang-pill ${lang === l.code ? 'active' : ''}`}
                 onClick={() => setLang(l.code)}
               >
-                {l.flag} {l.native}
+                {l.native}
               </button>
             ))}
           </div>
@@ -519,8 +491,8 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
         {/* Center Attraction Hero */}
         <div className="kiosk-attract-center">
-          <div className="kiosk-attract-hero-icon">
-            ✨
+          <div className="kiosk-attract-hero-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Sparkles size={48} color="#f59e0b" />
           </div>
           <div className="kiosk-attract-headline">
             Touch Anywhere to Order
@@ -540,7 +512,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                 hapticTap('medium');
               }}
             >
-              <span className="kiosk-choice-btn-icon">🍽️</span>
+              <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Utensils size={36} />
+              </span>
               <span className="kiosk-choice-btn-title">Dine In</span>
               <span className="kiosk-choice-btn-desc">Eat here at tables</span>
             </button>
@@ -554,7 +528,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                 hapticTap('medium');
               }}
             >
-              <span className="kiosk-choice-btn-icon">🛍️</span>
+              <span className="kiosk-choice-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShoppingBag size={36} />
+              </span>
               <span className="kiosk-choice-btn-title">Takeaway</span>
               <span className="kiosk-choice-btn-desc">Pack to go</span>
             </button>
@@ -576,8 +552,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
     return (
       <div className="kiosk-container kiosk-success-screen">
         <div className="kiosk-token-hero-card">
-          <div className="kiosk-token-header-tag">
-            {placedOrderInfo.orderType === 'dine-in' ? '🍽️ Dine-In Order' : '🛍️ Takeaway Order'}
+          <div className="kiosk-token-header-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {placedOrderInfo.orderType === 'dine-in' ? <Utensils size={14} /> : <ShoppingBag size={14} />}
+            {placedOrderInfo.orderType === 'dine-in' ? 'Dine-In Order' : 'Takeaway Order'}
           </div>
 
           <div style={{ fontSize: '16px', color: '#a7f3d0', fontWeight: 700 }}>
@@ -650,8 +627,10 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             type="button"
             className="kiosk-header-type-badge"
             onClick={() => setOrderType(ot => ot === 'dine-in' ? 'takeaway' : 'dine-in')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            {orderType === 'dine-in' ? '🍽️ Dine In' : '🛍️ Takeaway'} (Tap to change)
+            {orderType === 'dine-in' ? <Utensils size={14} /> : <ShoppingBag size={14} />}
+            {orderType === 'dine-in' ? 'Dine In' : 'Takeaway'} (Tap to change)
           </button>
         </div>
 
@@ -665,7 +644,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                 className={`kiosk-lang-pill ${lang === l.code ? 'active' : ''}`}
                 onClick={() => setLang(l.code)}
               >
-                {l.flag} {l.native}
+                {l.native}
               </button>
             ))}
           </div>
@@ -697,7 +676,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
             className={`kiosk-cat-item ${activeCategory === 'all' ? 'active' : ''}`}
             onClick={() => setActiveCategory('all')}
           >
-            <span className="kiosk-cat-icon">⭐</span>
+            <span className="kiosk-cat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Layers size={18} />
+            </span>
             <span>All Items</span>
           </button>
 
@@ -708,7 +689,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
               className={`kiosk-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
               onClick={() => setActiveCategory(cat.id)}
             >
-              <span className="kiosk-cat-icon">{getCategoryIcon(cat.name)}</span>
+              <span className="kiosk-cat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Utensils size={16} />
+              </span>
               <span>{cat.name}</span>
             </button>
           ))}
@@ -731,14 +714,16 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                 className={`kiosk-dietary-btn veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
                 onClick={() => setDietaryFilter('veg')}
               >
-                🟢 Pure Veg
+                <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#22c55e', marginRight: 6 }} />
+                Pure Veg
               </button>
               <button
                 type="button"
                 className={`kiosk-dietary-btn nonveg ${dietaryFilter === 'nonveg' ? 'active' : ''}`}
                 onClick={() => setDietaryFilter('nonveg')}
               >
-                🔴 Non-Veg
+                <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ef4444', marginRight: 6 }} />
+                Non-Veg
               </button>
             </div>
 
@@ -788,8 +773,8 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} className="kiosk-dish-img" loading="lazy" />
                     ) : (
-                      <div className="kiosk-dish-img-placeholder">
-                        {getCategoryIcon(item.categoryName)}
+                      <div className="kiosk-dish-img-placeholder" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Utensils size={32} color="#64748b" />
                       </div>
                     )}
                     <div className={`kiosk-dish-diet-tag ${item.isVeg ? 'veg' : 'nonveg'}`}>
@@ -853,7 +838,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
           {filteredItems.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>🍽️</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                <Utensils size={40} color="#64748b" />
+              </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc' }}>No dishes match this selection</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Try clearing the search or switching dietary filters.</div>
             </div>
@@ -1117,7 +1104,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                 </div>
               ) : (
                 <div style={{ padding: 20, borderRadius: 16, background: 'rgba(255,255,255,0.04)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 32 }}>🧾</div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <Receipt size={32} color="#38bdf8" />
+                  </div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>Pay Cash at Ground Floor Counter</div>
                   <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
                     Your order will be sent to the kitchen immediately. Please show your token number at the cash counter to complete payment.

@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -433,7 +433,7 @@ export default function POS() {
             maxWidth: 400,
             animation: 'tableReadyPulseGlow 2.5s infinite ease-in-out'
           }}>
-            <span style={{ fontSize: 22 }}>🔔</span>
+            <Bell size={22} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>{payload.tableName || 'Table'}</span>
@@ -449,7 +449,7 @@ export default function POS() {
                 toast.dismiss(t.id);
                 if (payload.orderId && restaurant?.id) {
                   await useOrderStore.getState().markOrderOrItemsServed(restaurant.id, payload.orderId);
-                  toast.success('Food Picked Up! ✓');
+                  toast.success('Food Picked Up!');
                 }
               }}
               style={{
@@ -465,7 +465,7 @@ export default function POS() {
                 boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
               }}
             >
-              ✓ Picked Up
+              Picked Up
             </button>
           </div>
         ), { duration: 15000, position: 'top-center' });
@@ -504,9 +504,9 @@ export default function POS() {
 
           if (match) {
             addItem(match);
-            toast.success(`Scanned: ${match.name}!`, { icon: '🏷️' });
+            toast.success(`Scanned: ${match.name}!`);
           } else {
-            toast.error(`Barcode not recognized: ${scannedCode}`, { icon: '🔍' });
+            toast.error(`Barcode not recognized: ${scannedCode}`);
           }
           barcodeBuffer = '';
         }
@@ -987,7 +987,7 @@ export default function POS() {
     }
     if (orderType === 'dine-in' && !tableId && modes.includes('table')) {
       if (isEffectiveHandheld) {
-        toast('Please select a table to send order to kitchen', { icon: '🪑' });
+        toast('Please select a table to send order to kitchen');
         return { needsTable: true };
       }
       setTableSelAction('kitchen');
@@ -1020,9 +1020,9 @@ export default function POS() {
     }
 
     if (res.isOffline) {
-      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Ticket printing...` : `Order buffered offline! Ticket printing...`, { icon: '⚡', duration: 4500 });
+      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Ticket printing...` : `Order buffered offline! Ticket printing...`, { duration: 4500 });
     } else {
-      toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!', { icon: '🍳' });
+      toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!');
     }
     
     // Print kitchen tickets (KOT) only when not in display-only (KDS paperless) mode
@@ -1081,7 +1081,7 @@ export default function POS() {
       staffName: staffDoc?.name || 'Cashier',
       isManual: true
     });
-    toast.success(`Guest check printed for Table ${tableName || ''}!`, { icon: '🖨️' });
+    toast.success(`Guest check printed for Table ${tableName || ''}!`);
   };
 
   const handleReleaseTable = async () => {
@@ -1108,7 +1108,7 @@ export default function POS() {
               try {
                 await useTableStore.getState().freeTable(restaurant.id, targetTableId);
                 clearCart();
-                toast.success(`Table ${targetTableName} is now free.`, { icon: '🪑' });
+                toast.success(`Table ${targetTableName} is now free.`);
               } catch (e) {
                 toast.error('Failed to release table: ' + e.message);
               }
@@ -1160,9 +1160,9 @@ export default function POS() {
       }
 
       if (res.isOffline) {
-        toast.success(modes.includes('token') && (res.token || token) ? `Payment buffered offline (#${res.token || token})! Tickets printing...` : `Payment buffered offline! Tickets printing...`, { id: toastId, icon: '⚡', duration: 4500 });
+        toast.success(modes.includes('token') && (res.token || token) ? `Payment buffered offline (#${res.token || token})! Tickets printing...` : `Payment buffered offline! Tickets printing...`, { id: toastId, duration: 4500 });
       } else {
-        toast.success('Payment completed & order placed! ⚡', { id: toastId });
+        toast.success('Payment completed & order placed!', { id: toastId });
       }
 
       const printOrder = {
@@ -1262,7 +1262,7 @@ export default function POS() {
           border: '1px solid var(--color-separator-opaque)'
         }}>
           <h2 style={{ fontSize: 'var(--text-title2)', fontWeight: 'var(--weight-bold)', marginBottom: 'var(--space-2)', color: 'var(--color-label)' }}>
-            🔑 Cash Till Shift Lock
+            Cash Till Shift Lock
           </h2>
           <p style={{ color: 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)', marginBottom: 'var(--space-4)' }}>
             To begin processing orders, checkouts, and payments, you must open a new till shift and declare the starting cash float.
@@ -1274,7 +1274,7 @@ export default function POS() {
                 Opened By
               </label>
               <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', color: 'var(--color-label)', fontSize: 'var(--text-body)' }}>
-                👤 {staffDoc?.name || 'Cashier'} ({staffDoc?.role || 'Staff'})
+                {staffDoc?.name || 'Cashier'} ({staffDoc?.role || 'Staff'})
               </div>
             </div>
             
@@ -1310,7 +1310,7 @@ export default function POS() {
               textAlign: 'left',
               lineHeight: '1.4'
             }}>
-              <span style={{ fontSize: 'var(--text-callout)', marginTop: '-1px' }}>⚠️</span>
+              <AlertTriangle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
               <div>
                 <div style={{ fontWeight: 'var(--weight-bold)' }}>Failed to open shift:</div>
                 <div style={{ opacity: 0.9, wordBreak: 'break-word', marginTop: '2px' }}>{openShiftError}</div>
@@ -1324,7 +1324,7 @@ export default function POS() {
             disabled={openingShift}
             style={{ width: '100%', height: 48, fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', opacity: openingShift ? 0.7 : 1 }}
           >
-            {openingShift ? '⏳ Opening...' : '🔓 Open Shift & Unlock POS'}
+            {openingShift ? 'Opening...' : 'Open Shift & Unlock POS'}
           </button>
           <button
             className="btn btn-secondary"
@@ -1334,7 +1334,7 @@ export default function POS() {
             }}
             style={{ width: '100%', height: 40, marginTop: 'var(--space-2)', fontSize: 'var(--text-footnote)' }}
           >
-            ↩ Exit to Login
+            Exit to Login
           </button>
           {isAdmin && (
             <button
@@ -1437,7 +1437,9 @@ export default function POS() {
                   }}
                   title="View active kitchen tickets & ready orders"
                 >
-                  <span>{readyOrdersCount > 0 ? '🔔' : '📋'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center' }}>
+                    {readyOrdersCount > 0 ? <Bell size={13} /> : <FileText size={13} />}
+                  </span>
                   <span className="category-chip-name">{readyOrdersCount > 0 ? `${readyOrdersCount} Ready` : `${runningOrders.length} Orders`}</span>
                 </button>
               )}
@@ -1555,7 +1557,7 @@ export default function POS() {
           </div>
         ) : displayItems.length === 0 ? (
           <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', flexDirection:'column', gap:'var(--space-3)' }}>
-            <div style={{fontSize:40}}>🍽️</div>
+            <UtensilsCrossed size={40} color="var(--color-label-tertiary)" />
             <div>No items found</div>
           </div>
         ) : (
@@ -1612,11 +1614,11 @@ export default function POS() {
                           </span>
                         ) : (item.isBestseller || item.bestseller || item.popular) ? (
                           <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
-                            🔥
+                            <Flame size={10} color="var(--color-orange)" />
                           </span>
                         ) : item.highMargin ? (
                           <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
-                            ★
+                            Special
                           </span>
                         ) : null}
                       </div>
@@ -1678,15 +1680,15 @@ export default function POS() {
                   <div className="menu-item-img-wrap">
                     {item.imageUrl || item.image
                       ? <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
-                      : <div className="menu-item-img-placeholder">{item.emoji ?? '🍽️'}</div>
+                      : <div className="menu-item-img-placeholder"><UtensilsCrossed size={24} color="var(--color-label-tertiary)" /></div>
                     }
                   </div>
                   <div className="menu-item-body">
                     <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                      {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '11px', flexShrink: 0 }}>⭐</span>}
+                      {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
                       {(item.isBestseller || item.bestseller || item.popular) && (
-                        <span title="Bestseller" style={{ fontSize: '11px', flexShrink: 0 }}>🔥</span>
+                        <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
                       )}
                     </div>
                     <div className="menu-item-price" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1789,7 +1791,9 @@ export default function POS() {
                   fontWeight: 700
                 }}
               >
-                <span>{readyOrdersCount > 0 ? '🔔' : '📋'}</span>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {readyOrdersCount > 0 ? <Bell size={13} /> : <FileText size={13} />}
+                </span>
                 <span>{runningOrders.length} Order{runningOrders.length > 1 ? 's' : ''}</span>
               </button>
             )}
@@ -1839,7 +1843,7 @@ export default function POS() {
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
           }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span>🍽️ {tableName ? `Table ${tableName}` : 'Active Order'}</span>
+              <span>{tableName ? `Table ${tableName}` : 'Active Order'}</span>
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <button 
@@ -1897,20 +1901,20 @@ export default function POS() {
           >
             <div className="cart-header-summary-left">
               <span className="cart-header-summary-badge type-badge">
-                {isRetail ? '🛍️ Purchase' : (isService ? '🤝 Service' : (orderType === 'dine-in' ? '🍽️ Dine In' : '🛍️ Takeaway'))}
+                {isRetail ? 'Purchase' : (isService ? 'Service' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway'))}
               </span>
               {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
                 <span className={`cart-header-summary-badge table-badge ${tableId ? 'has-table' : ''}`}>
-                  🪑 {tableId ? `Table ${tableName}` : 'Select Table'}
+                  {tableId ? `Table ${tableName}` : 'Select Table'}
                 </span>
               )}
               {customer ? (
                 <span className="cart-header-summary-badge cust-badge">
-                  👤 {customer.name}
+                  {customer.name}
                 </span>
               ) : customerName ? (
                 <span className="cart-header-summary-badge cust-badge">
-                  👤 {customerName}
+                  {customerName}
                 </span>
               ) : null}
             </div>
@@ -1976,7 +1980,7 @@ export default function POS() {
                       title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
                     >
                       <span className="cart-table-select-content">
-                        <span className="cart-table-icon">🪑</span>
+                        <Armchair size={13} className="cart-table-icon" style={{ marginRight: 4 }} />
                         <span className="cart-table-label">
                           {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
                         </span>
@@ -2011,10 +2015,10 @@ export default function POS() {
                     <div className="cart-customer-vip-card">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                         <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          👤 {customer.name}
+                          {customer.name}
                         </span>
                         <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                          ⭐ {customer.points} pts
+                          {customer.points} pts
                         </span>
                       </div>
                       <button
@@ -2096,10 +2100,10 @@ export default function POS() {
                   <div className="cart-customer-vip-card" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                       <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        👤 {customer.name}
+                        {customer.name}
                       </span>
                       <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                        ⭐ {customer.points} pts
+                        {customer.points} pts
                       </span>
                     </div>
                     <button
@@ -2227,9 +2231,9 @@ export default function POS() {
                               if (res.ok) toast.success(`Fired ${courseName}!`);
                               else toast.error(`Fire failed: ${res.error}`);
                             }}
-                            style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0 }}
+                            style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}
                           >
-                            🔥 Fire
+                            <Flame size={10} /> Fire
                           </button>
                         )}
                       </div>
@@ -2286,7 +2290,7 @@ export default function POS() {
                               }}
                               title={`Seat ${i.seatNumber} - click to change`}
                             >
-                              🪑 S{i.seatNumber}
+                              Seat {i.seatNumber}
                             </button>
                           )}
 
@@ -2723,7 +2727,7 @@ export default function POS() {
                 // Empty cart: Load running order directly
                 loadOrderToCart(activeOrder);
                 originalOrderItemsRef.current = activeOrder.items ?? [];
-                toast.success(`Loaded active order for Table ${name}`, { icon: '🍽️' });
+                toast.success(`Loaded active order for Table ${name}`);
                 return;
               } else {
                 // Cart already has items: Merge into existing table order
@@ -2750,7 +2754,7 @@ export default function POS() {
                 // Cache the ORIGINAL (server-side) items for void checks, not the merged ones
                 originalOrderItemsRef.current = activeOrder.items ?? [];
 
-                toast.success(`Added items to Table ${name}'s running order`, { icon: '🍽️' });
+                toast.success(`Added items to Table ${name}'s running order`);
 
                 if (tableSelAction === 'checkout') {
                   setShowPayment(true);
@@ -2758,7 +2762,7 @@ export default function POS() {
                   setPaymentMethod('unpaid');
                   const res = await submitOrder(restaurant, staffDoc?.id);
                   if (!res.ok) { toast.error(res.error); return; }
-                  toast.success('New items sent to kitchen!', { icon: '🍳' });
+                  toast.success('New items sent to kitchen!');
                   if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
                     setTimeout(() => {
                       printKitchenTickets({
@@ -2784,7 +2788,7 @@ export default function POS() {
                 setPaymentMethod('unpaid');
                 const res = await submitOrder(restaurant, staffDoc?.id);
                 if (!res.ok) { toast.error(res.error); return; }
-                toast.success('Order sent to kitchen!', { icon: '🍳' });
+                toast.success('Order sent to kitchen!');
                 if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
                   setTimeout(() => {
                     printKitchenTickets({
@@ -2797,7 +2801,7 @@ export default function POS() {
                 }
               }
             } else {
-              toast.success(`Assigned to Table ${name}`, { icon: '🪑' });
+              toast.success(`Assigned to Table ${name}`);
             }
           }}
           onClose={() => setShowTableSel(false)}
@@ -3238,7 +3242,7 @@ export default function POS() {
                         color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
                         marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6
                       }}>
-                        <span>💸</span> Record Drawer Cash Movement
+                        Record Drawer Cash Movement
                       </div>
 
                       {/* Transaction Type Radios */}
@@ -3253,7 +3257,7 @@ export default function POS() {
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                            <span style={{ fontSize: 18 }}>🏦</span>
+                            <Wallet size={16} color="var(--color-primary)" />
                             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>Safe Drop</span>
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', lineHeight: 1.3 }}>
@@ -3271,7 +3275,7 @@ export default function POS() {
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                            <span style={{ fontSize: 18 }}>🛒</span>
+                            <ShoppingBag size={16} color="#ff9500" />
                             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>Expense Paid-Out</span>
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', lineHeight: 1.3 }}>
@@ -3365,7 +3369,7 @@ export default function POS() {
                         <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                           {(tillTxType === 'drop'
                             ? ['Routine Safe Drop', 'Excess Cash Safe Stash', 'Bank Transit']
-                            : ['🥛 Milk / Dairy', '🥬 Veggies / Grocery', '📦 Courier / Delivery', '🧹 Cleaning Supplies', '🧊 Ice Bags']
+                            : ['Milk / Dairy', 'Veggies / Grocery', 'Courier / Delivery', 'Cleaning Supplies', 'Ice Bags']
                           ).map(tag => (
                             <button
                               key={tag}
@@ -3410,7 +3414,7 @@ export default function POS() {
                         color: 'var(--color-label-secondary)', letterSpacing: '0.05em',
                         marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                       }}>
-                        <span>📜 Today's Logged Movements ({movementsList.length})</span>
+                        <span>Today's Logged Movements ({movementsList.length})</span>
                       </div>
                       {movementsList.length === 0 ? (
                         <p style={{ fontSize: 12, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '14px 0' }}>
@@ -3520,7 +3524,7 @@ export default function POS() {
                             border: '1px solid var(--color-separator)', cursor: 'pointer'
                           }}
                         >
-                          {showDenomCounter ? '✕ Hide Counter' : '🧮 Denomination Helper'}
+                          {showDenomCounter ? 'Hide Counter' : 'Denomination Helper'}
                         </button>
                       </div>
 
@@ -3611,7 +3615,7 @@ export default function POS() {
                           background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.3)',
                           display: 'flex', alignItems: 'center', gap: 12
                         }}>
-                          <span style={{ fontSize: 24 }}>✅</span>
+                          <Check size={22} color="var(--color-green)" strokeWidth={3} />
                           <div>
                             <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-green)' }}>
                               Perfect Match (₹0.00 Variance)
@@ -3627,7 +3631,7 @@ export default function POS() {
                           background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)',
                           display: 'flex', alignItems: 'center', gap: 12
                         }}>
-                          <span style={{ fontSize: 24 }}>⚠️</span>
+                          <AlertTriangle size={22} color="var(--color-red)" />
                           <div>
                             <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-red)' }}>
                               Cash Shortage: -{formatCurrency(Math.abs(variance), currency)}
@@ -3643,7 +3647,7 @@ export default function POS() {
                           background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.3)',
                           display: 'flex', alignItems: 'center', gap: 12
                         }}>
-                          <span style={{ fontSize: 24 }}>ℹ️</span>
+                          <Clock size={22} color="#e68a00" />
                           <div>
                             <div style={{ fontSize: 13.5, fontWeight: 800, color: '#e68a00' }}>
                               Cash Surplus: +{formatCurrency(variance, currency)}
@@ -3673,7 +3677,7 @@ export default function POS() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                         }}
                       >
-                        {closingShift ? '⏳ Finalizing & Printing Z-Report...' : '🔴 Close Shift & Print Z-Report'}
+                        {closingShift ? 'Finalizing & Printing Z-Report...' : 'Close Shift & Print Z-Report'}
                       </button>
                       <p style={{ fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '8px 0 0' }}>
                         This permanently closes the active shift, prints the Z-Report audit, and resets the register for the next cashier.
@@ -3693,8 +3697,8 @@ export default function POS() {
         <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1001, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
           <div className="modal-content" style={{ maxWidth: '420px', width: '100%', padding: '24px', borderRadius: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-                <span style={{ fontSize: '1.2em' }}>🧾</span> Z-Report
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Receipt size={20} /> Z-Report
               </h3>
               <button className="btn btn-ghost btn-icon" onClick={() => setZReportToShow(null)} style={{ borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg-secondary)' }}>
                 <X size={18} />
@@ -3814,8 +3818,9 @@ export default function POS() {
                   printWin.print();
                   printWin.close();
                 }}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                🖨️ Print Receipt
+                <Printer size={16} /> Print Receipt
               </button>
               <button
                 type="button"
@@ -3835,8 +3840,8 @@ export default function POS() {
         <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1002 }}>
           <div className="modal-content" style={{ maxWidth: '400px', width: '100%', padding: 'var(--space-4)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-separator)', paddingBottom: '8px' }}>
-              <h3 style={{ fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', color: 'var(--color-red)' }}>
-                🔑 Authorize Void / Comp
+              <h3 style={{ fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', color: 'var(--color-red)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Lock size={15} /> Authorize Void / Comp
               </h3>
               <button className="btn btn-ghost btn-sm" onClick={() => { setShowVoidModal(false); setVoidAction(null); }}>
                 <X size={16} />
