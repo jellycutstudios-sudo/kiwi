@@ -259,7 +259,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: isCollapsed ? 'center' : 'flex-start', width: isCollapsed ? '100%' : 'auto' }}>
-          <img src="/ricon.svg" alt="DineOS" style={{ width: '32px', height: '32px', display: 'block', borderRadius: '8px' }} />
+          <img src="/ricon.svg" alt="DineOS" style={{ width: '32px', height: '32px', display: 'block' }} />
           {!isCollapsed && (
             <span style={{ fontSize: '16px', fontWeight: 800, letterSpacing: '-0.3px', color: 'var(--color-label)' }}>
               DineOS
