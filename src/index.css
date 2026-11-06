@@ -9665,42 +9665,74 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   text-transform: none !important;
 }
 
-.login-page .login-form .form-group .form-input {
-  height: 52px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1.5px solid #cbd5e1;
-  background: #f8fafc;
-  font-size: 16px;
-  color: #0f172a;
-  color-scheme: light;
-  caret-color: #0f172a;
-  transition: all 150ms ease;
-  width: 100%;
-  box-sizing: border-box;
+.login-page .login-form .form-group .form-input,
+.login-page input,
+[data-theme="dark"] .login-page .form-input,
+[data-theme="dark"] .login-page input,
+.dark .login-page .form-input,
+.dark .login-page input {
+  height: 52px !important;
+  padding: 0 16px !important;
+  border-radius: 14px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  font-size: 16px !important;
+  color: #0f172a !important;
+  color-scheme: light !important;
+  caret-color: #0f172a !important;
+  box-shadow: none !important;
+  transition: all 150ms ease !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
-.login-page .login-form .form-group .form-input:focus {
-  outline: none;
-  border-color: #0f172a;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.15);
+.login-page .login-form .form-group .form-input:hover,
+.login-page input:hover,
+[data-theme="dark"] .login-page .form-input:hover,
+[data-theme="dark"] .login-page input:hover,
+.dark .login-page .form-input:hover,
+.dark .login-page input:hover {
+  border-color: #94a3b8 !important;
+  background: #ffffff !important;
 }
 
-.login-page .login-form .form-group .form-input::placeholder {
-  color: #64748b;
-  opacity: 1;
-  font-size: 14.5px;
+.login-page .login-form .form-group .form-input:focus,
+.login-page input:focus,
+[data-theme="dark"] .login-page .form-input:focus,
+[data-theme="dark"] .login-page input:focus,
+.dark .login-page .form-input:focus,
+.dark .login-page input:focus {
+  outline: none !important;
+  border-color: #0f172a !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.15) !important;
+}
+
+.login-page .login-form .form-group .form-input::placeholder,
+.login-page input::placeholder,
+[data-theme="dark"] .login-page .form-input::placeholder,
+[data-theme="dark"] .login-page input::placeholder,
+.dark .login-page .form-input::placeholder,
+.dark .login-page input::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+  font-size: 14.5px !important;
 }
 
 /* Keep autofill colors local to auth fields without hiding the focus ring. */
-.login-page .login-form .form-group .form-input:autofill {
-  -webkit-text-fill-color: #0f172a;
-  box-shadow: 0 0 0 1000px #f8fafc inset;
+.login-page .login-form .form-group .form-input:autofill,
+.login-page input:autofill,
+[data-theme="dark"] .login-page input:autofill,
+.dark .login-page input:autofill {
+  -webkit-text-fill-color: #0f172a !important;
+  box-shadow: 0 0 0 1000px #f8fafc inset !important;
 }
 
-.login-page .login-form .form-group .form-input:autofill:focus {
-  box-shadow: 0 0 0 1000px #ffffff inset, 0 0 0 3px rgba(15, 23, 42, 0.15);
+.login-page .login-form .form-group .form-input:autofill:focus,
+.login-page input:autofill:focus,
+[data-theme="dark"] .login-page input:autofill:focus,
+.dark .login-page input:autofill:focus {
+  box-shadow: 0 0 0 1000px #ffffff inset, 0 0 0 3px rgba(15, 23, 42, 0.15) !important;
 }
 
 .login-page :is(button, a):focus-visible {

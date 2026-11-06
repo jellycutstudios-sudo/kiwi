@@ -232,7 +232,7 @@ export default function Login() {
       setRegistering(false);
     }
   };  return (
-    <div className="login-page">
+    <div className="login-page" data-theme="light">
       <div className="login-form-panel">
         <div className="login-form-card">
           {/* Minimal Top Header Row */}
