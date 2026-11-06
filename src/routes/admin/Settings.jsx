@@ -44,6 +44,7 @@ const MODES = [
 
   // 4. Digital Displays & Front of House
   { key: 'posters',          label: '📺 TV Signage & Posters',   desc: 'Promo menu boards & video slideshows', tab: 'displays', tabName: 'Displays' },
+  { key: 'kiosk',            label: '📱 Self-Service Touch Kiosk', desc: 'Customer touch ordering, UPI QR & token tickets', tab: 'displays', tabName: 'Displays' },
 
   // 5. Trust, Privacy & Tax Shield
   { key: 'customer_privacy', label: '🔒 Phone Privacy Shield',   desc: 'Mask guest phone numbers from staff', tab: 'security', tabName: 'Security' },
@@ -134,7 +135,7 @@ const TABS = [
   { id: 'kitchen',       label: 'Kitchen & KDS',           shortLabel: 'Kitchen',      icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
   { id: 'tax-pay',       label: 'Payments, Card Machines & Taxes', shortLabel: 'Payment Machines & Taxes', icon: CreditCard, keywords: ['payment machine', 'card machine', 'edc', 'terminal', 'pos machine', 'swipe machine', 'paytm', 'pinelabs', 'razorpay', 'stripe', 'tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'upi', 'tally'] },
   { id: 'receipts',      label: 'Receipt Designer',        shortLabel: 'Receipts',     icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
-  { id: 'displays',      label: 'Digital Displays & TV',   shortLabel: 'Displays',     icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url'] },
+  { id: 'displays',      label: 'Digital Displays & TV',   shortLabel: 'Displays',     icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url', 'kiosk', 'self service', 'touch screen'] },
   { id: 'online-del',    label: 'Online Store & Delivery', shortLabel: 'Online Store', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
   { id: 'hardware',      label: 'Peripherals & Printers',  shortLabel: 'Printers & Hardware', icon: Printer, keywords: ['printer', 'hardware', 'payment machine', 'edc', 'terminal', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
   { id: 'notifications', label: 'Alerts & Reports',        shortLabel: 'Alerts',       icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
@@ -310,7 +311,7 @@ export default function Settings() {
     const activeModes = settings.modes ?? [];
     const hasKdsMode = activeModes.includes('kds');
     const isKitchenDisabled = !hasKdsMode && (settings.businessType === 'bill_only' || settings.kitchenConfig?.mode === 'disabled' || !settings.kitchenConfig?.mode);
-    const isDisplaysDisabled = !activeModes.includes('posters') && !activeModes.includes('token');
+    const isDisplaysDisabled = !activeModes.includes('posters') && !activeModes.includes('token') && !activeModes.includes('kiosk');
     const isOnlineDisabled = !activeModes.includes('online') && !activeModes.includes('delivery_hub');
 
     if (!searchQuery.trim()) {
@@ -543,6 +544,20 @@ export default function Settings() {
     setCopiedToken(true);
     toast.success('TV display URL copied!');
   };
+
+  const [copiedKiosk, setCopiedKiosk] = useState(false);
+  const copyKioskLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/kiosk/${restaurant?.id}`);
+    setCopiedKiosk(true);
+    toast.success('Self-Service Kiosk URL copied!');
+  };
+
+  useEffect(() => {
+    if (copiedKiosk) {
+      const timer = setTimeout(() => setCopiedKiosk(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedKiosk]);
 
   const copySlideshowLink = (slideshowId) => {
     navigator.clipboard.writeText(`${window.location.origin}/display/slides/${restaurant?.id}/${slideshowId}`);
@@ -2373,6 +2388,103 @@ export default function Settings() {
           {/* Displays & TV Hub Tab */}
           {activeTab === 'displays' && (
             <>
+              {/* Self-Service Touch Kiosk */}
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Smartphone size={18} color="var(--color-accent)" />
+                      <h3 className="text-title3" style={{ margin: 0 }}>Self-Service Touch Kiosk (/kiosk)</h3>
+                    </div>
+                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                      Run on ground floor tablets or standing touchscreens for customer self-ordering with dynamic UPI QR and token ticketing.
+                    </p>
+                  </div>
+                  <a 
+                    href={`/kiosk/${restaurant?.id}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <ExternalLink size={14} /> Launch Kiosk Screen
+                  </a>
+                </div>
+
+                <div style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+                  <input
+                    className="form-input"
+                    readOnly
+                    value={`${window.location.origin}/kiosk/${restaurant?.id}`}
+                    style={{ fontFamily:'var(--font-mono)', fontSize:'var(--text-footnote)', background:'var(--color-bg-secondary)' }}
+                  />
+                  <button className="btn btn-secondary" id="copy-kiosk-link-btn" onClick={copyKioskLink} type="button">
+                    {copiedKiosk ? <Check size={16}/> : <Copy size={16}/>}
+                    {copiedKiosk ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+
+                {/* Kiosk Configuration Controls */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                  {/* Inactivity Timeout */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Inactivity Reset Timer</label>
+                    <select
+                      className="form-select"
+                      value={settings.kioskConfig?.inactivityTimeout ?? 60}
+                      onChange={e => updateField('kioskConfig.inactivityTimeout', Number(e.target.value))}
+                    >
+                      <option value={30}>30 Seconds (Fast reset)</option>
+                      <option value={60}>60 Seconds (Recommended)</option>
+                      <option value={90}>90 Seconds (More reading time)</option>
+                      <option value={120}>120 Seconds (Extended)</option>
+                    </select>
+                  </div>
+
+                  {/* Payment Options */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Allowed Payment Methods</label>
+                    <select
+                      className="form-select"
+                      value={settings.kioskConfig?.allowedPayment ?? 'both'}
+                      onChange={e => updateField('kioskConfig.allowedPayment', e.target.value)}
+                    >
+                      <option value="both">Both Dynamic UPI QR &amp; Pay at Counter</option>
+                      <option value="upi_only">UPI QR Only (100% Pre-paid)</option>
+                      <option value="counter_only">Pay at Counter Only (Cash at Cashier)</option>
+                    </select>
+                  </div>
+
+                  {/* Allowed Dining Modes */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Dining Format Choices</label>
+                    <select
+                      className="form-select"
+                      value={settings.kioskConfig?.allowedDining ?? 'both'}
+                      onChange={e => updateField('kioskConfig.allowedDining', e.target.value)}
+                    >
+                      <option value="both">Both Dine-In &amp; Takeaway Choices</option>
+                      <option value="dine-in">Dine-In Only (Eat Here)</option>
+                      <option value="takeaway">Takeaway Only (Pack to go)</option>
+                    </select>
+                  </div>
+
+                  {/* Auto-Print Token Slip */}
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '10px 14px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>Auto-Print Token Slip</span>
+                      <ToggleSwitch
+                        checked={settings.kioskConfig?.autoPrintToken !== false}
+                        onChange={val => updateField('kioskConfig.autoPrintToken', val)}
+                      />
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: 4 }}>
+                      Automatically cuts a physical token ticket if a thermal printer is attached.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* QSR TV Token Display (Only when token mode is active) */}
               {(settings.modes ?? []).includes('token') && (
                 <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

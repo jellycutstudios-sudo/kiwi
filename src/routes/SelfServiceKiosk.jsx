@@ -71,6 +71,11 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
   const [orderType, setOrderType] = useState('dine-in'); // 'dine-in' | 'takeaway'
   const [lang, setLang] = useState('en'); // 'en' | 'ml' | 'hi'
 
+  // Kiosk Config
+  const configuredTimeout = Number(restaurant?.kioskConfig?.inactivityTimeout) || 60;
+  const allowedPayment = restaurant?.kioskConfig?.allowedPayment || 'both';
+  const autoPrintToken = restaurant?.kioskConfig?.autoPrintToken !== false;
+
   // Menu Navigation & Filtering
   const [activeCategory, setActiveCategory] = useState('all');
   const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'nonveg'
@@ -84,16 +89,21 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
   // Checkout & Payment
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' | 'counter'
+  const [paymentMethod, setPaymentMethod] = useState(allowedPayment === 'counter_only' ? 'counter' : 'upi'); // 'upi' | 'counter'
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  useEffect(() => {
+    if (allowedPayment === 'counter_only') setPaymentMethod('counter');
+    else if (allowedPayment === 'upi_only') setPaymentMethod('upi');
+  }, [allowedPayment]);
 
   // Success Confirmation
   const [placedOrderInfo, setPlacedOrderInfo] = useState(null);
   const [successCountdown, setSuccessCountdown] = useState(15);
 
   // Inactivity Watchdog
-  const [inactivityTimer, setInactivityTimer] = useState(60);
+  const [inactivityTimer, setInactivityTimer] = useState(configuredTimeout);
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -180,9 +190,9 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
   // ─── 3. Inactivity Watchdog ────────────────────────────────
   const resetWatchdog = useCallback(() => {
-    setInactivityTimer(60);
+    setInactivityTimer(configuredTimeout);
     setShowInactivityWarning(false);
-  }, []);
+  }, [configuredTimeout]);
 
   useEffect(() => {
     if (step === 'attract') return; // No timer needed on attract screensaver
@@ -192,7 +202,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
         if (prev <= 1) {
           // Timeout expired -> reset completely
           handleResetToAttract();
-          return 60;
+          return configuredTimeout;
         }
         if (prev <= 11) {
           setShowInactivityWarning(true);
@@ -202,7 +212,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [step]);
+  }, [step, configuredTimeout]);
 
   // Reset watchdog on user interaction
   useEffect(() => {
@@ -388,17 +398,19 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
       const orderRef = doc(collection(db, 'restaurants', restaurant.id, 'orders'));
       await setDoc(orderRef, orderPayload);
 
-      // 4. Trigger Token Print (optional, auto-prints if printer configured)
-      try {
-        printTokenTicket({
-          token: tokenNum,
-          orderType,
-          customerName: `Kiosk #${tokenNum}`,
-          restaurant,
-          isOffline: !navigator.onLine
-        });
-      } catch (err) {
-        console.debug('Kiosk auto-print skipped:', err);
+      // 4. Trigger Token Print (optional, auto-prints if printer configured and enabled)
+      if (autoPrintToken) {
+        try {
+          printTokenTicket({
+            token: tokenNum,
+            orderType,
+            customerName: `Kiosk #${tokenNum}`,
+            restaurant,
+            isOffline: !navigator.onLine
+          });
+        } catch (err) {
+          console.debug('Kiosk auto-print skipped:', err);
+        }
       }
 
       // 5. Success state & Confetti
@@ -1054,27 +1066,29 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
 
             <div className="kiosk-modal-body">
               {/* Payment Option Selector */}
-              <div className="kiosk-pay-options-grid">
-                <button
-                  type="button"
-                  className={`kiosk-pay-option-btn ${paymentMethod === 'upi' ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod('upi')}
-                >
-                  <QrCode size={30} style={{ color: '#818cf8' }} />
-                  <span style={{ fontSize: 15, fontWeight: 800 }}>Scan UPI QR</span>
-                  <span style={{ fontSize: 12, color: '#94a3b8' }}>GPay, PhonePe, Paytm</span>
-                </button>
+              {allowedPayment === 'both' && (
+                <div className="kiosk-pay-options-grid">
+                  <button
+                    type="button"
+                    className={`kiosk-pay-option-btn ${paymentMethod === 'upi' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('upi')}
+                  >
+                    <QrCode size={30} style={{ color: '#818cf8' }} />
+                    <span style={{ fontSize: 15, fontWeight: 800 }}>Scan UPI QR</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>GPay, PhonePe, Paytm</span>
+                  </button>
 
-                <button
-                  type="button"
-                  className={`kiosk-pay-option-btn ${paymentMethod === 'counter' ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod('counter')}
-                >
-                  <Banknote size={30} style={{ color: '#34d399' }} />
-                  <span style={{ fontSize: 15, fontWeight: 800 }}>Pay at Counter</span>
-                  <span style={{ fontSize: 12, color: '#94a3b8' }}>Pay Cash to Cashier</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    className={`kiosk-pay-option-btn ${paymentMethod === 'counter' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('counter')}
+                  >
+                    <Banknote size={30} style={{ color: '#34d399' }} />
+                    <span style={{ fontSize: 15, fontWeight: 800 }}>Pay at Counter</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>Pay Cash to Cashier</span>
+                  </button>
+                </div>
+              )}
 
               {/* Dynamic QR Display for UPI */}
               {paymentMethod === 'upi' ? (
