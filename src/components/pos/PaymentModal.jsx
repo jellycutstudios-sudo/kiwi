@@ -477,7 +477,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
   if (terminalStatus) {
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-        <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 420, overflow: 'hidden' }}>
+        <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 500, width: 'min(500px, 92vw)', overflow: 'hidden' }}>
           <div style={{
             background: 'var(--color-bg-secondary)',
             borderRadius: 'var(--radius-xl)',
@@ -646,7 +646,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.65)' }}>
-      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 530, width: '100%', maxHeight: '96vh', borderRadius: 22, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.12)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 620, width: 'min(620px, 95vw)', maxHeight: '96vh', borderRadius: 22, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.12)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div className="modal-header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -52,3 +52,4 @@ describe('itemVisuals utility', () => {
     expect(visuals.color).toBe('#99f6e4'); // Teal
   });
 });
+

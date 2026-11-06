@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { X, Check, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { getItemVisuals } from '../../utils/itemVisuals';
 
 /* ─────────────────────────────────────────────────────────────
    VARIANT MATRIX MODE
@@ -100,22 +101,46 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" style={{ maxWidth: 420 }}>
+      <div className="modal animate-slide-up" style={{ maxWidth: 580, width: 'min(580px, 94vw)' }}>
 
         {/* Header */}
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <span style={{ fontSize: 24 }}>{item.emoji ?? '🍽️'}</span>
+        <div className="modal-header" style={{ padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {(() => {
+              const visuals = getItemVisuals(item);
+              return (
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: visuals.bg,
+                    border: `1.5px solid ${visuals.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: `0 4px 12px ${visuals.glow}`
+                  }}
+                >
+                  <span style={{ color: visuals.color, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                    {visuals.monogram}
+                  </span>
+                </div>
+              );
+            })()}
             <div>
-              <h2 className="modal-title" style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)' }}>
+              <h2 className="modal-title" style={{ fontSize: 19, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
                 {item.name}
               </h2>
-              <div style={{ fontSize: 12, color: 'var(--color-label-tertiary)' }}>
+              <div style={{ fontSize: 13, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
                 Pick style then portion — 1 item
               </div>
             </div>
           </div>
-          <button className="btn btn-secondary btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn btn-secondary btn-icon" onClick={onClose} style={{ width: 38, height: 38, borderRadius: 10 }}>
+            <X size={18} />
+          </button>
         </div>
 
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -196,13 +221,19 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
           )}
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+        <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
+          <button
+            className="btn btn-secondary"
+            onClick={onClose}
+            style={{ height: 50, padding: '0 24px', fontSize: 15, fontWeight: 700, borderRadius: 12 }}
+          >
+            Cancel
+          </button>
           <button
             className="btn btn-primary btn-lg"
             onClick={handleConfirm}
             disabled={!canConfirm}
-            style={{ padding: '10px var(--space-6)', height: 44, borderRadius: 'var(--radius-lg)' }}
+            style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
           >
             {canConfirm
               ? `Add to Cart · ${formatCurrency(currentPrice, currency)}`
@@ -299,22 +330,46 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 500 }}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <span style={{ fontSize: 24 }}>{item.emoji ?? '🍽️'}</span>
+      <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 620, width: 'min(620px, 94vw)' }}>
+        <div className="modal-header" style={{ padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {(() => {
+              const visuals = getItemVisuals(item);
+              return (
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: visuals.bg,
+                    border: `1.5px solid ${visuals.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: `0 4px 12px ${visuals.glow}`
+                  }}
+                >
+                  <span style={{ color: visuals.color, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                    {visuals.monogram}
+                  </span>
+                </div>
+              );
+            })()}
             <div>
-              <h2 className="modal-title" style={{ fontSize: 'var(--text-headline)', fontWeight: 'var(--weight-bold)' }}>
+              <h2 className="modal-title" style={{ fontSize: 19, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
                 {item.name}
               </h2>
-              <div style={{ fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
+              <div style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginTop: 2 }}>
                 {basePrice > 0
                   ? `Base Price: ${formatCurrency(basePrice, currency)}`
                   : 'Select your portion / options'}
               </div>
             </div>
           </div>
-          <button className="btn btn-secondary btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn btn-secondary btn-icon" onClick={onClose} style={{ width: 38, height: 38, borderRadius: 10 }}>
+            <X size={18} />
+          </button>
         </div>
 
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
@@ -337,7 +392,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                     {maxSelect === 1 ? 'Choose 1' : `Choose up to ${maxSelect}`}
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
                   {group.options?.map(opt => {
                     const isSelected = groupSelections.some(o => o.id === opt.id);
                     return (
@@ -349,8 +404,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           background: isSelected ? 'var(--color-accent-light)' : 'var(--color-bg-elevated)',
                           border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
                           borderRadius: 'var(--radius-lg)',
-                          padding: 'var(--space-3) var(--space-4)',
-                          minHeight: 44,
+                          padding: '14px 18px',
+                          minHeight: 56,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
@@ -359,34 +414,35 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           textAlign: 'left',
                           fontFamily: 'var(--font-family)',
                           touchAction: 'manipulation',
-                          boxShadow: isSelected ? '0 4px 12px rgba(0,122,255,0.1)' : 'var(--shadow-sm)',
+                          boxShadow: isSelected ? '0 4px 12px rgba(0,122,255,0.15)' : 'var(--shadow-sm)',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                           <div style={{
-                            width: 16, height: 16,
+                            width: 22, height: 22,
                             borderRadius: maxSelect === 1 ? '50%' : 'var(--radius-xs)',
-                            border: `1.5px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-label-tertiary)'}`,
+                            border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-label-tertiary)'}`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             background: isSelected ? 'var(--color-accent)' : 'transparent',
                             transition: 'all var(--duration-fast)',
+                            flexShrink: 0
                           }}>
-                            {isSelected && <Check size={10} color="var(--color-bg)" strokeWidth={3} />}
+                            {isSelected && <Check size={13} color="#ffffff" strokeWidth={3} />}
                           </div>
                           <span style={{
-                            fontSize: 'var(--text-footnote)',
-                            fontWeight: isSelected ? 'var(--weight-semibold)' : 'var(--weight-medium)',
+                            fontSize: '15px',
+                            fontWeight: isSelected ? 800 : 600,
                             color: isSelected ? 'var(--color-accent)' : 'var(--color-label)'
                           }}>
                             {opt.name}
                           </span>
                         </div>
                         {opt.priceAdd > 0 ? (
-                          <span style={{ fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)' }}>
+                          <span style={{ fontSize: '14.5px', fontWeight: 800, color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)' }}>
                             {basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`}
                           </span>
                         ) : (
-                          <span style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-tertiary)' }}>
+                          <span style={{ fontSize: '13px', color: 'var(--color-label-tertiary)' }}>
                             {basePrice === 0 ? formatCurrency(0, currency) : 'Included'}
                           </span>
                         )}
@@ -399,13 +455,19 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           })}
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+        <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
+          <button
+            className="btn btn-secondary"
+            onClick={onClose}
+            style={{ height: 50, padding: '0 24px', fontSize: 15, fontWeight: 700, borderRadius: 12 }}
+          >
+            Cancel
+          </button>
           <button
             className="btn btn-primary btn-lg"
             onClick={handleSubmit}
             disabled={!isValid}
-            style={{ padding: '10px var(--space-6)', height: 44, borderRadius: 'var(--radius-lg)' }}
+            style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
           >
             Add to Cart · {formatCurrency(totalUnitPrice, currency)}
           </button>

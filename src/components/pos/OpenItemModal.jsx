@@ -43,14 +43,16 @@ export default function OpenItemModal({ isOpen, onClose, onAdd, currency = 'INR'
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" style={{ maxWidth: 420 }}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>✨</span>
-            <h2 className="modal-title">Add Custom / Open Item</h2>
+      <div className="modal animate-slide-up" style={{ maxWidth: 520, width: 'min(520px, 94vw)' }}>
+        <div className="modal-header" style={{ padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--color-accent-light, rgba(56, 189, 248, 0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={18} color="var(--color-accent)" strokeWidth={2.5} />
+            </div>
+            <h2 className="modal-title" style={{ fontSize: 18, fontWeight: 800 }}>Add Custom / Open Item</h2>
           </div>
-          <button className="btn btn-secondary btn-icon" onClick={onClose} type="button">
-            <X size={16} />
+          <button className="btn btn-secondary btn-icon" onClick={onClose} type="button" style={{ width: 36, height: 36, borderRadius: 10 }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -110,12 +112,12 @@ export default function OpenItemModal({ isOpen, onClose, onAdd, currency = 'INR'
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button className="btn btn-secondary" onClick={onClose} type="button">
+          <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
+            <button className="btn btn-secondary" onClick={onClose} type="button" style={{ height: 48, padding: '0 22px', fontSize: 15, fontWeight: 700, borderRadius: 12 }}>
               Cancel
             </button>
-            <button className="btn btn-primary" type="submit">
-              <Plus size={16} /> Add to Cart
+            <button className="btn btn-primary" type="submit" style={{ height: 48, padding: '0 26px', fontSize: 15, fontWeight: 800, borderRadius: 12, flex: 1 }}>
+              <Plus size={18} strokeWidth={2.5} /> Add to Cart
             </button>
           </div>
         </form>

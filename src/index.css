@@ -1360,17 +1360,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .vm-step-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .vm-step-num {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--color-label);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -1379,54 +1379,60 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .vm-step-title {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--color-label);
 }
 
 .vm-step-selected {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   color: #10b981;
-  margin-left: 4px;
+  margin-left: 6px;
 }
 
 /* Style selector — pill buttons */
 .vm-style-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .vm-style-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 18px;
-  font-size: 14px;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 15.5px;
   font-weight: 700;
-  border-radius: 999px;
+  border-radius: 14px;
   border: 2px solid var(--color-separator);
   background: var(--color-bg-secondary);
   color: var(--color-label-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: var(--font-family);
+  min-height: 48px;
+  touch-action: manipulation;
 }
 .vm-style-btn:hover {
   border-color: var(--color-accent);
   color: var(--color-label);
   background: var(--color-fill);
 }
+.vm-style-btn:active {
+  transform: scale(0.97);
+}
 .vm-style-btn--active {
   font-weight: 800;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
 /* Portion selector — card grid */
 .vm-portion-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 12px;
 }
 
 .vm-portion-btn {
@@ -1434,25 +1440,30 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 12px 8px;
-  border-radius: var(--radius-lg);
+  gap: 6px;
+  padding: 16px 14px;
+  min-height: 86px;
+  border-radius: 16px;
   border: 2px solid var(--color-separator);
   background: var(--color-bg-elevated);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   font-family: var(--font-family);
   box-shadow: var(--shadow-sm);
+  touch-action: manipulation;
 }
 .vm-portion-btn:hover:not(:disabled) {
   border-color: var(--color-accent);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+.vm-portion-btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .vm-portion-btn--active {
   border-color: var(--color-accent) !important;
   background: var(--color-accent-light) !important;
-  box-shadow: 0 4px 14px rgba(0,122,255,0.12) !important;
+  box-shadow: 0 6px 18px rgba(0,122,255,0.18) !important;
 }
 .vm-portion-btn--disabled {
   opacity: 0.35;
@@ -1460,14 +1471,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .vm-portion-name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--color-label);
 }
 .vm-portion-btn--active .vm-portion-name { color: var(--color-accent); }
 
 .vm-portion-price {
-  font-size: 13px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--color-label-secondary);
   font-variant-numeric: tabular-nums;
@@ -13902,8 +13913,9 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10px 4px;
-  border-radius: 12px;
+  padding: 14px 6px;
+  min-height: 66px;
+  border-radius: 14px;
   border: 1px solid var(--color-separator);
   background: var(--color-bg-elevated);
   color: var(--color-label);
@@ -13911,6 +13923,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--font-family);
+  touch-action: manipulation;
 }
 .payment-method-btn:hover:not(.selected) {
   background: var(--color-bg-secondary);
@@ -13961,17 +13974,19 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .payment-denom-btn {
-  padding: 8px 12px;
+  padding: 12px 14px;
+  min-height: 52px;
   background: var(--color-bg-elevated);
   color: var(--color-label);
   border: 1px solid var(--color-separator);
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  touch-action: manipulation;
 }
 .payment-denom-btn:hover:not(.selected) {
   background: var(--color-bg-secondary);

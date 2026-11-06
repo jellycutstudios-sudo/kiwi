@@ -167,3 +167,4 @@ export function getItemVisuals(item) {
     ...PALETTES[paletteIndex]
   };
 }
+

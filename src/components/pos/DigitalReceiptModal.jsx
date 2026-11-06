@@ -46,7 +46,7 @@ export default function DigitalReceiptModal({
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" style={{ maxWidth: 420, textAlign: 'center' }}>
+      <div className="modal animate-slide-up" style={{ maxWidth: 500, width: 'min(500px, 94vw)', textAlign: 'center' }}>
         <div className="modal-header" style={{ justifyContent: 'center', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
             <div style={{
