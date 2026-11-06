@@ -871,18 +871,46 @@ export default function TableMap() {
   const handleSettle = async (method) => {
     if (!selectedOrder || isSettling) return;
     setIsSettling(true);
+    const orderSnapshot = {
+      ...selectedOrder,
+      paymentMethod: method,
+      status: 'completed',
+      settledAt: new Date().toISOString()
+    };
     try {
       await settleOrder(restaurant.id, selectedOrder.id, method, selectedOrder.total);
       await freeTable(restaurant.id, selected);
       setSelected(null);
       toast.success(`Settled via ${method.toUpperCase()} ✓ Table freed`);
+
+      // Print final settled receipt / tax invoice automatically upon payment collection
+      setTimeout(() => {
+        try {
+          printReceipt({
+            restaurant,
+            order: orderSnapshot,
+            items: orderSnapshot.items || [],
+            taxInfo: orderSnapshot.taxInfo,
+            staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
+          });
+        } catch (printErr) {
+          console.warn('[TableMap] Receipt print failed on settle:', printErr);
+        }
+      }, 100);
     } catch (err) { toast.error('Settle failed: ' + err.message); }
     finally { setIsSettling(false); }
   };
 
   const handlePrintBill = () => {
     if (!selectedOrder) return;
-    printReceipt({ restaurant, order: selectedOrder, items: selectedOrder.items, taxInfo: selectedOrder.taxInfo, staffName: selectedOrder.customerName || 'Waiter' });
+    printReceipt({
+      restaurant,
+      order: selectedOrder,
+      items: selectedOrder.items,
+      taxInfo: selectedOrder.taxInfo,
+      staffName: selectedOrder.staffName || staffDoc?.name || 'Waiter',
+      isManual: true
+    });
     toast.success('Bill sent to printer!');
   };
 
@@ -2831,11 +2859,32 @@ export default function TableMap() {
                     const orderId = upiOrderToSettle.order?.id;
                     const tableId = upiOrderToSettle.tableId;
                     const total = upiOrderToSettle.order?.total ?? 0;
+                    const orderSnapshot = {
+                      ...upiOrderToSettle.order,
+                      paymentMethod: 'upi',
+                      status: 'completed',
+                      settledAt: new Date().toISOString()
+                    };
                     await settleOrder(restaurant.id, orderId, 'upi', total, upiRef ? { upiRef } : {});
                     await freeTable(restaurant.id, tableId);
                     clearUpiSettle();
                     setSelected(null);
                     toast.success('Bill settled via UPI! Table freed.');
+
+                    // Print final receipt automatically upon UPI collection
+                    setTimeout(() => {
+                      try {
+                        printReceipt({
+                          restaurant,
+                          order: orderSnapshot,
+                          items: orderSnapshot.items || [],
+                          taxInfo: orderSnapshot.taxInfo,
+                          staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
+                        });
+                      } catch (printErr) {
+                        console.warn('[TableMap UPI] Receipt print failed:', printErr);
+                      }
+                    }, 100);
                   } catch (err) { toast.error('Settle failed: ' + err.message); }
                   finally { setSettlingUpi(false); }
                 }}

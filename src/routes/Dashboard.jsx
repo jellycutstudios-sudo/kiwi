@@ -7,6 +7,7 @@ import { useTableStore } from '../stores/tableStore';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
+import { printReceipt } from '../utils/print';
 import { collection, query, where, orderBy, onSnapshot, getDocs, limit, writeBatch, serverTimestamp, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
@@ -165,7 +166,28 @@ export default function Dashboard() {
       setSettleOrderModal(null);
       const label = order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : `#${order.id.slice(-6).toUpperCase()}`);
       toast.success(`${label} settled for ${formatCurrency(order.total, currency)} via ${method.toUpperCase()}!`);
+      const orderSnapshot = {
+        ...order,
+        paymentMethod: method,
+        status: 'completed',
+        settledAt: new Date().toISOString()
+      };
       await settleOrder(restaurant.id, order.id, method, order.total);
+
+      // Print settled receipt automatically
+      setTimeout(() => {
+        try {
+          printReceipt({
+            restaurant,
+            order: orderSnapshot,
+            items: orderSnapshot.items || [],
+            taxInfo: orderSnapshot.taxInfo,
+            staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
+          });
+        } catch (printErr) {
+          console.warn('[Dashboard] Receipt print failed on quick settle:', printErr);
+        }
+      }, 100);
     } catch (err) {
       toast.error('Failed to settle order: ' + err.message);
     } finally {
