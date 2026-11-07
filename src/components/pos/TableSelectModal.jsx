@@ -233,7 +233,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         )}
 
         {/* Modal Body: Tables Rendering */}
-        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: viewMode === 'compact' ? '16px 20px 24px' : '22px 24px 28px' }}>
+        <div className="modal-body table-select-body">
           {viewMode === 'compact' ? (
             /* High-Density Compact Grid (Optimized for 20+ Tables) */
             <div className="table-compact-grid">

@@ -13199,6 +13199,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 10px;
   padding: 6px 2px 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .table-compact-card {
@@ -13208,6 +13210,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   justify-content: space-between;
   padding: 9px 12px;
   min-height: 58px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   border-radius: 13px;
   cursor: pointer;
   background: var(--color-bg-elevated, #ffffff);
@@ -13333,7 +13339,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .table-compact-name {
@@ -13342,6 +13349,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   color: var(--color-label, #0f172a);
   letter-spacing: -0.015em;
   line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .table-compact-name,
@@ -13374,6 +13385,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .table-compact-capacity,
@@ -13385,6 +13398,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
   margin-top: 4px;
 }
 
@@ -13394,11 +13409,17 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .table-compact-status-text {
   text-transform: capitalize;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-compact-status-text.free {
@@ -13474,13 +13495,16 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .table-compact-order-total {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   color: #be123c;
   font-variant-numeric: tabular-nums;
   background: rgba(225, 29, 72, 0.08);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 [data-theme="dark"] .table-compact-order-total,
@@ -13502,6 +13526,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   border-radius: var(--radius-xl, 18px);
   overflow: hidden;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.table-select-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 18px 24px;
+  box-sizing: border-box;
 }
 
 .table-select-header {
@@ -13749,24 +13781,49 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     margin-top: auto !important;
   }
 
+  .table-select-body {
+    padding: 10px 12px 24px !important;
+    overflow-x: hidden !important;
+  }
+
   .table-compact-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 8px !important;
-    padding: 10px 12px 28px !important;
+    padding: 4px 0 24px !important;
+    width: 100% !important;
   }
 
   .table-compact-card {
-    min-height: 62px !important;
-    padding: 8px 10px !important;
+    min-height: 60px !important;
+    padding: 7px 8px !important;
     border-radius: 12px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .table-compact-name {
-    font-size: 15px !important;
+    font-size: 14px !important;
   }
 
   .table-compact-capacity {
     font-size: 10px !important;
+  }
+
+  .table-select-status-pills {
+    width: 100%;
+    display: flex;
+    gap: 6px;
+  }
+
+  .table-filter-pill {
+    flex: 1 1 0;
+    justify-content: center;
+    text-align: center;
+    padding: 0 6px;
+    font-size: 11.5px;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .table-select-legend {
@@ -13780,9 +13837,9 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 360px) {
   .table-compact-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
