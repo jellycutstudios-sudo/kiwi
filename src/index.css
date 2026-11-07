@@ -13491,6 +13491,302 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 /* ============================================================
+   Table Select Modal — Mobile Minimal, Fast & Touch-Optimized
+   ============================================================ */
+.table-select-modal {
+  max-width: 840px;
+  width: min(840px, 95vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl, 18px);
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.table-select-header {
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-bg-elevated);
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.table-select-header-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.table-select-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-select-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-label);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.table-select-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-fill);
+  color: var(--color-label-secondary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.table-select-close-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  cursor: pointer;
+}
+
+.table-select-controls {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 641px) {
+  .table-select-controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+.table-select-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+}
+
+.table-select-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-label-tertiary);
+  pointer-events: none;
+}
+
+.table-select-search-input {
+  width: 100%;
+  padding-left: 36px !important;
+  padding-right: 32px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  font-size: 14px !important;
+  border-radius: 10px !important;
+  box-sizing: border-box;
+}
+
+.table-select-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  color: var(--color-label-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-select-status-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.table-filter-pill {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--color-separator);
+  background: var(--color-bg-elevated);
+  color: var(--color-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.table-filter-pill:hover {
+  background: var(--color-fill);
+  color: var(--color-label);
+}
+
+.table-filter-pill.active {
+  background: var(--color-label);
+  color: var(--color-bg);
+  border-color: var(--color-label);
+  font-weight: 700;
+}
+
+.table-filter-pill.free {
+  color: #10b981;
+}
+
+.table-filter-pill.free.active {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.table-filter-pill.occupied {
+  color: #f43f5e;
+}
+
+.table-filter-pill.occupied.active {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: #f43f5e;
+  color: #f43f5e;
+}
+
+.table-filter-pill.reserved {
+  color: #f59e0b;
+}
+
+.table-filter-pill.reserved.active {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.table-filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.table-filter-dot.free { background: #10b981; }
+.table-filter-dot.occupied { background: #f43f5e; }
+.table-filter-dot.reserved { background: #f59e0b; }
+
+.table-select-zones-strip {
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-bg);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
+}
+
+.table-select-zones-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.table-zone-chip {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-separator);
+  background: var(--color-bg-secondary);
+  color: var(--color-label-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.table-zone-chip.active {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: #10b981;
+  color: #10b981;
+  font-weight: 700;
+}
+
+/* Mobile & Touch Layout Optimizations */
+@media (max-width: 640px) {
+  .table-select-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 94vh !important;
+    max-height: 94vh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    margin-top: auto !important;
+  }
+
+  .table-compact-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px 12px 28px !important;
+  }
+
+  .table-compact-card {
+    min-height: 62px !important;
+    padding: 8px 10px !important;
+    border-radius: 12px !important;
+  }
+
+  .table-compact-name {
+    font-size: 15px !important;
+  }
+
+  .table-compact-capacity {
+    font-size: 10px !important;
+  }
+
+  .table-select-legend {
+    display: none !important;
+  }
+
+  .table-select-cancel-btn {
+    width: 100% !important;
+    height: 38px !important;
+    font-weight: 700 !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .table-compact-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ============================================================
    AppShell — Network Status Indicator Animations
    (moved from inline <style> to avoid re-injection on re-renders)
    ============================================================ */

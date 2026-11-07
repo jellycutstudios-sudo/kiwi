@@ -2,20 +2,17 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTableStore } from '../../stores/tableStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Search, LayoutGrid, Layers, ArrowDownUp, Users, Armchair } from 'lucide-react';
+import { X, Search, LayoutGrid, Layers, Armchair } from 'lucide-react';
 
 export default function TableSelectModal({ restaurantId, currency = 'INR', tableOrders = {}, onSelect, onClose }) {
   const { t } = useTranslation();
   const { tables, subscribe } = useTableStore();
   const [filterStatus, setFilterStatus] = useState('all');
   const [search, setSearch] = useState('');
-  const [minSeats, setMinSeats] = useState(0); // 0 = any, 2, 4, 6, 8
   const [selectedZone, setSelectedZone] = useState('all');
-  const [freeFirst, setFreeFirst] = useState(false);
-  // Default to compact mode on small screens or when table count is high
-  const [viewMode, setViewMode] = useState(() => {
-    return window.innerWidth < 768 ? 'compact' : 'compact';
-  });
+  const [freeFirst, setFreeFirst] = useState(true); // Default to free tables first for fast POS seating
+  // Default to compact mode (optimal for POS and touchscreens)
+  const [viewMode, setViewMode] = useState('compact');
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -48,7 +45,6 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
   const zones = useMemo(() => {
     const map = new Map();
     tables.forEach(t => {
-      // Priority: t.section -> table name letter prefix -> t.floor
       const prefix = t.name ? t.name.match(/^[A-Za-z]+/)?.[0] : null;
       const zoneName = t.section || (prefix ? prefix.toUpperCase() : null) || t.floor;
       if (zoneName) {
@@ -56,7 +52,6 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
       }
     });
 
-    // Only show zone filter tabs if at least 2 distinct clusters exist with tables
     if (map.size >= 2) {
       return Array.from(map.entries()).map(([name, count]) => {
         let label = name;
@@ -74,67 +69,53 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
     return tables
       .filter(tbl => {
         const effectiveStatus = getEffectiveStatus(tbl);
-        // Status filter
         if (filterStatus !== 'all' && effectiveStatus !== filterStatus) return false;
-        
-        // Party size / capacity filter
-        if (minSeats > 0 && (tbl.capacity || 2) < minSeats) return false;
 
-        // Zone / Section / Prefix filter
         if (selectedZone !== 'all') {
           const prefix = tbl.name ? tbl.name.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() : null;
           const zoneName = tbl.section || prefix || tbl.floor;
           if (zoneName !== selectedZone) return false;
         }
 
-        // Search query
         if (search.trim() && !tbl.name.toLowerCase().includes(search.toLowerCase())) return false;
 
         return true;
       })
       .sort((a, b) => {
-        // Priority 1: Free First (if enabled)
         if (freeFirst) {
           const aRank = getEffectiveStatus(a) === 'free' ? 0 : 1;
           const bRank = getEffectiveStatus(b) === 'free' ? 0 : 1;
           if (aRank !== bRank) return aRank - bRank;
         }
-
-        // Priority 2: Natural alphanumeric sorting (T1, T2, T3... instead of T1, T10, T2)
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
   }, [tables, filterStatus, minSeats, selectedZone, search, freeFirst, getEffectiveStatus]);
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 880, width: 'min(880px, 95vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal table-select-modal">
         {/* Modal Header */}
-        <div className="modal-header" style={{ padding: '14px 22px', borderBottom: '1px solid var(--color-separator)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Armchair size={22} color="var(--color-primary)" />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h2 className="modal-title" style={{ fontSize: 16.5, fontWeight: 800, color: 'var(--color-label)' }}>
-                  {t('selectTable')}
-                </h2>
-                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--color-fill)', color: 'var(--color-label-secondary)', padding: '1px 7px', borderRadius: 999 }}>
-                  {filteredTables.length} of {tables.length} tables
-                </span>
-              </div>
-              <p style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', margin: 0 }}>
-                Select an available table or tap an occupied table to load active order
-              </p>
+        <div className="table-select-header">
+          <div className="table-select-header-title-wrap">
+            <Armchair size={20} color="var(--color-primary)" className="table-select-header-icon" />
+            <div className="table-select-title-group">
+              <h2 className="table-select-title">
+                {t('selectTable')}
+              </h2>
+              <span className="table-select-count-badge">
+                {counts.free} Free · {tables.length} Total
+              </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* View Density Switcher (Compact Keypad vs 3D Cards) */}
-            <div className="density-toggle" style={{ padding: 2, background: 'var(--color-bg-secondary)' }}>
+          <div className="table-select-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* View Switcher: visible on desktop/wide screens only */}
+            <div className="density-toggle desktop-only" style={{ padding: 2, background: 'var(--color-bg-secondary)' }}>
               <button
                 type="button"
                 className={`density-btn ${viewMode === 'compact' ? 'active' : ''}`}
                 onClick={() => setViewMode('compact')}
-                title="High-density compact keypad (ideal for 20+ tables)"
+                title="High-density keypad view"
               >
                 <LayoutGrid size={13} />
                 <span>Compact</span>
@@ -143,203 +124,111 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
                 type="button"
                 className={`density-btn ${viewMode === 'visual' ? 'active' : ''}`}
                 onClick={() => setViewMode('visual')}
-                title="3D furniture card view"
+                title="Visual card view"
               >
                 <Layers size={13} />
                 <span>Visual</span>
               </button>
             </div>
 
-            <button className="btn btn-secondary btn-icon" onClick={onClose} id="table-modal-close" style={{ width: 32, height: 32, padding: 0, borderRadius: 8 }}>
-              <X size={16} />
+            <button
+              type="button"
+              className="btn btn-secondary btn-icon table-select-close-btn"
+              onClick={onClose}
+              id="table-modal-close"
+              title="Close modal"
+              aria-label="Close"
+            >
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Search & Filters Bar */}
-        <div style={{ padding: '12px 22px', borderBottom: '1px solid var(--color-separator-opaque)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'var(--color-bg-secondary)' }}>
+        {/* Minimal Search & Status Filter Controls */}
+        <div className="table-select-controls">
           {/* Search Input */}
-          <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
-            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+          <div className="table-select-search-wrap">
+            <Search size={15} className="table-select-search-icon" />
             <input
               type="text"
-              className="form-input"
+              className="form-input table-select-search-input"
               placeholder="Search table (e.g. T1, G8)..."
               value={search}
               inputMode="search"
               enterKeyHint="search"
               onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: 36, minHeight: 40, height: 40, fontSize: 16, borderRadius: 10 }}
             />
+            {search && (
+              <button
+                type="button"
+                className="table-select-search-clear"
+                onClick={() => setSearch('')}
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
-          {/* Quick Filter Status Pills */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {/* Status Filter Pills */}
+          <div className="table-select-status-pills">
             <button
               type="button"
-              className={`cart-addon-btn ${filterStatus === 'all' ? 'active' : ''}`}
+              className={`table-filter-pill ${filterStatus === 'all' ? 'active' : ''}`}
               onClick={() => setFilterStatus('all')}
-              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, touchAction: 'manipulation' }}
             >
               All ({counts.all})
             </button>
             <button
               type="button"
-              className={`cart-addon-btn ${filterStatus === 'free' ? 'active' : ''}`}
+              className={`table-filter-pill free ${filterStatus === 'free' ? 'active' : ''}`}
               onClick={() => setFilterStatus('free')}
-              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#34d399', fontWeight: 700, touchAction: 'manipulation' }}
             >
+              <span className="table-filter-dot free" />
               Free ({counts.free})
             </button>
             <button
               type="button"
-              className={`cart-addon-btn ${filterStatus === 'occupied' ? 'active' : ''}`}
+              className={`table-filter-pill occupied ${filterStatus === 'occupied' ? 'active' : ''}`}
               onClick={() => setFilterStatus('occupied')}
-              style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#fb7185', fontWeight: 700, touchAction: 'manipulation' }}
             >
+              <span className="table-filter-dot occupied" />
               Occupied ({counts.occupied})
             </button>
             {counts.reserved > 0 && (
               <button
                 type="button"
-                className={`cart-addon-btn ${filterStatus === 'reserved' ? 'active' : ''}`}
+                className={`table-filter-pill reserved ${filterStatus === 'reserved' ? 'active' : ''}`}
                 onClick={() => setFilterStatus('reserved')}
-                style={{ height: 38, minHeight: 38, padding: '0 12px', fontSize: 13, borderRadius: 10, color: '#fbbf24', fontWeight: 700, touchAction: 'manipulation' }}
               >
-                ⭐ Reserved ({counts.reserved})
+                <span className="table-filter-dot reserved" />
+                Reserved ({counts.reserved})
               </button>
             )}
-
-            {/* Smart "Free Tables First" Toggle Button */}
-            <button
-              type="button"
-              className={`cart-addon-btn ${freeFirst ? 'active' : ''}`}
-              onClick={() => setFreeFirst(v => !v)}
-              style={{
-                height: 38,
-                minHeight: 38,
-                padding: '0 12px',
-                fontSize: 13,
-                borderRadius: 10,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                touchAction: 'manipulation'
-              }}
-              title="Prioritize available free tables at the top"
-            >
-              <ArrowDownUp size={14} />
-              Free First
-            </button>
           </div>
         </div>
 
-        {/* Secondary Bar: Zone / Section Clusters & Party Size Filter */}
-        {(zones.length > 0 || tables.some(t => t.capacity >= 6)) && (
-          <div style={{
-            padding: '6px 22px 8px',
-            borderBottom: '1px solid var(--color-separator)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            overflowX: 'auto',
-            background: 'var(--color-bg)',
-            fontSize: 11.5,
-          }}>
-            {/* Zone / Prefix Tabs */}
-            {zones.length > 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Zone:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedZone('all')}
-                  style={{
-                    minHeight: 24,
-                    padding: '3px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    border: '1px solid',
-                    borderColor: selectedZone === 'all' ? '#10b981' : 'var(--color-separator)',
-                    background: selectedZone === 'all' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                    color: selectedZone === 'all' ? '#34d399' : 'var(--color-label-secondary)',
-                    cursor: 'pointer',
-                    boxShadow: selectedZone === 'all' ? '0 0 8px rgba(16, 185, 129, 0.2)' : 'none',
-                    transition: 'all 0.12s ease'
-                  }}
-                >
-                  All Zones
-                </button>
-                {zones.map(z => {
-                  const isActive = selectedZone === z.id;
-                  return (
-                    <button
-                      key={z.id}
-                      type="button"
-                      onClick={() => setSelectedZone(z.id)}
-                      style={{
-                        minHeight: 24,
-                        padding: '3px 10px',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        borderRadius: 999,
-                        border: '1px solid',
-                        borderColor: isActive ? '#10b981' : 'var(--color-separator)',
-                        background: isActive ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                        color: isActive ? '#34d399' : 'var(--color-label-secondary)',
-                        cursor: 'pointer',
-                        boxShadow: isActive ? '0 0 8px rgba(16, 185, 129, 0.2)' : 'none',
-                        transition: 'all 0.12s ease'
-                      }}
-                    >
-                      {z.label} ({z.count})
-                    </button>
-                  );
-                })}
-              </div>
-            ) : <div />}
-
-            {/* Party Size / Seat Capacity Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 'auto' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: 'var(--color-label-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                <Users size={11} /> Seats:
-              </span>
-              {[
-                { label: 'All', min: 0 },
-                { label: '2+', min: 2 },
-                { label: '4+', min: 4 },
-                { label: '6+', min: 6 },
-                { label: '8+', min: 8 },
-              ].map(opt => {
-                const isActive = minSeats === opt.min;
-                return (
-                  <button
-                    key={opt.min}
-                    type="button"
-                    onClick={() => setMinSeats(opt.min)}
-                    style={{
-                      height: 24,
-                      padding: '0 8px',
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      border: '1px solid',
-                      borderColor: isActive ? '#10b981' : 'var(--color-separator)',
-                      background: isActive ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                      color: isActive ? '#34d399' : 'var(--color-label-secondary)',
-                      boxShadow: isActive ? '0 0 8px rgba(16, 185, 129, 0.25)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.12s ease',
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
+        {/* Optional Zone Chips Strip (Only if multiple zones exist) */}
+        {zones.length > 0 && (
+          <div className="table-select-zones-strip">
+            <button
+              type="button"
+              className={`table-zone-chip ${selectedZone === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedZone('all')}
+            >
+              All Zones
+            </button>
+            {zones.map(z => (
+              <button
+                key={z.id}
+                type="button"
+                className={`table-zone-chip ${selectedZone === z.id ? 'active' : ''}`}
+                onClick={() => setSelectedZone(z.id)}
+              >
+                {z.label} ({z.count})
+              </button>
+            ))}
           </div>
         )}
 
@@ -452,8 +341,8 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         </div>
 
         {/* Modal Footer */}
-        <div className="modal-footer" style={{ padding: '12px 22px', borderTop: '1px solid var(--color-separator)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11.5, color: 'var(--color-label-tertiary)', marginRight: 'auto' }}>
+        <div className="modal-footer table-select-footer" style={{ padding: '10px 18px', borderTop: '1px solid var(--color-separator)' }}>
+          <div className="table-select-legend" style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11.5, color: 'var(--color-label-tertiary)', marginRight: 'auto' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} /> Free
             </span>
@@ -464,8 +353,8 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706' }} /> Reserved
             </span>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ height: 32, padding: '0 16px', fontSize: 12, borderRadius: 7 }}>
-            Cancel
+          <button className="btn btn-secondary table-select-cancel-btn" onClick={onClose} style={{ height: 34, padding: '0 16px', fontSize: 13, borderRadius: 8 }}>
+            Close
           </button>
         </div>
       </div>
