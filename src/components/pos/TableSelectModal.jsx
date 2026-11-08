@@ -235,6 +235,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
 
         {/* Modal Body: Tables Rendering */}
         <div className="modal-body table-select-body">
+          <div key={`${selectedZone}_${filterStatus}_${viewMode}`} className="table-select-grid-animated">
           {viewMode === 'compact' ? (
             /* High-Density Compact Grid (Optimized for 20+ Tables) */
             <div className="table-compact-grid">
@@ -339,6 +340,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               <div style={{ fontSize: 12, marginTop: 4 }}>Try clearing search, changing zone, or adjusting party size.</div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Modal Footer */}
