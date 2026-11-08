@@ -386,6 +386,7 @@ export default function POS() {
   const [voidAction, setVoidAction] = useState(null); // { type: 'decrement' | 'remove', item }
   const [voidReason, setVoidReason] = useState('Burnt/Kitchen Error');
   const [managerPin, setManagerPin] = useState('');
+  const [confirmClearCart, setConfirmClearCart] = useState(false);
 
   const currency  = restaurant?.currency ?? 'INR';
   const { isRetail, isBillOnly, isService, enableBarcode, modes, hasMode } = useBusinessConfig();
@@ -1944,41 +1945,58 @@ export default function POS() {
         {/* Cart Header */}
         <div className="cart-header">
           <div className="cart-title-wrap">
-            <ShoppingBag size={17} color="var(--color-accent)" />
-            <span style={{ fontSize: '13.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-label)' }}>{t('cart')}</span>
+            <div className="cart-icon-box">
+              <ShoppingBag size={15} strokeWidth={2.4} />
+            </div>
+            <span className="cart-title-text">{t('cart')}</span>
             {items.length > 0 && (
-              <span className="cart-count-pill">{items.reduce((s, i) => s + i.qty, 0)}</span>
+              <span className="cart-count-pill">
+                {items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}
+              </span>
             )}
           </div>
-          <div className="cart-header-actions" style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+          <div className="cart-header-actions">
             <button 
-              className="btn btn-secondary btn-sm desktop-only" 
+              type="button"
+              className="pos-cart-till-btn desktop-only" 
               onClick={() => setShowTillModal(true)} 
               id="till-drawer-btn"
               disabled={!activeShift}
-              title={!activeShift ? 'Open a shift first' : 'Till Drawer'}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 8px', fontSize: '11px', borderRadius: 'var(--radius-full)', opacity: activeShift ? 1 : 0.4, whiteSpace: 'nowrap', flexShrink: 0 }}
+              title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
             >
-              <Banknote size={13} /> Till
+              <Banknote size={13} strokeWidth={2.2} />
+              <span>Till</span>
+              {activeShift && <span className="pos-cart-till-dot" title="Shift active" />}
             </button>
             {items.length > 0 && (
               <button 
-                className="btn btn-ghost btn-sm" 
-                onClick={clearCart} 
+                type="button"
+                className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
+                onClick={() => {
+                  if (!confirmClearCart) {
+                    setConfirmClearCart(true);
+                    setTimeout(() => setConfirmClearCart(false), 3000);
+                  } else {
+                    clearCart();
+                    setConfirmClearCart(false);
+                    toast.success('Cart cleared');
+                  }
+                }} 
                 id="clear-cart-btn"
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 6px', fontSize: '11px', color: 'var(--color-label-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}
-                title="Clear all items"
+                title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
               >
-                <Trash2 size={12} /> {t('clearCart')}
+                <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                <span>{confirmClearCart ? 'Clear All?' : t('clearCart')}</span>
               </button>
             )}
             <button
+              type="button"
               className="btn btn-ghost btn-icon mobile-only"
               onClick={() => setMobileCartOpen(false)}
-              style={{ width: '26px', height: '26px', padding: 0 }}
+              style={{ width: '28px', height: '28px', padding: 0 }}
               title="Close cart"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         </div>
