@@ -1885,7 +1885,7 @@ export default function POS() {
                         )}
                       </span>
                       {hasModifiers && (
-                        <span style={{ fontSize: '10px', color: 'var(--color-accent)', fontWeight: 600 }}>Sizes</span>
+                        <span className="menu-item-sizes-badge">Sizes</span>
                       )}
                     </div>
                   </div>
