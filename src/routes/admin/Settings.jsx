@@ -148,8 +148,17 @@ export default function Settings() {
   const [settings, setSettings] = useState(() => {
     if (typeof localStorage !== 'undefined' && restaurant?.id) {
       try {
-        const draft = localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
-        if (draft) return JSON.parse(draft);
+        const draftStr = localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
+        if (draftStr) {
+          const draft = JSON.parse(draftStr);
+          // If the plan tier changed remotely (e.g. upgraded from bill_only to restaurant or vice-versa),
+          // discard the stale draft so old modes don't overwrite the new plan!
+          const draftType = draft?.businessType || draft?.accountType;
+          if (draftType === effectiveType) {
+            return draft;
+          }
+          localStorage.removeItem(`dineos_settings_draft_${restaurant.id}`);
+        }
       } catch {}
     }
     if (restaurant && Object.keys(restaurant).length > 2) {
@@ -587,12 +596,28 @@ export default function Settings() {
       if (snap.exists()) {
         const data = snap.data();
         initialSettingsRef.current = JSON.stringify(data);
+        const updatedRestaurant = { id: snap.id, ...data };
+        useAuthStore.setState({ restaurant: updatedRestaurant });
         try {
           localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(data));
         } catch {}
 
-        const hasDraft = typeof localStorage !== 'undefined' && localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
-        if (!hasDraft) {
+        const draftStr = typeof localStorage !== 'undefined' && localStorage.getItem(`dineos_settings_draft_${restaurant.id}`);
+        let hasValidDraft = false;
+        if (draftStr) {
+          try {
+            const draft = JSON.parse(draftStr);
+            const remoteType = data?.businessType || data?.accountType || 'restaurant';
+            const draftType = draft?.businessType || draft?.accountType || 'restaurant';
+            if (remoteType === draftType) {
+              hasValidDraft = true;
+            } else {
+              localStorage.removeItem(`dineos_settings_draft_${restaurant.id}`);
+            }
+          } catch {}
+        }
+
+        if (!hasValidDraft) {
           setSettings(prev => {
             if (!prev) return { ...data };
             return { ...data };
@@ -733,20 +758,47 @@ export default function Settings() {
         settingsToSave.customId = '';
       }
 
-      // Enforce tier limits: non-super-admin accounts on Just Billing cannot enable advanced dine-in/KDS features
-      if (isLockedPlan) {
-        settingsToSave.businessType = 'bill_only';
-        settingsToSave.accountType = 'bill_only';
-        const rawModes = Array.isArray(settingsToSave.modes) ? settingsToSave.modes : [];
-        settingsToSave.modes = rawModes.filter(k => !ADVANCED_FEATURE_KEYS.includes(k));
-        if (!settingsToSave.modes.includes('pos')) {
-          settingsToSave.modes.unshift('pos');
+      // Enforce tier limits: The account plan is governed by the Super-Admin-assigned tier
+      let assignedPlan = restaurant?.accountType || restaurant?.businessType || 'restaurant';
+      try {
+        const freshSnap = await getDoc(doc(db, 'restaurants', restaurant.id));
+        if (freshSnap.exists()) {
+          const remoteData = freshSnap.data();
+          assignedPlan = remoteData?.accountType || remoteData?.businessType || assignedPlan;
         }
-        if (!settingsToSave.kitchenConfig) {
-          settingsToSave.kitchenConfig = {};
+      } catch (tierFetchErr) {
+        console.warn('[Settings save] Live tier check warning:', tierFetchErr);
+      }
+      if (!isSuperAdmin) {
+        if (assignedPlan === 'bill_only') {
+          // Strictly lock to Just Billing
+          settingsToSave.businessType = 'bill_only';
+          settingsToSave.accountType = 'bill_only';
+          const rawModes = Array.isArray(settingsToSave.modes) ? settingsToSave.modes : [];
+          settingsToSave.modes = rawModes.filter(k => !ADVANCED_FEATURE_KEYS.includes(k));
+          if (!settingsToSave.modes.includes('pos')) {
+            settingsToSave.modes.unshift('pos');
+          }
+          if (!settingsToSave.kitchenConfig) {
+            settingsToSave.kitchenConfig = {};
+          }
+          settingsToSave.kitchenConfig.mode = 'disabled';
+        } else {
+          // Store is on an Advanced Plan (configured by Super Admin):
+          // Guarantee it remains on Advanced mode and NEVER drops to bill_only!
+          settingsToSave.businessType = 'restaurant';
+          settingsToSave.accountType = 'restaurant';
+
+          const rawModes = Array.isArray(settingsToSave.modes) ? settingsToSave.modes : [];
+          const requiredAdvancedModes = ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'];
+          settingsToSave.modes = Array.from(new Set([...rawModes, ...requiredAdvancedModes]));
+
+          if (!settingsToSave.kitchenConfig || settingsToSave.kitchenConfig.mode === 'disabled') {
+            settingsToSave.kitchenConfig = { ...(settingsToSave.kitchenConfig || {}), mode: 'both' };
+          }
         }
-        settingsToSave.kitchenConfig.mode = 'disabled';
       } else {
+        // Super Admin saving settings can freely set or toggle formats
         const targetType = settingsToSave.businessType || 'restaurant';
         settingsToSave.businessType = targetType;
         settingsToSave.accountType = targetType;
@@ -1590,7 +1642,10 @@ export default function Settings() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                   {MODULE_PRESETS.map(preset => {
                     const isBillOnlyPreset = preset.id === 'bill_only';
-                    const isPresetLocked = isLockedPlan && !isBillOnlyPreset;
+                    const isPresetLocked = !isSuperAdmin && (
+                      (isBillOnlyPlan && !isBillOnlyPreset) ||
+                      (!isBillOnlyPlan && isBillOnlyPreset)
+                    );
                     const activeCount = preset.modes.filter(k => (settings.modes ?? []).includes(k)).length;
                     const isFullyActive = activeCount === preset.modes.length && (settings.modes ?? []).length === preset.modes.length;
                     return (
@@ -1608,10 +1663,10 @@ export default function Settings() {
                           opacity: isPresetLocked ? 0.55 : 1,
                           cursor: isPresetLocked ? 'not-allowed' : 'pointer'
                         }}
-                        title={isPresetLocked ? 'Advanced Plan required for this format' : preset.desc}
+                        title={isPresetLocked ? (isBillOnlyPlan ? 'Advanced Plan required for this format' : 'Account mode is managed by Super Admin') : preset.desc}
                         onClick={() => {
                           if (isPresetLocked) {
-                            toast.error('Format unavailable on the Just Billing plan. Contact Super Admin to upgrade.');
+                            toast.error(isBillOnlyPlan ? 'Format unavailable on the Just Billing plan. Contact Super Admin to upgrade.' : 'Your branch is on the Advanced Plan. Account mode is managed by Super Admin.');
                             return;
                           }
                           const newModes = Array.from(new Set([...preset.modes]));

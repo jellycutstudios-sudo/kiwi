@@ -256,70 +256,68 @@ export const useAuthStore = create(
                 actualRestId = 'rest1';
               }
 
-              // Ensure restaurant ID is resolved
-              if (!restData || !restData.id || restData.id !== actualRestId) {
-                let rSnap = await getDoc(doc(db, 'restaurants', actualRestId));
+              // Always fetch live restaurant document from Firestore to ensure up-to-date plan and modes
+              let rSnap = await getDoc(doc(db, 'restaurants', actualRestId));
+              if (!rSnap.exists()) {
+                const lowerRestId = cleanRestId.toLowerCase();
+                // A. Try customId
+                const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
+                const sCustom = await getDocs(qCustom);
+                if (!sCustom.empty) {
+                  rSnap = sCustom.docs[0];
+                  actualRestId = rSnap.id;
+                } else {
+                  // B. Try slug
+                  const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
+                  const sSlug = await getDocs(qSlug);
+                  if (!sSlug.empty) {
+                    rSnap = sSlug.docs[0];
+                    actualRestId = rSnap.id;
+                  }
+                }
+
+                // C. Try phone number (if input looks like digits)
                 if (!rSnap.exists()) {
-                  const lowerRestId = cleanRestId.toLowerCase();
-                  // A. Try customId
-                  const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
-                  const sCustom = await getDocs(qCustom);
-                  if (!sCustom.empty) {
-                    rSnap = sCustom.docs[0];
+                  const digits = cleanRestId.replace(/\D/g, '');
+                  if (digits.length >= 6) {
+                    const phoneCandidates = [digits];
+                    if (digits.length > 10) phoneCandidates.push(digits.slice(-10));
+                    if (digits.length === 10) phoneCandidates.push(`+91${digits}`, `91${digits}`);
+                    const qPhone = query(collection(db, 'restaurants'), where('phone', 'in', phoneCandidates));
+                    const sPhone = await getDocs(qPhone);
+                    if (!sPhone.empty) {
+                      rSnap = sPhone.docs[0];
+                      actualRestId = rSnap.id;
+                    }
+                  }
+                }
+
+                // D. Try name match (case-insensitive / slug-normalized)
+                if (!rSnap.exists()) {
+                  const qName = query(collection(db, 'restaurants'), where('name', '==', cleanRestId));
+                  const sName = await getDocs(qName);
+                  if (!sName.empty) {
+                    rSnap = sName.docs[0];
                     actualRestId = rSnap.id;
                   } else {
-                    // B. Try slug
-                    const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
-                    const sSlug = await getDocs(qSlug);
-                    if (!sSlug.empty) {
-                      rSnap = sSlug.docs[0];
-                      actualRestId = rSnap.id;
-                    }
-                  }
-
-                  // C. Try phone number (if input looks like digits)
-                  if (!rSnap.exists()) {
-                    const digits = cleanRestId.replace(/\D/g, '');
-                    if (digits.length >= 6) {
-                      const phoneCandidates = [digits];
-                      if (digits.length > 10) phoneCandidates.push(digits.slice(-10));
-                      if (digits.length === 10) phoneCandidates.push(`+91${digits}`, `91${digits}`);
-                      const qPhone = query(collection(db, 'restaurants'), where('phone', 'in', phoneCandidates));
-                      const sPhone = await getDocs(qPhone);
-                      if (!sPhone.empty) {
-                        rSnap = sPhone.docs[0];
-                        actualRestId = rSnap.id;
-                      }
-                    }
-                  }
-
-                  // D. Try name match (case-insensitive / slug-normalized)
-                  if (!rSnap.exists()) {
-                    const qName = query(collection(db, 'restaurants'), where('name', '==', cleanRestId));
-                    const sName = await getDocs(qName);
-                    if (!sName.empty) {
-                      rSnap = sName.docs[0];
-                      actualRestId = rSnap.id;
-                    } else {
-                      try {
-                        const allRests = await getDocs(collection(db, 'restaurants'));
-                        const cleanNorm = cleanRestId.toLowerCase().replace(/[^a-z0-9]/g, '');
-                        for (const d of allRests.docs) {
-                          const dName = (d.data().name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                          const dSlug = (d.data().slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                          if (cleanNorm && (dName === cleanNorm || dSlug === cleanNorm)) {
-                            rSnap = d;
-                            actualRestId = d.id;
-                            break;
-                          }
+                    try {
+                      const allRests = await getDocs(collection(db, 'restaurants'));
+                      const cleanNorm = cleanRestId.toLowerCase().replace(/[^a-z0-9]/g, '');
+                      for (const d of allRests.docs) {
+                        const dName = (d.data().name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const dSlug = (d.data().slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        if (cleanNorm && (dName === cleanNorm || dSlug === cleanNorm)) {
+                          rSnap = d;
+                          actualRestId = d.id;
+                          break;
                         }
-                      } catch {}
-                    }
+                      }
+                    } catch {}
                   }
                 }
-                if (rSnap && rSnap.exists()) {
-                  restData = { id: rSnap.id, ...rSnap.data() };
-                }
+              }
+              if (rSnap && rSnap.exists()) {
+                restData = { id: rSnap.id, ...rSnap.data() };
               }
 
               if (!restData || !restData.id) {
@@ -664,17 +662,25 @@ export const useAuthStore = create(
           if (state.staffDoc?.role !== 'super_admin') return { ok: false, error: 'Select a branch.' };
         }
         let target = newRestaurant;
-        if (state.staffDoc?.role !== 'super_admin') {
+        if (newRestaurant?.id) {
           try {
             const snapshot = await getDoc(doc(db, 'restaurants', newRestaurant.id));
-            if (!snapshot.exists()) return { ok: false, error: 'Branch no longer exists.' };
-            target = { ...snapshot.data(), id: snapshot.id };
-          } catch { return { ok: false, error: 'Unable to verify this branch. Try again.' }; }
+            if (!snapshot.exists()) {
+              if (state.staffDoc?.role !== 'super_admin') return { ok: false, error: 'Branch no longer exists.' };
+            } else {
+              target = { ...snapshot.data(), id: snapshot.id };
+            }
+          } catch {
+            if (state.staffDoc?.role !== 'super_admin') return { ok: false, error: 'Unable to verify this branch. Try again.' };
+          }
         }
         if (!canSwitchBranch(state.user, state.staffDoc, target)) {
           return { ok: false, error: 'You can only switch to your own approved branches.' };
         }
-        if (target?.id === state.restaurant?.id) return { ok: true };
+        if (target?.id === state.restaurant?.id) {
+          set({ restaurant: target });
+          return { ok: true };
+        }
         try {
           useOrderStore.getState().clearCart?.();
           useOrderStore.setState({ activeOrders: [], onlineOrders: [] });

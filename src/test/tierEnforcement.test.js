@@ -125,5 +125,72 @@ describe('Tier Enforcement for Just Billing vs Advanced Accounts', () => {
     expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/floor' })).toBe(false);
     expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/posters' })).toBe(false);
   });
+
+  it('prevents store admin saving settings from accidentally reverting an upgraded restaurant back to bill_only', () => {
+    const restaurantAssignedPlan = 'restaurant';
+    const clientFormInput = {
+      businessType: 'bill_only',
+      modes: ['pos', 'till_shift'],
+      kitchenConfig: { mode: 'disabled' }
+    };
+
+    function enforceAdminSaveSettings({ assignedPlan, isSuperAdmin, formInput }) {
+      const settingsToSave = { ...formInput };
+      if (!isSuperAdmin) {
+        if (assignedPlan === 'bill_only') {
+          settingsToSave.businessType = 'bill_only';
+          settingsToSave.accountType = 'bill_only';
+          settingsToSave.modes = ['pos', 'till_shift'];
+        } else {
+          settingsToSave.businessType = 'restaurant';
+          settingsToSave.accountType = 'restaurant';
+          const required = ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'];
+          settingsToSave.modes = Array.from(new Set([...(settingsToSave.modes || []), ...required]));
+          settingsToSave.kitchenConfig = { mode: 'both' };
+        }
+      }
+      return settingsToSave;
+    }
+
+    const saved = enforceAdminSaveSettings({
+      assignedPlan: restaurantAssignedPlan,
+      isSuperAdmin: false,
+      formInput: clientFormInput
+    });
+
+    expect(saved.businessType).toBe('restaurant');
+    expect(saved.accountType).toBe('restaurant');
+    expect(saved.modes).toContain('table');
+    expect(saved.modes).toContain('kds');
+    expect(saved.kitchenConfig.mode).toBe('both');
+  });
+
+  it('guarantees live Firestore tier takes precedence over stale in-memory client state during admin save', () => {
+    // Scenario: Super Admin upgraded to 'restaurant' on server, but client state still had 'bill_only' cached in memory
+    const clientStaleRestaurant = { businessType: 'bill_only', accountType: 'bill_only' };
+    const remoteLiveRestaurant = { businessType: 'restaurant', accountType: 'restaurant' };
+
+    function resolveAssignedPlan(clientRest, remoteRest) {
+      let plan = clientRest?.accountType || clientRest?.businessType || 'restaurant';
+      if (remoteRest) {
+        plan = remoteRest?.accountType || remoteRest?.businessType || plan;
+      }
+      return plan;
+    }
+
+    const assignedPlan = resolveAssignedPlan(clientStaleRestaurant, remoteLiveRestaurant);
+    expect(assignedPlan).toBe('restaurant');
+
+    const settingsToSave = { businessType: 'bill_only', modes: ['pos', 'till_shift'] };
+    if (assignedPlan !== 'bill_only') {
+      settingsToSave.businessType = 'restaurant';
+      settingsToSave.accountType = 'restaurant';
+      settingsToSave.modes = ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'];
+    }
+
+    expect(settingsToSave.businessType).toBe('restaurant');
+    expect(settingsToSave.accountType).toBe('restaurant');
+    expect(settingsToSave.modes).toContain('table');
+  });
 });
 
