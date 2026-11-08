@@ -955,23 +955,23 @@ export default function POS() {
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService },
-    { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (t('takeaway') || 'Takeaway')), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
+    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly },
+    { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (isBillOnly ? 'Counter' : (t('takeaway') || 'Takeaway'))), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
-  // Default non-food retail or service modes to 'takeaway'
+  // Default non-food retail, service or bill-only modes to 'takeaway' (counter)
   useEffect(() => {
-    if ((isRetail || isService) && orderType === 'dine-in') {
+    if ((isRetail || isService || isBillOnly) && orderType === 'dine-in') {
       setOrderType('takeaway');
     }
-  }, [isRetail, isService, orderType, setOrderType]);
+  }, [isRetail, isService, isBillOnly, orderType, setOrderType]);
 
   const [tableSelAction, setTableSelAction] = useState('checkout');
 
   const handleCheckout = async () => {
     if (!items.length) return;
-    if (orderType === 'dine-in' && !tableId && modes.includes('table')) {
+    if (orderType === 'dine-in' && !tableId && modes.includes('table') && !isBillOnly) {
       setTableSelAction('checkout');
       setShowTableSel(true);
       return;
@@ -1989,9 +1989,9 @@ export default function POS() {
             )}
 
             {/* Service Details: Table for Dine-In, or Clean Customer inputs for Takeaway */}
-            {orderType === 'dine-in' ? (
+            {orderType === 'dine-in' && !isBillOnly ? (
               <div className={`cart-service-details ${(restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
-                {(restaurant?.features?.table || modes.includes('table')) && (
+                {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
                   <div className="cart-service-row cart-service-table-row">
                     <button
                       type="button"

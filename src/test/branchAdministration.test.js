@@ -24,7 +24,7 @@ vi.mock('firebase/firestore', () => ({
   },
 }));
 
-import { connectBranches, createBranch, createBusinessGroup, recordBranchPayment, saveBranchFee } from '../services/branchAdministration';
+import { connectBranches, createBranch, createBusinessGroup, recordBranchPayment, saveBranchFee, updateBranchAccountType } from '../services/branchAdministration';
 
 const input = () => ({
   currency: 'INR', paidOn: '2026-01-01', method: 'cash', reference: 'receipt-123',
@@ -107,5 +107,28 @@ describe('branch administration transactions', () => {
     await saveBranchFee('a', { fee: '1500', currency: 'INR', cycle: 'yearly' });
     expect(memory.docs.get('branchSubscriptions/a')).toMatchObject({ paidThrough: '2026-12-01', lastPaymentId: 'old', feeMinor: 150000, cycle: 'yearly' });
     await expect(saveBranchFee('a', { fee: '10', currency: 'KWD', cycle: 'monthly' })).rejects.toThrow(/currency/);
+  });
+  it('creates bill-only express counter branches with disabled tables and kitchen', async () => {
+    const id = await createBranch({
+      name: 'Express Bakery', ownerUid: 'owner', currency: 'INR', fee: '500', cycle: 'monthly',
+      address: 'Main St', phone: '+919999999999', businessType: 'bill_only'
+    });
+    const branch = memory.docs.get(`restaurants/${id}`);
+    expect(branch.businessType).toBe('bill_only');
+    expect(branch.modes).toEqual(['pos', 'till_shift']);
+    expect(branch.quickPayEnabled).toBe(true);
+    expect(branch.kitchenConfig).toEqual({ mode: 'disabled' });
+  });
+  it('updates existing branch account type between advanced and bill-only', async () => {
+    await updateBranchAccountType('a', 'bill_only');
+    expect(memory.docs.get('restaurants/a').businessType).toBe('bill_only');
+    expect(memory.docs.get('restaurants/a').modes).toEqual(['pos', 'till_shift']);
+    expect(memory.docs.get('restaurants/a')['kitchenConfig.mode']).toBe('disabled');
+
+    await updateBranchAccountType('a', 'restaurant');
+    expect(memory.docs.get('restaurants/a').businessType).toBe('restaurant');
+    expect(memory.docs.get('restaurants/a').modes).toContain('table');
+    expect(memory.docs.get('restaurants/a').modes).toContain('kds');
+    expect(memory.docs.get('restaurants/a')['kitchenConfig.mode']).toBe('both');
   });
 });

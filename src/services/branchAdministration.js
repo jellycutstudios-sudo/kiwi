@@ -72,10 +72,17 @@ export async function createBranch(input) {
       if (!owner.exists() || owner.data().role !== 'admin') throw new Error('Business owner account is unavailable.');
     }
 
+    const isBillOnly = input.businessType === 'bill_only';
     const payload = {
       name: input.name.trim(), address: input.address.trim(), phone: input.phone.trim(),
       currency: input.currency, ownerUid: ownerUid || createdBy, email: owner?.data()?.email || '',
-      status: input.status || 'pending', modes: ['pos'], taxConfig: { type: 'none' },
+      status: input.status || 'pending',
+      businessType: isBillOnly ? 'bill_only' : 'restaurant',
+      modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'],
+      quickPayEnabled: isBillOnly ? true : Boolean(input.quickPayEnabled),
+      speedDialEnabled: isBillOnly ? true : Boolean(input.speedDialEnabled),
+      kitchenConfig: { mode: isBillOnly ? 'disabled' : 'both' },
+      taxConfig: { type: 'none' },
       createdAt: serverTimestamp(), createdBy,
     };
     if (businessGroupId) payload.businessGroupId = businessGroupId;
@@ -159,4 +166,23 @@ export async function recordBranchPayment(paymentId, input) {
     });
   });
   return paymentId;
+}
+
+export async function updateBranchAccountType(restaurantId, businessType) {
+  const updatedBy = actor();
+  const isBillOnly = businessType === 'bill_only';
+  const branchRef = doc(db, 'restaurants', restaurantId);
+  await runTransaction(db, async tx => {
+    const branch = await tx.get(branchRef);
+    if (!branch.exists()) throw new Error('Branch not found.');
+    tx.update(branchRef, {
+      businessType: isBillOnly ? 'bill_only' : 'restaurant',
+      modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'],
+      quickPayEnabled: isBillOnly ? true : false,
+      speedDialEnabled: isBillOnly ? true : false,
+      'kitchenConfig.mode': isBillOnly ? 'disabled' : 'both',
+      updatedAt: serverTimestamp(),
+      updatedBy,
+    });
+  });
 }

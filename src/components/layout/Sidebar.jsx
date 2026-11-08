@@ -54,7 +54,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const onlineOrders = useOrderStore(s => s.onlineOrders ?? []);
   const activeOrdersCount = useOrderStore(s => s.activeOrders?.length ?? 0);
   const role = staffDoc?.role ?? (user ? 'admin' : 'cashier');
-  const { terms, hasMode } = useBusinessConfig();
+  const { terms, hasMode, isBillOnly } = useBusinessConfig();
   const hasUpdate = useUpdateStore(s => s.hasUpdate);
   const isUpdating = useUpdateStore(s => s.isUpdating);
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
@@ -238,7 +238,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const filteredAdminNav = ADMIN_NAV.filter(n => {
     if (n.superAdmin && !isSuperAdmin) return false;
     if (n.roles && !n.roles.includes(role)) return false;
-    if (n.requiredMode && !isSuperAdmin) {
+    if (isBillOnly && (n.key === 'reservations' || n.key === 'payroll')) return false;
+    if (n.requiredMode && (!isSuperAdmin || restaurant)) {
       return hasMode(n.requiredMode);
     }
     return true;
@@ -678,8 +679,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             if (n.key === 'dashboard' && role === 'cashier' && !restaurant?.allowCashierDashboard) {
               return false;
             }
-            if (isSuperAdmin) return true;
+            if (isSuperAdmin && !restaurant) return true;
             if (n.key === 'pos' && !hasMode('pos')) {
+              return false;
+            }
+            if (isBillOnly && (n.key === 'tables' || n.key === 'kds' || n.key === 'delivery_hub')) {
               return false;
             }
             if (n.requiredMode) {

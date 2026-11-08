@@ -300,12 +300,17 @@ export default function Restaurants() {
       const effectiveUid = user?.uid || staffDoc?.id || staffDoc?.uid;
       const isFirst = !restaurants || restaurants.length === 0;
       const mainBranch = restaurants.find(r => r.isMainBranch || !r.parentRestaurantId) || restaurants[0];
+      const isBillOnly = form.businessType === 'bill_only';
       const ref = await addDoc(collection(db, 'restaurants'), {
         name: form.name.trim(),
         address: form.address.trim(),
         phone: form.phone.trim(),
         currency: form.currency,
-        modes: ['pos'],
+        businessType: isBillOnly ? 'bill_only' : 'restaurant',
+        modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'],
+        quickPayEnabled: isBillOnly ? true : false,
+        speedDialEnabled: isBillOnly ? true : false,
+        kitchenConfig: { mode: isBillOnly ? 'disabled' : 'both' },
         taxConfig: { type: 'none' },
         createdAt: serverTimestamp(),
         ownerUid: effectiveUid,
@@ -318,7 +323,7 @@ export default function Restaurants() {
       toast.success(isSuperAdmin ? `Restaurant created! ID: ${ref.id}` : `Branch registered! Pending approval by Super Admin.`);
       setShowForm(false);
       setSaving(false);
-      setForm({ name:'', address:'', phone:'', currency:'INR' });
+      setForm({ name:'', address:'', phone:'', currency:'INR', businessType:'restaurant' });
     } catch (e) {
       toast.error('Error creating restaurant: ' + e.message);
       setSaving(false);
@@ -1547,6 +1552,18 @@ export default function Restaurants() {
               <div className="form-group">
                 <label className="form-label">Branch / Restaurant Name</label>
                 <input id="new-rest-name" className="form-input" placeholder="e.g. Downtown Express" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Account Mode</label>
+                <select id="new-rest-account-type" className="form-select" value={form.businessType || 'restaurant'} onChange={e=>setForm(f=>({...f,businessType:e.target.value}))}>
+                  <option value="restaurant">🍽️ Advanced (Full Dine-In & Tables)</option>
+                  <option value="bill_only">🧾 Just Billing (Counter / Express POS)</option>
+                </select>
+                <p style={{ fontSize: '11px', color: 'var(--color-label-secondary)', margin: '4px 0 0' }}>
+                  {form.businessType === 'bill_only'
+                    ? 'Express counter mode: Hides tables, KDS, reservations. Fast item entry & billing.'
+                    : 'Full service: Floor tables, KDS, reservations, and multi-station seating.'}
+                </p>
               </div>
               <div className="form-group">
                 <label className="form-label">Location Address</label>

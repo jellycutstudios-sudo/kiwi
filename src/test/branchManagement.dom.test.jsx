@@ -19,6 +19,7 @@ vi.mock('../services/branchAdministration', () => ({
   connectBranches: (...args) => fixtures.save('connect', ...args),
   createBusinessGroup: (...args) => fixtures.save('group', ...args),
   createBranch: (...args) => fixtures.save('branch', ...args),
+  updateBranchAccountType: (...args) => fixtures.save('account_type', ...args),
   saveBranchFee: (...args) => fixtures.save('fee', ...args),
   recordBranchPayment: (...args) => fixtures.save('payment', ...args),
   newPaymentId: () => 'receipt-stable-id',

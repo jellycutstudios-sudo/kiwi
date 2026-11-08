@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { db } from '../../firebase';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
 import { fromMinorUnits, subscriptionStatus, suggestedRenewal, todayDate, toMinorUnits } from '../../utils/branchBilling';
-import { connectBranches, createBranch, createBusinessGroup, newPaymentId, recordBranchPayment, saveBranchFee } from '../../services/branchAdministration';
+import { connectBranches, createBranch, createBusinessGroup, newPaymentId, recordBranchPayment, saveBranchFee, updateBranchAccountType } from '../../services/branchAdministration';
 import { billingLoadMessage } from '../../utils/platformAdministration';
 import './BranchManagement.css';
 
@@ -183,6 +183,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
       address: '', 
       phone: '', 
       currency: 'INR', 
+      businessType: 'restaurant',
       fee: '', 
       cycle: 'monthly' 
     });
@@ -212,6 +213,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
       if (modal.type === 'group') await createBusinessGroup(form);
       else if (modal.type === 'connect') await connectBranches(modal.groupId, form.restaurantIds);
       else if (modal.type === 'branch') await createBranch(form);
+      else if (modal.type === 'account_type') await updateBranchAccountType(modal.branchId, form.businessType);
       else if (modal.type === 'fee') await saveBranchFee(modal.branchId, form);
       else if (modal.type === 'payment') await recordBranchPayment(modal.paymentId, {
         ...form, allocations: form.rows.filter(row => row.selected),
@@ -244,6 +246,11 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
           <p className="text-secondary">{branch.address || 'Address not added'}</p>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {branch.businessType === 'bill_only' ? (
+            <span className="badge badge-orange" style={{ fontSize: '10px' }} title="Counter billing only - tables & KDS disabled">🧾 Just Billing</span>
+          ) : (
+            <span className="badge badge-blue" style={{ fontSize: '10px' }} title="Full service dine-in with tables & KDS">🍽️ Full Dine-In</span>
+          )}
           {isMainHQ ? (
             <span className="badge badge-purple" style={{ fontSize: '10px' }}>Main HQ</span>
           ) : (
@@ -263,6 +270,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
       <small className="text-secondary branch-id">ID: {branch.id}</small>
       <div className="branch-actions">
         <button className="btn btn-primary btn-sm" disabled={!ready} onClick={() => openPayment([branch])}><CreditCard size={14} /> Record payment</button>
+        <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => open('account_type', { branchId: branch.id, name: branch.name }, { businessType: branch.businessType || 'restaurant' })} title="Configure counter billing or full dine-in mode">Type: {branch.businessType === 'bill_only' ? 'Billing Only' : 'Dine-In'}</button>
         <button className="btn btn-secondary btn-sm" disabled={!ready} onClick={() => open('fee', { branchId: branch.id, name: branch.name }, {
           fee: subscription ? String(fromMinorUnits(subscription.feeMinor, subscription.currency)) : '', currency: subscription?.currency || branch.currency || 'INR', cycle: subscription?.cycle || 'monthly',
         })}>Edit fee</button>
@@ -444,9 +452,35 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
     )}
     {!shownCount && <div className="card card-padded branch-empty">{restaurants.length ? 'No branches match your filters.' : 'Create a business, then add its first branch.'}</div>}
 
-    {modal && <Modal title={modal.type === 'group' ? 'Create business' : modal.type === 'connect' ? `Connect branches · ${modal.name}` : modal.type === 'branch' ? 'New branch' : modal.type === 'fee' ? `Branch fee · ${modal.name}` : modal.type === 'history' ? `Payment history · ${modal.name}` : 'Record manual payment'} onClose={closeModal} saving={saving} onSubmit={submit}
+    {modal && <Modal title={modal.type === 'group' ? 'Create business' : modal.type === 'connect' ? `Connect branches · ${modal.name}` : modal.type === 'branch' ? 'New branch' : modal.type === 'account_type' ? `Account Mode · ${modal.name}` : modal.type === 'fee' ? `Branch fee · ${modal.name}` : modal.type === 'history' ? `Payment history · ${modal.name}` : 'Record manual payment'} onClose={closeModal} saving={saving} onSubmit={submit}
       submitLabel={modal.type === 'history' ? null : modal.type === 'payment' ? 'Record payment & renew' : 'Save changes'}>
       {formError && <p className="branch-notice" role="alert">{formError}</p>}
+      {modal.type === 'account_type' && <>
+        <p className="text-secondary">Select the operational workflow for <strong>{modal.name}</strong>.</p>
+        <Field label="Account mode">
+          <select className="form-select" value={form.businessType || 'restaurant'} onChange={e => update('businessType', e.target.value)}>
+            <option value="restaurant">🍽️ Advanced (Full Dine-In & Tables)</option>
+            <option value="bill_only">🧾 Just Billing (Counter / Express POS)</option>
+          </select>
+        </Field>
+        <div style={{ marginTop: '10px', padding: '12px', background: 'var(--color-bg-secondary)', borderRadius: '10px', fontSize: '12px', color: 'var(--color-label-secondary)', lineHeight: 1.5 }}>
+          {form.businessType === 'bill_only' ? (
+            <>
+              <strong style={{ color: 'var(--color-label)', display: 'block', marginBottom: '4px' }}>⚡ Just Billing Features:</strong>
+              • Cashier enters items and bills immediately at the cash counter.<br />
+              • Tables, floor maps, KDS screens, and reservations are disabled.<br />
+              • Clean, fast counter interface designed for high-speed queues.
+            </>
+          ) : (
+            <>
+              <strong style={{ color: 'var(--color-label)', display: 'block', marginBottom: '4px' }}>🍽️ Full Dine-In Features:</strong>
+              • Interactive visual table maps and party seating.<br />
+              • Kitchen Display System (KDS) and waiter handhelds.<br />
+              • Reservations, table transfers, and split-checks.
+            </>
+          )}
+        </div>
+      </>}
       {modal.type === 'group' && <>
         <Field label="Business name"><input className="form-input" required maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} placeholder="Kiwi Café" /></Field>
         <Field label="Owner account"><select className="form-select" required value={form.ownerUid} onChange={e => setForm(state => ({ ...state, ownerUid: e.target.value, restaurantIds: [] }))}>
@@ -478,6 +512,15 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
           </Field>
         )}
         <Field label="Branch name"><input required className="form-input" maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Downtown Outlet" /></Field>
+        <Field label="Account mode">
+          <select className="form-select" value={form.businessType || 'restaurant'} onChange={e => update('businessType', e.target.value)}>
+            <option value="restaurant">🍽️ Advanced (Full Dine-In & Tables)</option>
+            <option value="bill_only">🧾 Just Billing (Counter / Express POS)</option>
+          </select>
+          <small className="text-secondary">
+            {form.businessType === 'bill_only' ? 'Express counter mode: Hides tables, KDS, reservations. Fast item entry & billing.' : 'Full service: Floor tables, KDS, reservations, and multi-station seating.'}
+          </small>
+        </Field>
         <Field label="Address"><input className="form-input" maxLength={300} value={form.address} onChange={e => update('address', e.target.value)} placeholder="Street, City" /></Field>
         <Field label="Phone"><input className="form-input" type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+91..." /></Field>
         <p className="text-secondary">The branch starts pending approval. Record its first payment or click Approve to activate it.</p>
