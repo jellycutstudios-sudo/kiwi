@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, Globe
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -283,8 +283,16 @@ export default function POS() {
     return runningOrders.filter(o => o.status === 'ready').length;
   }, [runningOrders]);
 
+  const onlineOrdersCount = useMemo(() => {
+    return runningOrders.filter(o => o.type === 'online' || !!o.source || o.orderType === 'delivery').length;
+  }, [runningOrders]);
+
+  const pendingOnlineOrdersCount = useMemo(() => {
+    return runningOrders.filter(o => (o.type === 'online' || !!o.source || o.orderType === 'delivery') && o.status === 'pending').length;
+  }, [runningOrders]);
+
   const takeawayOrdersCount = useMemo(() => {
-    return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup').length;
+    return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup' || (o.type === 'online' && o.orderType === 'takeaway')).length;
   }, [runningOrders]);
 
   // Historical sales counts for calculating Bestsellers dynamically
@@ -1435,6 +1443,8 @@ export default function POS() {
                   className="category-chip"
                   onClick={() => {
                     if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
                     else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
                     else setActiveOrdersFilter('all');
                     setShowActiveOrdersModal(true);
@@ -1442,20 +1452,30 @@ export default function POS() {
                   style={{
                     background: readyOrdersCount > 0 
                       ? '#10b981' 
-                      : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.12)'),
+                      : pendingOnlineOrdersCount > 0
+                      ? '#8b5cf6'
+                      : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? 'rgba(139, 92, 246, 0.16)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.12)')),
                     color: readyOrdersCount > 0 
                       ? '#fff' 
-                      : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : '#2563eb'),
+                      : pendingOnlineOrdersCount > 0
+                      ? '#fff'
+                      : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? '#8b5cf6' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : '#2563eb')),
                     borderColor: readyOrdersCount > 0 
                       ? '#10b981' 
-                      : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.3)'),
+                      : pendingOnlineOrdersCount > 0
+                      ? '#8b5cf6'
+                      : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? 'rgba(139, 92, 246, 0.4)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.3)')),
                     fontWeight: 800
                   }}
-                  title="View active kitchen tickets, takeaway pickup & settlement"
+                  title="View active kitchen tickets, online orders & takeaway settlement"
                 >
                   <span style={{ display: 'flex', alignItems: 'center' }}>
                     {readyOrdersCount > 0 ? (
                       <Bell size={13} />
+                    ) : pendingOnlineOrdersCount > 0 ? (
+                      <Globe size={13} />
+                    ) : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) ? (
+                      <Globe size={13} />
                     ) : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) ? (
                       <ShoppingBag size={13} />
                     ) : (
@@ -1465,9 +1485,13 @@ export default function POS() {
                   <span className="category-chip-name">
                     {readyOrdersCount > 0 
                       ? `${readyOrdersCount} Ready` 
-                      : (takeawayOrdersCount === runningOrders.length 
-                          ? `${takeawayOrdersCount} Takeaway` 
-                          : `${runningOrders.length} Orders`)}
+                      : pendingOnlineOrdersCount > 0
+                      ? `${pendingOnlineOrdersCount} New Online`
+                      : (onlineOrdersCount === runningOrders.length 
+                          ? `${onlineOrdersCount} Online` 
+                          : (takeawayOrdersCount === runningOrders.length 
+                              ? `${takeawayOrdersCount} Takeaway` 
+                              : `${runningOrders.length} Orders`))}
                   </span>
                 </button>
               )}
@@ -1825,11 +1849,13 @@ export default function POS() {
                 className="btn btn-sm"
                 onClick={() => {
                   if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                  else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                  else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
                   else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
                   else setActiveOrdersFilter('all');
                   setShowActiveOrdersModal(true);
                 }}
-                title="View active kitchen orders, takeaway pickup & settle payments"
+                title="View active kitchen orders, online orders & settle payments"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1840,13 +1866,19 @@ export default function POS() {
                   borderRadius: 'var(--radius-full)',
                   background: readyOrdersCount > 0 
                     ? 'rgba(16, 185, 129, 0.16)' 
-                    : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-bg-secondary)'),
+                    : pendingOnlineOrdersCount > 0
+                    ? '#8b5cf6'
+                    : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? 'rgba(139, 92, 246, 0.16)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-bg-secondary)')),
                   color: readyOrdersCount > 0 
                     ? '#10b981' 
-                    : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : 'var(--color-label)'),
+                    : pendingOnlineOrdersCount > 0
+                    ? '#ffffff'
+                    : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? '#8b5cf6' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : 'var(--color-label)')),
                   border: readyOrdersCount > 0 
                     ? '1px solid #10b981' 
-                    : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--color-separator)'),
+                    : pendingOnlineOrdersCount > 0
+                    ? '1px solid #8b5cf6'
+                    : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? '1px solid rgba(139, 92, 246, 0.4)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--color-separator)')),
                   fontWeight: 700,
                   cursor: 'pointer'
                 }}
@@ -1854,6 +1886,10 @@ export default function POS() {
                 <span style={{ display: 'flex', alignItems: 'center' }}>
                   {readyOrdersCount > 0 ? (
                     <Bell size={13} />
+                  ) : pendingOnlineOrdersCount > 0 ? (
+                    <Globe size={12} />
+                  ) : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) ? (
+                    <Globe size={12} />
                   ) : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) ? (
                     <ShoppingBag size={12} />
                   ) : (
@@ -1863,9 +1899,13 @@ export default function POS() {
                 <span>
                   {readyOrdersCount > 0 
                     ? `${readyOrdersCount} Ready` 
-                    : (takeawayOrdersCount === runningOrders.length 
-                        ? `${takeawayOrdersCount} Takeaway` 
-                        : `${runningOrders.length} Order${runningOrders.length > 1 ? 's' : ''}`)}
+                    : pendingOnlineOrdersCount > 0
+                    ? `${pendingOnlineOrdersCount} New Online`
+                    : (onlineOrdersCount === runningOrders.length 
+                        ? `${onlineOrdersCount} Online` 
+                        : (takeawayOrdersCount === runningOrders.length 
+                            ? `${takeawayOrdersCount} Takeaway` 
+                            : `${runningOrders.length} Order${runningOrders.length > 1 ? 's' : ''}`))}
                 </span>
               </button>
             )}
