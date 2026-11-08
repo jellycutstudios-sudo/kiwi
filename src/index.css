@@ -3619,6 +3619,20 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.cart-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cart-header-actions .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .cart-count-pill {

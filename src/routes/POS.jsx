@@ -1540,6 +1540,43 @@ export default function POS() {
             </div>
 
             <div className="pos-category-cards-grid">
+              {/* Active Orders Card (When active kitchen/takeaway/online orders exist) */}
+              {runningOrders.length > 0 && (
+                <div
+                  className={`pos-category-card ${readyOrdersCount > 0 ? 'pos-cat-theme-emerald' : pendingOnlineOrdersCount > 0 ? 'pos-cat-theme-violet' : 'pos-cat-theme-blue'}`}
+                  id="cat-card-active-orders"
+                  onClick={() => {
+                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                    else setActiveOrdersFilter('all');
+                    setShowActiveOrdersModal(true);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="pos-cat-card-body">
+                    <div className="pos-cat-card-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {readyOrdersCount > 0 ? <Bell size={16} /> : <FileText size={16} />}
+                      {readyOrdersCount > 0 
+                        ? `${readyOrdersCount} Ready` 
+                        : pendingOnlineOrdersCount > 0 
+                        ? `${pendingOnlineOrdersCount} New Online` 
+                        : (onlineOrdersCount === runningOrders.length 
+                            ? `${onlineOrdersCount} Online` 
+                            : (takeawayOrdersCount === runningOrders.length 
+                                ? `${takeawayOrdersCount} Takeaway` 
+                                : `${runningOrders.length} Active Orders`))}
+                    </div>
+                  </div>
+                  <div className="pos-cat-card-footer">
+                    <span className="pos-cat-card-count">Kitchen &amp; Settlement</span>
+                    <span className="pos-cat-card-arrow">→</span>
+                  </div>
+                </div>
+              )}
+
               {/* All Items Card */}
               <div
                 className="pos-category-card pos-cat-theme-emerald"
@@ -1845,80 +1882,14 @@ export default function POS() {
               <span className="cart-count-pill">{items.reduce((s, i) => s + i.qty, 0)}</span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            {runningOrders.length > 0 && (
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={() => {
-                  if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                  else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                  else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                  else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                  else setActiveOrdersFilter('all');
-                  setShowActiveOrdersModal(true);
-                }}
-                title="View active kitchen orders, online orders & settle payments"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  height: '26px',
-                  padding: '0 8px',
-                  fontSize: '11px',
-                  borderRadius: 'var(--radius-full)',
-                  background: readyOrdersCount > 0 
-                    ? 'rgba(16, 185, 129, 0.16)' 
-                    : pendingOnlineOrdersCount > 0
-                    ? '#8b5cf6'
-                    : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? 'rgba(139, 92, 246, 0.16)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-bg-secondary)')),
-                  color: readyOrdersCount > 0 
-                    ? '#10b981' 
-                    : pendingOnlineOrdersCount > 0
-                    ? '#ffffff'
-                    : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? '#8b5cf6' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : 'var(--color-label)')),
-                  border: readyOrdersCount > 0 
-                    ? '1px solid #10b981' 
-                    : pendingOnlineOrdersCount > 0
-                    ? '1px solid #8b5cf6'
-                    : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? '1px solid rgba(139, 92, 246, 0.4)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--color-separator)')),
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center' }}>
-                  {readyOrdersCount > 0 ? (
-                    <Bell size={13} />
-                  ) : pendingOnlineOrdersCount > 0 ? (
-                    <Globe size={12} />
-                  ) : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) ? (
-                    <Globe size={12} />
-                  ) : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) ? (
-                    <ShoppingBag size={12} />
-                  ) : (
-                    <FileText size={13} />
-                  )}
-                </span>
-                <span>
-                  {readyOrdersCount > 0 
-                    ? `${readyOrdersCount} Ready` 
-                    : pendingOnlineOrdersCount > 0
-                    ? `${pendingOnlineOrdersCount} New Online`
-                    : (onlineOrdersCount === runningOrders.length 
-                        ? `${onlineOrdersCount} Online` 
-                        : (takeawayOrdersCount === runningOrders.length 
-                            ? `${takeawayOrdersCount} Takeaway` 
-                            : `${runningOrders.length} Order${runningOrders.length > 1 ? 's' : ''}`))}
-                </span>
-              </button>
-            )}
+          <div className="cart-header-actions" style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
             <button 
               className="btn btn-secondary btn-sm desktop-only" 
               onClick={() => setShowTillModal(true)} 
               id="till-drawer-btn"
               disabled={!activeShift}
               title={!activeShift ? 'Open a shift first' : 'Till Drawer'}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 8px', fontSize: '11px', borderRadius: 'var(--radius-full)', opacity: activeShift ? 1 : 0.4 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 8px', fontSize: '11px', borderRadius: 'var(--radius-full)', opacity: activeShift ? 1 : 0.4, whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               <Banknote size={13} /> Till
             </button>
@@ -1927,7 +1898,7 @@ export default function POS() {
                 className="btn btn-ghost btn-sm" 
                 onClick={clearCart} 
                 id="clear-cart-btn"
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 6px', fontSize: '11px', color: 'var(--color-label-secondary)' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 6px', fontSize: '11px', color: 'var(--color-label-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}
                 title="Clear all items"
               >
                 <Trash2 size={12} /> {t('clearCart')}
