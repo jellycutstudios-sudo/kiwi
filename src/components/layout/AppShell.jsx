@@ -302,7 +302,37 @@ export default function AppShell() {
             <Menu size={20} />
           </button>
           
-          {!isPOS && <h1 className="top-bar-title text-title3">{pageTitle}</h1>}
+          {!isPOS && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {location.pathname === '/tables' && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigate('/pos')}
+                  id="topbar-back-to-pos-btn"
+                  title="Return to POS Terminal"
+                  style={{
+                    height: '34px',
+                    padding: '0 12px',
+                    borderRadius: '8px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700,
+                    fontSize: '12.5px',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    borderColor: 'rgba(56, 189, 248, 0.35)',
+                    color: '#38bdf8',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ArrowLeft size={14} strokeWidth={2.5} />
+                  <span>Back to POS</span>
+                </button>
+              )}
+              <h1 className="top-bar-title text-title3">{pageTitle}</h1>
+            </div>
+          )}
           
           {isPOS && (
             <div className="pos-topbar-center">

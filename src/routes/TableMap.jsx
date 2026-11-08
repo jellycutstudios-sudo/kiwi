@@ -13,7 +13,8 @@ import {
   ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
-  Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle
+  Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
@@ -1003,8 +1004,39 @@ export default function TableMap() {
     <div className="tm-root">
       {/* ═══ TOUCH-FIRST CONTROLS BAR ═══ */}
       <div className="tm-controls-bar">
-        {/* Left Side: Floor Tabs & Status Filters */}
+        {/* Left Side: Back to POS, Floor Tabs & Status Filters */}
         <div className="tm-controls-left">
+          {/* Back to POS Navigation Button */}
+          <button
+            type="button"
+            className="tm-back-to-pos-btn"
+            onClick={() => navigate('/pos')}
+            title="Return to POS Menu & Cart"
+            id="tablemap-back-to-pos-btn"
+            style={{
+              height: 34,
+              padding: '0 14px',
+              borderRadius: 10,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              fontWeight: 800,
+              fontSize: 13,
+              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.18) 0%, rgba(14, 116, 144, 0.28) 100%)',
+              border: '1.5px solid rgba(56, 189, 248, 0.45)',
+              color: '#38bdf8',
+              cursor: 'pointer',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <ArrowLeft size={15} strokeWidth={2.5} />
+            <span>POS Menu</span>
+          </button>
+
+          <div className="tm-toolbar-divider" />
+
           {/* Floor Navigation Tabs */}
           <div className="tm-floor-tabs-group" role="tablist" aria-label="Floors">
             {allFloors.map(floor => {
