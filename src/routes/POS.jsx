@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, ArrowRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, Globe
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -1441,83 +1441,6 @@ export default function POS() {
                 <span className="category-chip-name">All Items</span>
                 <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
               </button>
-              {/* Tables & Floor Plan Shortcut Chip */}
-              <button
-                type="button"
-                className="category-chip"
-                onClick={() => navigate('/tables')}
-                style={{
-                  background: 'rgba(139, 92, 246, 0.16)',
-                  color: '#c084fc',
-                  borderColor: 'rgba(139, 92, 246, 0.4)',
-                  fontWeight: 800,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-                title="Go to Table Map & Floor Plan"
-              >
-                <Armchair size={13} />
-                <span className="category-chip-name">{tableName ? `Table ${tableName}` : 'Tables'}</span>
-              </button>
-              {runningOrders.length > 0 && (
-                <button
-                  type="button"
-                  className="category-chip"
-                  onClick={() => {
-                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                    else setActiveOrdersFilter('all');
-                    setShowActiveOrdersModal(true);
-                  }}
-                  style={{
-                    background: readyOrdersCount > 0 
-                      ? '#10b981' 
-                      : pendingOnlineOrdersCount > 0
-                      ? '#8b5cf6'
-                      : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? 'rgba(139, 92, 246, 0.16)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.12)')),
-                    color: readyOrdersCount > 0 
-                      ? '#fff' 
-                      : pendingOnlineOrdersCount > 0
-                      ? '#fff'
-                      : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? '#8b5cf6' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : '#2563eb')),
-                    borderColor: readyOrdersCount > 0 
-                      ? '#10b981' 
-                      : pendingOnlineOrdersCount > 0
-                      ? '#8b5cf6'
-                      : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length ? 'rgba(139, 92, 246, 0.4)' : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.3)')),
-                    fontWeight: 800
-                  }}
-                  title="View active kitchen tickets, online orders & takeaway settlement"
-                >
-                  <span style={{ display: 'flex', alignItems: 'center' }}>
-                    {readyOrdersCount > 0 ? (
-                      <Bell size={13} />
-                    ) : pendingOnlineOrdersCount > 0 ? (
-                      <Globe size={13} />
-                    ) : (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) ? (
-                      <Globe size={13} />
-                    ) : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) ? (
-                      <ShoppingBag size={13} />
-                    ) : (
-                      <FileText size={13} />
-                    )}
-                  </span>
-                  <span className="category-chip-name">
-                    {readyOrdersCount > 0 
-                      ? `${readyOrdersCount} Ready` 
-                      : pendingOnlineOrdersCount > 0
-                      ? `${pendingOnlineOrdersCount} New Online`
-                      : (onlineOrdersCount === runningOrders.length 
-                          ? `${onlineOrdersCount} Online` 
-                          : (takeawayOrdersCount === runningOrders.length 
-                              ? `${takeawayOrdersCount} Takeaway` 
-                              : `${runningOrders.length} Orders`))}
-                  </span>
-                </button>
-              )}
               {categories.map(c => (
                 <button
                   key={c.id}
