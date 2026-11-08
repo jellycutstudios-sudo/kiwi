@@ -354,7 +354,7 @@ export default function AppShell() {
                 </button>
               )}
 
-              {/* Search Bar */}
+              {/* Search Bar - Generous room & smooth expansion */}
               <div className="pos-search-wrapper">
                 <Search size={14} className="pos-search-icon" />
                 <input
@@ -378,7 +378,9 @@ export default function AppShell() {
                 )}
               </div>
 
-              {/* Top Bar Dietary Filter Pills (Always visible on Desktop & Tablet) */}
+              <div className="pos-topbar-divider" />
+
+              {/* Top Bar Dietary Filter Pills */}
               <div className="pos-dietary-topbar-pills" role="toolbar" aria-label="Dietary filters">
                 <button
                   type="button"
@@ -414,7 +416,9 @@ export default function AppShell() {
                 </button>
               </div>
 
-              {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}
+              <div className="pos-topbar-divider" />
+
+              {/* View Controls: Cards vs Fast Keys + Tables Navigation + Fullscreen Focus */}
               <div className="pos-topbar-controls">
                 <div className="density-toggle" role="group" aria-label="Terminal view switcher">
                   <button
@@ -444,23 +448,10 @@ export default function AppShell() {
 
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary pos-topbar-tables-btn"
                   onClick={() => navigate('/tables')}
                   title="View Table Map & Floor Plan"
                   id="topbar-tables-nav-btn"
-                  style={{
-                    height: '34px',
-                    padding: '0 10px',
-                    borderRadius: '8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontWeight: 700,
-                    fontSize: '12px',
-                    background: 'rgba(139, 92, 246, 0.12)',
-                    borderColor: 'rgba(139, 92, 246, 0.35)',
-                    color: '#c084fc'
-                  }}
                 >
                   <Armchair size={14} />
                   <span>Tables</span>

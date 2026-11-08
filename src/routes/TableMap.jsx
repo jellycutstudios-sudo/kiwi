@@ -1067,16 +1067,14 @@ export default function TableMap() {
                 </div>
               );
             })}
-            {isEditingLayout && (
-              <button
-                type="button"
-                className="tm-floor-tab tm-floor-tab--add"
-                onClick={handleAddFloor}
-                title="Add a new dining floor or area"
-              >
-                <Plus size={12} /> Add Floor
-              </button>
-            )}
+            <button
+              type="button"
+              className="tm-floor-tab tm-floor-tab--add"
+              onClick={handleAddFloor}
+              title="Add a new dining room, floor, or patio area"
+            >
+              <Plus size={12} /> Add Room
+            </button>
           </div>
 
           <div className="tm-toolbar-divider" />
@@ -3061,10 +3059,10 @@ export default function TableMap() {
                 <Building2 size={22} color="#3b82f6" />
                 <div>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
-                    Add New Dining Floor / Area
+                    Add New Dining Room / Area
                   </h3>
                   <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
-                    Organize tables across rooms, patios, or floors
+                    Organize tables across rooms, patios, bars, or floors
                   </span>
                 </div>
               </div>
@@ -3081,11 +3079,11 @@ export default function TableMap() {
             {/* Form Body */}
             <form onSubmit={handleConfirmAddFloor} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="fpe-form-group">
-                <label className="fpe-label">Floor or Area Name</label>
+                <label className="fpe-label">Room or Floor Area Name</label>
                 <input
                   autoFocus
                   className="fpe-input"
-                  placeholder="e.g. First Floor, Rooftop, Patio, Garden"
+                  placeholder="e.g. Outdoor Patio, First Floor, VIP Lounge, Bar Area"
                   value={newFloorName}
                   onChange={e => setNewFloorName(e.target.value)}
                 />
@@ -3093,9 +3091,9 @@ export default function TableMap() {
 
               {/* Quick suggestions */}
               <div>
-                <label className="fpe-label" style={{ marginBottom: 6, display: 'block' }}>Quick Suggestions</label>
+                <label className="fpe-label" style={{ marginBottom: 6, display: 'block' }}>Quick Room Suggestions</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {['First Floor', 'Second Floor', 'Rooftop', 'Outdoor Patio', 'Terrace', 'Garden', 'VIP Lounge', 'Bar Area', 'Mezzanine'].map(sugg => (
+                  {['First Floor', 'Outdoor Patio', 'AC VIP Room', 'Bar & Lounge', 'Terrace', 'Private Dining', 'Garden', 'Second Floor', 'Mezzanine'].map(sugg => (
                     <button
                       key={sugg}
                       type="button"

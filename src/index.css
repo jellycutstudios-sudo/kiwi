@@ -2956,20 +2956,60 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
   overflow: visible;
   position: relative;
 }
 
 .pos-search-wrapper {
-  flex: 0 1 280px;
-  min-width: 140px;
-  max-width: 340px;
+  flex: 1 1 240px;
+  min-width: 170px;
+  max-width: 380px;
   display: flex;
   align-items: center;
   position: relative;
-  transition: flex 0.2s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: max-width 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.pos-search-wrapper:focus-within {
+  max-width: 440px;
+}
+
+.pos-topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-separator);
+  opacity: 0.65;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.pos-topbar-tables-btn {
+  height: 34px !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  background: rgba(139, 92, 246, 0.12) !important;
+  border: 1.5px solid rgba(139, 92, 246, 0.35) !important;
+  color: #c084fc !important;
+  cursor: pointer;
+  transition: all 0.15s ease !important;
+  white-space: nowrap !important;
+}
+
+.pos-topbar-tables-btn:hover {
+  background: rgba(139, 92, 246, 0.22) !important;
+  border-color: rgba(139, 92, 246, 0.5) !important;
+  transform: translateY(-1px);
+}
+
+.pos-topbar-tables-btn:active {
+  transform: scale(0.97);
 }
 
 /* POS Topbar Dietary Segmented Control (Always visible on Desktop & Tablet) */
