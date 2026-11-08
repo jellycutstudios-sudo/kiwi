@@ -6,7 +6,7 @@ import { getOrderElapsedSeconds } from '../../utils/timezoneUtils';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
   Edit2, Bell, FileText, Globe, Bike, Phone, MapPin, CreditCard,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, LayoutList, LayoutGrid
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -28,6 +28,7 @@ export default function ActiveOrdersModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [settlingId, setSettlingId] = useState(null);
   const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
+  const [layoutCols, setLayoutCols] = useState('2');
 
   const toggleOrderExpand = (orderId) => {
     setExpandedOrderIds(prev => {
@@ -189,15 +190,70 @@ export default function ActiveOrdersModal({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={onClose}
-            style={{ width: 36, height: 36, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            aria-label="Close modal"
-          >
-            <X size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* View Switcher: 1-Col vs 2-Col Grid */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: 8,
+              padding: 2,
+              border: '1px solid rgba(255, 255, 255, 0.12)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setLayoutCols('1')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '5px 10px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: layoutCols === '1' ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
+                  color: layoutCols === '1' ? '#ffffff' : 'var(--color-label-tertiary)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Single order per row (Full width)"
+              >
+                <LayoutList size={13} /> 1-Col
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayoutCols('2')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '5px 10px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: layoutCols === '2' ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
+                  color: layoutCols === '2' ? '#ffffff' : 'var(--color-label-tertiary)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title="2 orders per row (Grid view - Recommended)"
+              >
+                <LayoutGrid size={13} /> 2-Col
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onClose}
+              style={{ width: 36, height: 36, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              aria-label="Close modal"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Filter Pills & Search Bar (Touch-Optimized) */}
@@ -330,7 +386,17 @@ export default function ActiveOrdersModal({
         </div>
 
         {/* Order List Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{
+          padding: '16px 20px',
+          overflowY: 'auto',
+          flex: 1,
+          minHeight: 0,
+          display: filteredOrders.length === 0 ? 'flex' : (layoutCols === '2' ? 'grid' : 'flex'),
+          gridTemplateColumns: layoutCols === '2' ? 'repeat(auto-fill, minmax(440px, 1fr))' : undefined,
+          flexDirection: layoutCols === '2' ? undefined : 'column',
+          alignContent: 'start',
+          gap: 12
+        }}>
           {filteredOrders.length === 0 ? (
             <div style={{
               textAlign: 'center',
@@ -365,15 +431,15 @@ export default function ActiveOrdersModal({
                 <div
                   key={order.id}
                   style={{
-                    background: 'var(--color-bg-secondary)',
-                    borderRadius: 12,
-                    border: isOnlinePending ? '1.5px solid #8b5cf6' : (isReady ? '1.5px solid #10b981' : '1px solid var(--color-separator-opaque)'),
-                    padding: '12px 16px',
+                    background: 'var(--color-card, #181b26)',
+                    borderRadius: 14,
+                    border: isOnlinePending ? '1.5px solid #a855f7' : (isReady ? '1.5px solid #10b981' : '1.5px solid rgba(255, 255, 255, 0.13)'),
+                    padding: layoutCols === '2' ? '12px 14px' : '13px 18px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 10,
-                    boxShadow: isOnlinePending ? '0 4px 16px rgba(139, 92, 246, 0.22)' : (isReady ? '0 4px 16px rgba(16, 185, 129, 0.18)' : '0 2px 8px rgba(0,0,0,0.06)'),
-                    transition: 'all 0.2s ease',
+                    boxShadow: isOnlinePending ? '0 4px 18px rgba(168, 85, 247, 0.28)' : (isReady ? '0 4px 18px rgba(16, 185, 129, 0.22)' : '0 4px 14px rgba(0, 0, 0, 0.4)'),
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   {/* Top Bar: Token/Table + Status Badge + Elapsed Time */}
@@ -388,18 +454,19 @@ export default function ActiveOrdersModal({
                         height: 36,
                         borderRadius: '50%',
                         background: isOnline 
-                          ? (isDelivery ? 'rgba(56, 189, 248, 0.15)' : 'rgba(139, 92, 246, 0.15)')
-                          : (isTakeaway ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)'),
+                          ? (isDelivery ? 'rgba(56, 189, 248, 0.2)' : 'rgba(139, 92, 246, 0.2)')
+                          : (isTakeaway ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'),
                         color: isOnline 
-                          ? (isDelivery ? '#0284c7' : '#8b5cf6')
-                          : (isTakeaway ? '#d97706' : '#2563eb'),
+                          ? (isDelivery ? '#38bdf8' : '#c084fc')
+                          : (isTakeaway ? '#fbbf24' : '#60a5fa'),
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
                       }}>
                         {isDelivery ? <Bike size={18} /> : (isOnline ? <Globe size={18} /> : (isTakeaway ? <ShoppingBag size={18} /> : <Utensils size={18} />))}
                       </span>
 
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
+                          <span style={{ fontSize: 16.5, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px' }}>
                             {order.tableName 
                               ? `Table ${order.tableName}` 
                               : (order.token 
@@ -411,45 +478,45 @@ export default function ActiveOrdersModal({
                               fontSize: 10,
                               fontWeight: 800,
                               textTransform: 'uppercase',
-                              background: 'rgba(139, 92, 246, 0.12)',
-                              color: '#8b5cf6',
+                              background: 'rgba(168, 85, 247, 0.2)',
+                              color: '#c084fc',
                               padding: '2px 6px',
                               borderRadius: 4,
-                              border: '1px solid rgba(139, 92, 246, 0.25)'
+                              border: '1px solid rgba(168, 85, 247, 0.4)'
                             }}>
                               {order.source ? String(order.source).toUpperCase() : 'ONLINE PORTAL'}
                             </span>
                           )}
                           {order.customerName && (
-                            <span style={{ fontSize: 13.5, color: 'var(--color-label-secondary)', fontWeight: 600 }}>
+                            <span style={{ fontSize: 13.5, color: '#e2e8f0', fontWeight: 600 }}>
                               · {order.customerName}
                             </span>
                           )}
                           {order.customerPhone && (
-                            <span style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            <span style={{ fontSize: 11.5, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                               <Phone size={11} /> {order.customerPhone}
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, fontWeight: 500 }}>
                           #{order.id.slice(-4).toUpperCase()} • {itemsCount} items
                           {order.deliveryAddress && (
-                            <span style={{ marginLeft: 8, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <MapPin size={11} color="#0284c7" /> {order.deliveryAddress}
+                            <span style={{ marginLeft: 8, color: '#e2e8f0', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <MapPin size={11} color="#38bdf8" /> {order.deliveryAddress}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Status & Payment Pills */}
+                    {/* Status & Payment Pills (High Contrast) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {/* Kitchen Prep Status */}
                       {isReady ? (
                         <span style={{
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10b981',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          background: 'rgba(16, 185, 129, 0.22)',
+                          color: '#34d399',
+                          border: '1.5px solid rgba(16, 185, 129, 0.55)',
                           padding: '4px 10px',
                           borderRadius: 8,
                           fontSize: 11.5,
@@ -458,14 +525,14 @@ export default function ActiveOrdersModal({
                           alignItems: 'center',
                           gap: 5
                         }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399' }} />
                           READY ON PASS
                         </span>
                       ) : isOnlinePending ? (
                         <span style={{
-                          background: 'rgba(139, 92, 246, 0.15)',
-                          color: '#8b5cf6',
-                          border: '1px solid rgba(139, 92, 246, 0.35)',
+                          background: 'rgba(168, 85, 247, 0.22)',
+                          color: '#c084fc',
+                          border: '1.5px solid rgba(168, 85, 247, 0.55)',
                           padding: '4px 10px',
                           borderRadius: 8,
                           fontSize: 11.5,
@@ -478,13 +545,13 @@ export default function ActiveOrdersModal({
                         </span>
                       ) : (
                         <span style={{
-                          background: 'rgba(245, 158, 11, 0.12)',
-                          color: '#d97706',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          color: '#fbbf24',
+                          border: '1.5px solid rgba(245, 158, 11, 0.55)',
                           padding: '4px 10px',
                           borderRadius: 8,
                           fontSize: 11.5,
-                          fontWeight: 700,
+                          fontWeight: 800,
                           display: 'flex',
                           alignItems: 'center',
                           gap: 5
@@ -496,9 +563,9 @@ export default function ActiveOrdersModal({
 
                       {/* Payment Pill */}
                       <span style={{
-                        background: isUnpaid ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                        color: isUnpaid ? '#dc2626' : '#10b981',
-                        border: isUnpaid ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                        background: isUnpaid ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                        color: isUnpaid ? '#f87171' : '#34d399',
+                        border: isUnpaid ? '1.5px solid rgba(239, 68, 68, 0.55)' : '1.5px solid rgba(16, 185, 129, 0.55)',
                         padding: '4px 10px',
                         borderRadius: 8,
                         fontSize: 11.5,
@@ -509,13 +576,13 @@ export default function ActiveOrdersModal({
                     </div>
                   </div>
 
-                  {/* Items Preview with Tap-to-Expand Details */}
+                  {/* Items Preview with Tap-to-Expand Details (High Contrast) */}
                   <div 
                     onClick={() => toggleOrderExpand(order.id)}
                     style={{
-                      background: 'var(--color-bg)',
+                      background: 'rgba(0, 0, 0, 0.35)',
                       borderRadius: 10,
-                      border: '1px solid var(--color-separator-opaque)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       overflow: 'hidden'
@@ -531,8 +598,8 @@ export default function ActiveOrdersModal({
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                         <span style={{
-                          fontSize: 12.5,
-                          color: 'var(--color-label-secondary)',
+                          fontSize: 13,
+                          color: '#f1f5f9',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -543,13 +610,13 @@ export default function ActiveOrdersModal({
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          color: 'var(--color-label-tertiary)',
+                          color: '#94a3b8',
                           flexShrink: 0
                         }}>
                           {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                         </span>
                       </div>
-                      <strong style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-accent, #38bdf8)', flexShrink: 0 }}>
+                      <strong style={{ fontSize: 16, fontWeight: 900, color: '#38bdf8', flexShrink: 0 }}>
                         {formatCurrency(order.total ?? 0, currency)}
                       </strong>
                     </div>
@@ -557,34 +624,35 @@ export default function ActiveOrdersModal({
                     {/* Detailed Item List (when expanded on tap) */}
                     {isExpanded && (
                       <div style={{
-                        borderTop: '1px solid var(--color-separator-opaque)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                         padding: '10px 14px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 8,
-                        background: 'rgba(0, 0, 0, 0.02)'
+                        background: 'rgba(0, 0, 0, 0.2)'
                       }}>
                         {(order.items || []).map((item, idx) => (
                           <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               <span style={{ 
                                 fontWeight: 800, 
-                                background: 'var(--color-bg-secondary)', 
+                                background: 'rgba(255, 255, 255, 0.08)', 
                                 padding: '1px 6px', 
                                 borderRadius: 4,
-                                border: '1px solid var(--color-separator)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                color: '#ffffff',
                                 fontSize: 11
                               }}>
                                 {item.qty}×
                               </span>
-                              <span style={{ fontWeight: 600, color: 'var(--color-label)' }}>{item.name}</span>
+                              <span style={{ fontWeight: 600, color: '#ffffff' }}>{item.name}</span>
                               {item.selectedModifiers?.map((m, mIdx) => (
-                                <span key={mIdx} style={{ fontSize: 11, color: 'var(--color-label-tertiary)', background: 'var(--color-separator-opaque)', padding: '0 5px', borderRadius: 3 }}>
+                                <span key={mIdx} style={{ fontSize: 11, color: '#94a3b8', background: 'rgba(255, 255, 255, 0.08)', padding: '0 5px', borderRadius: 3 }}>
                                   +{m.name}
                                 </span>
                               ))}
                             </div>
-                            <span style={{ fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                            <span style={{ fontWeight: 700, color: '#cbd5e1' }}>
                               {formatCurrency((item.price || 0) * (item.qty || 1), currency)}
                             </span>
                           </div>
@@ -593,14 +661,14 @@ export default function ActiveOrdersModal({
                     )}
                   </div>
 
-                  {/* Action Buttons: Touch-Optimized for Cashier Billing (40px Tap Targets, Clean 2-Group Layout) */}
+                  {/* Action Buttons: Touch-Optimized for Cashier Billing (40px Tap Targets, High Contrast) */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 12,
+                    gap: 10,
                     flexWrap: 'wrap',
-                    paddingTop: 4
+                    paddingTop: 2
                   }}>
                     {/* Left: Order Management (Edit & Print Bill) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -608,7 +676,7 @@ export default function ActiveOrdersModal({
                       {onLoadOrderToCart && (
                         <button
                           type="button"
-                          className="btn btn-secondary"
+                          className="btn"
                           onClick={() => {
                             onLoadOrderToCart(order);
                             onClose();
@@ -619,9 +687,12 @@ export default function ActiveOrdersModal({
                             fontSize: 13,
                             fontWeight: 700,
                             gap: 6,
-                            padding: '0 14px',
+                            padding: '0 13px',
                             borderRadius: 10,
-                            color: 'var(--color-label-secondary)'
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.22)',
+                            color: '#ffffff',
+                            cursor: 'pointer'
                           }}
                           title="Load items back into cart to modify"
                         >
@@ -632,15 +703,19 @@ export default function ActiveOrdersModal({
                       {/* Print Customer Bill */}
                       <button
                         type="button"
-                        className="btn btn-secondary"
+                        className="btn"
                         onClick={() => handlePrint(order)}
                         style={{
                           height: 40,
                           fontSize: 13,
                           fontWeight: 700,
                           gap: 6,
-                          padding: '0 14px',
-                          borderRadius: 10
+                          padding: '0 13px',
+                          borderRadius: 10,
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.22)',
+                          color: '#ffffff',
+                          cursor: 'pointer'
                         }}
                         title="Print Customer Bill / Tax Receipt"
                       >
@@ -655,7 +730,7 @@ export default function ActiveOrdersModal({
                           {onOpenPayment && (
                             <button
                               type="button"
-                              className="btn btn-secondary"
+                              className="btn"
                               onClick={() => {
                                 onLoadOrderToCart(order);
                                 onClose();
@@ -664,10 +739,14 @@ export default function ActiveOrdersModal({
                               style={{
                                 height: 40,
                                 fontSize: 13,
-                                fontWeight: 700,
+                                fontWeight: 800,
                                 gap: 6,
-                                padding: '0 15px',
-                                borderRadius: 10
+                                padding: '0 14px',
+                                borderRadius: 10,
+                                background: 'rgba(56, 189, 248, 0.15)',
+                                border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                                color: '#38bdf8',
+                                cursor: 'pointer'
                               }}
                               title="Open Card / UPI / Split Payment Drawer"
                             >
@@ -682,15 +761,15 @@ export default function ActiveOrdersModal({
                             style={{
                               height: 40,
                               fontSize: 13,
-                              fontWeight: 800,
+                              fontWeight: 900,
                               gap: 6,
                               padding: '0 16px',
                               background: '#10b981',
-                              color: '#fff',
-                              border: 'none',
+                              color: '#ffffff',
+                              border: '1px solid #059669',
                               borderRadius: 10,
                               cursor: 'pointer',
-                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)'
                             }}
                             title="Settle full bill via Cash and print receipt"
                           >
@@ -708,7 +787,8 @@ export default function ActiveOrdersModal({
                             fontWeight: 800,
                             gap: 6,
                             padding: '0 18px',
-                            borderRadius: 10
+                            borderRadius: 10,
+                            border: '1px solid rgba(255, 255, 255, 0.2)'
                           }}
                           title="Mark handed over to customer & remove from active pass"
                         >
