@@ -19,7 +19,7 @@ import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid,
-  Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
+  Printer, Lock, Wallet, ArrowDownRight, ArrowRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, Globe
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
@@ -1563,7 +1563,7 @@ export default function POS() {
               >
                 <div className="pos-op-card-left">
                   <div className="pos-op-card-icon">
-                    <Armchair size={20} />
+                    <Armchair size={19} />
                   </div>
                   <div className="pos-op-card-text">
                     <div className="pos-op-card-title">
@@ -1574,8 +1574,9 @@ export default function POS() {
                     </div>
                   </div>
                 </div>
-                <span className="pos-op-card-pill">
-                  Floor Map →
+                <span className="pos-op-card-pill" aria-label="Floor Map">
+                  <span className="pos-op-pill-text">Floor Map</span>
+                  <ArrowRight size={13} strokeWidth={2.5} className="pos-op-pill-arrow" />
                 </span>
               </div>
 
@@ -1598,7 +1599,7 @@ export default function POS() {
                 >
                   <div className="pos-op-card-left">
                     <div className="pos-op-card-icon">
-                      {readyOrdersCount > 0 ? <Bell size={20} /> : <FileText size={20} />}
+                      {readyOrdersCount > 0 ? <Bell size={19} /> : <FileText size={19} />}
                     </div>
                     <div className="pos-op-card-text">
                       <div className="pos-op-card-title">
@@ -1610,7 +1611,7 @@ export default function POS() {
                             : `${runningOrders.length} Running Orders`}
                         </span>
                         {readyOrdersCount > 0 && (
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffffff', display: 'inline-block' }} />
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffffff', display: 'inline-block' }} />
                         )}
                       </div>
                       <div className="pos-op-card-subtitle">
@@ -1618,8 +1619,9 @@ export default function POS() {
                       </div>
                     </div>
                   </div>
-                  <span className="pos-op-card-pill">
-                    View Pass →
+                  <span className="pos-op-card-pill" aria-label="View Pass">
+                    <span className="pos-op-pill-text">View Pass</span>
+                    <ArrowRight size={13} strokeWidth={2.5} className="pos-op-pill-arrow" />
                   </span>
                 </div>
               )}
@@ -1635,7 +1637,7 @@ export default function POS() {
               >
                 <div className="pos-op-card-left">
                   <div className="pos-op-card-icon">
-                    <Plus size={20} strokeWidth={2.5} />
+                    <Plus size={19} strokeWidth={2.5} />
                   </div>
                   <div className="pos-op-card-text">
                     <div className="pos-op-card-title">
@@ -1646,8 +1648,9 @@ export default function POS() {
                     </div>
                   </div>
                 </div>
-                <span className="pos-op-card-pill">
-                  + Add Item
+                <span className="pos-op-card-pill" aria-label="Add Item">
+                  <span className="pos-op-pill-text">+ Add Item</span>
+                  <Plus size={13} strokeWidth={2.5} className="pos-op-pill-arrow" />
                 </span>
               </div>
             </div>

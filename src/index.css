@@ -2266,11 +2266,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-category-cards-container {
+  container-type: inline-size;
+  container-name: cat-container;
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding: 20px;
+  padding: 16px 20px 24px;
   background: var(--color-bg);
   -webkit-overflow-scrolling: touch;
 }
@@ -2541,8 +2543,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .pos-operations-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 18px;
   width: 100%;
 }
 
@@ -2554,10 +2556,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 13px 18px;
-  min-height: 72px;
-  border-radius: 16px;
+  gap: 10px;
+  padding: 10px 14px;
+  min-height: 64px;
+  border-radius: 14px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -2568,6 +2570,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.40);
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .pos-op-card:hover {
@@ -2581,15 +2584,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .pos-op-card-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
 
 .pos-op-card-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2604,15 +2607,16 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .pos-op-card-text {
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .pos-op-card-title {
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 800;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2621,9 +2625,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-op-card-subtitle {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  margin-top: 3px;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2631,9 +2635,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-op-card-pill {
-  padding: 6px 14px;
+  padding: 5px 11px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   white-space: nowrap;
   flex-shrink: 0;
@@ -2642,6 +2646,16 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   gap: 4px;
   letter-spacing: 0.01em;
   transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pos-op-pill-text {
+  display: inline;
+  white-space: nowrap;
+}
+
+.pos-op-pill-arrow {
+  flex-shrink: 0;
+  display: inline-flex;
 }
 
 .pos-op-card:hover .pos-op-card-pill {
@@ -2788,18 +2802,115 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, #ffffff 100%);
 }
 
-@media (max-width: 900px) {
+/* Tablet & Medium Breakpoint: 2 columns top + 1 column full width below (or 2 columns for 2 cards) */
+@container cat-container (min-width: 480px) and (max-width: 840px) {
   .pos-operations-strip {
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 16px;
+  }
+  .pos-operations-strip .pos-op-card:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 581px) and (max-width: 1220px) {
+  .pos-operations-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .pos-operations-strip .pos-op-card:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+}
+
+/* Fallback: If card width drops below 240px, hide pill text so the circular button retains maximum text room */
+@container cat-container (max-width: 680px) {
+  .pos-operations-strip:not(.has-two-cards) .pos-op-pill-text {
+    display: none;
+  }
+  .pos-operations-strip:not(.has-two-cards) .pos-op-card-pill {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+}
+
+/* Mobile & Small Device Breakpoint: Single vertical stack with comfortable finger-friendly hit targets */
+@container cat-container (max-width: 479px) {
+  .pos-operations-strip {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .pos-operations-strip .pos-op-card:last-child:nth-child(odd) {
+    grid-column: span 1;
+  }
+  .pos-op-card {
+    min-height: 56px;
+    padding: 8px 12px;
+    border-radius: 12px;
+  }
+  .pos-op-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+  .pos-op-card-title {
+    font-size: 13.5px;
+  }
+  .pos-op-card-subtitle {
+    font-size: 10.5px;
+  }
+  .pos-op-pill-text {
+    display: inline;
+  }
+  .pos-op-card-pill {
+    width: auto;
+    height: auto;
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 20px;
   }
 }
 
 @media (max-width: 580px) {
   .pos-operations-strip {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .pos-operations-strip .pos-op-card:last-child:nth-child(odd) {
+    grid-column: span 1;
+  }
+  .pos-op-card {
+    min-height: 56px;
+    padding: 8px 12px;
+    border-radius: 12px;
+  }
+  .pos-op-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+  .pos-op-card-title {
+    font-size: 13.5px;
+  }
+  .pos-op-card-subtitle {
+    font-size: 10.5px;
+  }
+  .pos-op-pill-text {
+    display: inline;
+  }
+  .pos-op-card-pill {
+    width: auto;
+    height: auto;
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 20px;
   }
 }
 
@@ -2819,6 +2930,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 @media (max-width: 640px) {
+  .pos-category-cards-container {
+    padding: 12px 10px 20px;
+  }
   .pos-category-cards-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
