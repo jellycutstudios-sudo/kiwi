@@ -973,6 +973,8 @@ export default function POS() {
     { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
+  const activeOrderTypeIndex = Math.max(0, orderTypes.findIndex(ot => ot.key === orderType));
+
   // Default non-food retail, service or bill-only modes to 'takeaway' (counter)
   useEffect(() => {
     if ((isRetail || isService || isBillOnly) && orderType === 'dine-in') {
@@ -1238,6 +1240,7 @@ export default function POS() {
       toast.error('Cannot change order type while modifying an active order. Settle or cancel it first.');
       return;
     }
+    hapticTap('light');
     setOrderType(newType);
   };
 
@@ -2059,19 +2062,29 @@ export default function POS() {
               </div>
             )}
 
-            {/* Modern Segmented Order Type Control — only displayed when there are multiple service formats */}
+            {/* Modern Segmented Order Type Control — with smooth spring gliding pill */}
             {orderTypes.length > 1 && (
               <div className="cart-type-tabs">
+                <div
+                  className="cart-type-glider"
+                  style={{
+                    width: `calc((100% - ${(orderTypes.length - 1) * 4}px) / ${orderTypes.length})`,
+                    transform: `translate3d(calc(${activeOrderTypeIndex} * (100% + 4px)), 0, 0)`,
+                  }}
+                  aria-hidden="true"
+                />
                 {orderTypes.map(ot => {
                   const Icon = ot.Icon;
+                  const isActive = orderType === ot.key;
                   return (
                     <button
                       key={ot.key}
                       id={`order-type-${ot.key}`}
-                      className={`cart-type-tab ${orderType === ot.key ? 'active' : ''}`}
+                      type="button"
+                      className={`cart-type-tab ${isActive ? 'active' : ''}`}
                       onClick={() => handleOrderTypeChange(ot.key)}
                     >
-                      {Icon && <Icon size={14} />}
+                      {Icon && <Icon size={14} className="cart-type-tab-icon" />}
                       <span>{ot.label}</span>
                     </button>
                   );
@@ -2079,186 +2092,188 @@ export default function POS() {
               </div>
             )}
 
-            {/* Service Details: Table for Dine-In, or Clean Customer inputs for Takeaway */}
-            {orderType === 'dine-in' && !isBillOnly ? (
-              <div className={`cart-service-details ${(restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
-                {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
-                  <div className="cart-service-row cart-service-table-row">
-                    <button
-                      type="button"
-                      onClick={() => setShowTableSel(true)}
-                      className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
-                      id="select-table-dropdown"
-                      title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
-                    >
-                      <span className="cart-table-select-content">
-                        <Armchair size={13} className="cart-table-icon" style={{ marginRight: 4 }} />
-                        <span className="cart-table-label">
-                          {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
-                        </span>
-                      </span>
-                      <span className="cart-table-chevron-wrap">
-                        {tableId ? (
-                          <span className="cart-table-badge-active">Assigned</span>
-                        ) : (
-                          <span className="cart-table-badge-choose">Floor Map ▾</span>
-                        )}
-                      </span>
-                    </button>
-                    {tableId && (
-                      <button
-                        type="button"
-                        className="cart-table-unassign-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTable(null, null);
-                        }}
-                        title="Clear table assignment"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Customer / Loyalty Info row */}
-                <div className="cart-service-row cart-service-customer-row">
-                  {customer ? (
-                    <div className="cart-customer-vip-card">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {customer.name}
-                        </span>
-                        <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                          {customer.points} pts
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerProfile(null);
-                          setCustomer('', '');
-                          setRedeemingPoints(false);
-                        }}
-                        style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                        title="Remove customer"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ) : showQuickRegister ? (
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px' }}>
-                      <input
-                        className="form-input"
-                        placeholder="Customer name"
-                        value={newCustName}
-                        onChange={e => setNewCustName(e.target.value)}
-                        style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-success btn-xs"
-                        onClick={handleQuickRegister}
-                        style={{ height: 26, padding: '0 8px', fontSize: 11 }}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => setShowQuickRegister(false)}
-                        style={{ height: 26, padding: '0 8px', fontSize: 11 }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="cart-customer-search-wrap">
-                      <Search size={13} className="cart-customer-search-icon" />
-                      <input
-                        className="cart-customer-search-input"
-                        placeholder="Customer phone or loyalty #..."
-                        value={custSearch}
-                        onChange={e => {
-                          setCustSearch(e.target.value);
-                          if (e.target.value.replace(/\D/g, '').length >= 8) {
-                            handleCustomerLookup(e.target.value);
-                          }
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            handleCustomerLookup(custSearch);
-                          }
-                        }}
-                      />
-                      {custSearch && (
+            {/* Service Details: Unified container with smooth animated crossfade */}
+            <div className={`cart-service-details ${orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
+              <div key={orderType} className="cart-service-content-animated">
+                {orderType === 'dine-in' && !isBillOnly ? (
+                  <>
+                    {(restaurant?.features?.table || modes.includes('table')) && (
+                      <div className="cart-service-row cart-service-table-row">
                         <button
                           type="button"
-                          className="cart-customer-search-clear"
-                          onClick={() => setCustSearch('')}
-                          title="Clear search"
+                          onClick={() => setShowTableSel(true)}
+                          className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
+                          id="select-table-dropdown"
+                          title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                        >
+                          <span className="cart-table-select-content">
+                            <Armchair size={13} className="cart-table-icon" style={{ marginRight: 4 }} />
+                            <span className="cart-table-label">
+                              {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                            </span>
+                          </span>
+                          <span className="cart-table-chevron-wrap">
+                            {tableId ? (
+                              <span className="cart-table-badge-active">Assigned</span>
+                            ) : (
+                              <span className="cart-table-badge-choose">Floor Map ▾</span>
+                            )}
+                          </span>
+                        </button>
+                        {tableId && (
+                          <button
+                            type="button"
+                            className="cart-table-unassign-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTable(null, null);
+                            }}
+                            title="Clear table assignment"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Customer / Loyalty Info row */}
+                    <div className="cart-service-row cart-service-customer-row">
+                      {customer ? (
+                        <div className="cart-customer-vip-card">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {customer.name}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                              {customer.points} pts
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomerProfile(null);
+                              setCustomer('', '');
+                              setRedeemingPoints(false);
+                            }}
+                            style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                            title="Remove customer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : showQuickRegister ? (
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px' }}>
+                          <input
+                            className="form-input"
+                            placeholder="Customer name"
+                            value={newCustName}
+                            onChange={e => setNewCustName(e.target.value)}
+                            style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-success btn-xs"
+                            onClick={handleQuickRegister}
+                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs"
+                            onClick={() => setShowQuickRegister(false)}
+                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="cart-customer-search-wrap">
+                          <Search size={13} className="cart-customer-search-icon" />
+                          <input
+                            className="cart-customer-search-input"
+                            placeholder="Customer phone or loyalty #..."
+                            value={custSearch}
+                            onChange={e => {
+                              setCustSearch(e.target.value);
+                              if (e.target.value.replace(/\D/g, '').length >= 8) {
+                                handleCustomerLookup(e.target.value);
+                              }
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                handleCustomerLookup(custSearch);
+                              }
+                            }}
+                          />
+                          {custSearch && (
+                            <button
+                              type="button"
+                              className="cart-customer-search-clear"
+                              onClick={() => setCustSearch('')}
+                              title="Clear search"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* Takeaway / Counter: Sleek unified row inside cart-service-details */
+                  <div className="cart-service-row cart-service-takeaway-row">
+                    {customer ? (
+                      <div className="cart-customer-vip-card" style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {customer.name}
+                          </span>
+                          <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
+                            {customer.points} pts
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomerProfile(null);
+                            setCustomer('', '');
+                            setRedeemingPoints(false);
+                          }}
+                          style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                          title="Clear customer"
                         >
                           <X size={12} />
                         </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* Takeaway: Sleek single line (Customer + Phone) */
-              <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-separator)', display: 'flex', gap: '8px', background: 'var(--color-bg-secondary)', alignItems: 'center' }}>
-                {customer ? (
-                  <div className="cart-customer-vip-card" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {customer.name}
-                      </span>
-                      <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                        {customer.points} pts
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomerProfile(null);
-                        setCustomer('', '');
-                        setRedeemingPoints(false);
-                      }}
-                      style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
-                      title="Clear customer"
-                    >
-                      <X size={12} />
-                    </button>
+                      </div>
+                    ) : (
+                      <div className="cart-takeaway-inputs-wrap">
+                        <input
+                          className="cart-takeaway-input"
+                          placeholder="Customer name (optional)"
+                          value={customerName}
+                          onChange={e => setCustomer(e.target.value, customerPhone)}
+                          id="customer-name-input"
+                        />
+                        <input
+                          className="cart-takeaway-input cart-takeaway-phone-input"
+                          placeholder="Phone # (optional)"
+                          value={customerPhone}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setCustomer(customerName, val);
+                            if (val.replace(/\D/g, '').length >= 8) {
+                              handleCustomerLookup(val);
+                            }
+                          }}
+                          id="customer-phone-input"
+                        />
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <input
-                      className="form-input"
-                      placeholder="Customer name (optional)"
-                      value={customerName}
-                      onChange={e => setCustomer(e.target.value, customerPhone)}
-                      id="customer-name-input"
-                      style={{ fontSize: '12px', height: '30px', padding: '2px 8px', flex: 1, borderRadius: '6px' }}
-                    />
-                    <input
-                      className="form-input"
-                      placeholder="Phone # (optional)"
-                      value={customerPhone}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setCustomer(customerName, val);
-                        if (val.replace(/\D/g, '').length >= 8) {
-                          handleCustomerLookup(val);
-                        }
-                      }}
-                      id="customer-phone-input"
-                      style={{ fontSize: '12px', height: '30px', padding: '2px 8px', width: '125px', borderRadius: '6px' }}
-                    />
-                  </>
                 )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
