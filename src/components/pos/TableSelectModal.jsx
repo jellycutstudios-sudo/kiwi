@@ -10,7 +10,6 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
   const [filterStatus, setFilterStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedZone, setSelectedZone] = useState('all');
-  const freeFirst = true; // Prioritize free tables first for fast POS seating
   // Default to compact mode (optimal for POS and touchscreens)
   const [viewMode, setViewMode] = useState('compact');
 
@@ -82,14 +81,9 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         return true;
       })
       .sort((a, b) => {
-        if (freeFirst) {
-          const aRank = getEffectiveStatus(a) === 'free' ? 0 : 1;
-          const bRank = getEffectiveStatus(b) === 'free' ? 0 : 1;
-          if (aRank !== bRank) return aRank - bRank;
-        }
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
-  }, [tables, filterStatus, selectedZone, search, freeFirst, getEffectiveStatus]);
+  }, [tables, filterStatus, selectedZone, search, getEffectiveStatus]);
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
