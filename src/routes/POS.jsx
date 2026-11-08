@@ -1440,6 +1440,25 @@ export default function POS() {
                 <span className="category-chip-name">All Items</span>
                 <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
               </button>
+              {/* Tables & Floor Plan Shortcut Chip */}
+              <button
+                type="button"
+                className="category-chip"
+                onClick={() => navigate('/tables')}
+                style={{
+                  background: 'rgba(139, 92, 246, 0.16)',
+                  color: '#c084fc',
+                  borderColor: 'rgba(139, 92, 246, 0.4)',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+                title="Go to Table Map & Floor Plan"
+              >
+                <Armchair size={13} />
+                <span className="category-chip-name">{tableName ? `Table ${tableName}` : 'Tables'}</span>
+              </button>
               {runningOrders.length > 0 && (
                 <button
                   type="button"
@@ -1554,7 +1573,7 @@ export default function POS() {
                   role="button"
                   tabIndex={0}
                   style={{
-                    flex: '1 1 300px',
+                    flex: '1 1 280px',
                     background: readyOrdersCount > 0 
                       ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(13, 26, 20, 0.92) 100%)' 
                       : 'linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(15, 23, 42, 0.92) 100%)',
@@ -1617,6 +1636,66 @@ export default function POS() {
                 </div>
               )}
 
+              {/* Table Map & Floor Plan Quick Access Card */}
+              <div
+                className="pos-op-card"
+                id="cat-card-tables"
+                onClick={() => navigate('/tables')}
+                role="button"
+                tabIndex={0}
+                style={{
+                  flex: runningOrders.length > 0 ? '1 1 260px' : '1 1 300px',
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.16) 0%, rgba(20, 18, 36, 0.92) 100%)',
+                  border: '1.5px solid rgba(139, 92, 246, 0.45)',
+                  borderRadius: 14,
+                  padding: '12px 18px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Go to Table Map & Floor Plan"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(139, 92, 246, 0.22)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#c084fc',
+                    flexShrink: 0
+                  }}>
+                    <Armchair size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>{tableName ? `Table ${tableName}` : 'Tables & Floor Plan'}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                      {tableName ? 'Switch table or view floor layout' : 'Live seating & floor map'}
+                    </div>
+                  </div>
+                </div>
+                <span style={{
+                  background: 'rgba(139, 92, 246, 0.22)',
+                  color: '#c084fc',
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}>
+                  Floor Map →
+                </span>
+              </div>
+
               {/* + Custom Item Action Card */}
               <div
                 id="cat-card-custom"
@@ -1624,7 +1703,7 @@ export default function POS() {
                 role="button"
                 tabIndex={0}
                 style={{
-                  flex: runningOrders.length > 0 ? '0 1 240px' : '1 1 280px',
+                  flex: runningOrders.length > 0 ? '0 1 220px' : '0 1 240px',
                   background: 'rgba(245, 158, 11, 0.08)',
                   border: '1.5px dashed rgba(245, 158, 11, 0.45)',
                   borderRadius: 14,

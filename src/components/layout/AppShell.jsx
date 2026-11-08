@@ -10,8 +10,8 @@ import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { 
-  Bell, Menu, Search, X, Download, Smartphone, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap
+  Bell, Menu, Search, X, Download, Minimize2, Maximize2, 
+  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap, Armchair
 } from 'lucide-react';
 import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
@@ -411,6 +411,30 @@ export default function AppShell() {
                     <span className="density-label density-label--short">Keys</span>
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigate('/tables')}
+                  title="View Table Map & Floor Plan"
+                  id="topbar-tables-nav-btn"
+                  style={{
+                    height: '34px',
+                    padding: '0 10px',
+                    borderRadius: '8px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    background: 'rgba(139, 92, 246, 0.12)',
+                    borderColor: 'rgba(139, 92, 246, 0.35)',
+                    color: '#c084fc'
+                  }}
+                >
+                  <Armchair size={14} />
+                  <span>Tables</span>
+                </button>
 
                 <button
                   type="button"
