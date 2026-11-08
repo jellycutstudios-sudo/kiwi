@@ -2553,9 +2553,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
-  min-height: 70px;
-  border-radius: 14px;
+  padding: 13px 18px;
+  min-height: 72px;
+  border-radius: 16px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -2563,7 +2563,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
               box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
               border-color 0.16s ease,
               background 0.16s ease;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.40);
   position: relative;
   overflow: hidden;
 }
@@ -2585,13 +2585,18 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-op-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.pos-op-card:hover .pos-op-card-icon {
+  transform: scale(1.05);
 }
 
 .pos-op-card-text {
@@ -2600,7 +2605,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-op-card-title {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 800;
   color: #ffffff;
   display: flex;
@@ -2609,16 +2614,18 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .pos-op-card-subtitle {
   font-size: 12px;
-  color: var(--color-label-secondary);
-  margin-top: 2px;
+  font-weight: 600;
+  margin-top: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.01em;
 }
 
 .pos-op-card-pill {
@@ -2631,89 +2638,135 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pos-op-card:hover .pos-op-card-pill {
-  opacity: 0.95;
-  transform: translateX(1px);
+  transform: translateX(2px);
 }
 
-/* Card 1: Tables (Violet/Purple Theme) */
+/* Card 1: Tables (Violet/Purple Theme - High Contrast) */
 .pos-op-card--tables {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.16) 0%, rgba(24, 18, 42, 0.92) 100%);
-  border: 1.5px solid rgba(168, 85, 247, 0.38);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.32) 0%, rgba(168, 85, 247, 0.10) 45%, rgba(20, 16, 36, 0.98) 100%);
+  border: 1.5px solid rgba(168, 85, 247, 0.75);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(168, 85, 247, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 .pos-op-card--tables:hover {
-  border-color: #a855f7;
-  box-shadow: 0 6px 22px rgba(168, 85, 247, 0.28);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.44) 0%, rgba(168, 85, 247, 0.16) 45%, rgba(26, 20, 46, 0.98) 100%);
+  border-color: #c084fc;
+  box-shadow: 0 8px 28px rgba(168, 85, 247, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.pos-op-card--tables .pos-op-card-subtitle {
+  color: #d8b4fe;
 }
 .pos-op-card--tables .pos-op-card-icon {
-  background: rgba(168, 85, 247, 0.22);
-  color: #c084fc;
+  background: rgba(168, 85, 247, 0.35);
+  color: #ffffff;
+  border: 1.5px solid rgba(168, 85, 247, 0.70);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
 }
 .pos-op-card--tables .pos-op-card-pill {
-  background: rgba(168, 85, 247, 0.22);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: #9333ea;
+  color: #ffffff;
+  border: 1px solid #c084fc;
+  box-shadow: 0 2px 10px rgba(147, 51, 234, 0.5);
+}
+.pos-op-card--tables:hover .pos-op-card-pill {
+  background: #a855f7;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.7);
 }
 
-/* Card 2: Running Orders (Cyan Theme) */
+/* Card 2: Running Orders (Cyan Theme - High Contrast) */
 .pos-op-card--orders {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(15, 25, 42, 0.92) 100%);
-  border: 1.5px solid rgba(56, 189, 248, 0.38);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.30) 0%, rgba(56, 189, 248, 0.10) 45%, rgba(14, 24, 40, 0.98) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.75);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(56, 189, 248, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 .pos-op-card--orders:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.42) 0%, rgba(56, 189, 248, 0.16) 45%, rgba(18, 30, 50, 0.98) 100%);
   border-color: #38bdf8;
-  box-shadow: 0 6px 22px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 8px 28px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.pos-op-card--orders .pos-op-card-subtitle {
+  color: #93c5fd;
 }
 .pos-op-card--orders .pos-op-card-icon {
-  background: rgba(56, 189, 248, 0.2);
-  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.32);
+  color: #ffffff;
+  border: 1.5px solid rgba(56, 189, 248, 0.70);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
 }
 .pos-op-card--orders .pos-op-card-pill {
-  background: rgba(56, 189, 248, 0.2);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.5);
+}
+.pos-op-card--orders:hover .pos-op-card-pill {
+  background: #0ea5e9;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
 }
 
-/* Ready Orders State (Green highlight) */
+/* Ready Orders State (Emerald Highlight - High Contrast) */
 .pos-op-card--orders-ready {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(13, 28, 22, 0.92) 100%);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(16, 185, 129, 0.12) 45%, rgba(12, 28, 22, 0.98) 100%);
   border: 1.5px solid #10b981;
-  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35), 0 0 16px rgba(16, 185, 129, 0.25);
 }
 .pos-op-card--orders-ready:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.45) 0%, rgba(16, 185, 129, 0.18) 45%, rgba(16, 36, 28, 0.98) 100%);
   border-color: #34d399;
-  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 8px 28px rgba(16, 185, 129, 0.5);
+}
+.pos-op-card--orders-ready .pos-op-card-subtitle {
+  color: #6ee7b7;
 }
 .pos-op-card--orders-ready .pos-op-card-icon {
-  background: rgba(16, 185, 129, 0.25);
-  color: #34d399;
+  background: rgba(16, 185, 129, 0.35);
+  color: #ffffff;
+  border: 1.5px solid #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
 }
 .pos-op-card--orders-ready .pos-op-card-pill {
-  background: #10b981;
+  background: #059669;
   color: #ffffff;
-  border: 1px solid #10b981;
+  border: 1px solid #34d399;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
 }
 
-/* Card 3: Custom Item (Warm Amber/Gold Theme) */
+/* Card 3: Custom Item (Warm Amber/Gold Theme - High Contrast) */
 .pos-op-card--custom {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(32, 24, 12, 0.92) 100%);
-  border: 1.5px solid rgba(245, 158, 11, 0.38);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.10) 45%, rgba(32, 22, 10, 0.98) 100%);
+  border: 1.5px dashed rgba(245, 158, 11, 0.80);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(245, 158, 11, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 .pos-op-card--custom:hover {
-  border-color: #f59e0b;
-  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.25);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.40) 0%, rgba(245, 158, 11, 0.16) 45%, rgba(42, 28, 12, 0.98) 100%);
+  border-color: #fbbf24;
+  box-shadow: 0 8px 28px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.pos-op-card--custom .pos-op-card-title {
+  color: #fde047;
+}
+.pos-op-card--custom .pos-op-card-subtitle {
+  color: #fed7aa;
 }
 .pos-op-card--custom .pos-op-card-icon {
-  background: rgba(245, 158, 11, 0.22);
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.35);
+  color: #fde047;
+  border: 1.5px solid rgba(245, 158, 11, 0.70);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
 }
 .pos-op-card--custom .pos-op-card-pill {
-  background: rgba(245, 158, 11, 0.22);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: #d97706;
+  color: #ffffff;
+  border: 1px solid #fbbf24;
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.5);
+}
+.pos-op-card--custom:hover .pos-op-card-pill {
+  background: #f59e0b;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.7);
 }
 
 /* Light Mode Overrides */
