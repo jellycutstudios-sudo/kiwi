@@ -1889,7 +1889,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   padding: 8px 22px;
   border-bottom: 1px solid var(--color-separator);
   background: var(--color-surface, #ffffff);
-  min-height: 54px;
+  min-height: 62px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
 }
@@ -1904,7 +1904,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .pos-category-scroll {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -1912,7 +1912,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex: 1;
   min-width: 0;
   scroll-snap-type: x proximity;
-  scroll-padding: 0 8px;
+  scroll-padding: 0 16px;
 }
 
 .pos-category-scroll::-webkit-scrollbar {
@@ -1934,10 +1934,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .category-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 9px;
+  padding: 0 18px;
   border-radius: var(--clay-radius-chip, 12px);
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
@@ -1953,7 +1953,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  min-height: 42px;
+  min-height: 46px;
+  height: 46px;
   flex-shrink: 0;
   scroll-snap-align: start;
 }
@@ -1964,7 +1965,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .category-chip-name {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2002,18 +2003,23 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .category-chip-count {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 750;
-  opacity: 0.9;
-  padding: 2px 7px;
-  border-radius: 6px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
   background: #f1ede6;
   color: #475569;
-  line-height: 1.2;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .category-chip.active .category-chip-count {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
 
@@ -11507,9 +11513,10 @@ html.dark .tm-segmented-glider {
 
   /* Category chips touch tab sizing */
   .category-chip {
-    padding: 7px 14px;
-    font-size: 13px;
-    min-height: 38px;
+    padding: 0 16px;
+    font-size: 14px;
+    min-height: 44px;
+    height: 44px;
   }
 
   /* Sidebar nav items */
@@ -13856,15 +13863,17 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
   .pos-category-bar {
     padding: 6px var(--space-4);
-    gap: 6px;
+    gap: 8px;
+    min-height: 56px;
   }
   .menu-dietary-bar {
     padding: 3px var(--space-4);
   }
   .category-chip {
-    padding: 6px 13px;
-    font-size: 13px;
-    min-height: 38px;
+    padding: 0 16px;
+    font-size: 13.5px;
+    min-height: 44px;
+    height: 44px;
   }
   .dietary-chip {
     padding: 5px 12px;
@@ -15071,46 +15080,49 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   background: #11131c;
   border-bottom: 1.5px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  min-height: 62px;
 }
 
 [data-theme="dark"] .category-chip {
-  background: #1a1d2c;
+  background: #171a28;
   color: #e2e8f0;
   border: 1.5px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  min-height: 46px;
+  height: 46px;
 }
 
 [data-theme="dark"] .category-chip:hover {
-  background: #25293d;
+  background: #23273a;
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.28);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .category-chip.active {
-  background: #282c40 !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
   color: #ffffff !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+  border: 1.5px solid #34d399 !important;
   font-weight: 750 !important;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 
 [data-theme="dark"] .category-chip.active:hover {
-  background: #2e334a !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  border-color: #6ee7b7 !important;
 }
 
 [data-theme="dark"] .category-chip-count {
   background: rgba(255, 255, 255, 0.14);
   color: #e2e8f0;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 [data-theme="dark"] .category-chip.active .category-chip-count {
-  background: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.28) !important;
   color: #ffffff !important;
-  font-weight: 750;
+  font-weight: 800;
 }
 
 /* Dietary Quick Filters Bar — Vibrant, Eye-Friendly Jewel Tones */

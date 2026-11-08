@@ -1436,7 +1436,7 @@ export default function POS() {
                 role="tab"
                 aria-selected={activeCat === 'all'}
                 className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-                onClick={() => { setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
               >
                 <span className="category-chip-name">All Items</span>
                 <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
@@ -1448,7 +1448,7 @@ export default function POS() {
                   role="tab"
                   aria-selected={activeCat === c.id}
                   className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
-                  onClick={() => { setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                  onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
                 >
                   <span className="category-chip-name">{c.name}</span>
                   {c.items?.length > 0 && (
@@ -1460,7 +1460,7 @@ export default function POS() {
                 type="button"
                 id="add-custom-item-chip"
                 className="category-chip category-chip--custom"
-                onClick={() => setShowOpenItemModal(true)}
+                onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
                 title="Add off-menu daily special or custom priced item"
               >
                 <span className="category-chip-name">+ Custom Item</span>
