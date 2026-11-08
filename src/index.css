@@ -2511,6 +2511,221 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
+/* ==========================================================================
+   Quick Operations Strip (Tables, Active Orders, Custom Item)
+   ========================================================================== */
+.pos-operations-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.pos-operations-strip.has-two-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pos-op-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 70px;
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.16s ease,
+              background 0.16s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.pos-op-card:hover {
+  transform: translateY(-2px);
+}
+
+.pos-op-card:active {
+  transform: scale(0.985);
+}
+
+.pos-op-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pos-op-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pos-op-card-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.pos-op-card-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.pos-op-card-subtitle {
+  font-size: 12px;
+  color: var(--color-label-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pos-op-card-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.pos-op-card:hover .pos-op-card-pill {
+  opacity: 0.95;
+  transform: translateX(1px);
+}
+
+/* Card 1: Tables (Violet/Purple Theme) */
+.pos-op-card--tables {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.16) 0%, rgba(24, 18, 42, 0.92) 100%);
+  border: 1.5px solid rgba(168, 85, 247, 0.38);
+}
+.pos-op-card--tables:hover {
+  border-color: #a855f7;
+  box-shadow: 0 6px 22px rgba(168, 85, 247, 0.28);
+}
+.pos-op-card--tables .pos-op-card-icon {
+  background: rgba(168, 85, 247, 0.22);
+  color: #c084fc;
+}
+.pos-op-card--tables .pos-op-card-pill {
+  background: rgba(168, 85, 247, 0.22);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+/* Card 2: Running Orders (Cyan Theme) */
+.pos-op-card--orders {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(15, 25, 42, 0.92) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.38);
+}
+.pos-op-card--orders:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 6px 22px rgba(56, 189, 248, 0.25);
+}
+.pos-op-card--orders .pos-op-card-icon {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+.pos-op-card--orders .pos-op-card-pill {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+/* Ready Orders State (Green highlight) */
+.pos-op-card--orders-ready {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(13, 28, 22, 0.92) 100%);
+  border: 1.5px solid #10b981;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.25);
+}
+.pos-op-card--orders-ready:hover {
+  border-color: #34d399;
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.35);
+}
+.pos-op-card--orders-ready .pos-op-card-icon {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+.pos-op-card--orders-ready .pos-op-card-pill {
+  background: #10b981;
+  color: #ffffff;
+  border: 1px solid #10b981;
+}
+
+/* Card 3: Custom Item (Warm Amber/Gold Theme) */
+.pos-op-card--custom {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(32, 24, 12, 0.92) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.38);
+}
+.pos-op-card--custom:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.25);
+}
+.pos-op-card--custom .pos-op-card-icon {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fbbf24;
+}
+.pos-op-card--custom .pos-op-card-pill {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+/* Light Mode Overrides */
+[data-theme="light"] .pos-op-card-title {
+  color: #0f172a;
+}
+[data-theme="light"] .pos-op-card--tables {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, #ffffff 100%);
+}
+[data-theme="light"] .pos-op-card--orders {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, #ffffff 100%);
+}
+[data-theme="light"] .pos-op-card--orders-ready {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, #ffffff 100%);
+}
+[data-theme="light"] .pos-op-card--custom {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, #ffffff 100%);
+}
+
+@media (max-width: 900px) {
+  .pos-operations-strip {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 580px) {
+  .pos-operations-strip {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
 /* Tablet & Mobile responsive adjustments */
 @media (max-width: 1024px) {
   .pos-category-cards-grid {

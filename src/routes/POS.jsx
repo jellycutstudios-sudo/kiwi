@@ -1550,17 +1550,38 @@ export default function POS() {
         {isShowingCategoryCards ? (
           <div className="pos-category-cards-container">
             {/* Quick Operations & Utility Strip (Distinct from Food Categories) */}
-            <div className="pos-operations-strip" style={{
-              display: 'flex',
-              alignItems: 'stretch',
-              gap: 12,
-              marginBottom: 20,
-              flexWrap: 'wrap'
-            }}>
-              {/* Active Orders Card (Kitchen & Settlement Pass) */}
+            <div className={`pos-operations-strip ${runningOrders.length === 0 ? 'has-two-cards' : ''}`}>
+              {/* 1. Table Map & Floor Plan Card (Table First) */}
+              <div
+                className="pos-op-card pos-op-card--tables"
+                id="cat-card-tables"
+                onClick={() => navigate('/tables')}
+                role="button"
+                tabIndex={0}
+                title="Go to Table Map & Floor Plan"
+              >
+                <div className="pos-op-card-left">
+                  <div className="pos-op-card-icon">
+                    <Armchair size={20} />
+                  </div>
+                  <div className="pos-op-card-text">
+                    <div className="pos-op-card-title">
+                      <span>{tableName ? `Table ${tableName}` : 'Tables & Floor'}</span>
+                    </div>
+                    <div className="pos-op-card-subtitle">
+                      {tableName ? 'Change table / floor' : 'Live tables & seating'}
+                    </div>
+                  </div>
+                </div>
+                <span className="pos-op-card-pill">
+                  Floor Map →
+                </span>
+              </div>
+
+              {/* 2. Active Orders Card (Active Orders Second) */}
               {runningOrders.length > 0 && (
                 <div
-                  className="pos-op-card"
+                  className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
                   id="cat-card-active-orders"
                   onClick={() => {
                     if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
@@ -1572,172 +1593,61 @@ export default function POS() {
                   }}
                   role="button"
                   tabIndex={0}
-                  style={{
-                    flex: '1 1 280px',
-                    background: readyOrdersCount > 0 
-                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(13, 26, 20, 0.92) 100%)' 
-                      : 'linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(15, 23, 42, 0.92) 100%)',
-                    border: readyOrdersCount > 0 ? '1.5px solid #10b981' : '1.5px solid rgba(56, 189, 248, 0.45)',
-                    borderRadius: 14,
-                    padding: '12px 18px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    boxShadow: readyOrdersCount > 0 ? '0 4px 18px rgba(16, 185, 129, 0.25)' : '0 4px 16px rgba(0, 0, 0, 0.35)',
-                    transition: 'all 0.15s ease'
-                  }}
+                  title="View active kitchen tickets, takeaway & settlement pass"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 10,
-                      background: readyOrdersCount > 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: readyOrdersCount > 0 ? '#34d399' : '#38bdf8',
-                      flexShrink: 0
-                    }}>
+                  <div className="pos-op-card-left">
+                    <div className="pos-op-card-icon">
                       {readyOrdersCount > 0 ? <Bell size={20} /> : <FileText size={20} />}
                     </div>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="pos-op-card-text">
+                      <div className="pos-op-card-title">
                         <span>
                           {readyOrdersCount > 0 
-                            ? `${readyOrdersCount} Orders Ready on Pass` 
+                            ? `${readyOrdersCount} Orders Ready` 
                             : pendingOnlineOrdersCount > 0 
-                            ? `${pendingOnlineOrdersCount} New Online Orders` 
+                            ? `${pendingOnlineOrdersCount} Online Orders` 
                             : `${runningOrders.length} Running Orders`}
                         </span>
                         {readyOrdersCount > 0 && (
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffffff', display: 'inline-block' }} />
                         )}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                        Kitchen tickets, takeaway &amp; settlement pass
+                      <div className="pos-op-card-subtitle">
+                        Kitchen tickets &amp; pass
                       </div>
                     </div>
                   </div>
-                  <span style={{
-                    background: readyOrdersCount > 0 ? '#10b981' : 'rgba(56, 189, 248, 0.2)',
-                    color: readyOrdersCount > 0 ? '#ffffff' : '#38bdf8',
-                    padding: '6px 14px',
-                    borderRadius: 20,
-                    fontSize: 12.5,
-                    fontWeight: 800,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}>
+                  <span className="pos-op-card-pill">
                     View Pass →
                   </span>
                 </div>
               )}
 
-              {/* Table Map & Floor Plan Quick Access Card */}
+              {/* 3. Custom Item Card (Custom Last) */}
               <div
-                className="pos-op-card"
-                id="cat-card-tables"
-                onClick={() => navigate('/tables')}
-                role="button"
-                tabIndex={0}
-                style={{
-                  flex: runningOrders.length > 0 ? '1 1 260px' : '1 1 300px',
-                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.16) 0%, rgba(20, 18, 36, 0.92) 100%)',
-                  border: '1.5px solid rgba(139, 92, 246, 0.45)',
-                  borderRadius: 14,
-                  padding: '12px 18px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
-                  transition: 'all 0.15s ease'
-                }}
-                title="Go to Table Map & Floor Plan"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: 'rgba(139, 92, 246, 0.22)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#c084fc',
-                    flexShrink: 0
-                  }}>
-                    <Armchair size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span>{tableName ? `Table ${tableName}` : 'Tables & Floor Plan'}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                      {tableName ? 'Switch table or view floor layout' : 'Live seating & floor map'}
-                    </div>
-                  </div>
-                </div>
-                <span style={{
-                  background: 'rgba(139, 92, 246, 0.22)',
-                  color: '#c084fc',
-                  padding: '6px 14px',
-                  borderRadius: 20,
-                  fontSize: 12.5,
-                  fontWeight: 800,
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}>
-                  Floor Map →
-                </span>
-              </div>
-
-              {/* + Custom Item Action Card */}
-              <div
+                className="pos-op-card pos-op-card--custom"
                 id="cat-card-custom"
                 onClick={() => setShowOpenItemModal(true)}
                 role="button"
                 tabIndex={0}
-                style={{
-                  flex: runningOrders.length > 0 ? '0 1 220px' : '0 1 240px',
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1.5px dashed rgba(245, 158, 11, 0.45)',
-                  borderRadius: 14,
-                  padding: '12px 18px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  transition: 'all 0.15s ease'
-                }}
+                title="Add off-menu daily special or custom priced item"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: 'rgba(245, 158, 11, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fbbf24',
-                    fontSize: 18,
-                    fontWeight: 900,
-                    flexShrink: 0
-                  }}>
-                    +
+                <div className="pos-op-card-left">
+                  <div className="pos-op-card-icon">
+                    <Plus size={20} strokeWidth={2.5} />
                   </div>
-                  <div>
-                    <div style={{ fontSize: 14.5, fontWeight: 800, color: '#fbbf24' }}>+ Custom Item</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', marginTop: 2 }}>Daily special / off-menu</div>
+                  <div className="pos-op-card-text">
+                    <div className="pos-op-card-title">
+                      <span>Custom Item</span>
+                    </div>
+                    <div className="pos-op-card-subtitle">
+                      Daily special / off-menu
+                    </div>
                   </div>
                 </div>
-                <span style={{ color: '#fbbf24', fontSize: 18, fontWeight: 700 }}>+</span>
+                <span className="pos-op-card-pill">
+                  + Add Item
+                </span>
               </div>
             </div>
 
