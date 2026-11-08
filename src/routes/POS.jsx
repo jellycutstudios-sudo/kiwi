@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, ArrowRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -1990,35 +1990,87 @@ export default function POS() {
           </div>
         )}
 
-        {/* Collapsible Order & Table Header: Auto-collapses on first item to save ~80px */}
+        {/* Collapsible Order & Table Header: Compact, organized & touch-optimized */}
         {items.length > 0 && isHeaderCollapsed ? (
           <div
             className="cart-header-summary-strip"
             onClick={() => setIsHeaderCollapsed(false)}
-            title="Click to change order type, table, or customer details"
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setIsHeaderCollapsed(false)}
+            title="Click bar to expand full order details"
+            role="region"
+            aria-label="Order summary bar"
           >
             <div className="cart-header-summary-left">
-              <span className="cart-header-summary-badge type-badge">
-                {isRetail ? 'Purchase' : (isService ? 'Service' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway'))}
-              </span>
+              {/* Order Type Chip with Direct 1-Tap Toggle */}
+              <button
+                type="button"
+                className="cart-header-summary-chip type-chip"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (orderTypes.length > 1) {
+                    const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
+                    handleOrderTypeChange(orderTypes[nextIdx].key);
+                  } else {
+                    setIsHeaderCollapsed(false);
+                  }
+                }}
+                title={orderTypes.length > 1 ? `Order mode: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode` : 'Order mode'}
+              >
+                {orderType === 'dine-in' ? (
+                  <UtensilsCrossed size={12} className="summary-chip-icon" />
+                ) : (
+                  <ShoppingBag size={12} className="summary-chip-icon" />
+                )}
+                <span className="summary-chip-label">
+                  {isRetail ? 'Purchase' : (isService ? 'Service' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway'))}
+                </span>
+                {orderTypes.length > 1 && <ChevronDown size={10} className="summary-chip-caret" />}
+              </button>
+
+              {/* Table Selector Chip (Dine-In) with Direct 1-Tap Floor Map Modal */}
               {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
-                <span className={`cart-header-summary-badge table-badge ${tableId ? 'has-table' : ''}`}>
-                  {tableId ? `Table ${tableName}` : 'Select Table'}
+                <div className="cart-header-summary-table-group">
+                  <button
+                    type="button"
+                    className={`cart-header-summary-chip table-chip ${tableId ? 'has-table' : 'needs-table'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowTableSel(true);
+                    }}
+                    title={tableId ? `Table ${tableName} assigned - Tap to switch` : 'Tap to select table from floor map'}
+                  >
+                    <Armchair size={12} className="summary-chip-icon" />
+                    <span className="summary-chip-label">
+                      {tableId ? `Table ${tableName}` : 'Select Table'}
+                    </span>
+                    {!tableId && <span className="summary-chip-badge">Choose ▾</span>}
+                  </button>
+                  {tableId && (
+                    <button
+                      type="button"
+                      className="cart-header-summary-unassign-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTable(null, null);
+                      }}
+                      title="Clear table assignment"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Customer Chip */}
+              {(customer || customerName) && (
+                <span className="cart-header-summary-chip cust-chip" title="Assigned customer">
+                  <User size={12} className="summary-chip-icon" />
+                  <span className="summary-chip-label">
+                    {customer ? customer.name : customerName}
+                  </span>
                 </span>
               )}
-              {customer ? (
-                <span className="cart-header-summary-badge cust-badge">
-                  {customer.name}
-                </span>
-              ) : customerName ? (
-                <span className="cart-header-summary-badge cust-badge">
-                  {customerName}
-                </span>
-              ) : null}
             </div>
+
             <button
               type="button"
               className="cart-header-edit-btn"
@@ -2026,7 +2078,7 @@ export default function POS() {
                 e.stopPropagation();
                 setIsHeaderCollapsed(false);
               }}
-              title="Edit order details"
+              title="Expand full order details"
             >
               <span>Edit</span>
               <ChevronDown size={11} />
