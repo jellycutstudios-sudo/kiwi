@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useOrderStore } from '../../stores/orderStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { printReceipt, printKitchenTickets } from '../../utils/print';
+import { printReceipt } from '../../utils/print';
 import { getOrderElapsedSeconds } from '../../utils/timezoneUtils';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
-  Edit2, Bell, FileText, Globe, Bike, Phone, MapPin, ChefHat,
+  Edit2, Bell, FileText, Globe, Bike, Phone, MapPin, CreditCard,
   ChevronDown, ChevronUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -65,8 +65,6 @@ export default function ActiveOrdersModal({
   const takeawayCount = useMemo(() => {
     return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup' || (o.type === 'online' && o.orderType === 'takeaway')).length;
   }, [runningOrders]);
-
-  const [acceptingId, setAcceptingId] = useState(null);
 
   const filteredOrders = useMemo(() => {
     return runningOrders.filter(o => {
@@ -130,39 +128,6 @@ export default function ActiveOrdersModal({
       toast.error('Settle failed: ' + err.message);
     } finally {
       setSettlingId(null);
-    }
-  };
-
-  const handleAcceptOrder = async (order) => {
-    if (acceptingId === order.id) return;
-    setAcceptingId(order.id);
-    try {
-      await updateOrderStatus(restaurant.id, order.id, 'preparing');
-      toast.success('Online order accepted! Kitchen preparing 🍳', { icon: '✅' });
-      // Print kitchen ticket if configured
-      try {
-        printKitchenTickets({
-          restaurant,
-          order: { ...order, status: 'preparing' },
-          items: order.items || [],
-          serverName: order.customerName || 'Online Order'
-        });
-      } catch {
-        // silent fail on kitchen ticket print if no printer configured
-      }
-    } catch (err) {
-      toast.error('Failed to accept order: ' + err.message);
-    } finally {
-      setAcceptingId(null);
-    }
-  };
-
-  const handleMarkReady = async (order) => {
-    try {
-      await updateOrderStatus(restaurant.id, order.id, 'ready');
-      toast.success(`Order marked Ready for ${order.orderType === 'delivery' ? 'Delivery' : 'Pickup'}! 🔔`);
-    } catch (err) {
-      toast.error('Update failed: ' + err.message);
     }
   };
 
@@ -386,6 +351,7 @@ export default function ActiveOrdersModal({
               const isTakeaway = order.type === 'takeaway' || order.type === 'pickup' || (isOnline && order.orderType === 'takeaway');
               const isReady = order.status === 'ready';
               const isPending = order.status === 'pending';
+              const isOnlinePending = isOnline && isPending;
               const isUnpaid = order.paymentMethod === 'unpaid';
               const elapsedSec = getOrderElapsedSeconds(order, now);
               const elapsedMins = Math.floor(elapsedSec / 60);
@@ -398,12 +364,12 @@ export default function ActiveOrdersModal({
                   style={{
                     background: 'var(--color-bg-secondary)',
                     borderRadius: 14,
-                    border: isPending ? '1.5px solid #8b5cf6' : (isReady ? '1.5px solid #10b981' : '1px solid var(--color-separator-opaque)'),
+                    border: isOnlinePending ? '1.5px solid #8b5cf6' : (isReady ? '1.5px solid #10b981' : '1px solid var(--color-separator-opaque)'),
                     padding: '16px 18px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 12,
-                    boxShadow: isPending ? '0 4px 16px rgba(139, 92, 246, 0.22)' : (isReady ? '0 4px 16px rgba(16, 185, 129, 0.18)' : '0 2px 8px rgba(0,0,0,0.06)'),
+                    boxShadow: isOnlinePending ? '0 4px 16px rgba(139, 92, 246, 0.22)' : (isReady ? '0 4px 16px rgba(16, 185, 129, 0.18)' : '0 2px 8px rgba(0,0,0,0.06)'),
                     transition: 'all 0.2s ease',
                   }}
                 >
@@ -492,11 +458,11 @@ export default function ActiveOrdersModal({
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
                           READY ON PASS
                         </span>
-                      ) : isPending ? (
+                      ) : isOnlinePending ? (
                         <span style={{
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          background: 'rgba(139, 92, 246, 0.15)',
+                          color: '#8b5cf6',
+                          border: '1px solid rgba(139, 92, 246, 0.35)',
                           padding: '4px 10px',
                           borderRadius: 8,
                           fontSize: 11.5,
@@ -505,7 +471,7 @@ export default function ActiveOrdersModal({
                           alignItems: 'center',
                           gap: 5
                         }}>
-                          <Bell size={12} /> NEW ORDER
+                          <Bell size={12} /> NEW WEB ORDER
                         </span>
                       ) : (
                         <span style={{
@@ -624,50 +590,50 @@ export default function ActiveOrdersModal({
                     )}
                   </div>
 
-                  {/* Action Buttons: Touch-Optimized with 38px Tap Targets & Balanced Groups */}
+                  {/* Action Buttons: Touch-Optimized for Cashier Billing (40px Tap Targets, Clean 2-Group Layout) */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 10,
+                    gap: 12,
                     flexWrap: 'wrap',
-                    paddingTop: 2
+                    paddingTop: 4
                   }}>
-                    {/* Left Group: Secondary Actions (Edit & Print) */}
+                    {/* Left: Order Management (Edit & Print Bill) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       {/* Recall / Edit in Cart */}
                       {onLoadOrderToCart && (
                         <button
                           type="button"
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-secondary"
                           onClick={() => {
                             onLoadOrderToCart(order);
                             onClose();
                             toast.success(`Loaded ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'order')} into cart`);
                           }}
                           style={{
-                            height: 38,
-                            fontSize: 12.5,
+                            height: 40,
+                            fontSize: 13,
                             fontWeight: 700,
-                            gap: 5,
+                            gap: 6,
                             padding: '0 14px',
                             borderRadius: 10,
                             color: 'var(--color-label-secondary)'
                           }}
                           title="Load items back into cart to modify"
                         >
-                          <Edit2 size={13} /> Edit
+                          <Edit2 size={14} /> Edit
                         </button>
                       )}
 
                       {/* Print Customer Bill */}
                       <button
                         type="button"
-                        className="btn btn-secondary btn-sm"
+                        className="btn btn-secondary"
                         onClick={() => handlePrint(order)}
                         style={{
-                          height: 38,
-                          fontSize: 12.5,
+                          height: 40,
+                          fontSize: 13,
                           fontWeight: 700,
                           gap: 6,
                           padding: '0 14px',
@@ -679,90 +645,39 @@ export default function ActiveOrdersModal({
                       </button>
                     </div>
 
-                    {/* Right Group: Primary Flow & Settlement Actions */}
+                    {/* Right: Payment & Settlement */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      {/* Accept & Cook for pending online orders */}
-                      {isPending && (
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => handleAcceptOrder(order)}
-                          disabled={acceptingId === order.id}
-                          style={{
-                            height: 38,
-                            fontSize: 13,
-                            fontWeight: 800,
-                            gap: 6,
-                            padding: '0 16px',
-                            background: '#8b5cf6',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 10,
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.35)'
-                          }}
-                          title="Accept order into kitchen and update customer tracker"
-                        >
-                          <ChefHat size={15} /> Accept & Cook
-                        </button>
-                      )}
-
-                      {/* Mark Ready for preparing orders */}
-                      {order.status === 'preparing' && (
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => handleMarkReady(order)}
-                          style={{
-                            height: 38,
-                            fontSize: 12.5,
-                            fontWeight: 700,
-                            gap: 5,
-                            padding: '0 14px',
-                            background: 'rgba(16, 185, 129, 0.16)',
-                            color: '#10b981',
-                            border: '1.5px solid #10b981',
-                            borderRadius: 10,
-                            cursor: 'pointer'
-                          }}
-                          title="Mark food prepared and ready for customer pickup or delivery"
-                        >
-                          <Check size={14} strokeWidth={2.5} /> Mark Ready
-                        </button>
-                      )}
-
-                      {/* Settle (If Unpaid) */}
-                      {isUnpaid && (
+                      {isUnpaid ? (
                         <>
                           {onOpenPayment && (
                             <button
                               type="button"
-                              className="btn btn-secondary btn-sm"
+                              className="btn btn-secondary"
                               onClick={() => {
                                 onLoadOrderToCart(order);
                                 onClose();
                                 onOpenPayment();
                               }}
                               style={{
-                                height: 38,
-                                fontSize: 12.5,
+                                height: 40,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 gap: 6,
-                                padding: '0 14px',
+                                padding: '0 15px',
                                 borderRadius: 10
                               }}
                               title="Open Card / UPI / Split Payment Drawer"
                             >
-                              Card / UPI
+                              <CreditCard size={14} /> Card / UPI
                             </button>
                           )}
                           <button
                             type="button"
-                            className="btn btn-sm"
+                            className="btn"
                             onClick={() => handleQuickCashSettle(order)}
                             disabled={settlingId === order.id}
                             style={{
-                              height: 38,
+                              height: 40,
                               fontSize: 13,
                               fontWeight: 800,
                               gap: 6,
@@ -779,25 +694,22 @@ export default function ActiveOrdersModal({
                             <Zap size={14} fill="#fff" /> Quick Cash
                           </button>
                         </>
-                      )}
-
-                      {/* Mark Complete (If Paid or Takeaway ready) */}
-                      {(!isUnpaid || isReady) && (
+                      ) : (
                         <button
                           type="button"
-                          className="btn btn-sm btn-primary"
+                          className="btn btn-primary"
                           onClick={() => handleMarkComplete(order)}
                           style={{
-                            height: 38,
+                            height: 40,
                             fontSize: 13,
                             fontWeight: 800,
                             gap: 6,
-                            padding: '0 16px',
+                            padding: '0 18px',
                             borderRadius: 10
                           }}
                           title="Mark handed over to customer & remove from active pass"
                         >
-                          <Check size={14} strokeWidth={2.5} /> Complete
+                          <Check size={15} strokeWidth={2.5} /> Complete
                         </button>
                       )}
                     </div>
