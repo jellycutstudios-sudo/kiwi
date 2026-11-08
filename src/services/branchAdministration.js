@@ -78,7 +78,8 @@ export async function createBranch(input) {
       currency: input.currency, ownerUid: ownerUid || createdBy, email: owner?.data()?.email || '',
       status: input.status || 'pending',
       businessType: isBillOnly ? 'bill_only' : 'restaurant',
-      modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'],
+      accountType: isBillOnly ? 'bill_only' : 'restaurant',
+      modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile'],
       quickPayEnabled: isBillOnly ? true : Boolean(input.quickPayEnabled),
       speedDialEnabled: isBillOnly ? true : Boolean(input.speedDialEnabled),
       kitchenConfig: { mode: isBillOnly ? 'disabled' : 'both' },
@@ -177,7 +178,10 @@ export async function updateBranchAccountType(restaurantId, businessType) {
     if (!branch.exists()) throw new Error('Branch not found.');
     tx.update(branchRef, {
       businessType: isBillOnly ? 'bill_only' : 'restaurant',
-      modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'],
+      accountType: isBillOnly ? 'bill_only' : 'restaurant',
+      modes: isBillOnly 
+        ? ['pos', 'till_shift'] 
+        : ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile'],
       quickPayEnabled: isBillOnly ? true : false,
       speedDialEnabled: isBillOnly ? true : false,
       'kitchenConfig.mode': isBillOnly ? 'disabled' : 'both',

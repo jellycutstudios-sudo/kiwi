@@ -139,7 +139,8 @@ const TABS = [
 export default function Settings() {
   const { restaurant, staffDoc } = useAuthStore();
   const isSuperAdmin = staffDoc?.role === 'super_admin';
-  const isBillOnlyPlan = restaurant?.businessType === 'bill_only' || restaurant?.accountType === 'bill_only';
+  const effectiveType = restaurant?.businessType || restaurant?.accountType || 'restaurant';
+  const isBillOnlyPlan = effectiveType === 'bill_only';
   const isLockedPlan = isBillOnlyPlan && !isSuperAdmin;
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
 
@@ -735,6 +736,7 @@ export default function Settings() {
       // Enforce tier limits: non-super-admin accounts on Just Billing cannot enable advanced dine-in/KDS features
       if (isLockedPlan) {
         settingsToSave.businessType = 'bill_only';
+        settingsToSave.accountType = 'bill_only';
         const rawModes = Array.isArray(settingsToSave.modes) ? settingsToSave.modes : [];
         settingsToSave.modes = rawModes.filter(k => !ADVANCED_FEATURE_KEYS.includes(k));
         if (!settingsToSave.modes.includes('pos')) {
@@ -744,6 +746,10 @@ export default function Settings() {
           settingsToSave.kitchenConfig = {};
         }
         settingsToSave.kitchenConfig.mode = 'disabled';
+      } else {
+        const targetType = settingsToSave.businessType || 'restaurant';
+        settingsToSave.businessType = targetType;
+        settingsToSave.accountType = targetType;
       }
 
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
@@ -1612,6 +1618,7 @@ export default function Settings() {
                           const mappedBusinessType = preset.id === 'dine_in' ? 'restaurant' : preset.id;
                           updateField('modes', newModes);
                           updateField('businessType', mappedBusinessType);
+                          updateField('accountType', mappedBusinessType);
                           
                           const isKds = newModes.includes('kds');
                           updateField('kitchenConfig.mode', isKds ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');

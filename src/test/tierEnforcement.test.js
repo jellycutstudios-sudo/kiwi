@@ -101,5 +101,29 @@ describe('Tier Enforcement for Just Billing vs Advanced Accounts', () => {
   it('keeps /admin/staff accessible to admin in Just Billing mode for cashier account management', () => {
     expect(shouldRedirectRoute({ businessType: 'bill_only', role: 'admin', pathname: '/admin/staff' })).toBe(false);
   });
+
+  it('correctly enables all advanced features when switching from bill_only to restaurant', () => {
+    const upgraded = {
+      businessType: 'restaurant',
+      role: 'admin',
+      modes: ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile'],
+      kitchenConfig: { mode: 'both' }
+    };
+    const result = sanitizeModesForTier(upgraded);
+    expect(result.businessType).toBe('restaurant');
+    expect(result.modes).toContain('table');
+    expect(result.modes).toContain('kds');
+    expect(result.modes).toContain('reservations');
+    expect(result.modes).toContain('payroll');
+    expect(result.kitchenConfig.mode).toBe('both');
+
+    // All routes are accessible without redirect
+    expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/tables' })).toBe(false);
+    expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/kds' })).toBe(false);
+    expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/reservations' })).toBe(false);
+    expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/delivery-hub' })).toBe(false);
+    expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/floor' })).toBe(false);
+    expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/posters' })).toBe(false);
+  });
 });
 

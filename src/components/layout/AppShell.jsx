@@ -57,7 +57,8 @@ export default function AppShell() {
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const isSuperAdmin = staffDoc?.role === 'super_admin';
-  const isBillOnly = restaurant?.businessType === 'bill_only' || restaurant?.accountType === 'bill_only';
+  const effectiveType = restaurant?.businessType || restaurant?.accountType || 'restaurant';
+  const isBillOnly = effectiveType === 'bill_only';
 
   // Enforce tier route protection: Block Just Billing users from accessing advanced dine-in/KDS routes
   useEffect(() => {

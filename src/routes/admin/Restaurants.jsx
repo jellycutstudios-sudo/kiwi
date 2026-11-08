@@ -307,7 +307,10 @@ export default function Restaurants() {
         phone: form.phone.trim(),
         currency: form.currency,
         businessType: isBillOnly ? 'bill_only' : 'restaurant',
-        modes: isBillOnly ? ['pos', 'till_shift'] : ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'],
+        accountType: isBillOnly ? 'bill_only' : 'restaurant',
+        modes: isBillOnly 
+          ? ['pos', 'till_shift'] 
+          : ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile'],
         quickPayEnabled: isBillOnly ? true : false,
         speedDialEnabled: isBillOnly ? true : false,
         kitchenConfig: { mode: isBillOnly ? 'disabled' : 'both' },

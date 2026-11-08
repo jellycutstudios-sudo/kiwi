@@ -115,6 +115,7 @@ describe('branch administration transactions', () => {
     });
     const branch = memory.docs.get(`restaurants/${id}`);
     expect(branch.businessType).toBe('bill_only');
+    expect(branch.accountType).toBe('bill_only');
     expect(branch.modes).toEqual(['pos', 'till_shift']);
     expect(branch.quickPayEnabled).toBe(true);
     expect(branch.kitchenConfig).toEqual({ mode: 'disabled' });
@@ -122,11 +123,13 @@ describe('branch administration transactions', () => {
   it('updates existing branch account type between advanced and bill-only', async () => {
     await updateBranchAccountType('a', 'bill_only');
     expect(memory.docs.get('restaurants/a').businessType).toBe('bill_only');
+    expect(memory.docs.get('restaurants/a').accountType).toBe('bill_only');
     expect(memory.docs.get('restaurants/a').modes).toEqual(['pos', 'till_shift']);
     expect(memory.docs.get('restaurants/a')['kitchenConfig.mode']).toBe('disabled');
 
     await updateBranchAccountType('a', 'restaurant');
     expect(memory.docs.get('restaurants/a').businessType).toBe('restaurant');
+    expect(memory.docs.get('restaurants/a').accountType).toBe('restaurant');
     expect(memory.docs.get('restaurants/a').modes).toContain('table');
     expect(memory.docs.get('restaurants/a').modes).toContain('kds');
     expect(memory.docs.get('restaurants/a')['kitchenConfig.mode']).toBe('both');
