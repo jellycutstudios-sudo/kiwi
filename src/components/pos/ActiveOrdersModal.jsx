@@ -5,7 +5,7 @@ import { printReceipt } from '../../utils/print';
 import { getOrderElapsedSeconds } from '../../utils/timezoneUtils';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
-  Edit2, Bell, FileText, Globe, Bike, Phone, MapPin, CreditCard,
+  Edit2, Bell, FileText, Globe, CreditCard,
   ChevronDown, ChevronUp, LayoutList, LayoutGrid
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -442,217 +442,140 @@ export default function ActiveOrdersModal({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {/* Top Bar: Token/Table + Status Badge + Elapsed Time */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {/* Icon Capsule */}
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        background: isOnline 
-                          ? (isDelivery ? 'rgba(56, 189, 248, 0.2)' : 'rgba(139, 92, 246, 0.2)')
-                          : (isTakeaway ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'),
-                        color: isOnline 
-                          ? (isDelivery ? '#38bdf8' : '#c084fc')
-                          : (isTakeaway ? '#fbbf24' : '#60a5fa'),
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                      }}>
-                        {isDelivery ? <Bike size={18} /> : (isOnline ? <Globe size={18} /> : (isTakeaway ? <ShoppingBag size={18} /> : <Utensils size={18} />))}
-                      </span>
-
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 16.5, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px' }}>
-                            {order.tableName 
-                              ? `Table ${order.tableName}` 
-                              : (order.token 
-                                  ? `Token #${order.token}` 
-                                  : (isDelivery ? `Delivery #${order.id.slice(-4).toUpperCase()}` : (isOnline ? `Online #${order.id.slice(-4).toUpperCase()}` : 'Takeaway Order')))}
+                  {/* Top Bar: Table/Order Title + Meta Info on Left, Bill Amount on Right */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 17, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.3px' }}>
+                          {order.tableName 
+                            ? `Table ${order.tableName}` 
+                            : (order.token 
+                                ? `Token #${order.token}` 
+                                : (isDelivery ? 'Delivery' : (isTakeaway ? 'Takeaway' : (isOnline ? 'Online Order' : 'Order'))))}
+                        </span>
+                        {isOnline && (
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            background: 'rgba(168, 85, 247, 0.2)',
+                            color: '#c084fc',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            border: '1px solid rgba(168, 85, 247, 0.4)'
+                          }}>
+                            {order.source ? String(order.source).toUpperCase() : 'ONLINE'}
                           </span>
-                          {isOnline && (
-                            <span style={{
-                              fontSize: 10,
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              background: 'rgba(168, 85, 247, 0.2)',
-                              color: '#c084fc',
-                              padding: '2px 6px',
-                              borderRadius: 4,
-                              border: '1px solid rgba(168, 85, 247, 0.4)'
-                            }}>
-                              {order.source ? String(order.source).toUpperCase() : 'ONLINE PORTAL'}
-                            </span>
-                          )}
-                          {order.customerName && (
-                            <span style={{ fontSize: 13.5, color: '#e2e8f0', fontWeight: 600 }}>
-                              · {order.customerName}
-                            </span>
-                          )}
-                          {order.customerPhone && (
-                            <span style={{ fontSize: 11.5, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                              <Phone size={11} /> {order.customerPhone}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, fontWeight: 500 }}>
-                          #{order.id.slice(-4).toUpperCase()} • {itemsCount} items
-                          {order.deliveryAddress && (
-                            <span style={{ marginLeft: 8, color: '#e2e8f0', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <MapPin size={11} color="#38bdf8" /> {order.deliveryAddress}
-                            </span>
-                          )}
-                        </div>
+                        )}
+                        {isReady && (
+                          <span style={{
+                            background: 'rgba(16, 185, 129, 0.2)',
+                            color: '#34d399',
+                            border: '1px solid rgba(16, 185, 129, 0.5)',
+                            padding: '2px 7px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
+                            READY
+                          </span>
+                        )}
+                        {!isUnpaid && (
+                          <span style={{
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#34d399',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            padding: '2px 6px',
+                            borderRadius: 5,
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                          }}>
+                            PAID
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Clean Subtitle: items count + elapsed minutes */}
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
+                        <span>•</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: elapsedMins > 25 ? '#f87171' : (elapsedMins > 15 ? '#fbbf24' : '#94a3b8'), fontWeight: elapsedMins > 15 ? 700 : 500 }}>
+                          <Clock size={11} /> {elapsedMins}m
+                        </span>
+                        {order.customerName && (
+                          <>
+                            <span>•</span>
+                            <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{order.customerName}</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {/* Status & Payment Pills (High Contrast) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {/* Kitchen Prep Status */}
-                      {isReady ? (
-                        <span style={{
-                          background: 'rgba(16, 185, 129, 0.22)',
-                          color: '#34d399',
-                          border: '1.5px solid rgba(16, 185, 129, 0.55)',
-                          padding: '4px 10px',
-                          borderRadius: 8,
-                          fontSize: 11.5,
-                          fontWeight: 800,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5
-                        }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399' }} />
-                          READY ON PASS
-                        </span>
-                      ) : isOnlinePending ? (
-                        <span style={{
-                          background: 'rgba(168, 85, 247, 0.22)',
-                          color: '#c084fc',
-                          border: '1.5px solid rgba(168, 85, 247, 0.55)',
-                          padding: '4px 10px',
-                          borderRadius: 8,
-                          fontSize: 11.5,
-                          fontWeight: 800,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5
-                        }}>
-                          <Bell size={12} /> NEW WEB ORDER
-                        </span>
-                      ) : (
-                        <span style={{
-                          background: 'rgba(245, 158, 11, 0.2)',
-                          color: '#fbbf24',
-                          border: '1.5px solid rgba(245, 158, 11, 0.55)',
-                          padding: '4px 10px',
-                          borderRadius: 8,
-                          fontSize: 11.5,
-                          fontWeight: 800,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5
-                        }}>
-                          <Clock size={12} />
-                          {elapsedMins}m in Kitchen
-                        </span>
-                      )}
-
-                      {/* Payment Pill */}
-                      <span style={{
-                        background: isUnpaid ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                        color: isUnpaid ? '#f87171' : '#34d399',
-                        border: isUnpaid ? '1.5px solid rgba(239, 68, 68, 0.55)' : '1.5px solid rgba(16, 185, 129, 0.55)',
-                        padding: '4px 10px',
-                        borderRadius: 8,
-                        fontSize: 11.5,
-                        fontWeight: 800,
-                      }}>
-                        {isUnpaid ? 'UNPAID' : `PAID (${(order.paymentMethod || 'cash').toUpperCase()})`}
+                    {/* Total Bill Amount: Large, Prominent at Top Right */}
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.3px' }}>
+                        {formatCurrency(order.total ?? 0, currency)}
                       </span>
                     </div>
                   </div>
 
-                  {/* Items Preview with Tap-to-Expand Details (High Contrast) */}
+                  {/* Items Preview Line (Minimal, Clean Text without heavy inset box) */}
                   <div 
                     onClick={() => toggleOrderExpand(order.id)}
                     style={{
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      borderRadius: 10,
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      overflow: 'hidden'
+                      padding: '2px 0',
+                      transition: 'opacity 0.15s ease'
                     }}
-                    title="Tap to toggle complete item breakdown"
+                    title="Tap to view item breakdown"
                   >
-                    <div style={{
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 12
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                        <span style={{
-                          fontSize: 13,
-                          color: '#f1f5f9',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontWeight: 500
-                        }}>
-                          {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
-                        </span>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          color: '#94a3b8',
-                          flexShrink: 0
-                        }}>
-                          {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                        </span>
-                      </div>
-                      <strong style={{ fontSize: 16, fontWeight: 900, color: '#38bdf8', flexShrink: 0 }}>
-                        {formatCurrency(order.total ?? 0, currency)}
-                      </strong>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{
+                        fontSize: 12.5,
+                        color: '#cbd5e1',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 500,
+                        flex: 1
+                      }}>
+                        {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
+                      </span>
+                      <span style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </span>
                     </div>
 
                     {/* Detailed Item List (when expanded on tap) */}
                     {isExpanded && (
                       <div style={{
-                        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                        padding: '10px 14px',
+                        marginTop: 8,
+                        padding: '8px 10px',
+                        background: 'rgba(0, 0, 0, 0.25)',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 8,
-                        background: 'rgba(0, 0, 0, 0.2)'
+                        gap: 6
                       }}>
                         {(order.items || []).map((item, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ 
-                                fontWeight: 800, 
-                                background: 'rgba(255, 255, 255, 0.08)', 
-                                padding: '1px 6px', 
-                                borderRadius: 4,
-                                border: '1px solid rgba(255, 255, 255, 0.15)',
-                                color: '#ffffff',
-                                fontSize: 11
-                              }}>
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 800, color: '#ffffff', background: 'rgba(255, 255, 255, 0.1)', padding: '1px 5px', borderRadius: 4 }}>
                                 {item.qty}×
                               </span>
-                              <span style={{ fontWeight: 600, color: '#ffffff' }}>{item.name}</span>
+                              <span style={{ color: '#ffffff', fontWeight: 600 }}>{item.name}</span>
                               {item.selectedModifiers?.map((m, mIdx) => (
-                                <span key={mIdx} style={{ fontSize: 11, color: '#94a3b8', background: 'rgba(255, 255, 255, 0.08)', padding: '0 5px', borderRadius: 3 }}>
+                                <span key={mIdx} style={{ fontSize: 10.5, color: '#94a3b8' }}>
                                   +{m.name}
                                 </span>
                               ))}
                             </div>
-                            <span style={{ fontWeight: 700, color: '#cbd5e1' }}>
+                            <span style={{ fontWeight: 700, color: '#94a3b8' }}>
                               {formatCurrency((item.price || 0) * (item.qty || 1), currency)}
                             </span>
                           </div>
@@ -661,138 +584,144 @@ export default function ActiveOrdersModal({
                     )}
                   </div>
 
-                  {/* Action Buttons: Touch-Optimized for Cashier Billing (40px Tap Targets, High Contrast) */}
+                  {/* Action Buttons: 1 Single Clean Row (Zero wrapping!) */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                    paddingTop: 2
+                    gap: 8,
+                    paddingTop: 8,
+                    borderTop: '1px solid rgba(255, 255, 255, 0.08)'
                   }}>
-                    {/* Left: Order Management (Edit & Print Bill) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      {/* Recall / Edit in Cart */}
+                    {/* Left: Tools */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       {onLoadOrderToCart && (
                         <button
                           type="button"
-                          className="btn"
                           onClick={() => {
                             onLoadOrderToCart(order);
                             onClose();
                             toast.success(`Loaded ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'order')} into cart`);
                           }}
                           style={{
-                            height: 40,
-                            fontSize: 13,
+                            height: 38,
+                            fontSize: 12.5,
                             fontWeight: 700,
-                            gap: 6,
-                            padding: '0 13px',
-                            borderRadius: 10,
+                            gap: 5,
+                            padding: '0 10px',
+                            borderRadius: 8,
                             background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.22)',
+                            border: '1px solid rgba(255, 255, 255, 0.18)',
                             color: '#ffffff',
+                            display: 'inline-flex',
+                            alignItems: 'center',
                             cursor: 'pointer'
                           }}
-                          title="Load items back into cart to modify"
+                          title="Edit order in cart"
                         >
-                          <Edit2 size={14} /> Edit
+                          <Edit2 size={13} /> Edit
                         </button>
                       )}
 
-                      {/* Print Customer Bill */}
                       <button
                         type="button"
-                        className="btn"
                         onClick={() => handlePrint(order)}
                         style={{
-                          height: 40,
-                          fontSize: 13,
+                          height: 38,
+                          fontSize: 12.5,
                           fontWeight: 700,
-                          gap: 6,
-                          padding: '0 13px',
-                          borderRadius: 10,
+                          gap: 5,
+                          padding: '0 10px',
+                          borderRadius: 8,
                           background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid rgba(255, 255, 255, 0.22)',
+                          border: '1px solid rgba(255, 255, 255, 0.18)',
                           color: '#ffffff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
                           cursor: 'pointer'
                         }}
-                        title="Print Customer Bill / Tax Receipt"
+                        title="Print Customer Bill"
                       >
-                        <Printer size={14} /> Print Bill
+                        <Printer size={13} /> Bill
                       </button>
                     </div>
 
-                    {/* Right: Payment & Settlement */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {/* Right: Settlement */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       {isUnpaid ? (
                         <>
                           {onOpenPayment && (
                             <button
                               type="button"
-                              className="btn"
                               onClick={() => {
                                 onLoadOrderToCart(order);
                                 onClose();
                                 onOpenPayment();
                               }}
                               style={{
-                                height: 40,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                gap: 6,
-                                padding: '0 14px',
-                                borderRadius: 10,
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                                height: 38,
+                                fontSize: 12.5,
+                                fontWeight: 700,
+                                gap: 5,
+                                padding: '0 11px',
+                                borderRadius: 8,
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1.5px solid rgba(56, 189, 248, 0.4)',
                                 color: '#38bdf8',
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 cursor: 'pointer'
                               }}
-                              title="Open Card / UPI / Split Payment Drawer"
+                              title="Card / UPI"
                             >
-                              <CreditCard size={14} /> Card / UPI
+                              <CreditCard size={13} /> Card / UPI
                             </button>
                           )}
                           <button
                             type="button"
-                            className="btn"
                             onClick={() => handleQuickCashSettle(order)}
                             disabled={settlingId === order.id}
                             style={{
-                              height: 40,
+                              height: 38,
                               fontSize: 13,
-                              fontWeight: 900,
-                              gap: 6,
-                              padding: '0 16px',
+                              fontWeight: 800,
+                              gap: 5,
+                              padding: '0 13px',
+                              borderRadius: 8,
                               background: '#10b981',
+                              border: 'none',
                               color: '#ffffff',
-                              border: '1px solid #059669',
-                              borderRadius: 10,
+                              display: 'inline-flex',
+                              alignItems: 'center',
                               cursor: 'pointer',
-                              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)'
+                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
                             }}
-                            title="Settle full bill via Cash and print receipt"
+                            title="Quick Cash Settle"
                           >
-                            <Zap size={14} fill="#fff" /> Quick Cash
+                            <Zap size={13} fill="#fff" /> Quick Cash
                           </button>
                         </>
                       ) : (
                         <button
                           type="button"
-                          className="btn btn-primary"
                           onClick={() => handleMarkComplete(order)}
                           style={{
-                            height: 40,
+                            height: 38,
                             fontSize: 13,
                             fontWeight: 800,
-                            gap: 6,
-                            padding: '0 18px',
-                            borderRadius: 10,
-                            border: '1px solid rgba(255, 255, 255, 0.2)'
+                            gap: 5,
+                            padding: '0 16px',
+                            borderRadius: 8,
+                            background: 'var(--color-primary, #3b82f6)',
+                            border: 'none',
+                            color: '#ffffff',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            cursor: 'pointer'
                           }}
-                          title="Mark handed over to customer & remove from active pass"
+                          title="Complete order"
                         >
-                          <Check size={15} strokeWidth={2.5} /> Complete
+                          <Check size={14} strokeWidth={2.5} /> Complete
                         </button>
                       )}
                     </div>
