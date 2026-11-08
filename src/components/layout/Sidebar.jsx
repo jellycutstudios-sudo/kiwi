@@ -831,7 +831,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                   const NavIcon = (isAccountNav && isSuperAdmin) ? ShieldCheck : n.icon;
                   const navLabel = isAccountNav
                     ? (isSuperAdmin ? 'Businesses & Branches' : 'Outlets & Branches')
-                    : (n.key === 'menu' && terms?.catalog ? terms.catalog : t(n.label));
+                    : (n.key === 'menu' && terms?.catalog ? terms.catalog : (n.key === 'staff' && isBillOnly ? 'Cashiers' : t(n.label)));
 
                   return (
                     <NavLink

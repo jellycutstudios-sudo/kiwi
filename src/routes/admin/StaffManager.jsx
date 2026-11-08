@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
+import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 'lucide-react';
@@ -20,6 +21,7 @@ const ROLE_LABELS = {
 export default function StaffManager() {
   const { restaurant, staffDoc: currentUser } = useAuthStore();
   const { staff } = useStaffStore();
+  const { isBillOnly } = useBusinessConfig();
   const [credentials, setCredentials] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [showPin, setShowPin] = useState(false);
@@ -327,9 +329,9 @@ export default function StaffManager() {
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
-          <h2 className="text-title2">Staff Manager</h2>
+          <h2 className="text-title2">{isBillOnly ? 'Cashier Accounts' : 'Staff Manager'}</h2>
           <p className="text-secondary text-subhead" style={{marginTop:2}}>
-            Restaurant ID for PIN login: <strong style={{fontFamily:'var(--font-mono)', color:'var(--color-accent)'}}>{restaurant?.customId || restaurant?.id}</strong>
+            Restaurant ID for {isBillOnly ? 'Cashier ' : ''}PIN login: <strong style={{fontFamily:'var(--font-mono)', color:'var(--color-accent)'}}>{restaurant?.customId || restaurant?.id}</strong>
             {restaurant?.customId && (
               <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginLeft: '8px' }}>
                 (Original ID: {restaurant.id})
@@ -338,13 +340,13 @@ export default function StaffManager() {
           </p>
         </div>
         <button className="btn btn-primary" id="add-staff-btn" onClick={() => { setEditId(null); setForm({name:'',pin:'',role:'cashier',email:'',salaryType:'monthly',salaryRate:'',overtimeRate:'1.5'}); setShowPin(false); setShowForm(true); }}>
-          <Plus size={16}/> Add Staff
+          <Plus size={16}/> {isBillOnly ? 'Add Cashier' : 'Add Staff'}
         </button>
       </div>
 
       <div className="card">
         <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <span className="card-title">Staff Members ({staffList.length})</span>
+          <span className="card-title">{isBillOnly ? 'Cashiers' : 'Staff Members'} ({staffList.length})</span>
           {staffList.length > 0 && (
             <button
               type="button"
@@ -364,7 +366,7 @@ export default function StaffManager() {
           {staffList.length === 0 ? (
             <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
               <div style={{fontSize:32}}>👥</div>
-              <div style={{marginTop:'var(--space-2)'}}>No staff added yet</div>
+              <div style={{marginTop:'var(--space-2)'}}>{isBillOnly ? 'No cashiers added yet' : 'No staff added yet'}</div>
             </div>
           ) : staffList.map(s => (
             <div key={s.id} className="staff-row" style={{ opacity: s.active === false ? 0.5 : 1 }}>
@@ -446,7 +448,7 @@ export default function StaffManager() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="modal">
             <div className="modal-header">
-              <h2 className="modal-title">{editId ? 'Edit Staff' : 'Add Staff Member'}</h2>
+              <h2 className="modal-title">{editId ? (isBillOnly ? 'Edit Cashier' : 'Edit Staff') : (isBillOnly ? 'Add Cashier' : 'Add Staff Member')}</h2>
               <button className="btn btn-secondary btn-icon" onClick={() => setShowForm(false)}><X size={16}/></button>
             </div>
             <div className="modal-body">
@@ -454,7 +456,7 @@ export default function StaffManager() {
                 <label className="form-label">
                   Full Name <span style={{ color: 'var(--color-red)' }}>*</span>
                 </label>
-                <input id="staff-name-input" className="form-input" placeholder="e.g. Rahul Sharma" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
+                <input id="staff-name-input" className="form-input" placeholder={isBillOnly ? "e.g. Ramesh Cashier" : "e.g. Rahul Sharma"} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
               </div>
               <div className="form-group">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
@@ -506,40 +508,68 @@ export default function StaffManager() {
                   </button>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
-                  <span>Numeric PIN used by staff to switch accounts and sign into POS</span>
+                  <span>{isBillOnly ? '4-digit PIN used by the cashier to log into the register' : 'Numeric PIN used by staff to switch accounts and sign into POS'}</span>
                   <span style={{ fontWeight: 600, color: form.pin.length === 4 ? 'var(--color-green)' : 'inherit' }}>
                     {form.pin.length}/4 digits
                   </span>
                 </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Role</label>
-                <select id="staff-role-select" className="form-select" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
-                  {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || (r.charAt(0).toUpperCase()+r.slice(1))}</option>)}
-                </select>
-              </div>
+              {isBillOnly ? (
+                <div className="form-group">
+                  <label className="form-label">Role</label>
+                  <div style={{
+                    padding: '8px 12px',
+                    background: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-separator)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--color-label)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <span>Cashier (Register & Counter Billing)</span>
+                    <span className="badge badge-blue">Cashier</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: '4px' }}>
+                    Cashiers can only bill items and operate the register. Settings and sales reports are protected.
+                  </div>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Role</label>
+                  <select id="staff-role-select" className="form-select" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
+                    {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || (r.charAt(0).toUpperCase()+r.slice(1))}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">Email (optional)</label>
                 <input id="staff-email-input" className="form-input" type="email" placeholder="staff@restaurant.com" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label className="form-label">Salary Type</label>
-                  <select id="staff-salary-type-select" className="form-select" value={form.salaryType} onChange={e=>setForm(f=>({...f,salaryType:e.target.value}))}>
-                    <option value="monthly">Monthly Salary</option>
-                    <option value="hourly">Hourly Rate</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Rate / Salary ({restaurant?.currency || 'INR'})</label>
-                  <input id="staff-salary-rate-input" className="form-input" type="number" min={0} placeholder="e.g. 25000 or 50" value={form.salaryRate} onChange={e=>setForm(f=>({...f,salaryRate:e.target.value}))} />
-                </div>
-              </div>
-              {form.salaryType === 'hourly' && (
-                <div className="form-group">
-                  <label className="form-label">Overtime Multiplier</label>
-                  <input id="staff-overtime-rate-input" className="form-input" type="number" min={1} step={0.1} placeholder="e.g. 1.5" value={form.overtimeRate} onChange={e=>setForm(f=>({...f,overtimeRate:e.target.value}))} />
-                </div>
+              {!isBillOnly && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">Salary Type</label>
+                      <select id="staff-salary-type-select" className="form-select" value={form.salaryType} onChange={e=>setForm(f=>({...f,salaryType:e.target.value}))}>
+                        <option value="monthly">Monthly Salary</option>
+                        <option value="hourly">Hourly Rate</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Rate / Salary ({restaurant?.currency || 'INR'})</label>
+                      <input id="staff-salary-rate-input" className="form-input" type="number" min={0} placeholder="e.g. 25000 or 50" value={form.salaryRate} onChange={e=>setForm(f=>({...f,salaryRate:e.target.value}))} />
+                    </div>
+                  </div>
+                  {form.salaryType === 'hourly' && (
+                    <div className="form-group">
+                      <label className="form-label">Overtime Multiplier</label>
+                      <input id="staff-overtime-rate-input" className="form-input" type="number" min={1} step={0.1} placeholder="e.g. 1.5" value={form.overtimeRate} onChange={e=>setForm(f=>({...f,overtimeRate:e.target.value}))} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="modal-footer">

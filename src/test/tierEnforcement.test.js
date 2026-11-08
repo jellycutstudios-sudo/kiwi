@@ -97,5 +97,9 @@ describe('Tier Enforcement for Just Billing vs Advanced Accounts', () => {
     expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/kds' })).toBe(false);
     expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/reservations' })).toBe(false);
   });
+
+  it('keeps /admin/staff accessible to admin in Just Billing mode for cashier account management', () => {
+    expect(shouldRedirectRoute({ businessType: 'bill_only', role: 'admin', pathname: '/admin/staff' })).toBe(false);
+  });
 });
 
