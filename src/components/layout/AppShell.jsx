@@ -387,8 +387,8 @@ export default function AppShell() {
                   className={`pos-dietary-pill veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
                   title="Filter Vegetarian items (tap again to clear)"
                 >
-                  <span className="food-badge-veg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
-                  <span>Veg</span>
+                  <span className="food-badge-veg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
+                  <span className="pos-dietary-pill-label">Veg</span>
                 </button>
 
                 <button
@@ -398,8 +398,8 @@ export default function AppShell() {
                   className={`pos-dietary-pill nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
                   title="Filter Non-Vegetarian items (tap again to clear)"
                 >
-                  <span className="food-badge-nonveg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
-                  <span>Non-Veg</span>
+                  <span className="food-badge-nonveg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
+                  <span className="pos-dietary-pill-label">Non-Veg</span>
                 </button>
 
                 <button
@@ -409,8 +409,8 @@ export default function AppShell() {
                   className={`pos-dietary-pill popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
                   title="Filter Bestseller & Popular items (tap again to clear)"
                 >
-                  <Flame size={12} />
-                  <span>Popular</span>
+                  <Flame size={13} />
+                  <span className="pos-dietary-pill-label">Popular</span>
                 </button>
               </div>
 
@@ -425,7 +425,7 @@ export default function AppShell() {
                     className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
                     id="pos-switch-cards-btn"
                   >
-                    <LayoutGrid size={13} className="density-icon" />
+                    <LayoutGrid size={14} className="density-icon" />
                     <span className="density-label">Cards</span>
                   </button>
                   <button
@@ -436,7 +436,7 @@ export default function AppShell() {
                     className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
                     id="pos-switch-keys-btn"
                   >
-                    <Zap size={12} className="density-bolt-icon" />
+                    <Zap size={13} className="density-bolt-icon" />
                     <span className="density-label density-label--full">Fast Keys</span>
                     <span className="density-label density-label--short">Keys</span>
                   </button>
@@ -448,9 +448,8 @@ export default function AppShell() {
                   onClick={() => setIsFocusMode(!isFocusMode)}
                   title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
                   aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
-                  style={{ height: '34px', width: '34px', borderRadius: '8px' }}
                 >
-                  {isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
               </div>
             </div>
