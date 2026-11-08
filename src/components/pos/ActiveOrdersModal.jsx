@@ -159,9 +159,10 @@ export default function ActiveOrdersModal({
       <div style={{
         background: 'var(--color-bg)',
         borderRadius: 'var(--radius-xl)',
-        width: 'min(860px, 96vw)',
-        maxWidth: 860,
-        maxHeight: '90vh',
+        width: '860px',
+        maxWidth: 'min(860px, 95vw)',
+        height: 'min(640px, 88vh)',
+        minHeight: 'min(560px, 88vh)',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: 'var(--shadow-xl)',
@@ -329,7 +330,7 @@ export default function ActiveOrdersModal({
         </div>
 
         {/* Order List Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {filteredOrders.length === 0 ? (
             <div style={{
               textAlign: 'center',
@@ -338,9 +339,11 @@ export default function ActiveOrdersModal({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 8
+              justifyContent: 'center',
+              flex: 1,
+              gap: 10
             }}>
-              <FileText size={32} color="var(--color-label-tertiary)" />
+              <FileText size={36} color="var(--color-label-tertiary)" />
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No active orders found</div>
               <div style={{ fontSize: 12 }}>All kitchen orders have been served, settled, or completed!</div>
             </div>
