@@ -364,6 +364,8 @@ export default function Reservations() {
         )}
       </div>
 
+      {/* Tab Panes with Smooth Motion */}
+      <div key={activeTab} className="nav-tab-pane">
       {/* Booking List View */}
       {activeTab === 'bookings' && (
         <div className="card">
@@ -782,6 +784,7 @@ export default function Reservations() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Booking Reservation Form Modal */}
       {showResForm && (

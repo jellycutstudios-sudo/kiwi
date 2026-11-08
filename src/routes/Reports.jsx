@@ -669,8 +669,8 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* TAB CONTENTS */}
-
+      {/* TAB CONTENTS WITH SMOOTH CROSSFADE */}
+      <div key={activeTab} className="reports-tab-pane">
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
@@ -1450,6 +1450,7 @@ export default function Reports() {
           </div>
         </div>
       )}
+      </div>
 
       {/* AI Business Advisor Modal */}
       <AiBusinessAdvisorModal

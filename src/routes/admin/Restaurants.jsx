@@ -471,7 +471,8 @@ export default function Restaurants() {
         ))}
       </div>
 
-      {/* ── Tab Content: Accounts & Outlets Directory ────────────── */}
+      {/* ── Tab Content with Smooth Transition ────────────── */}
+      <div key={activeTab} className="nav-tab-pane">
       {activeTab === 'outlets' && isSuperAdmin && <BranchManagement restaurants={restaurants} usersMap={usersMap} onEnter={handleEnterConsole} onStatusChange={updateRestaurantStatus} />}
       {activeTab === 'outlets' && !isSuperAdmin && (
         <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
@@ -1536,6 +1537,8 @@ export default function Restaurants() {
           </div>
         </div>
       )}
+
+      </div>
 
       {showForm && (
         <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>

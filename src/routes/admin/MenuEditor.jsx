@@ -1455,6 +1455,13 @@ export default function MenuEditor() {
             {/* Segmented Pill Tab Bar */}
             <div className="modal-tabs-segmented-wrapper">
               <div className="modal-tabs-segmented">
+                <div
+                  className="modal-tabs-glider"
+                  style={{
+                    transform: `translate3d(calc(${activeTab === 'general' ? 0 : activeTab === 'modifiers' ? 1 : 2} * (100% + 4px)), 0, 0)`
+                  }}
+                  aria-hidden="true"
+                />
                 <button
                   type="button"
                   className={`modal-tab-segmented-btn ${activeTab === 'general' ? 'active' : ''}`}

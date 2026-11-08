@@ -1372,6 +1372,8 @@ export default function DeliveryHub() {
         })}
       </div>
 
+      {/* Tab Panes with Smooth Motion */}
+      <div key={activeTab} className="nav-tab-pane">
       {/* Partners Tab */}
       {activeTab === 'partners' && (
         <>
@@ -3136,6 +3138,7 @@ export default function DeliveryHub() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Platform Configuration Modal Overlay */}
       {configModal.isOpen && configModal.platformId && (

@@ -1048,8 +1048,8 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Content Area */}
-        <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-6)', minWidth: 0 }}>
+        {/* Content Area with smooth transition */}
+        <div key={activeTab} className="settings-tab-pane" style={{ display:'flex', flexDirection:'column', gap:'var(--space-6)', minWidth: 0 }}>
           
           {/* General Tab */}
           {activeTab === 'general' && (

@@ -1146,8 +1146,15 @@ export default function TableMap() {
 
           <div className="tm-toolbar-divider" />
 
-          {/* View Switcher: Grid vs Map */}
+          {/* View Switcher: Grid vs Map with Spring Glider */}
           <div className="tm-segmented-control" role="group" aria-label="View mode">
+            <div
+              className="tm-segmented-glider"
+              style={{
+                transform: `translate3d(${viewMode === 'grid' ? '0%' : '100%'}, 0, 0)`
+              }}
+              aria-hidden="true"
+            />
             <button
               type="button"
               className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}

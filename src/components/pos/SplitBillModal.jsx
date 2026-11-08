@@ -353,6 +353,13 @@ export default function SplitBillModal({
         {/* Mode Selector Tabs */}
         <div className="pos-split-controls-bar">
           <div className="pos-split-segmented-tabs">
+            <div
+              className="pos-split-glider"
+              style={{
+                transform: `translate3d(calc(${splitMode === 'seat' ? 0 : splitMode === 'even' ? 1 : 2} * (100% + 4px)), 0, 0)`
+              }}
+              aria-hidden="true"
+            />
             <button
               type="button"
               className={`pos-split-tab ${splitMode === 'seat' ? 'active' : ''}`}

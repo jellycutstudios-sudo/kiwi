@@ -374,7 +374,8 @@ export default function Customers() {
         ))}
       </div>
 
-      {/* ── Tab Content: Customer CRM Directory ────────────── */}
+      {/* ── Tab Content: Customer CRM Directory with Smooth Transition ────────────── */}
+      <div key={activeTab} className="nav-tab-pane">
       {activeTab === 'crm' && (
         <>
           {/* Stats Cards */}
@@ -728,6 +729,7 @@ export default function Customers() {
           </div>
         </div>
       )}
+      </div>
 
       {/* ── Modal: Add / Edit Customer CRM Form ───────────── */}
       {showForm && (
