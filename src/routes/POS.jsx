@@ -287,10 +287,6 @@ export default function POS() {
     return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup').length;
   }, [runningOrders]);
 
-  const readyTakeawayOrdersCount = useMemo(() => {
-    return runningOrders.filter(o => (o.type === 'takeaway' || o.type === 'pickup') && o.status === 'ready').length;
-  }, [runningOrders]);
-
   // Historical sales counts for calculating Bestsellers dynamically
   const [historicalSalesMap, setHistoricalSalesMap] = useState(() => {
     if (typeof localStorage === 'undefined') return {};
@@ -1438,43 +1434,41 @@ export default function POS() {
                   type="button"
                   className="category-chip"
                   onClick={() => {
-                    setActiveOrdersFilter('all');
+                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                    else setActiveOrdersFilter('all');
                     setShowActiveOrdersModal(true);
                   }}
                   style={{
-                    background: readyOrdersCount > 0 ? '#10b981' : 'rgba(59, 130, 246, 0.12)',
-                    color: readyOrdersCount > 0 ? '#fff' : '#2563eb',
-                    borderColor: readyOrdersCount > 0 ? '#10b981' : 'rgba(59, 130, 246, 0.3)',
+                    background: readyOrdersCount > 0 
+                      ? '#10b981' 
+                      : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.12)'),
+                    color: readyOrdersCount > 0 
+                      ? '#fff' 
+                      : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : '#2563eb'),
+                    borderColor: readyOrdersCount > 0 
+                      ? '#10b981' 
+                      : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.3)'),
                     fontWeight: 800
                   }}
-                  title="View active kitchen tickets & ready orders"
+                  title="View active kitchen tickets, takeaway pickup & settlement"
                 >
                   <span style={{ display: 'flex', alignItems: 'center' }}>
-                    {readyOrdersCount > 0 ? <Bell size={13} /> : <FileText size={13} />}
+                    {readyOrdersCount > 0 ? (
+                      <Bell size={13} />
+                    ) : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) ? (
+                      <ShoppingBag size={13} />
+                    ) : (
+                      <FileText size={13} />
+                    )}
                   </span>
-                  <span className="category-chip-name">{readyOrdersCount > 0 ? `${readyOrdersCount} Ready` : `${runningOrders.length} Orders`}</span>
-                </button>
-              )}
-              {takeawayOrdersCount > 0 && (
-                <button
-                  type="button"
-                  className="category-chip"
-                  onClick={() => {
-                    setActiveOrdersFilter('takeaway');
-                    setShowActiveOrdersModal(true);
-                  }}
-                  style={{
-                    background: readyTakeawayOrdersCount > 0 ? '#10b981' : 'rgba(245, 158, 11, 0.15)',
-                    color: readyTakeawayOrdersCount > 0 ? '#fff' : '#d97706',
-                    borderColor: readyTakeawayOrdersCount > 0 ? '#10b981' : 'rgba(245, 158, 11, 0.4)',
-                    fontWeight: 800
-                  }}
-                  title="View and settle active takeaway orders"
-                >
-                  <span style={{ display: 'flex', alignItems: 'center' }}>
-                    <ShoppingBag size={13} />
+                  <span className="category-chip-name">
+                    {readyOrdersCount > 0 
+                      ? `${readyOrdersCount} Ready` 
+                      : (takeawayOrdersCount === runningOrders.length 
+                          ? `${takeawayOrdersCount} Takeaway` 
+                          : `${runningOrders.length} Orders`)}
                   </span>
-                  <span className="category-chip-name">{readyTakeawayOrdersCount > 0 ? `${readyTakeawayOrdersCount} Ready Pickup` : `${takeawayOrdersCount} Takeaway`}</span>
                 </button>
               )}
               {categories.map(c => (
@@ -1830,10 +1824,12 @@ export default function POS() {
                 type="button"
                 className="btn btn-sm"
                 onClick={() => {
-                  setActiveOrdersFilter('all');
+                  if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                  else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                  else setActiveOrdersFilter('all');
                   setShowActiveOrdersModal(true);
                 }}
-                title="View active kitchen orders, reprint bills, or settle payments"
+                title="View active kitchen orders, takeaway pickup & settle payments"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1842,44 +1838,35 @@ export default function POS() {
                   padding: '0 8px',
                   fontSize: '11px',
                   borderRadius: 'var(--radius-full)',
-                  background: readyOrdersCount > 0 ? 'rgba(16, 185, 129, 0.16)' : 'var(--color-bg-secondary)',
-                  color: readyOrdersCount > 0 ? '#10b981' : 'var(--color-label)',
-                  border: readyOrdersCount > 0 ? '1px solid #10b981' : '1px solid var(--color-separator)',
-                  fontWeight: 700
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center' }}>
-                  {readyOrdersCount > 0 ? <Bell size={13} /> : <FileText size={13} />}
-                </span>
-                <span>{runningOrders.length} Order{runningOrders.length > 1 ? 's' : ''}</span>
-              </button>
-            )}
-            {takeawayOrdersCount > 0 && (
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={() => {
-                  setActiveOrdersFilter('takeaway');
-                  setShowActiveOrdersModal(true);
-                }}
-                title="View active takeaway orders & settle payments"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  height: '26px',
-                  padding: '0 8px',
-                  fontSize: '11px',
-                  borderRadius: 'var(--radius-full)',
-                  background: readyTakeawayOrdersCount > 0 ? '#10b981' : 'rgba(245, 158, 11, 0.16)',
-                  color: readyTakeawayOrdersCount > 0 ? '#ffffff' : '#d97706',
-                  border: readyTakeawayOrdersCount > 0 ? '1px solid #10b981' : '1px solid rgba(245, 158, 11, 0.4)',
-                  fontWeight: 800,
+                  background: readyOrdersCount > 0 
+                    ? 'rgba(16, 185, 129, 0.16)' 
+                    : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-bg-secondary)'),
+                  color: readyOrdersCount > 0 
+                    ? '#10b981' 
+                    : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '#d97706' : 'var(--color-label)'),
+                  border: readyOrdersCount > 0 
+                    ? '1px solid #10b981' 
+                    : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--color-separator)'),
+                  fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >
-                <ShoppingBag size={12} />
-                <span>{readyTakeawayOrdersCount > 0 ? `${readyTakeawayOrdersCount} Ready` : `${takeawayOrdersCount} Takeaway`}</span>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {readyOrdersCount > 0 ? (
+                    <Bell size={13} />
+                  ) : (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) ? (
+                    <ShoppingBag size={12} />
+                  ) : (
+                    <FileText size={13} />
+                  )}
+                </span>
+                <span>
+                  {readyOrdersCount > 0 
+                    ? `${readyOrdersCount} Ready` 
+                    : (takeawayOrdersCount === runningOrders.length 
+                        ? `${takeawayOrdersCount} Takeaway` 
+                        : `${runningOrders.length} Order${runningOrders.length > 1 ? 's' : ''}`)}
+                </span>
               </button>
             )}
             <button 
