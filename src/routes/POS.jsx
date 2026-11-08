@@ -1950,8 +1950,11 @@ export default function POS() {
             </div>
             <span className="cart-title-text">{t('cart')}</span>
             {items.length > 0 && (
-              <span className="cart-count-pill">
-                {items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}
+              <span 
+                className="cart-count-pill" 
+                title={`${items.reduce((s, i) => s + i.qty, 0)} ${items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}`}
+              >
+                {items.reduce((s, i) => s + i.qty, 0)}
               </span>
             )}
           </div>
@@ -1965,7 +1968,7 @@ export default function POS() {
               title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
             >
               <Banknote size={13} strokeWidth={2.2} />
-              <span>Till</span>
+              <span className="pos-cart-btn-label">Till</span>
               {activeShift && <span className="pos-cart-till-dot" title="Shift active" />}
             </button>
             {items.length > 0 && (
@@ -1986,7 +1989,7 @@ export default function POS() {
                 title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
               >
                 <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                <span>{confirmClearCart ? 'Clear All?' : t('clearCart')}</span>
+                <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
               </button>
             )}
             <button
