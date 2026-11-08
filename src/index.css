@@ -1112,6 +1112,9 @@ ul, ol { list-style: none; }
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
+  margin-left: auto;
+  z-index: 2;
 }
 
 /* ============================================================
@@ -2952,20 +2955,28 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* POS Topbar Center & Responsive Controls */
-.pos-topbar-center {
-  flex: 1;
+.top-bar.pos-top-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.pos-topbar-center {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
   position: relative;
 }
 
 .pos-search-wrapper {
-  flex: 1 1 240px;
-  min-width: 170px;
-  max-width: 380px;
+  flex: 1 1 160px;
+  min-width: 100px;
+  max-width: 280px;
   display: flex;
   align-items: center;
   position: relative;
@@ -2973,43 +2984,22 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-search-wrapper:focus-within {
-  max-width: 440px;
+  max-width: 340px;
 }
 
-.pos-topbar-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--color-separator);
-  opacity: 0.65;
-  margin: 0 2px;
-  flex-shrink: 0;
-}
-
-.pos-topbar-tables-btn {
-  height: 34px !important;
-  padding: 0 12px !important;
-  border-radius: 8px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  font-weight: 700 !important;
-  font-size: 12px !important;
-  background: rgba(139, 92, 246, 0.12) !important;
-  border: 1.5px solid rgba(139, 92, 246, 0.35) !important;
-  color: #c084fc !important;
-  cursor: pointer;
-  transition: all 0.15s ease !important;
-  white-space: nowrap !important;
-}
-
-.pos-topbar-tables-btn:hover {
-  background: rgba(139, 92, 246, 0.22) !important;
-  border-color: rgba(139, 92, 246, 0.5) !important;
-  transform: translateY(-1px);
-}
-
-.pos-topbar-tables-btn:active {
-  transform: scale(0.97);
+@media (max-width: 1200px) {
+  .pos-dietary-pill span:not([class*="food-badge"]) {
+    display: none;
+  }
+  .pos-dietary-pill {
+    padding: 0 7px;
+  }
+  .density-label--full {
+    display: none;
+  }
+  .density-label--short {
+    display: inline;
+  }
 }
 
 /* POS Topbar Dietary Segmented Control (Always visible on Desktop & Tablet) */

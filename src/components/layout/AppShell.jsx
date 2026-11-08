@@ -11,7 +11,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { 
   Bell, Menu, Search, X, Download, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap, Armchair
+  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap
 } from 'lucide-react';
 import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
@@ -378,8 +378,6 @@ export default function AppShell() {
                 )}
               </div>
 
-              <div className="pos-topbar-divider" />
-
               {/* Top Bar Dietary Filter Pills */}
               <div className="pos-dietary-topbar-pills" role="toolbar" aria-label="Dietary filters">
                 <button
@@ -416,9 +414,7 @@ export default function AppShell() {
                 </button>
               </div>
 
-              <div className="pos-topbar-divider" />
-
-              {/* View Controls: Cards vs Fast Keys + Tables Navigation + Fullscreen Focus */}
+              {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}
               <div className="pos-topbar-controls">
                 <div className="density-toggle" role="group" aria-label="Terminal view switcher">
                   <button
@@ -445,17 +441,6 @@ export default function AppShell() {
                     <span className="density-label density-label--short">Keys</span>
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary pos-topbar-tables-btn"
-                  onClick={() => navigate('/tables')}
-                  title="View Table Map & Floor Plan"
-                  id="topbar-tables-nav-btn"
-                >
-                  <Armchair size={14} />
-                  <span>Tables</span>
-                </button>
 
                 <button
                   type="button"
