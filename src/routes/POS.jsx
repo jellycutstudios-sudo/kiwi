@@ -2341,14 +2341,20 @@ export default function POS() {
                     <div className="cart-course-cards">
                     {courseItems.map(i => (
                       <div key={i.id} className="cart-item-card">
-                        {/* Row 1: Name + Price */}
+                        {/* Row 1: Item Name (left) + Remove [X] (top-right) */}
                         <div className="cart-item-card-top">
                           <span className="cart-item-card-name" title={i.name}>
                             {i.name}
                           </span>
-                          <span className="cart-item-card-price">
-                            {formatCurrency(i.price * i.qty, currency)}
-                          </span>
+                          <button
+                            type="button"
+                            className="cart-item-card-remove"
+                            onClick={() => handleCartRemove(i)}
+                            title="Remove item"
+                            aria-label={`Remove ${i.name}`}
+                          >
+                            <X size={13} strokeWidth={2.2} />
+                          </button>
                         </div>
 
                         {/* Optional Modifiers */}
@@ -2362,40 +2368,48 @@ export default function POS() {
                           </div>
                         )}
 
-                        {/* Row 2: Clean action row: special badges only when set → Stepper + Delete */}
+                        {/* Row 2: Price & Badges (bottom-left) + Stepper (bottom-right) */}
                         <div className="cart-item-card-bottom">
-                          {/* Hold Badge — only visible if explicitly on hold */}
-                          {i.prepState === 'hold' && (
-                            <button
-                              type="button"
-                              className="cart-status-badge hold"
-                              onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
-                              title="On hold - click to fire"
-                            >
-                              <Clock size={10} /> Hold
-                            </button>
-                          )}
+                          <div className="cart-item-card-left-meta">
+                            <span className="cart-item-card-price">
+                              {formatCurrency(i.price * i.qty, currency)}
+                            </span>
+                            {i.qty > 1 && (
+                              <span className="cart-item-card-unit-price">
+                                {formatCurrency(i.price, currency)} ea
+                              </span>
+                            )}
 
-                          {/* Seat Badge — only visible if item is specifically tagged to a seat */}
-                          {orderType === 'dine-in' && i.seatNumber && (
-                            <button
-                              type="button"
-                              className="cart-item-seat-badge"
-                              onClick={() => {
-                                hapticTap('light');
-                                const nextSeat = i.seatNumber >= 4 ? null : i.seatNumber + 1;
-                                setItemSeat(i.id, nextSeat, i.selectedModifiers);
-                              }}
-                              title={`Seat ${i.seatNumber} - click to change`}
-                            >
-                              Seat {i.seatNumber}
-                            </button>
-                          )}
+                            {/* Hold Badge — only visible if explicitly on hold */}
+                            {i.prepState === 'hold' && (
+                              <button
+                                type="button"
+                                className="cart-status-badge hold"
+                                onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
+                                title="On hold - click to fire"
+                              >
+                                <Clock size={10} /> Hold
+                              </button>
+                            )}
 
-                          {/* Spacer pushes stepper and delete to far right */}
-                          <span style={{ flex: 1 }} />
+                            {/* Seat Badge — only visible if item is specifically tagged to a seat */}
+                            {orderType === 'dine-in' && i.seatNumber && (
+                              <button
+                                type="button"
+                                className="cart-item-seat-badge"
+                                onClick={() => {
+                                  hapticTap('light');
+                                  const nextSeat = i.seatNumber >= 4 ? null : i.seatNumber + 1;
+                                  setItemSeat(i.id, nextSeat, i.selectedModifiers);
+                                }}
+                                title={`Seat ${i.seatNumber} - click to change`}
+                              >
+                                Seat {i.seatNumber}
+                              </button>
+                            )}
+                          </div>
 
-                          {/* Tactile Stepper */}
+                          {/* Tactile Stepper on bottom right */}
                           <div className="cart-stepper">
                             <button
                               type="button"
@@ -2436,16 +2450,6 @@ export default function POS() {
                               <Plus size={11} strokeWidth={2.5} />
                             </button>
                           </div>
-
-                          {/* Touch-Friendly Far Right Delete Button */}
-                          <button
-                            type="button"
-                            className="cart-item-card-remove"
-                            onClick={() => handleCartRemove(i)}
-                            title="Remove item"
-                          >
-                            <X size={14} />
-                          </button>
                         </div>
                       </div>
                     ))}
