@@ -45,7 +45,7 @@ export default function App() {
   const { initAuthListener, loading, user, staffDoc, restaurant } = useAuthStore();
   const userRole = staffDoc?.role ?? null;
   const isSuperAdmin = userRole === 'super_admin';
-  const isApproved = isSuperAdmin || restaurant?.status === 'approved';
+  const isApproved = isSuperAdmin || restaurant?.status === 'approved' || (!restaurant?.status && restaurant?.status !== 'pending' && restaurant?.status !== 'suspended') || restaurant?.status === 'active';
 
   // Init Firebase auth listener once on mount
   useEffect(() => {

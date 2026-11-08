@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
-import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, doc, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -57,6 +57,31 @@ export default function StaffManager() {
       };
     });
   }, [staff, credentials]);
+
+  // Auto-heal / sync staff_auth documents for all staff members with a valid PIN
+  useEffect(() => {
+    if (!restaurant?.id || !db || staffList.length === 0) return;
+    staffList.forEach(async (s) => {
+      const pin = String(s.pin || '').trim();
+      if (pin && pin.length === 4) {
+        try {
+          const authRef = doc(db, 'restaurants', restaurant.id, 'staff_auth', pin);
+          const authSnap = await getDoc(authRef);
+          if (!authSnap.exists()) {
+            await setDoc(authRef, {
+              staffId: s.id,
+              name: s.name,
+              role: s.role || 'cashier',
+              active: s.active !== false,
+              updatedAt: new Date()
+            });
+          }
+        } catch {
+          // ignore background sync warnings
+        }
+      }
+    });
+  }, [restaurant?.id, staffList]);
 
   const togglePinVisibility = (id) => {
     setRevealedPins(prev => ({

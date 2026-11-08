@@ -86,8 +86,18 @@ export default function Login() {
       setPin('');
     } else {
       toast.success('Welcome!');
+      const role = res.role || useAuthStore.getState().staffDoc?.role;
+      if (role === 'kitchen') {
+        navigate('/kds', { replace: true });
+      } else if (role === 'waiter' || role === 'server') {
+        navigate('/tables', { replace: true });
+      } else if (role === 'cashier') {
+        navigate('/pos', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [restaurantId, currentRest, loginWithPin]);
+  }, [restaurantId, currentRest, loginWithPin, navigate]);
 
   const handlePinKey = useCallback((key) => {
     setPin((prev) => {
