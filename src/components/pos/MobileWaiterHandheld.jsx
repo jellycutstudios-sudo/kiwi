@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, X, Plus, Minus, Flame, 
   ChevronUp, ChevronDown, Printer, CreditCard, 
@@ -162,12 +162,18 @@ export default function MobileWaiterHandheld({
 
   const [foodReadyAlert, setFoodReadyAlert] = useState(null);
   const markOrderOrItemsServed = useOrderStore(s => s.markOrderOrItemsServed);
+  const dismissedAlertsRef = useRef(new Set());
 
   // Real-time kitchen food ready alerts via local sync channel
   useEffect(() => {
     const unsub = localSyncChannel.subscribe((msg) => {
       if (msg.type === 'FOOD_READY_ALERT' && msg.payload) {
         const payload = msg.payload;
+        const alertKey = `${payload.orderId}_${payload.timestamp || ''}`;
+        if (dismissedAlertsRef.current.has(alertKey) || (payload.orderId && dismissedAlertsRef.current.has(payload.orderId))) {
+          return;
+        }
+
         try {
           playNotificationTone('kitchen-bell', 1.0);
           vibrateDevice([250, 150, 250]);
@@ -180,6 +186,9 @@ export default function MobileWaiterHandheld({
           timestamp: payload.timestamp || Date.now()
         });
       } else if (msg.type === 'LOCAL_FOOD_SERVED' && msg.payload) {
+        if (msg.payload.orderId) {
+          dismissedAlertsRef.current.add(msg.payload.orderId);
+        }
         setFoodReadyAlert(prev => prev?.orderId === msg.payload.orderId ? null : prev);
       }
     });
@@ -193,6 +202,11 @@ export default function MobileWaiterHandheld({
     const now = Date.now();
     for (const order of Object.values(tableOrders)) {
       if (order?.lastFoodReadyAlert?.timestamp) {
+        const alertKey = `${order.id}_${order.lastFoodReadyAlert.timestamp}`;
+        if (dismissedAlertsRef.current.has(alertKey) || dismissedAlertsRef.current.has(order.id)) {
+          continue;
+        }
+
         const ageMs = now - order.lastFoodReadyAlert.timestamp;
         if (ageMs < 300000 && (!foodReadyAlert || foodReadyAlert.timestamp < order.lastFoodReadyAlert.timestamp)) {
           setFoodReadyAlert({
@@ -207,9 +221,27 @@ export default function MobileWaiterHandheld({
     }
   }, [tableOrders, foodReadyAlert]);
 
+  const handleDismissAlert = (e) => {
+    e?.stopPropagation?.();
+    hapticTap('light');
+    if (foodReadyAlert) {
+      if (foodReadyAlert.orderId) {
+        dismissedAlertsRef.current.add(foodReadyAlert.orderId);
+      }
+      dismissedAlertsRef.current.add(`${foodReadyAlert.orderId}_${foodReadyAlert.timestamp}`);
+    }
+    setFoodReadyAlert(null);
+  };
+
   const handleAcknowledgePickedUp = async (orderId) => {
     hapticTap('medium');
     const targetItemName = foodReadyAlert?.itemName;
+    if (foodReadyAlert) {
+      if (foodReadyAlert.orderId) {
+        dismissedAlertsRef.current.add(foodReadyAlert.orderId);
+      }
+      dismissedAlertsRef.current.add(`${foodReadyAlert.orderId}_${foodReadyAlert.timestamp}`);
+    }
     setFoodReadyAlert(null);
     if (orderId && restaurant?.id) {
       await markOrderOrItemsServed(restaurant.id, orderId, null, targetItemName);
@@ -448,10 +480,11 @@ export default function MobileWaiterHandheld({
             <button
               type="button"
               className="handheld-ready-dismiss-btn"
-              onClick={() => setFoodReadyAlert(null)}
+              onClick={handleDismissAlert}
               title="Dismiss alert"
+              aria-label="Dismiss alert"
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         </div>

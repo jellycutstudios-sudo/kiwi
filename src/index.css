@@ -7981,10 +7981,27 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .handheld-ready-dismiss-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.handheld-ready-dismiss-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.handheld-ready-dismiss-btn:active {
+  transform: scale(0.9);
 }
 
 .handheld-table-card.ready {
