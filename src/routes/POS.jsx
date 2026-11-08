@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, Zap
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -108,8 +108,7 @@ export default function POS() {
     loadOrderToCart,
     tokenNumber, setToken,
     activeSeat, setActiveSeat, setItemSeat,
-    settleSubCheck, settledChecks,
-    settleOrder, updateOrderStatus
+    settleSubCheck, settledChecks
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -148,9 +147,7 @@ export default function POS() {
       setActiveSeat: state.setActiveSeat,
       setItemSeat: state.setItemSeat,
       settleSubCheck: state.settleSubCheck,
-      settledChecks: state.settledChecks,
-      settleOrder: state.settleOrder,
-      updateOrderStatus: state.updateOrderStatus
+      settledChecks: state.settledChecks
     }))
   );
 
@@ -265,6 +262,7 @@ export default function POS() {
   // Live active orders in store
   const activeOrders = useOrderStore(s => s.activeOrders);
   const [showActiveOrdersModal, setShowActiveOrdersModal] = useState(false);
+  const [activeOrdersFilter, setActiveOrdersFilter] = useState('all');
 
   // Derive active dine-in table orders directly from orderStore (eliminates duplicate Firestore query)
   const tableOrders = useMemo(() => {
@@ -285,67 +283,13 @@ export default function POS() {
     return runningOrders.filter(o => o.status === 'ready').length;
   }, [runningOrders]);
 
-  // Live active takeaway orders in prep or waiting for settlement / pickup (Option A)
-  const runningTakeaways = useMemo(() => {
-    return (runningOrders || []).filter(o => 
-      (o.type === 'takeaway' || o.type === 'pickup') && o.status !== 'billed' && o.status !== 'cancelled'
-    );
+  const takeawayOrdersCount = useMemo(() => {
+    return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup').length;
   }, [runningOrders]);
 
-  const handleSettleTakeaway = (order) => {
-    if (items.length > 0 && editingOrderId !== order.id) {
-      if (!window.confirm(`Current cart has unsaved items. Switch to Takeaway ${order.token ? `#${order.token}` : order.id.slice(-4)}?`)) {
-        return;
-      }
-    }
-    loadOrderToCart(order);
-    setShowPayment(true);
-  };
-
-  const handleQuickCashTakeaway = async (order, e) => {
-    e?.stopPropagation();
-    try {
-      await settleOrder(restaurant.id, order.id, 'cash', order.total);
-      toast.success(`Takeaway ${order.token ? `#${order.token}` : order.id.slice(-4)} settled via CASH! Bill closed ✓`, { icon: '💰' });
-      setTimeout(() => {
-        printReceipt({
-          restaurant,
-          order: { ...order, paymentMethod: 'cash' },
-          items: order.items || [],
-          taxInfo: order.taxInfo,
-          staffName: staffDoc?.name || 'Cashier'
-        });
-      }, 100);
-    } catch (err) {
-      toast.error('Failed to settle takeaway: ' + err.message);
-    }
-  };
-
-  const handleCompleteTakeaway = async (order, e) => {
-    e?.stopPropagation();
-    try {
-      await updateOrderStatus(restaurant.id, order.id, 'completed');
-      toast.success(`Takeaway ${order.token ? `#${order.token}` : order.id.slice(-4)} handed over & completed! ✓`);
-    } catch (err) {
-      toast.error('Failed to complete order: ' + err.message);
-    }
-  };
-
-  const handlePrintTakeawayBill = (order, e) => {
-    e?.stopPropagation();
-    try {
-      printReceipt({
-        restaurant,
-        order,
-        items: order.items || [],
-        taxInfo: order.taxInfo,
-        staffName: staffDoc?.name || 'Cashier'
-      });
-      toast.success(`Printing bill for Token ${order.token ? `#${order.token}` : order.id.slice(-4)}`, { icon: '🖨️' });
-    } catch (err) {
-      toast.error('Print bill failed: ' + err.message);
-    }
-  };
+  const readyTakeawayOrdersCount = useMemo(() => {
+    return runningOrders.filter(o => (o.type === 'takeaway' || o.type === 'pickup') && o.status === 'ready').length;
+  }, [runningOrders]);
 
   // Historical sales counts for calculating Bestsellers dynamically
   const [historicalSalesMap, setHistoricalSalesMap] = useState(() => {
@@ -1474,166 +1418,6 @@ export default function POS() {
         {/* ── Menu Panel ─────────────────────────────── */}
         <div className={`pos-menu-panel ${isBistro ? 'categories-left' : ''}`}>
 
-          {/* ── Live Takeaway Queue Ribbon (Option A - 1-Tap Settle) ────── */}
-          {runningTakeaways.length > 0 && (
-            <div 
-              className="pos-takeaway-ribbon animate-fade-in"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 12px',
-                background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.09) 0%, rgba(16, 185, 129, 0.09) 100%)',
-                borderBottom: '1px solid var(--color-separator)',
-                overflowX: 'auto',
-                WebkitOverflowScrolling: 'touch',
-                flexShrink: 0
-              }}
-            >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                fontSize: 11.5,
-                fontWeight: 800,
-                color: '#d97706',
-                whiteSpace: 'nowrap',
-                paddingRight: 8,
-                borderRight: '1px solid var(--color-separator-opaque)'
-              }}>
-                <ShoppingBag size={14} />
-                <span>Takeaway ({runningTakeaways.length})</span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
-                {runningTakeaways.map(order => {
-                  const isReady = order.status === 'ready';
-                  const isUnpaid = !order.paid || order.paymentMethod === 'unpaid';
-                  const tokenLabel = order.token ? `#${order.token}` : order.id.slice(-4).toUpperCase();
-
-                  return (
-                    <div
-                      key={order.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '4px 8px 4px 10px',
-                        borderRadius: 10,
-                        background: isReady ? 'rgba(16, 185, 129, 0.14)' : 'var(--color-bg-secondary)',
-                        border: isReady ? '1.5px solid #10b981' : '1px solid var(--color-separator)',
-                        boxShadow: isReady ? '0 2px 8px rgba(16, 185, 129, 0.25)' : 'none',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--color-label)' }}>
-                          {tokenLabel}
-                        </span>
-                        {order.customerName && (
-                          <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {order.customerName}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--color-accent)' }}>
-                          {formatCurrency(order.total || 0, currency)}
-                        </span>
-                        <span style={{
-                          fontSize: 9.5,
-                          fontWeight: 800,
-                          padding: '1px 5px',
-                          borderRadius: 6,
-                          background: isReady ? '#10b981' : (isUnpaid ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)'),
-                          color: isReady ? '#fff' : (isUnpaid ? '#dc2626' : '#2563eb'),
-                          letterSpacing: '0.02em'
-                        }}>
-                          {isReady ? 'READY' : (isUnpaid ? 'UNPAID' : 'PAID')}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {isUnpaid ? (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-xs"
-                              onClick={() => handleSettleTakeaway(order)}
-                              style={{
-                                height: 24,
-                                padding: '0 8px',
-                                fontSize: 10.5,
-                                fontWeight: 800,
-                                borderRadius: 6,
-                                gap: 3
-                              }}
-                              title="Open payment settlement modal"
-                            >
-                              <Zap size={11} fill="currentColor" /> Settle
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-xs"
-                              onClick={(e) => handleQuickCashTakeaway(order, e)}
-                              style={{
-                                height: 24,
-                                padding: '0 6px',
-                                fontSize: 10,
-                                fontWeight: 700,
-                                borderRadius: 6,
-                                background: 'rgba(16, 185, 129, 0.15)',
-                                color: '#10b981',
-                                border: '1px solid rgba(16, 185, 129, 0.3)'
-                              }}
-                              title="1-Tap Settle with Exact Cash & Print Receipt"
-                            >
-                              Cash
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-xs"
-                            onClick={(e) => handleCompleteTakeaway(order, e)}
-                            style={{
-                              height: 24,
-                              padding: '0 8px',
-                              fontSize: 10.5,
-                              fontWeight: 700,
-                              borderRadius: 6,
-                              color: '#10b981'
-                            }}
-                            title="Mark order handed over to customer"
-                          >
-                            <Check size={12} /> Handover
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={(e) => handlePrintTakeawayBill(order, e)}
-                          style={{
-                            height: 24,
-                            width: 24,
-                            padding: 0,
-                            borderRadius: 6,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          title="Print customer receipt"
-                        >
-                          <Printer size={11} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
         {/* ── Category Chips Bar (Hidden on Category Cards Overview) ─────────── */}
         {!isShowingCategoryCards && (
           <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
@@ -1653,7 +1437,10 @@ export default function POS() {
                 <button
                   type="button"
                   className="category-chip"
-                  onClick={() => setShowActiveOrdersModal(true)}
+                  onClick={() => {
+                    setActiveOrdersFilter('all');
+                    setShowActiveOrdersModal(true);
+                  }}
                   style={{
                     background: readyOrdersCount > 0 ? '#10b981' : 'rgba(59, 130, 246, 0.12)',
                     color: readyOrdersCount > 0 ? '#fff' : '#2563eb',
@@ -1666,6 +1453,28 @@ export default function POS() {
                     {readyOrdersCount > 0 ? <Bell size={13} /> : <FileText size={13} />}
                   </span>
                   <span className="category-chip-name">{readyOrdersCount > 0 ? `${readyOrdersCount} Ready` : `${runningOrders.length} Orders`}</span>
+                </button>
+              )}
+              {takeawayOrdersCount > 0 && (
+                <button
+                  type="button"
+                  className="category-chip"
+                  onClick={() => {
+                    setActiveOrdersFilter('takeaway');
+                    setShowActiveOrdersModal(true);
+                  }}
+                  style={{
+                    background: readyTakeawayOrdersCount > 0 ? '#10b981' : 'rgba(245, 158, 11, 0.15)',
+                    color: readyTakeawayOrdersCount > 0 ? '#fff' : '#d97706',
+                    borderColor: readyTakeawayOrdersCount > 0 ? '#10b981' : 'rgba(245, 158, 11, 0.4)',
+                    fontWeight: 800
+                  }}
+                  title="View and settle active takeaway orders"
+                >
+                  <span style={{ display: 'flex', alignItems: 'center' }}>
+                    <ShoppingBag size={13} />
+                  </span>
+                  <span className="category-chip-name">{readyTakeawayOrdersCount > 0 ? `${readyTakeawayOrdersCount} Ready Pickup` : `${takeawayOrdersCount} Takeaway`}</span>
                 </button>
               )}
               {categories.map(c => (
@@ -2020,7 +1829,10 @@ export default function POS() {
               <button
                 type="button"
                 className="btn btn-sm"
-                onClick={() => setShowActiveOrdersModal(true)}
+                onClick={() => {
+                  setActiveOrdersFilter('all');
+                  setShowActiveOrdersModal(true);
+                }}
                 title="View active kitchen orders, reprint bills, or settle payments"
                 style={{
                   display: 'flex',
@@ -2040,6 +1852,34 @@ export default function POS() {
                   {readyOrdersCount > 0 ? <Bell size={13} /> : <FileText size={13} />}
                 </span>
                 <span>{runningOrders.length} Order{runningOrders.length > 1 ? 's' : ''}</span>
+              </button>
+            )}
+            {takeawayOrdersCount > 0 && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  setActiveOrdersFilter('takeaway');
+                  setShowActiveOrdersModal(true);
+                }}
+                title="View active takeaway orders & settle payments"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  height: '26px',
+                  padding: '0 8px',
+                  fontSize: '11px',
+                  borderRadius: 'var(--radius-full)',
+                  background: readyTakeawayOrdersCount > 0 ? '#10b981' : 'rgba(245, 158, 11, 0.16)',
+                  color: readyTakeawayOrdersCount > 0 ? '#ffffff' : '#d97706',
+                  border: readyTakeawayOrdersCount > 0 ? '1px solid #10b981' : '1px solid rgba(245, 158, 11, 0.4)',
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                <ShoppingBag size={12} />
+                <span>{readyTakeawayOrdersCount > 0 ? `${readyTakeawayOrdersCount} Ready` : `${takeawayOrdersCount} Takeaway`}</span>
               </button>
             )}
             <button 
@@ -3164,6 +3004,7 @@ export default function POS() {
           restaurant={restaurant}
           currency={currency}
           staffName={staffDoc?.name || 'Cashier'}
+          initialFilter={activeOrdersFilter}
           onLoadOrderToCart={(order) => {
             loadOrderToCart(order);
           }}

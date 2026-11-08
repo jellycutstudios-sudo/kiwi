@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useOrderStore } from '../../stores/orderStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { printReceipt } from '../../utils/print';
@@ -17,14 +17,21 @@ export default function ActiveOrdersModal({
   staffName = 'Cashier',
   onLoadOrderToCart,
   onOpenPayment,
+  initialFilter = 'all'
 }) {
   const activeOrders = useOrderStore(s => s.activeOrders);
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const settleOrder = useOrderStore(s => s.settleOrder);
 
-  const [filterType, setFilterType] = useState('all'); // 'all' | 'takeaway' | 'ready' | 'dine-in'
+  const [filterType, setFilterType] = useState(initialFilter);
   const [searchQuery, setSearchQuery] = useState('');
   const [settlingId, setSettlingId] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFilterType(initialFilter);
+    }
+  }, [isOpen, initialFilter]);
 
   // Filter running orders (exclude billed/cancelled)
   const runningOrders = useMemo(() => {
