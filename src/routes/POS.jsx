@@ -2753,10 +2753,9 @@ export default function POS() {
                 <button
                   type="button"
                   id="pos-split-check-btn"
-                  className="cart-addon-micro-btn"
+                  className="cart-addon-micro-btn cart-addon-micro-btn--split"
                   onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
                   title="Split table bill by seat, fraction, or items"
-                  style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.08)' }}
                 >
                   <Split size={10} /> Split
                 </button>
@@ -2787,7 +2786,7 @@ export default function POS() {
                   <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', textDecoration: 'line-through' }}>
                     {formatCurrency(total, currency)}
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: 17, color: '#10b981' }}>
+                  <div className="cart-remaining-due" style={{ fontWeight: 800, fontSize: 17 }}>
                     Due {formatCurrency(remainingTotal, currency)}
                   </div>
                 </div>
