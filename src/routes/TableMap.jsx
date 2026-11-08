@@ -908,10 +908,10 @@ export default function TableMap() {
       order: selectedOrder,
       items: selectedOrder.items,
       taxInfo: selectedOrder.taxInfo,
-      staffName: selectedOrder.staffName || staffDoc?.name || 'Waiter',
+      staffName: selectedOrder.staffName || staffDoc?.name || (isFloorStaff ? 'Waiter' : 'Cashier'),
       isManual: true
     });
-    toast.success('Bill sent to printer!');
+    toast.success(isFloorStaff ? `Pre-bill printed for Table ${selectedTable?.name || ''}!` : 'Bill sent to printer!');
   };
 
   const handleAddItems = () => {
@@ -1992,9 +1992,9 @@ export default function TableMap() {
                         border: '1px solid var(--color-separator-opaque)'
                       }}
                       onClick={handlePrintBill}
-                      title="Print customer receipt bill"
+                      title={isFloorStaff ? 'Print pre-bill estimate for table' : 'Print customer receipt bill'}
                     >
-                      <Printer size={16} /> Print Bill
+                      <Printer size={16} /> {isFloorStaff ? 'Print Pre-Bill' : 'Print Bill'}
                     </button>
                   </div>
 
@@ -2142,112 +2142,194 @@ export default function TableMap() {
                     </div>
                   )}
 
-                    {/* Settle Bill 1-Touch Payment Tiles */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <CreditCard size={13} /> Settle Bill
-                      </div>
-                      {selOrder.paymentMethod === 'unpaid' ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                          <button
-                            type="button"
-                            className="btn tm-settle-tile tm-settle-cash"
-                            disabled={isSettling}
-                            onClick={() => handleSettle('cash')}
-                            title="Settle full bill with Cash"
-                          >
-                            <Banknote size={22} strokeWidth={2.4} className="tm-settle-icon" />
-                            <span className="tm-settle-name">Cash</span>
-                            <span className="tm-settle-desc">1-Tap Free</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn tm-settle-tile tm-settle-card"
-                            disabled={isSettling}
-                            onClick={() => handleSettle('card')}
-                            title="Settle full bill with Credit/Debit Card"
-                          >
-                            <CreditCard size={22} strokeWidth={2.4} className="tm-settle-icon" />
-                            <span className="tm-settle-name">Card</span>
-                            <span className="tm-settle-desc">Swipe / POS</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn tm-settle-tile tm-settle-upi"
-                            disabled={isSettling}
-                            onClick={() => setUpiOrderToSettle({ order: selOrder, tableId: selectedTable?.id, tableName: selectedTable?.name })}
-                            title="Show UPI QR Code for instant mobile payment"
-                          >
-                            <QrCode size={22} strokeWidth={2.4} className="tm-settle-icon" />
-                            <span className="tm-settle-name">UPI QR</span>
-                            <span className="tm-settle-desc">Scan & Pay</span>
-                          </button>
+                    {/* Settle Bill / Payment Section - Role Based */}
+                    {!isFloorStaff ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CreditCard size={13} /> Settle Bill
                         </div>
-                      ) : (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        color: '#10b981',
-                        fontWeight: 700,
-                        fontSize: 13
-                      }}>
-                        <span>✓ Settled via {selOrder.paymentMethod?.toUpperCase()}</span>
+                        {selOrder.paymentMethod === 'unpaid' ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                            <button
+                              type="button"
+                              className="btn tm-settle-tile tm-settle-cash"
+                              disabled={isSettling}
+                              onClick={() => handleSettle('cash')}
+                              title="Settle full bill with Cash"
+                            >
+                              <Banknote size={22} strokeWidth={2.4} className="tm-settle-icon" />
+                              <span className="tm-settle-name">Cash</span>
+                              <span className="tm-settle-desc">1-Tap Free</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn tm-settle-tile tm-settle-card"
+                              disabled={isSettling}
+                              onClick={() => handleSettle('card')}
+                              title="Settle full bill with Credit/Debit Card"
+                            >
+                              <CreditCard size={22} strokeWidth={2.4} className="tm-settle-icon" />
+                              <span className="tm-settle-name">Card</span>
+                              <span className="tm-settle-desc">Swipe / POS</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn tm-settle-tile tm-settle-upi"
+                              disabled={isSettling}
+                              onClick={() => setUpiOrderToSettle({ order: selOrder, tableId: selectedTable?.id, tableName: selectedTable?.name })}
+                              title="Show UPI QR Code for instant mobile payment"
+                            >
+                              <QrCode size={22} strokeWidth={2.4} className="tm-settle-icon" />
+                              <span className="tm-settle-name">UPI QR</span>
+                              <span className="tm-settle-desc">Scan & Pay</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.35)',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-md)',
+                            color: '#10b981',
+                            fontWeight: 700,
+                            fontSize: 13
+                          }}>
+                            <span>✓ Settled via {selOrder.paymentMethod?.toUpperCase()}</span>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ height: 30, fontSize: 12, fontWeight: 700 }}
+                              onClick={async () => {
+                                await updateOrderStatus(restaurant.id, selOrder.id, 'billed');
+                                await freeTable(restaurant.id, selectedTable.id);
+                                setSelected(null);
+                                toast.success('Table freed!');
+                              }}
+                            >
+                              <DoorOpen size={13} /> Free Table
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Waiter / Floor Staff View: Clean Pre-Bill & Cashier Desk Direction */
+                      <div>
+                        {selOrder.paymentMethod === 'unpaid' ? (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px solid rgba(59, 130, 246, 0.22)',
+                            padding: '12px 14px',
+                            borderRadius: 'var(--radius-md)',
+                            gap: 12
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: '50%',
+                                background: 'rgba(59, 130, 246, 0.14)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}>
+                                <Printer size={16} color="#3b82f6" />
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--color-label)' }}>
+                                  Payment at Cashier Desk
+                                </span>
+                                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                                  Print pre-bill and present to guest for payment
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              style={{ height: 32, padding: '0 12px', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+                              onClick={handlePrintBill}
+                              title="Print pre-bill receipt for guest"
+                            >
+                              <Printer size={13} /> Pre-Bill
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.35)',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-md)',
+                            color: '#10b981',
+                            fontWeight: 700,
+                            fontSize: 13
+                          }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>✓ Settled via {selOrder.paymentMethod?.toUpperCase()}</span>
+                              <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>Ready to clear & bus table</span>
+                            </div>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ height: 30, fontSize: 12, fontWeight: 700 }}
+                              onClick={async () => {
+                                await updateOrderStatus(restaurant.id, selOrder.id, 'billed');
+                                await freeTable(restaurant.id, selectedTable.id);
+                                setSelected(null);
+                                toast.success('Table freed!');
+                              }}
+                            >
+                              <DoorOpen size={13} /> Free Table
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Secondary Table Actions: Move, Merge, Free */}
+                    <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: '1px solid var(--color-separator)' }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: 'var(--color-label-secondary)' }}
+                        onClick={() => setShowTransfer(true)}
+                      >
+                        <ArrowRightLeft size={13} /> Move Table
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: 'var(--color-label-secondary)' }}
+                        onClick={() => setShowMerge(true)}
+                      >
+                        <GitMerge size={13} /> Merge Tables
+                      </button>
+                      {!isFloorStaff && (
                         <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ height: 30, fontSize: 12, fontWeight: 700 }}
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: '#ef4444' }}
                           onClick={async () => {
-                            await updateOrderStatus(restaurant.id, selOrder.id, 'billed');
-                            await freeTable(restaurant.id, selectedTable.id);
-                            setSelected(null);
-                            toast.success('Table freed!');
+                            if (window.confirm(`Release and free ${selectedTable.name}? The active order will be closed.`)) {
+                              await updateOrderStatus(restaurant.id, selOrder.id, 'cancelled');
+                              await freeTable(restaurant.id, selectedTable.id);
+                              setSelected(null);
+                              toast.success(`${selectedTable.name} freed ✓`);
+                            }
                           }}
+                          title="Clear order and immediately free table"
                         >
                           <DoorOpen size={13} /> Free Table
                         </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Secondary Table Actions: Move, Merge, Free */}
-                  <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: '1px solid var(--color-separator)' }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: 'var(--color-label-secondary)' }}
-                      onClick={() => setShowTransfer(true)}
-                    >
-                      <ArrowRightLeft size={13} /> Move Table
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: 'var(--color-label-secondary)' }}
-                      onClick={() => setShowMerge(true)}
-                    >
-                      <GitMerge size={13} /> Merge Tables
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ flex: 1, height: 34, fontSize: 12, border: '1px solid var(--color-separator)', color: '#ef4444' }}
-                      onClick={async () => {
-                        if (window.confirm(`Release and free ${selectedTable.name}? The active order will be closed.`)) {
-                          await updateOrderStatus(restaurant.id, selOrder.id, 'cancelled');
-                          await freeTable(restaurant.id, selectedTable.id);
-                          setSelected(null);
-                          toast.success(`${selectedTable.name} freed ✓`);
-                        }
-                      }}
-                      title="Clear order and immediately free table"
-                    >
-                      <DoorOpen size={13} /> Free Table
-                    </button>
-                  </div>
+                      )}
+                    </div>
                 </div>
               ) : (
                 /* ─ FREE TABLE POPOVER ─ */
