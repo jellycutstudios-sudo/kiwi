@@ -5,7 +5,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, ChevronUp, Coins } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, Coins } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';

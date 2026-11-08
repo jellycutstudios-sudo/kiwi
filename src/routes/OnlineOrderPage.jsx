@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import LoadingScreen from '../components/shared/LoadingScreen';
 import { triggerHaptic, triggerHapticSuccess } from '../utils/haptics';
 import { getItemVisuals } from '../utils/itemVisuals';
+import { safeStorage } from '../utils/safeStorage';
 
 // Helper to determine dietary category (Veg vs Non-Veg)
 const isVegetarianItem = (item) => {
@@ -57,7 +58,7 @@ export default function OnlineOrderPage() {
 
   // Active order tracking states
   const [activeOrderId, setActiveOrderId] = useState(() => {
-    return orderIdParam || localStorage.getItem(`dineOS_${restaurantId}_active_order`) || null;
+    return orderIdParam || safeStorage.getItem(`dineOS_${restaurantId}_active_order`) || null;
   });
   const [activeOrder, setActiveOrder] = useState(null);
   const [viewMode, setViewMode] = useState('tracker'); // 'tracker' | 'menu'
@@ -151,12 +152,12 @@ export default function OnlineOrderPage() {
         const data = d.data();
         const type = data.orderType || data.type;
         if (data.status === 'cancelled' || data.status === 'voided') {
-          localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
+          safeStorage.removeItem(`dineOS_${restaurantId}_active_order`);
           setActiveOrderId(null);
           setActiveOrder(null);
           toast.error('Your order has been cancelled.');
         } else if (type === 'dine-in' && data.status === 'billed') {
-          localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
+          safeStorage.removeItem(`dineOS_${restaurantId}_active_order`);
           setActiveOrderId(null);
           setActiveOrder(null);
           toast.success('Your table bill has been settled. Thank you!');
@@ -449,7 +450,7 @@ export default function OnlineOrderPage() {
       // Execute batch write atomically (stock is depleted safely when restaurant staff moves order to 'preparing')
       await batch.commit();
 
-      localStorage.setItem(`dineOS_${restaurantId}_active_order`, orderDocRef.id);
+      safeStorage.setItem(`dineOS_${restaurantId}_active_order`, orderDocRef.id);
       setActiveOrderId(orderDocRef.id);
       setViewMode('tracker');
       toast.success('Order placed successfully!');
@@ -739,7 +740,7 @@ export default function OnlineOrderPage() {
               <button 
                 className="btn btn-primary" 
                 onClick={() => {
-                  localStorage.removeItem(`dineOS_${restaurantId}_active_order`);
+                  safeStorage.removeItem(`dineOS_${restaurantId}_active_order`);
                   setActiveOrderId(null);
                   setActiveOrder(null);
                   setCart([]);

@@ -108,9 +108,9 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
             </div>
           </div>
 
-          <div className="table-select-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="table-select-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* View Switcher: visible on desktop/wide screens only */}
-            <div className="density-toggle desktop-only" style={{ padding: 2, background: 'var(--color-bg-secondary)' }}>
+            <div className="density-toggle table-select-density-toggle" style={{ padding: 2, background: 'var(--color-bg-secondary)' }}>
               <button
                 type="button"
                 className={`density-btn ${viewMode === 'compact' ? 'active' : ''}`}
@@ -138,6 +138,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
               id="table-modal-close"
               title="Close modal"
               aria-label="Close"
+              style={{ flexShrink: 0 }}
             >
               <X size={18} />
             </button>

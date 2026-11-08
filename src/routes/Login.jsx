@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { safeStorage } from '../utils/safeStorage';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowLeft, Delete } from 'lucide-react';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
@@ -30,7 +31,7 @@ export default function Login() {
   const [pin, setPin] = useState('');
   const [restaurantId, setRestaurantId] = useState(() => {
     if (isDemoMode && searchParams.get('demo') === 'staff') return 'rest1';
-    return localStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '';
+    return safeStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '';
   });
 
   // Registration states (Minimal 3 fields: Name, Mobile/Email, Password)
@@ -72,13 +73,13 @@ export default function Login() {
   };
 
   const submitPin = useCallback(async (p) => {
-    const targetRest = (restaurantId || localStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '').trim();
+    const targetRest = (restaurantId || safeStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '').trim();
     if (!targetRest) {
       toast.error('Enter Restaurant ID, Name, or Phone first');
       setPin('');
       return;
     }
-    localStorage.setItem('rupos_last_rest_id', targetRest);
+    safeStorage.setItem('rupos_last_rest_id', targetRest);
     const res = await loginWithPin(targetRest, p);
     if (!res.ok) {
       toast.error(res.error);
@@ -367,7 +368,7 @@ export default function Login() {
                   onChange={e => {
                     setRestaurantId(e.target.value);
                     if (e.target.value.trim()) {
-                      localStorage.setItem('rupos_last_rest_id', e.target.value.trim());
+                      safeStorage.setItem('rupos_last_rest_id', e.target.value.trim());
                     }
                   }}
                 />

@@ -251,23 +251,35 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
     };
   }, [step, configuredTimeout]);
 
+  const handleResetToAttract = useCallback(() => {
+    setStep('attract');
+    setCart([]);
+    setIsCartOpen(false);
+    setIsCheckoutOpen(false);
+    setSelectedModifierItem(null);
+    setPlacedOrderInfo(null);
+    setOrderType('dine-in');
+    setInactivityTimer(configuredTimeout);
+  }, [configuredTimeout]);
+
   // ─── 4. Success Screen Auto-Reset Countdown ────────────────
   useEffect(() => {
     if (step !== 'success') return;
     setSuccessCountdown(15);
 
     const timer = setInterval(() => {
-      setSuccessCountdown(prev => {
-        if (prev <= 1) {
-          handleResetToAttract();
-          return 15;
-        }
-        return prev - 1;
-      });
+      setSuccessCountdown(prev => (prev > 1 ? prev - 1 : 1));
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [step]);
+    const resetTimeout = setTimeout(() => {
+      handleResetToAttract();
+    }, 15000);
+
+    return () => {
+      clearInterval(timer);
+      clearTimeout(resetTimeout);
+    };
+  }, [step, handleResetToAttract]);
 
   // Fullscreen Toggle
   const toggleFullscreen = () => {
@@ -280,17 +292,6 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
         setIsFullscreen(false);
       }
     }
-  };
-
-  const handleResetToAttract = () => {
-    setStep('attract');
-    setCart([]);
-    setIsCartOpen(false);
-    setIsCheckoutOpen(false);
-    setSelectedModifierItem(null);
-    setPlacedOrderInfo(null);
-    setOrderType('dine-in');
-    setInactivityTimer(configuredTimeout);
   };
 
   // ─── 5. Cart Management ────────────────────────────────────

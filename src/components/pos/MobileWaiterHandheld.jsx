@@ -205,7 +205,7 @@ export default function MobileWaiterHandheld({
         }
       }
     }
-  }, [tableOrders]);
+  }, [tableOrders, foodReadyAlert]);
 
   const handleAcknowledgePickedUp = async (orderId) => {
     hapticTap('medium');
