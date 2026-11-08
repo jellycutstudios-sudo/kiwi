@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -53,7 +53,24 @@ const SUPPORTED_LANGS = [
 export default function AppShell() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const restaurant = useAuthStore(s => s.restaurant);
+  const staffDoc = useAuthStore(s => s.staffDoc);
+  const isSuperAdmin = staffDoc?.role === 'super_admin';
+  const isBillOnly = restaurant?.businessType === 'bill_only' || restaurant?.accountType === 'bill_only';
+
+  // Enforce tier route protection: Block Just Billing users from accessing advanced dine-in/KDS routes
+  useEffect(() => {
+    if (!isBillOnly || isSuperAdmin) return;
+    const lockedPrefixes = ['/tables', '/kds', '/admin/reservations', '/admin/delivery-hub', '/admin/posters', '/admin/floor'];
+    const path = location.pathname.toLowerCase();
+    const isLocked = lockedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+    if (isLocked) {
+      toast.error('Feature unavailable on the Just Billing plan.');
+      navigate('/pos', { replace: true });
+    }
+  }, [location.pathname, isBillOnly, isSuperAdmin, navigate]);
+
   const unreadOnlineCount = useOrderStore(s => s.unreadOnlineCount);
   const subscribeActiveOrders = useOrderStore(s => s.subscribeActiveOrders);
   const markOnlineOrdersRead = useOrderStore(s => s.markOnlineOrdersRead);
@@ -117,8 +134,6 @@ export default function AppShell() {
   const isUpdating = useUpdateStore(s => s.isUpdating);
   const applyUpdate = useUpdateStore(s => s.applyUpdate);
   const setHasUpdate = useUpdateStore(s => s.setHasUpdate);
-  const staffDoc = useAuthStore(s => s.staffDoc);
-  const isSuperAdmin = staffDoc?.role === 'super_admin';
 
   // Morning Cheer: confetti shower & encouraging greeting on first open of the day
   useEffect(() => {

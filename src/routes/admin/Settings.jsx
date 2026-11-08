@@ -27,6 +27,8 @@ import { saveLocalGroqApiKey } from '../../services/groqService';
 import { TERMINAL_PROVIDERS, getTerminalAdapter } from '../../services/terminal';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
 
+const ADVANCED_FEATURE_KEYS = ['table', 'kds', 'reservations', 'posters', 'kiosk', 'delivery_hub', 'payroll', 'online'];
+
 const MODES = [
   // 1. Core POS & Service Formats
   { key: 'pos',              label: 'Quick Counter Billing',   desc: 'Fast 1-tap cashier sales & receipts', tab: 'workflows', tabName: 'Workflows' },
@@ -135,7 +137,10 @@ const TABS = [
 ];
 
 export default function Settings() {
-  const { restaurant } = useAuthStore();
+  const { restaurant, staffDoc } = useAuthStore();
+  const isSuperAdmin = staffDoc?.role === 'super_admin';
+  const isBillOnlyPlan = restaurant?.businessType === 'bill_only' || restaurant?.accountType === 'bill_only';
+  const isLockedPlan = isBillOnlyPlan && !isSuperAdmin;
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
 
   // Initialize settings synchronously from draft, authStore restaurant, or cached settings
@@ -725,6 +730,20 @@ export default function Settings() {
         settingsToSave.customId = cleanCustomId;
       } else {
         settingsToSave.customId = '';
+      }
+
+      // Enforce tier limits: non-super-admin accounts on Just Billing cannot enable advanced dine-in/KDS features
+      if (isLockedPlan) {
+        settingsToSave.businessType = 'bill_only';
+        const rawModes = Array.isArray(settingsToSave.modes) ? settingsToSave.modes : [];
+        settingsToSave.modes = rawModes.filter(k => !ADVANCED_FEATURE_KEYS.includes(k));
+        if (!settingsToSave.modes.includes('pos')) {
+          settingsToSave.modes.unshift('pos');
+        }
+        if (!settingsToSave.kitchenConfig) {
+          settingsToSave.kitchenConfig = {};
+        }
+        settingsToSave.kitchenConfig.mode = 'disabled';
       }
 
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
@@ -1496,6 +1515,54 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Plan Tier Enforcement Notice if on Just Billing */}
+              {isLockedPlan && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%)',
+                  border: '1px solid rgba(20, 184, 166, 0.25)',
+                  borderRadius: 'var(--radius-lg, 12px)',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12
+                }}>
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: 'rgba(20, 184, 166, 0.18)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Zap size={18} color="#0d9488" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-label-primary)' }}>
+                        Current Plan: Just Billing (Express Counter)
+                      </span>
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        padding: '2px 7px',
+                        borderRadius: 999,
+                        background: '#0d9488',
+                        color: '#ffffff'
+                      }}>
+                        Active Tier
+                      </span>
+                    </div>
+                    <p style={{ margin: '4px 0 0 0', fontSize: 12, color: 'var(--color-label-secondary)', lineHeight: 1.45 }}>
+                      Your branch is configured on the Express Counter tier, optimized for fast counter checkout and receipts. Advanced dine-in features (Table Maps, Kitchen Display KDS, Reservations, TV Posters &amp; Delivery Hub) are locked on this tier. To enable dine-in operations, ask your Super Admin to upgrade this branch.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Quick Format Presets Bar */}
               <div style={{
                 background: 'var(--color-bg-secondary)',
@@ -1516,6 +1583,8 @@ export default function Settings() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                   {MODULE_PRESETS.map(preset => {
+                    const isBillOnlyPreset = preset.id === 'bill_only';
+                    const isPresetLocked = isLockedPlan && !isBillOnlyPreset;
                     const activeCount = preset.modes.filter(k => (settings.modes ?? []).includes(k)).length;
                     const isFullyActive = activeCount === preset.modes.length && (settings.modes ?? []).length === preset.modes.length;
                     return (
@@ -1523,15 +1592,22 @@ export default function Settings() {
                         key={preset.id}
                         type="button"
                         className={`btn btn-sm ${isFullyActive ? 'btn-primary' : 'btn-secondary'}`}
+                        disabled={isPresetLocked}
                         style={{
                           fontSize: '12px',
                           padding: '5px 10px',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '6px'
+                          gap: '6px',
+                          opacity: isPresetLocked ? 0.55 : 1,
+                          cursor: isPresetLocked ? 'not-allowed' : 'pointer'
                         }}
-                        title={preset.desc}
+                        title={isPresetLocked ? 'Advanced Plan required for this format' : preset.desc}
                         onClick={() => {
+                          if (isPresetLocked) {
+                            toast.error('Format unavailable on the Just Billing plan. Contact Super Admin to upgrade.');
+                            return;
+                          }
                           const newModes = Array.from(new Set([...preset.modes]));
                           const mappedBusinessType = preset.id === 'dine_in' ? 'restaurant' : preset.id;
                           updateField('modes', newModes);
@@ -1553,12 +1629,17 @@ export default function Settings() {
                           if (isBillOnly && activeTab === 'kitchen') {
                             setActiveTab('workflows');
                           }
-                          toast.success(`Configured for ${preset.name}!`, );
+                          toast.success(`Configured for ${preset.name}!`);
                         }}
                       >
                         <span>{preset.emoji}</span>
                         <span>{preset.name}</span>
-                        {isFullyActive && <Check size={13} style={{ marginLeft: 2 }} />}
+                        {isPresetLocked && (
+                          <span style={{ fontSize: 10, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>
+                            🔒 Advanced Plan
+                          </span>
+                        )}
+                        {isFullyActive && !isPresetLocked && <Check size={13} style={{ marginLeft: 2 }} />}
                       </button>
                     );
                   })}
@@ -1772,7 +1853,8 @@ export default function Settings() {
                       {pillar.keys.map(key => {
                         const m = MODES.find(x => x.key === key);
                         if (!m) return null;
-                        const active = (settings.modes ?? []).includes(m.key);
+                        const isFeatureLocked = isLockedPlan && ADVANCED_FEATURE_KEYS.includes(m.key);
+                        const active = !isFeatureLocked && (settings.modes ?? []).includes(m.key);
                         return (
                           <div
                             key={m.key}
@@ -1788,7 +1870,8 @@ export default function Settings() {
                               transition: 'all var(--duration-fast)',
                               gap: '16px',
                               minHeight: '74px',
-                              boxSizing: 'border-box'
+                              boxSizing: 'border-box',
+                              opacity: isFeatureLocked ? 0.75 : 1
                             }}
                           >
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -1796,6 +1879,19 @@ export default function Settings() {
                                 <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label-primary)' }}>
                                   {m.label}
                                 </span>
+                                {isFeatureLocked && (
+                                  <span style={{
+                                    fontSize: '10px',
+                                    background: 'rgba(239, 68, 68, 0.12)',
+                                    color: '#ef4444',
+                                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontWeight: 700
+                                  }}>
+                                    🔒 Advanced Plan
+                                  </span>
+                                )}
                                 {active && (
                                   <>
                                     {m.isAction === 'vault' ? (
@@ -1865,16 +1961,18 @@ export default function Settings() {
                             </div>
                             <ToggleSwitch
                               id={`mode-${m.key}`}
-                              checked={active}
+                              checked={isFeatureLocked ? false : active}
+                              disabled={isFeatureLocked}
                               onChange={e => {
+                                if (isFeatureLocked) {
+                                  toast.error(`"${m.label}" requires the Advanced Dine-In plan.`);
+                                  return;
+                                }
                                 const modes = settings.modes ?? [];
                                 const checked = e.target.checked;
                                 updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
                                 if (m.key === 'kds') {
                                   updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
-                                }
-                                if (checked && (m.key === 'table' || m.key === 'kds') && settings.businessType === 'bill_only') {
-                                  updateField('businessType', 'restaurant');
                                 }
                               }}
                             />
