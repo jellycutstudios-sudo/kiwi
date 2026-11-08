@@ -48,6 +48,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
   // Tip preset state
   const [tipPreset, setTipPreset] = useState('none'); // 'none' | '15' | '18' | '20' | 'custom'
   const [customTip, setCustomTip] = useState('');
+  const [showTipSection, setShowTipSection] = useState(() => Boolean(tipAmount > 0));
 
   // Collapsible voucher drawer state
   const [isVoucherOpen, setIsVoucherOpen] = useState(() => Boolean(giftCardCode));
@@ -677,64 +678,64 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
           </button>
         </div>
 
-        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(96vh - 130px)', overflowY: 'auto', padding: '12px 16px 20px 16px' }}>
-          {/* Apple Pay / Stripe Luxury Fintech Amount Due Card */}
+        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(96vh - 120px)', overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* 1. Hero Amount Due Card (flexShrink: 0, high contrast, never squashed) */}
           <div style={{
-            background: 'linear-gradient(145deg, #090d16 0%, #0f172a 60%, #1e293b 100%)',
+            flexShrink: 0,
+            background: 'var(--color-bg-secondary)',
             borderRadius: 16,
-            padding: '16px 20px 14px',
+            padding: '14px 18px',
             textAlign: 'center',
-            color: '#ffffff',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 10px 28px -6px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-            position: 'relative',
-            overflow: 'hidden'
+            border: '1.5px solid rgba(16, 185, 129, 0.35)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+            position: 'relative'
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: 6
+              marginBottom: 4
             }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                Amount Due
+              <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                {t('amountDue') || 'Amount Due'}
               </span>
               <span style={{
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: 700,
-                color: '#e2e8f0',
-                background: 'rgba(255, 255, 255, 0.12)',
+                color: 'var(--color-label)',
+                background: 'var(--color-bg-tertiary, rgba(255, 255, 255, 0.08))',
                 padding: '2px 8px',
-                borderRadius: 999
+                borderRadius: 999,
+                border: '1px solid var(--color-separator)'
               }}>
                 {tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Register')}
               </span>
             </div>
 
             {settledTotal > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>Bill Total: {formatCurrency(total, currency)}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>Bill: {formatCurrency(total, currency)}</span>
                   <span>•</span>
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>Paid: {formatCurrency(settledTotal, currency)}</span>
+                  <span style={{ color: '#10b981', fontWeight: 700 }}>Paid: {formatCurrency(settledTotal, currency)}</span>
                 </div>
                 <div style={{
-                  fontSize: 'clamp(28px, 7vw, 38px)',
+                  fontSize: 'clamp(30px, 8vw, 40px)',
                   fontWeight: 900,
                   letterSpacing: '-0.03em',
-                  color: '#ffffff',
+                  color: '#10b981',
                   fontVariantNumeric: 'tabular-nums',
                   lineHeight: 1.15
                 }}>
-                  Due: {formatCurrency(effectiveDue, currency)}
+                  {formatCurrency(effectiveDue, currency)}
                 </div>
               </div>
             ) : (
               <div style={{
-                fontSize: 'clamp(28px, 7vw, 38px)',
+                fontSize: 'clamp(30px, 8vw, 40px)',
                 fontWeight: 900,
                 letterSpacing: '-0.03em',
-                color: '#ffffff',
+                color: '#10b981',
                 fontVariantNumeric: 'tabular-nums',
                 lineHeight: 1.15
               }}>
@@ -746,236 +747,25 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               <div style={{
                 marginTop: 8,
                 paddingTop: 8,
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                borderTop: '1px solid var(--color-separator)',
                 fontSize: 11,
-                color: '#cbd5e1',
+                color: 'var(--color-label-secondary)',
                 display: 'flex',
                 justifyContent: 'center',
                 gap: 8,
                 flexWrap: 'wrap'
               }}>
-                <span style={{ opacity: 0.85 }}>Subtotal: {formatCurrency(subtotal, currency)}</span>
-                {discountAmt > 0 && <span style={{ color: '#34d399', fontWeight: 700 }}>• Disc: -{formatCurrency(discountAmt, currency)}</span>}
-                {getPointsDiscountAmount() > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}>• Points: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
-                {tipAmount > 0 && <span style={{ color: '#38bdf8', fontWeight: 700 }}>• Tip: +{formatCurrency(tipAmount, currency)}</span>}
-                {giftCardDeduction > 0 && <span style={{ color: '#a78bfa', fontWeight: 700 }}>• Card: -{formatCurrency(giftCardDeduction, currency)}</span>}
+                <span>Subtotal: {formatCurrency(subtotal, currency)}</span>
+                {discountAmt > 0 && <span style={{ color: '#10b981', fontWeight: 700 }}>• Disc: -{formatCurrency(discountAmt, currency)}</span>}
+                {getPointsDiscountAmount() > 0 && <span style={{ color: '#f59e0b', fontWeight: 700 }}>• Points: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
+                {tipAmount > 0 && <span style={{ color: '#0ea5e9', fontWeight: 700 }}>• Tip: +{formatCurrency(tipAmount, currency)}</span>}
+                {giftCardDeduction > 0 && <span style={{ color: '#8b5cf6', fontWeight: 700 }}>• Card: -{formatCurrency(giftCardDeduction, currency)}</span>}
               </div>
             )}
           </div>
 
-          {/* Loyalty Points Redemption Toggle */}
-          {customer && customer.points > 0 && (
-            <div style={{
-              marginTop: 10,
-              padding: '10px 14px',
-              background: 'var(--color-bg-secondary)',
-              borderRadius: 12,
-              border: '1px solid var(--color-separator)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700 }}>
-                  Redeem Loyalty Points
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
-                  Available: <strong>{customer.points} pts</strong> (Value: {formatCurrency(customer.points / 10, currency)})
-                </span>
-              </div>
-              <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={redeemingPoints}
-                  onChange={e => setRedeemingPoints(e.target.checked)}
-                  style={{ width: 18, height: 18, cursor: 'pointer' }}
-                />
-              </label>
-            </div>
-          )}
-
-          {/* Collapsible Gift Card / Voucher Drawer */}
-          <div style={{
-            marginTop: 10,
-            padding: '8px 12px',
-            background: 'var(--color-bg-secondary)',
-            borderRadius: 12,
-            border: '1px solid var(--color-separator)',
-            transition: 'all 0.2s ease'
-          }}>
-            <div 
-              onClick={() => setIsVoucherOpen(!isVoucherOpen)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                userSelect: 'none'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700, color: 'var(--color-label)' }}>
-                <Ticket size={14} color="var(--color-accent)" />
-                <span>Have a Gift Card or Voucher?</span>
-                {giftCardCode && (
-                  <span style={{ background: '#10b981', color: '#ffffff', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 800 }}>
-                    Applied
-                  </span>
-                )}
-              </div>
-              <div style={{ color: 'var(--color-label-secondary)' }}>
-                {isVoucherOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </div>
-            </div>
-
-            {isVoucherOpen && (
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-separator)' }}>
-                {giftCardCode ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(16, 185, 129, 0.12)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#059669' }}>
-                        {giftCardCode} Applied
-                      </span>
-                      <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                        Deduction: <strong>-{formatCurrency(giftCardDeduction, currency)}</strong>
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      onClick={removeGiftCard}
-                      style={{ color: '#dc2626', padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      className="form-input"
-                      placeholder="Enter gift card code (e.g. GC-XXXX)"
-                      value={gcInput}
-                      onChange={e => setGcInput(e.target.value)}
-                      style={{ height: 34, fontSize: 12, flex: 1, textTransform: 'uppercase', borderRadius: 8 }}
-                      id="gift-card-redeem-input"
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={handleVerifyGiftCard}
-                      disabled={verifyingGc || !gcInput.trim()}
-                      style={{ height: 34, padding: '0 12px', borderRadius: 8, fontWeight: 700, fontSize: 12 }}
-                      id="gift-card-redeem-btn"
-                    >
-                      {verifyingGc ? '...' : 'Apply'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── Tip / Gratuity Section (Segmented Luxury Bar) ── */}
-          <div style={{
-            marginTop: 10,
-            padding: '10px 12px',
-            background: 'var(--color-bg-secondary)',
-            borderRadius: 12,
-            border: '1px solid var(--color-separator)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
-                <HeartHandshake size={14} color="var(--color-accent, #3b82f6)" />
-                <span>Tip / Gratuity</span>
-              </div>
-              {tipAmount > 0 && (
-                <div style={{ fontSize: 12, color: '#059669', fontWeight: 800 }}>
-                  +{formatCurrency(tipAmount, currency)}
-                </div>
-              )}
-            </div>
-
-            {/* Segmented tip chips */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
-              {[
-                { key: 'none', label: 'No Tip' },
-                { key: '15',   label: '15%' },
-                { key: '18',   label: '18%' },
-                { key: '20',   label: '20%' },
-                { key: 'custom', label: 'Custom' },
-              ].map(preset => {
-                const isSelected = tipPreset === preset.key;
-                return (
-                  <button
-                    key={preset.key}
-                    type="button"
-                    id={`tip-preset-${preset.key}`}
-                    onClick={() => {
-                      setTipPreset(preset.key);
-                      if (preset.key === 'none') {
-                        setTip(0);
-                        setCustomTip('');
-                      } else if (preset.key !== 'custom') {
-                        const pct = parseFloat(preset.key);
-                        setTip((tipBaseAmount * pct) / 100);
-                        setCustomTip('');
-                      } else {
-                        setCustomTip(tipAmount > 0 ? tipAmount.toFixed(2) : '');
-                      }
-                    }}
-                    className={`payment-preset-btn ${isSelected ? 'selected' : ''}`}
-                  >
-                    <div>{preset.label}</div>
-                    {preset.key !== 'none' && preset.key !== 'custom' && (
-                      <div style={{ fontSize: 9, opacity: isSelected ? 0.85 : 0.7, marginTop: 1, fontWeight: 700 }}>
-                        {formatCurrency((tipBaseAmount * parseFloat(preset.key)) / 100, currency)}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom tip input */}
-            {tipPreset === 'custom' && (
-              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                <input
-                  id="tip-custom-input"
-                  type="number"
-                  inputMode="decimal"
-                  className="form-input"
-                  placeholder="Enter custom tip amount"
-                  value={customTip}
-                  min="0"
-                  step="0.01"
-                  onChange={e => setCustomTip(e.target.value)}
-                  onBlur={() => {
-                    const val = parseFloat(customTip);
-                    if (!isNaN(val) && val >= 0) setTip(val);
-                    else { setCustomTip(''); setTip(0); }
-                  }}
-                  style={{ flex: 1, minHeight: 38, height: 38, fontSize: 15, borderRadius: 8 }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  style={{ height: 32, padding: '0 12px', borderRadius: 8, fontSize: 12 }}
-                  onClick={() => {
-                    const val = parseFloat(customTip);
-                    if (!isNaN(val) && val >= 0) setTip(val);
-                    else { setCustomTip(''); setTip(0); }
-                  }}
-                >
-                  Set Tip
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Payment Methods (Balanced 5-Card Single Row) */}
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-              {t('paymentMethod')}
-            </div>
+          {/* 2. Payment Methods (Balanced 5-Card Single Row) */}
+          <div style={{ flexShrink: 0 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
               {METHODS.map(m => {
                 const isSelected = paymentMethod === m.key;
@@ -986,9 +776,14 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                     type="button"
                     onClick={() => setPaymentMethod(m.key)}
                     className={`payment-method-btn ${isSelected ? 'selected' : ''}`}
+                    style={{
+                      minHeight: 52,
+                      padding: '8px 4px',
+                      borderRadius: 12
+                    }}
                   >
-                    <div style={{ marginBottom: 3 }}>
-                      <m.icon size={18} color={isSelected ? '#38bdf8' : 'var(--color-label-secondary)'} />
+                    <div style={{ marginBottom: 2 }}>
+                      <m.icon size={18} color={isSelected ? '#10b981' : 'var(--color-label-secondary)'} />
                     </div>
                     <div style={{ fontSize: 11.5, fontWeight: 800 }}>
                       {m.label}
@@ -1325,7 +1120,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
 
               {/* 1-Tap Smart Cash Denomination Chips */}
               {quickCashOptions.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 8 }}>
                   {quickCashOptions.map((opt, idx) => {
                     const isSelected = Math.abs(parseFloat(cashTendered || 0) - opt.amount) < 0.01;
                     return (
@@ -1334,27 +1129,29 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                         type="button"
                         onClick={() => setCashTendered(opt.amount.toString())}
                         className={`payment-denom-btn ${isSelected ? 'selected' : ''}`}
+                        style={{
+                          minHeight: 46,
+                          padding: '8px 12px',
+                          borderRadius: 10
+                        }}
                       >
                         <div style={{ textAlign: 'left' }}>
-                          <div style={{ fontSize: 9.5, opacity: isSelected ? 0.75 : 0.6, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
-                            {opt.label}
-                          </div>
                           <div style={{ fontSize: 13.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                             {formatCurrency(opt.amount, currency)}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 9, opacity: isSelected ? 0.75 : 0.6, textTransform: 'uppercase', fontWeight: 700 }}>
-                            {opt.change > 0 ? 'Change' : 'No Change'}
-                          </div>
-                          <div style={{
-                            fontSize: 12,
+                          <span style={{
+                            fontSize: 11,
                             fontWeight: 800,
-                            color: isSelected ? '#34d399' : (opt.change > 0 ? '#059669' : 'var(--color-label-secondary)'),
+                            padding: '2px 7px',
+                            borderRadius: 6,
+                            background: isSelected ? 'rgba(52, 211, 153, 0.2)' : (opt.change > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg-tertiary)'),
+                            color: isSelected ? '#34d399' : (opt.change > 0 ? '#10b981' : 'var(--color-label-secondary)'),
                             fontVariantNumeric: 'tabular-nums'
                           }}>
                             {opt.change > 0 ? `+${formatCurrency(opt.change, currency)}` : 'Exact'}
-                          </div>
+                          </span>
                         </div>
                       </button>
                     );
@@ -1707,6 +1504,275 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               </div>
             </div>
           )}
+
+          {/* Loyalty Points Redemption Toggle */}
+          {customer && customer.points > 0 && (
+            <div style={{
+              padding: '8px 12px',
+              background: 'var(--color-bg-secondary)',
+              borderRadius: 10,
+              border: '1px solid var(--color-separator)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>
+                  Redeem Loyalty Points
+                </span>
+                <span style={{ fontSize: 10.5, color: 'var(--color-label-secondary)' }}>
+                  Available: <strong>{customer.points} pts</strong> ({formatCurrency(customer.points / 10, currency)})
+                </span>
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={redeemingPoints}
+                  onChange={e => setRedeemingPoints(e.target.checked)}
+                  style={{ width: 17, height: 17, cursor: 'pointer' }}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Secondary Options Strip (Tip & Voucher) — Minimal, Clean & Expandable */}
+          <div style={{
+            paddingTop: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {!showTipSection && tipAmount === 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowTipSection(true)}
+                  style={{
+                    background: 'none',
+                    border: '1px dashed var(--color-separator)',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--color-label-secondary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <HeartHandshake size={13} color="var(--color-accent, #10b981)" />
+                  <span>+ Add Tip</span>
+                </button>
+              )}
+
+              {tipAmount > 0 && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '3px 8px',
+                  borderRadius: 8,
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#10b981'
+                }}>
+                  <HeartHandshake size={13} />
+                  <span>Tip: +{formatCurrency(tipAmount, currency)}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setTip(0); setTipPreset('none'); setShowTipSection(false); }}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ef4444', fontSize: 13, lineHeight: 1, marginLeft: 2 }}
+                    title="Remove Tip"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {!isVoucherOpen && !giftCardCode && (
+                <button
+                  type="button"
+                  onClick={() => setIsVoucherOpen(true)}
+                  style={{
+                    background: 'none',
+                    border: '1px dashed var(--color-separator)',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--color-label-secondary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Ticket size={13} color="var(--color-accent, #10b981)" />
+                  <span>+ Voucher / Gift Card</span>
+                </button>
+              )}
+
+              {giftCardCode && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '3px 8px',
+                  borderRadius: 8,
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#6366f1'
+                }}>
+                  <Ticket size={13} />
+                  <span>{giftCardCode}: -{formatCurrency(giftCardDeduction, currency)}</span>
+                  <button
+                    type="button"
+                    onClick={removeGiftCard}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ef4444', fontSize: 13, lineHeight: 1, marginLeft: 2 }}
+                    title="Remove Voucher"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Expanded Tip Drawer */}
+            {showTipSection && (
+              <div style={{
+                padding: '8px 10px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 10,
+                border: '1px solid var(--color-separator)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Tip / Gratuity:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setShowTipSection(false); if (tipAmount === 0) setTipPreset('none'); }}
+                    style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--color-label-tertiary)', cursor: 'pointer' }}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+                  {[
+                    { key: 'none', label: 'No Tip' },
+                    { key: '15',   label: '15%' },
+                    { key: '18',   label: '18%' },
+                    { key: '20',   label: '20%' },
+                    { key: 'custom', label: 'Custom' },
+                  ].map(preset => {
+                    const isSelected = tipPreset === preset.key;
+                    return (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        id={`tip-preset-${preset.key}`}
+                        onClick={() => {
+                          setTipPreset(preset.key);
+                          if (preset.key === 'none') {
+                            setTip(0);
+                            setCustomTip('');
+                            setShowTipSection(false);
+                          } else if (preset.key !== 'custom') {
+                            const pct = parseFloat(preset.key);
+                            setTip((tipBaseAmount * pct) / 100);
+                            setCustomTip('');
+                          } else {
+                            setCustomTip(tipAmount > 0 ? tipAmount.toFixed(2) : '');
+                          }
+                        }}
+                        className={`payment-preset-btn ${isSelected ? 'selected' : ''}`}
+                        style={{ minHeight: 32, padding: '4px 2px', fontSize: 11 }}
+                      >
+                        <div>{preset.label}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {tipPreset === 'custom' && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <input
+                      id="tip-custom-input"
+                      type="number"
+                      inputMode="decimal"
+                      className="form-input"
+                      placeholder="Custom tip amount"
+                      value={customTip}
+                      min="0"
+                      step="0.01"
+                      onChange={e => setCustomTip(e.target.value)}
+                      onBlur={() => {
+                        const val = parseFloat(customTip);
+                        if (!isNaN(val) && val >= 0) setTip(val);
+                        else { setCustomTip(''); setTip(0); }
+                      }}
+                      style={{ flex: 1, height: 32, fontSize: 12, borderRadius: 6 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      style={{ height: 32, padding: '0 10px', borderRadius: 6, fontSize: 11 }}
+                      onClick={() => {
+                        const val = parseFloat(customTip);
+                        if (!isNaN(val) && val >= 0) setTip(val);
+                        else { setCustomTip(''); setTip(0); }
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Expanded Voucher Drawer */}
+            {isVoucherOpen && !giftCardCode && (
+              <div style={{
+                padding: '8px 10px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 10,
+                border: '1px solid var(--color-separator)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)' }}>Voucher / Gift Card:</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsVoucherOpen(false)}
+                    style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--color-label-tertiary)', cursor: 'pointer' }}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    className="form-input"
+                    placeholder="Enter gift card code (e.g. GC-XXXX)"
+                    value={gcInput}
+                    onChange={e => setGcInput(e.target.value)}
+                    style={{ height: 32, fontSize: 11, flex: 1, textTransform: 'uppercase', borderRadius: 6 }}
+                    id="gift-card-redeem-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleVerifyGiftCard}
+                    disabled={verifyingGc || !gcInput.trim()}
+                    style={{ height: 32, padding: '0 12px', borderRadius: 6, fontWeight: 700, fontSize: 11 }}
+                    id="gift-card-redeem-btn"
+                  >
+                    {verifyingGc ? '...' : 'Apply'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="modal-footer" style={{

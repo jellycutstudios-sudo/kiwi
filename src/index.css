@@ -1599,6 +1599,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
     border-top-left-radius: 20px !important;
     border-top-right-radius: 20px !important;
     max-height: 94vh !important;
+    width: 100% !important;
+  }
+  .payment-modal-mobile .modal-body {
+    padding: 12px 14px !important;
+    gap: 10px !important;
   }
 }
 

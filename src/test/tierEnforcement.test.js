@@ -98,3 +98,4 @@ describe('Tier Enforcement for Just Billing vs Advanced Accounts', () => {
     expect(shouldRedirectRoute({ businessType: 'restaurant', role: 'admin', pathname: '/admin/reservations' })).toBe(false);
   });
 });
+
