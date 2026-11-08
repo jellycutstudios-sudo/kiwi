@@ -159,10 +159,10 @@ export default function ActiveOrdersModal({
       <div style={{
         background: 'var(--color-bg)',
         borderRadius: 'var(--radius-xl)',
-        width: '860px',
-        maxWidth: 'min(860px, 95vw)',
-        height: 'min(640px, 88vh)',
-        minHeight: 'min(560px, 88vh)',
+        width: '980px',
+        maxWidth: 'min(980px, 95vw)',
+        height: 'min(780px, 92vh)',
+        minHeight: 'min(600px, 88vh)',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: 'var(--shadow-xl)',
@@ -330,7 +330,7 @@ export default function ActiveOrdersModal({
         </div>
 
         {/* Order List Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredOrders.length === 0 ? (
             <div style={{
               textAlign: 'center',
@@ -366,12 +366,12 @@ export default function ActiveOrdersModal({
                   key={order.id}
                   style={{
                     background: 'var(--color-bg-secondary)',
-                    borderRadius: 14,
+                    borderRadius: 12,
                     border: isOnlinePending ? '1.5px solid #8b5cf6' : (isReady ? '1.5px solid #10b981' : '1px solid var(--color-separator-opaque)'),
-                    padding: '16px 18px',
+                    padding: '12px 16px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 12,
+                    gap: 10,
                     boxShadow: isOnlinePending ? '0 4px 16px rgba(139, 92, 246, 0.22)' : (isReady ? '0 4px 16px rgba(16, 185, 129, 0.18)' : '0 2px 8px rgba(0,0,0,0.06)'),
                     transition: 'all 0.2s ease',
                   }}
