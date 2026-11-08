@@ -1885,11 +1885,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .pos-category-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px var(--space-4);
+  gap: 12px;
+  padding: 8px 22px;
   border-bottom: 1px solid var(--color-separator);
   background: var(--color-surface, #ffffff);
-  min-height: 52px;
+  min-height: 54px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
 }
@@ -3128,7 +3128,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding: 0 20px;
   overflow: hidden;
 }
 
@@ -3689,10 +3690,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  grid-auto-rows: 176px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-auto-rows: minmax(180px, auto);
   gap: 14px;
-  padding: 16px 20px 36px;
+  padding: 18px 24px 48px;
   background: var(--color-bg);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -3704,10 +3705,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 /* Fast Keypad / QSR Dense Menu Grid - Refined Spacious Layout */
 .menu-grid.dense {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(174px, 1fr));
-  grid-auto-rows: minmax(112px, auto);
-  gap: 12px;
-  padding: 16px 20px 36px;
+  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  grid-auto-rows: minmax(104px, auto);
+  gap: 14px;
+  padding: 18px 24px 48px;
   background: var(--color-bg);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -3722,7 +3723,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   background: #ffffff;
   border-radius: 14px;
   border: 1px solid rgba(0, 0, 0, 0.07);
-  padding: 10px 12px;
+  padding: 12px 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 3px 8px -2px rgba(0, 0, 0, 0.03);
   cursor: pointer;
   transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
@@ -3732,7 +3733,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 84px;
+  min-height: 96px;
+  gap: 8px;
   user-select: none;
   text-align: left;
   overflow: hidden;
@@ -3855,14 +3857,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   font-size: 13.5px;
   font-weight: 650;
   color: #0f172a;
-  line-height: 1.3;
+  line-height: 1.35;
   letter-spacing: -0.012em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 /* Footer / Price & Tactile Action */
@@ -5170,24 +5173,24 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 4px var(--space-3);
+  padding: 8px 12px 24px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 /* One course group (header + cards) */
 .cart-course-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 /* Cards within a course — gap between each card */
 .cart-course-cards {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 /* Course Section Header */
@@ -5241,8 +5244,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .cart-item-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 10px 12px;
   background: #ffffff;
   border: none;
   border-radius: 12px;
@@ -11359,16 +11362,16 @@ html.dark .tm-segmented-glider {
 
   /* Optimized POS Terminal Grid on Tablet Screens */
   .menu-grid {
-    grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
-    grid-auto-rows: minmax(146px, auto);
-    gap: 10px;
-    padding: 10px 12px;
+    grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
+    grid-auto-rows: minmax(160px, auto);
+    gap: 12px;
+    padding: 14px 16px 40px;
   }
   .menu-grid.dense {
-    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
-    grid-auto-rows: minmax(104px, auto);
-    gap: 8px;
-    padding: 8px 10px;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    grid-auto-rows: minmax(98px, auto);
+    gap: 12px;
+    padding: 14px 16px 40px;
   }
   .menu-item-img-wrap {
     height: 88px;
@@ -11420,7 +11423,8 @@ html.dark .tm-segmented-glider {
     font-size: 11.5px;
   }
   .cart-items {
-    padding: var(--space-2) var(--space-3);
+    padding: 8px 10px 20px;
+    gap: 7px;
   }
   .cart-totals {
     padding: var(--space-2) var(--space-3);
