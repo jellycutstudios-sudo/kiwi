@@ -13518,16 +13518,18 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 /* Default hidden states for mobile-only interactive components on desktop */
-.burger-menu-btn,
-.sidebar-close-btn,
-.mobile-sidebar-overlay,
-.mobile-cart-toggle-bar,
-.pos-mobile-bottom-dock {
-  display: none !important;
-}
+@media (min-width: 769px) {
+  .burger-menu-btn,
+  .sidebar-close-btn,
+  .mobile-sidebar-overlay,
+  .mobile-cart-toggle-bar,
+  .pos-mobile-bottom-dock {
+    display: none !important;
+  }
 
-.mobile-only {
-  display: none !important;
+  .mobile-only {
+    display: none !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -14019,23 +14021,30 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
   /* Burger button & Sidebar Close button drawer interactions */
   .burger-menu-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: var(--space-2);
-    flex-shrink: 0;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 10px !important;
+    padding: 0 !important;
+    margin-right: var(--space-2) !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
   }
   
   [dir="rtl"] .burger-menu-btn {
-    margin-right: 0;
-    margin-left: var(--space-2);
+    margin-right: 0 !important;
+    margin-left: var(--space-2) !important;
   }
 
   .sidebar-close-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: auto !important;
   }
 
   [dir="rtl"] .sidebar-close-btn {
