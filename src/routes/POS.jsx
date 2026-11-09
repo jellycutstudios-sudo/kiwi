@@ -1855,7 +1855,7 @@ export default function POS() {
               )}
             </button>
 
-            {/* Dietary Filter Segmented Pills */}
+            {/* Dietary Filter Segmented Pills - Icon-Only for Maximum Tap Ergonomics */}
             <div className="pos-mobile-dietary-group" role="toolbar" aria-label="Dietary filters">
               <button
                 type="button"
@@ -1868,8 +1868,7 @@ export default function POS() {
                 aria-label="Vegetarian filter"
                 aria-pressed={dietaryFilter === 'veg'}
               >
-                <span className="food-badge-veg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
-                <span>Veg</span>
+                <span className="food-badge-veg" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
               </button>
 
               <button
@@ -1883,9 +1882,7 @@ export default function POS() {
                 aria-label="Non-Vegetarian filter"
                 aria-pressed={dietaryFilter === 'non-veg'}
               >
-                <span className="food-badge-nonveg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
-                <span className="dietary-label--full">Non-Veg</span>
-                <span className="dietary-label--short">Non</span>
+                <span className="food-badge-nonveg" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
               </button>
 
               <button
@@ -1899,7 +1896,7 @@ export default function POS() {
                 aria-label="Popular filter"
                 aria-pressed={dietaryFilter === 'bestseller'}
               >
-                <Flame size={17} />
+                <Flame size={18} />
               </button>
             </div>
           </div>

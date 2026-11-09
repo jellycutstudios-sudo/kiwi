@@ -13660,7 +13660,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
   }
 
-  /* Dietary Segmented Control Group in Dock */
+  /* Dietary Segmented Control Group in Dock - Icon Only */
   .pos-mobile-dietary-group {
     display: inline-flex !important;
     align-items: center !important;
@@ -13672,8 +13672,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     background: #ffffff !important;
     border: 1px solid rgba(0, 0, 0, 0.12) !important;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10) !important;
-    flex-shrink: 1 !important;
-    min-width: 0 !important;
+    flex-shrink: 0 !important;
   }
 
   [data-theme="dark"] .pos-mobile-dietary-group {
@@ -13683,18 +13682,16 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 
   .pos-mobile-dietary-btn {
+    width: 42px !important;
+    min-width: 42px !important;
     height: 42px !important;
-    padding: 0 12px !important;
+    padding: 0 !important;
     border-radius: 21px !important;
     border: 1px solid transparent !important;
     background: transparent !important;
-    font-size: 13px !important;
-    font-weight: 750 !important;
-    letter-spacing: 0.1px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 6px !important;
     cursor: pointer !important;
     color: #64748b !important;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -13702,11 +13699,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     user-select: none !important;
     -webkit-tap-highlight-color: transparent !important;
     flex-shrink: 0 !important;
-    white-space: nowrap !important;
   }
 
   .pos-mobile-dietary-btn:active {
-    transform: scale(0.94) !important;
+    transform: scale(0.92) !important;
   }
 
   [data-theme="dark"] .pos-mobile-dietary-btn {
@@ -13949,17 +13945,12 @@ html.dark .settings-nav-item.active .settings-nav-icon {
       padding: 3px !important;
       gap: 2px !important;
     }
-    .pos-mobile-dietary-btn {
-      height: 38px !important;
-      padding: 0 9px !important;
-      font-size: 12px !important;
-      gap: 4px !important;
-      border-radius: 19px !important;
-    }
+    .pos-mobile-dietary-btn,
     .pos-mobile-dietary-btn.popular {
       width: 38px !important;
-      height: 38px !important;
       min-width: 38px !important;
+      height: 38px !important;
+      padding: 0 !important;
       border-radius: 19px !important;
     }
     .pos-mobile-dock-cart-btn,
@@ -13975,14 +13966,13 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 
   @media (max-width: 340px) {
-    .pos-mobile-dietary-btn.nonveg span:last-child,
-    .pos-mobile-dietary-btn.veg span:last-child {
-      display: none !important;
-    }
-    .pos-mobile-dietary-btn {
-      width: 30px !important;
+    .pos-mobile-dietary-btn,
+    .pos-mobile-dietary-btn.popular {
+      width: 34px !important;
+      min-width: 34px !important;
+      height: 34px !important;
       padding: 0 !important;
-      justify-content: center !important;
+      border-radius: 17px !important;
     }
   }
 
