@@ -1725,7 +1725,7 @@ export default function Settings() {
                             padding: '2px 8px',
                             borderRadius: 'var(--radius-full)'
                           }}>
-                            {activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST ? 'Category Cards' : activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR ? 'Left Sidebar' : 'Modern Grid'}
+                            {activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST ? 'Hybrid Category Cards' : activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR ? 'Left Category Sidebar' : 'Modern Grid'}
                           </span>
                         </div>
                         <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
