@@ -112,6 +112,7 @@
   --sidebar-collapsed:     64px;
   --sidebar-bg:            #ffffff;
   --topbar-bg:             #ffffff;
+  --topbar-height:         64px;
   --pos-cart-width:        400px;
 
   /* ===================================================
@@ -1095,7 +1096,8 @@ ul, ol { list-style: none; }
    Top Bar
    ============================================================ */
 .top-bar {
-  height: 56px;
+  height: var(--topbar-height, 64px);
+  min-height: var(--topbar-height, 64px);
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-separator);
   display: flex;
@@ -1105,6 +1107,7 @@ ul, ol { list-style: none; }
   position: sticky;
   top: 0;
   z-index: var(--z-raised);
+  box-sizing: border-box;
 }
 
 .top-bar-title {
@@ -1837,7 +1840,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .pos-layout {
   display: grid;
   grid-template-columns: 1fr var(--pos-cart-width);
-  height: calc(100vh - var(--topbar-height, 56px));
+  height: calc(100vh - var(--topbar-height, 64px));
   overflow: hidden;
 }
 
@@ -2989,7 +2992,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 20px;
+  height: var(--topbar-height, 64px);
+  min-height: var(--topbar-height, 64px);
+  padding: 12px 20px;
+  box-sizing: border-box;
   overflow: hidden;
 }
 
