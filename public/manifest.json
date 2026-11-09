@@ -3,7 +3,7 @@
   "short_name": "DineOS",
   "description": "Lightning-fast restaurant POS system with offline resilience",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],

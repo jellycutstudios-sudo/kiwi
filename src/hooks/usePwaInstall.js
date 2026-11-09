@@ -13,6 +13,9 @@ if (typeof window !== 'undefined') {
   });
 
   window.addEventListener('appinstalled', () => {
+    try {
+      localStorage.setItem('dineos_pwa_mode', 'true');
+    } catch {}
     globalDeferredPrompt = null;
     promptListeners.forEach(listener => listener(null));
   });

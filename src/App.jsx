@@ -111,7 +111,7 @@ export default function App() {
         <Routes>
           {/* Public routes — no auth needed */}
           <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={defaultRouteForRole(userRole)} replace /> : <Navigate to="/pending-approval" replace />) : (isDesktopOrStandalone() ? <Navigate to="/login" replace /> : <LandingPage />)} />
-          <Route path="/landing"                      element={<LandingPage />} />
+          <Route path="/landing"                      element={isDesktopOrStandalone() ? <Navigate to="/login" replace /> : <LandingPage />} />
           <Route path="/display/tokens/:restaurantId" element={<TokenDisplay />} />
           <Route path="/display/slides/:restaurantId" element={<PosterDisplay />} />
           <Route path="/display/slides/:restaurantId/:slideshowId" element={<PosterDisplay />} />

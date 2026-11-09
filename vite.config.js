@@ -21,7 +21,7 @@ export default defineConfig({
         display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
         orientation: 'any',
         scope: '/',
-        start_url: '/',
+        start_url: '/?source=pwa',
         launch_handler: {
           client_mode: 'navigate-existing'
         },

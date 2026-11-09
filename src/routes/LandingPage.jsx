@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { isDesktopOrStandalone } from '../utils/deviceMode';
 import { 
   Tablet, Smartphone, Tv, Check, X,
   ArrowRight, Globe, Menu, ChevronDown, ChevronUp,
@@ -14,6 +15,10 @@ import {
 import '../landing-neo.css';
 
 export default function LandingPage() {
+  if (isDesktopOrStandalone()) {
+    return <Navigate to="/login" replace />;
+  }
+
   const { t, i18n } = useTranslation();
   const { user, staffDoc } = useAuthStore();
   const isAuth = !!user || !!staffDoc;
