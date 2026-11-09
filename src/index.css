@@ -2563,463 +2563,188 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ==========================================================================
-   Quick Operations Strip (Tables, Active Orders, Custom Item)
+   Quick Operations Strip — Slim, Touch-Friendly Pill Bar (Option A)
    ========================================================================== */
 .pos-operations-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 10px;
-  margin-bottom: 18px;
-  width: 100%;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 14px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .pos-operations-strip.has-two-cards {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
 }
 
 .pos-op-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  min-height: 64px;
-  border-radius: 14px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
-              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
-              border-color 0.16s ease,
-              background 0.16s ease;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.40);
-  position: relative;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.pos-op-card:hover {
-  transform: translateY(-2px);
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  border-radius: 12px !important;
+  padding: 0 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+  border: 1px solid transparent !important;
 }
 
 .pos-op-card:active {
-  transform: scale(0.985);
+  transform: scale(0.97) !important;
 }
 
-.pos-op-card-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
+.pos-op-pill-icon {
+  flex-shrink: 0 !important;
 }
 
-.pos-op-card-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
+.pos-op-pill-title {
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.01em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-.pos-op-card:hover .pos-op-card-icon {
-  transform: scale(1.05);
+.pos-op-pulse-dot {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  display: inline-block !important;
+  flex-shrink: 0 !important;
+  animation: pulse 1.5s infinite ease-in-out !important;
 }
 
-.pos-op-card-text {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
+/* Card 1: Tables (Violet/Purple) */
+[data-theme="dark"] .pos-op-card--tables {
+  background: rgba(168, 85, 247, 0.16) !important;
+  border: 1px solid rgba(168, 85, 247, 0.50) !important;
+  color: #e9d5ff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
-
-.pos-op-card-title {
-  font-size: 14px;
-  font-weight: 800;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: -0.015em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+[data-theme="dark"] .pos-op-card--tables:hover {
+  background: rgba(168, 85, 247, 0.26) !important;
+  border-color: #c084fc !important;
+  color: #ffffff !important;
 }
-
-.pos-op-card-subtitle {
-  font-size: 11px;
-  font-weight: 600;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.01em;
-}
-
-.pos-op-card-pill {
-  padding: 5px 11px;
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 800;
-  white-space: nowrap;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  letter-spacing: 0.01em;
-  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.pos-op-pill-text {
-  display: inline;
-  white-space: nowrap;
-}
-
-.pos-op-pill-arrow {
-  flex-shrink: 0;
-  display: inline-flex;
-}
-
-.pos-op-card:hover .pos-op-card-pill {
-  transform: translateX(2px);
-}
-
-/* Card 1: Tables (Violet/Purple Theme - High Contrast) */
-.pos-op-card--tables {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.32) 0%, rgba(168, 85, 247, 0.10) 45%, rgba(20, 16, 36, 0.98) 100%);
-  border: 1.5px solid rgba(168, 85, 247, 0.75);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(168, 85, 247, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-.pos-op-card--tables:hover {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.44) 0%, rgba(168, 85, 247, 0.16) 45%, rgba(26, 20, 46, 0.98) 100%);
-  border-color: #c084fc;
-  box-shadow: 0 8px 28px rgba(168, 85, 247, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-.pos-op-card--tables .pos-op-card-subtitle {
-  color: #d8b4fe;
-}
-.pos-op-card--tables .pos-op-card-icon {
-  background: rgba(168, 85, 247, 0.35);
-  color: #ffffff;
-  border: 1.5px solid rgba(168, 85, 247, 0.70);
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
-}
-.pos-op-card--tables .pos-op-card-pill {
-  background: #9333ea;
-  color: #ffffff;
-  border: 1px solid #c084fc;
-  box-shadow: 0 2px 10px rgba(147, 51, 234, 0.5);
-}
-.pos-op-card--tables:hover .pos-op-card-pill {
-  background: #a855f7;
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.7);
-}
-
-/* Card 2: Running Orders (Cyan Theme - High Contrast) */
-.pos-op-card--orders {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.30) 0%, rgba(56, 189, 248, 0.10) 45%, rgba(14, 24, 40, 0.98) 100%);
-  border: 1.5px solid rgba(56, 189, 248, 0.75);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(56, 189, 248, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-.pos-op-card--orders:hover {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.42) 0%, rgba(56, 189, 248, 0.16) 45%, rgba(18, 30, 50, 0.98) 100%);
-  border-color: #38bdf8;
-  box-shadow: 0 8px 28px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-.pos-op-card--orders .pos-op-card-subtitle {
-  color: #93c5fd;
-}
-.pos-op-card--orders .pos-op-card-icon {
-  background: rgba(56, 189, 248, 0.32);
-  color: #ffffff;
-  border: 1.5px solid rgba(56, 189, 248, 0.70);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-}
-.pos-op-card--orders .pos-op-card-pill {
-  background: #0284c7;
-  color: #ffffff;
-  border: 1px solid #38bdf8;
-  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.5);
-}
-.pos-op-card--orders:hover .pos-op-card-pill {
-  background: #0ea5e9;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
-}
-
-/* Ready Orders State (Emerald Highlight - High Contrast) */
-.pos-op-card--orders-ready {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(16, 185, 129, 0.12) 45%, rgba(12, 28, 22, 0.98) 100%);
-  border: 1.5px solid #10b981;
-  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35), 0 0 16px rgba(16, 185, 129, 0.25);
-}
-.pos-op-card--orders-ready:hover {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.45) 0%, rgba(16, 185, 129, 0.18) 45%, rgba(16, 36, 28, 0.98) 100%);
-  border-color: #34d399;
-  box-shadow: 0 8px 28px rgba(16, 185, 129, 0.5);
-}
-.pos-op-card--orders-ready .pos-op-card-subtitle {
-  color: #6ee7b7;
-}
-.pos-op-card--orders-ready .pos-op-card-icon {
-  background: rgba(16, 185, 129, 0.35);
-  color: #ffffff;
-  border: 1.5px solid #10b981;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
-}
-.pos-op-card--orders-ready .pos-op-card-pill {
-  background: #059669;
-  color: #ffffff;
-  border: 1px solid #34d399;
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
-}
-
-/* Card 3: Custom Item (Warm Amber/Gold Theme - High Contrast) */
-.pos-op-card--custom {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.10) 45%, rgba(32, 22, 10, 0.98) 100%);
-  border: 1.5px dashed rgba(245, 158, 11, 0.80);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(245, 158, 11, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-.pos-op-card--custom:hover {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.40) 0%, rgba(245, 158, 11, 0.16) 45%, rgba(42, 28, 12, 0.98) 100%);
-  border-color: #fbbf24;
-  box-shadow: 0 8px 28px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-.pos-op-card--custom .pos-op-card-title {
-  color: #fde047;
-}
-.pos-op-card--custom .pos-op-card-subtitle {
-  color: #fed7aa;
-}
-.pos-op-card--custom .pos-op-card-icon {
-  background: rgba(245, 158, 11, 0.35);
-  color: #fde047;
-  border: 1.5px solid rgba(245, 158, 11, 0.70);
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
-}
-.pos-op-card--custom .pos-op-card-pill {
-  background: #d97706;
-  color: #ffffff;
-  border: 1px solid #fbbf24;
-  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.5);
-}
-.pos-op-card--custom:hover .pos-op-card-pill {
-  background: #f59e0b;
-  box-shadow: 0 0 14px rgba(245, 158, 11, 0.7);
-}
-
-/* Light Mode Overrides for Operations Strip — High Contrast & Tactile Definition */
-[data-theme="light"] .pos-op-card,
-:root:not([data-theme="dark"]) .pos-op-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-[data-theme="light"] .pos-op-card:hover,
-:root:not([data-theme="dark"]) .pos-op-card:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
-}
-[data-theme="light"] .pos-op-card-title,
-:root:not([data-theme="dark"]) .pos-op-card-title {
-  color: #0f172a !important;
-  text-shadow: none !important;
-}
-
 [data-theme="light"] .pos-op-card--tables,
 :root:not([data-theme="dark"]) .pos-op-card--tables {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, #ffffff 100%) !important;
-  border: 1.5px solid rgba(168, 85, 247, 0.38) !important;
-}
-[data-theme="light"] .pos-op-card--tables .pos-op-card-subtitle,
-:root:not([data-theme="dark"]) .pos-op-card--tables .pos-op-card-subtitle {
+  background: #faf5ff !important;
+  border: 1px solid #d8b4fe !important;
   color: #7e22ce !important;
-  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(126, 34, 206, 0.08) !important;
 }
-[data-theme="light"] .pos-op-card--tables .pos-op-card-icon,
-:root:not([data-theme="dark"]) .pos-op-card--tables .pos-op-card-icon {
-  background: rgba(168, 85, 247, 0.14) !important;
-  color: #7e22ce !important;
-  border: 1.5px solid rgba(168, 85, 247, 0.40) !important;
-  box-shadow: none !important;
-}
-[data-theme="light"] .pos-op-card--tables .pos-op-card-pill,
-:root:not([data-theme="dark"]) .pos-op-card--tables .pos-op-card-pill {
-  background: #7e22ce !important;
-  color: #ffffff !important;
-  border: 1px solid #9333ea !important;
-  box-shadow: 0 2px 8px rgba(126, 34, 206, 0.25) !important;
+[data-theme="light"] .pos-op-card--tables:hover,
+:root:not([data-theme="dark"]) .pos-op-card--tables:hover {
+  background: #f3e8ff !important;
+  border-color: #a855f7 !important;
+  color: #6b21a8 !important;
 }
 
+/* Card 2: Running Orders (Cyan/Sky) */
+[data-theme="dark"] .pos-op-card--orders {
+  background: rgba(56, 189, 248, 0.15) !important;
+  border: 1px solid rgba(56, 189, 248, 0.50) !important;
+  color: #bae6fd !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+[data-theme="dark"] .pos-op-card--orders:hover {
+  background: rgba(56, 189, 248, 0.25) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pos-op-card--orders.pos-op-card--orders-ready {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  border: 1px solid #38bdf8 !important;
+  color: #ffffff !important;
+}
 [data-theme="light"] .pos-op-card--orders,
 :root:not([data-theme="dark"]) .pos-op-card--orders {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, #ffffff 100%) !important;
-  border: 1.5px solid rgba(56, 189, 248, 0.38) !important;
-}
-[data-theme="light"] .pos-op-card--orders .pos-op-card-subtitle,
-:root:not([data-theme="dark"]) .pos-op-card--orders .pos-op-card-subtitle {
+  background: #f0f9ff !important;
+  border: 1px solid #bae6fd !important;
   color: #0369a1 !important;
-  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(3, 105, 161, 0.08) !important;
 }
-[data-theme="light"] .pos-op-card--orders .pos-op-card-icon,
-:root:not([data-theme="dark"]) .pos-op-card--orders .pos-op-card-icon {
-  background: rgba(56, 189, 248, 0.14) !important;
-  color: #0284c7 !important;
-  border: 1.5px solid rgba(56, 189, 248, 0.40) !important;
-  box-shadow: none !important;
+[data-theme="light"] .pos-op-card--orders:hover,
+:root:not([data-theme="dark"]) .pos-op-card--orders:hover {
+  background: #e0f2fe !important;
+  border-color: #38bdf8 !important;
+  color: #075985 !important;
 }
-[data-theme="light"] .pos-op-card--orders .pos-op-card-pill,
-:root:not([data-theme="dark"]) .pos-op-card--orders .pos-op-card-pill {
-  background: #0284c7 !important;
+[data-theme="light"] .pos-op-card--orders.pos-op-card--orders-ready,
+:root:not([data-theme="dark"]) .pos-op-card--orders.pos-op-card--orders-ready {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
   color: #ffffff !important;
   border: 1px solid #0369a1 !important;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25) !important;
 }
 
-[data-theme="light"] .pos-op-card--orders-ready,
-:root:not([data-theme="dark"]) .pos-op-card--orders-ready {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, #ffffff 100%) !important;
-  border: 1.5px solid rgba(16, 185, 129, 0.45) !important;
+/* Card 3: Custom Item (Warm Amber) */
+[data-theme="dark"] .pos-op-card--custom {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1.5px dashed rgba(245, 158, 11, 0.55) !important;
+  color: #fde047 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
-[data-theme="light"] .pos-op-card--orders-ready .pos-op-card-subtitle,
-:root:not([data-theme="dark"]) .pos-op-card--orders-ready .pos-op-card-subtitle {
-  color: #047857 !important;
-  font-weight: 700;
-}
-[data-theme="light"] .pos-op-card--orders-ready .pos-op-card-icon,
-:root:not([data-theme="dark"]) .pos-op-card--orders-ready .pos-op-card-icon {
-  background: rgba(16, 185, 129, 0.14) !important;
-  color: #047857 !important;
-  border: 1.5px solid rgba(16, 185, 129, 0.40) !important;
-  box-shadow: none !important;
-}
-[data-theme="light"] .pos-op-card--orders-ready .pos-op-card-pill,
-:root:not([data-theme="dark"]) .pos-op-card--orders-ready .pos-op-card-pill {
-  background: #047857 !important;
+[data-theme="dark"] .pos-op-card--custom:hover {
+  background: rgba(245, 158, 11, 0.25) !important;
+  border-color: #fbbf24 !important;
   color: #ffffff !important;
-  border: 1px solid #059669 !important;
-  box-shadow: 0 2px 8px rgba(4, 120, 87, 0.25) !important;
 }
-
 [data-theme="light"] .pos-op-card--custom,
 :root:not([data-theme="dark"]) .pos-op-card--custom {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, #ffffff 100%) !important;
-  border: 1.5px dashed rgba(245, 158, 11, 0.48) !important;
+  background: #fffbeb !important;
+  border: 1.5px dashed #fcd34d !important;
+  color: #b45309 !important;
+  box-shadow: 0 1px 4px rgba(180, 83, 9, 0.08) !important;
 }
-[data-theme="light"] .pos-op-card--custom .pos-op-card-title,
-:root:not([data-theme="dark"]) .pos-op-card--custom .pos-op-card-title {
+[data-theme="light"] .pos-op-card--custom:hover,
+:root:not([data-theme="dark"]) .pos-op-card--custom:hover {
+  background: #fef3c7 !important;
+  border-color: #f59e0b !important;
   color: #92400e !important;
-  text-shadow: none !important;
-}
-[data-theme="light"] .pos-op-card--custom .pos-op-card-subtitle,
-:root:not([data-theme="dark"]) .pos-op-card--custom .pos-op-card-subtitle {
-  color: #b45309 !important;
-  font-weight: 700;
-}
-[data-theme="light"] .pos-op-card--custom .pos-op-card-icon,
-:root:not([data-theme="dark"]) .pos-op-card--custom .pos-op-card-icon {
-  background: rgba(245, 158, 11, 0.14) !important;
-  color: #b45309 !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.40) !important;
-  box-shadow: none !important;
-}
-[data-theme="light"] .pos-op-card--custom .pos-op-card-pill,
-:root:not([data-theme="dark"]) .pos-op-card--custom .pos-op-card-pill {
-  background: #d97706 !important;
-  color: #ffffff !important;
-  border: 1px solid #b45309 !important;
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25) !important;
 }
 
-/* Maintain Three in a Row across Tablets, Laptops & Desktops */
-@container cat-container (max-width: 960px) {
-  .pos-operations-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  .pos-op-card {
-    padding: 8px 10px;
-    min-height: 58px;
-    gap: 6px;
-  }
-  .pos-op-card-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-  }
-  .pos-op-pill-text {
-    display: none;
-  }
-  .pos-op-card-pill {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 50%;
-  }
-}
-
-@media (max-width: 1280px) {
-  .pos-operations-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  .pos-op-card {
-    padding: 8px 10px;
-    min-height: 58px;
-    gap: 6px;
-  }
-  .pos-op-card-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-  }
-  .pos-op-pill-text {
-    display: none;
-  }
-  .pos-op-card-pill {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 50%;
-  }
-}
-
-/* Mobile & Small Devices: Clean, unified 3 in a row */
+/* Responsive Scaling for Tablets & Mobile Phones */
 @media (max-width: 640px) {
   .pos-operations-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px;
-    margin-bottom: 14px;
+    gap: 6px !important;
+    margin-bottom: 12px !important;
   }
   .pos-op-card {
-    padding: 7px 6px;
-    min-height: 54px;
-    gap: 5px;
-    border-radius: 11px;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 8px !important;
+    gap: 5px !important;
+    border-radius: 10px !important;
   }
-  .pos-op-card-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
+  .pos-op-pill-title {
+    font-size: 12px !important;
   }
-  .pos-op-card-title {
-    font-size: 11.5px;
+}
+
+@media (max-width: 380px) {
+  .pos-operations-strip {
+    gap: 4px !important;
   }
-  .pos-op-card-subtitle {
-    display: none;
+  .pos-op-card {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 6px !important;
+    gap: 4px !important;
   }
-  .pos-op-pill-text {
-    display: none;
-  }
-  .pos-op-card-pill {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 50%;
+  .pos-op-pill-title {
+    font-size: 11px !important;
   }
 }
 

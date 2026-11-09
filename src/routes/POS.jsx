@@ -1475,39 +1475,26 @@ export default function POS() {
         <div className="pos-menu-content-area">
         {isShowingCategoryCards ? (
           <div className="pos-category-cards-container">
-            {/* Quick Operations & Utility Strip (Distinct from Food Categories) */}
+            {/* Quick Operations & Utility Pill Bar (Option A: Slim, Touch-Friendly, Never Truncates) */}
             <div className={`pos-operations-strip ${runningOrders.length === 0 ? 'has-two-cards' : ''}`}>
-              {/* 1. Table Map & Floor Plan Card (Table First) */}
-              <div
+              {/* 1. Floor Map / Tables Pill */}
+              <button
+                type="button"
                 className="pos-op-card pos-op-card--tables"
                 id="cat-card-tables"
                 onClick={() => navigate('/tables')}
-                role="button"
-                tabIndex={0}
                 title="Go to Table Map & Floor Plan"
               >
-                <div className="pos-op-card-left">
-                  <div className="pos-op-card-icon">
-                    <Armchair size={19} />
-                  </div>
-                  <div className="pos-op-card-text">
-                    <div className="pos-op-card-title">
-                      <span>{tableName ? `Table ${tableName}` : 'Tables & Floor'}</span>
-                    </div>
-                    <div className="pos-op-card-subtitle">
-                      {tableName ? 'Change table / floor' : 'Live tables & seating'}
-                    </div>
-                  </div>
-                </div>
-                <span className="pos-op-card-pill" aria-label="Floor Map">
-                  <span className="pos-op-pill-text">Floor Map</span>
-                  <ArrowRight size={13} strokeWidth={2.5} className="pos-op-pill-arrow" />
+                <Armchair size={15} className="pos-op-pill-icon" />
+                <span className="pos-op-pill-title">
+                  {tableName ? `Table ${tableName}` : 'Floor Map'}
                 </span>
-              </div>
+              </button>
 
-              {/* 2. Active Orders Card (Active Orders Second) */}
+              {/* 2. Active Orders Pill */}
               {runningOrders.length > 0 && (
-                <div
+                <button
+                  type="button"
                   className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
                   id="cat-card-active-orders"
                   onClick={() => {
@@ -1518,66 +1505,37 @@ export default function POS() {
                     else setActiveOrdersFilter('all');
                     setShowActiveOrdersModal(true);
                   }}
-                  role="button"
-                  tabIndex={0}
                   title="View active kitchen tickets, takeaway & settlement pass"
                 >
-                  <div className="pos-op-card-left">
-                    <div className="pos-op-card-icon">
-                      {readyOrdersCount > 0 ? <Bell size={19} /> : <FileText size={19} />}
-                    </div>
-                    <div className="pos-op-card-text">
-                      <div className="pos-op-card-title">
-                        <span>
-                          {readyOrdersCount > 0 
-                            ? `${readyOrdersCount} Orders Ready` 
-                            : pendingOnlineOrdersCount > 0 
-                            ? `${pendingOnlineOrdersCount} Online Orders` 
-                            : `${runningOrders.length} Running Orders`}
-                        </span>
-                        {readyOrdersCount > 0 && (
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffffff', display: 'inline-block' }} />
-                        )}
-                      </div>
-                      <div className="pos-op-card-subtitle">
-                        Kitchen tickets &amp; pass
-                      </div>
-                    </div>
-                  </div>
-                  <span className="pos-op-card-pill" aria-label="View Pass">
-                    <span className="pos-op-pill-text">View Pass</span>
-                    <ArrowRight size={13} strokeWidth={2.5} className="pos-op-pill-arrow" />
+                  {readyOrdersCount > 0 ? (
+                    <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                  ) : (
+                    <FileText size={15} className="pos-op-pill-icon" />
+                  )}
+                  <span className="pos-op-pill-title">
+                    {readyOrdersCount > 0 
+                      ? `${readyOrdersCount} Ready` 
+                      : pendingOnlineOrdersCount > 0 
+                      ? `${pendingOnlineOrdersCount} Online` 
+                      : `${runningOrders.length} Running`}
                   </span>
-                </div>
+                  {readyOrdersCount > 0 && (
+                    <span className="pos-op-pulse-dot" />
+                  )}
+                </button>
               )}
 
-              {/* 3. Custom Item Card (Custom Last) */}
-              <div
+              {/* 3. Custom Item Pill */}
+              <button
+                type="button"
                 className="pos-op-card pos-op-card--custom"
                 id="cat-card-custom"
                 onClick={() => setShowOpenItemModal(true)}
-                role="button"
-                tabIndex={0}
                 title="Add off-menu daily special or custom priced item"
               >
-                <div className="pos-op-card-left">
-                  <div className="pos-op-card-icon">
-                    <Plus size={19} strokeWidth={2.5} />
-                  </div>
-                  <div className="pos-op-card-text">
-                    <div className="pos-op-card-title">
-                      <span>Custom Item</span>
-                    </div>
-                    <div className="pos-op-card-subtitle">
-                      Daily special / off-menu
-                    </div>
-                  </div>
-                </div>
-                <span className="pos-op-card-pill" aria-label="Add Item">
-                  <span className="pos-op-pill-text">+ Add Item</span>
-                  <Plus size={13} strokeWidth={2.5} className="pos-op-pill-arrow" />
-                </span>
-              </div>
+                <Plus size={15} strokeWidth={2.4} className="pos-op-pill-icon" />
+                <span className="pos-op-pill-title">Custom Item</span>
+              </button>
             </div>
 
             {/* Pure Food & Beverage Menu Categories */}
