@@ -74,44 +74,44 @@ const MODULE_PILLARS = [
 const MODULE_PRESETS = [
   {
     id: 'bill_only',
-    name: 'Bill Only / Express Counter',
-        desc: 'Simple cashier billing. Punch items and print bill. No tables, no KDS screens.',
+    name: 'Express Counter',
+    desc: 'Quick cashier billing & receipt printing',
     modes: ['pos', 'till_shift']
   },
   {
     id: 'qsr',
-    name: 'Quick Service / Fast Food',
-        desc: 'Counter queues, token display, KDS kitchen screens, fast cash/UPI & online store',
+    name: 'Fast Food (QSR)',
+    desc: 'Tokens, kitchen KDS, quick pay & online store',
     modes: ['pos', 'token', 'kds', 'online', 'posters', 'till_shift', 'retention_crm']
   },
   {
     id: 'dine_in',
-    name: 'Full Restaurant & Dine-In',
-        desc: 'Floor plan table maps, reservations, KDS, staff payroll, phone masking & tax audit',
+    name: 'Dine-In Restaurant',
+    desc: 'Tables, floor maps, waiter ordering & KDS',
     modes: ['pos', 'table', 'kds', 'reservations', 'inventory', 'customers', 'payroll', 'till_shift', 'customer_privacy', 'audit_shield', 'tax_reconcile']
   },
   {
     id: 'cafe',
     name: 'Cafe & Bakery',
-        desc: 'Counter sales, barcode scanner, TV promos, customer loyalty & inventory',
+    desc: 'Counter sales, barcode scanner & customer loyalty',
     modes: ['pos', 'token', 'barcode', 'posters', 'inventory', 'customers', 'till_shift', 'retention_crm']
   },
   {
     id: 'retail',
-    name: 'Retail & Mini Mart',
-        desc: 'High-speed barcode checkout, inventory management, customer database & cash drawer',
+    name: 'Retail & Mart',
+    desc: 'Barcode checkout, inventory & cash drawer',
     modes: ['pos', 'barcode', 'inventory', 'customers', 'till_shift', 'customer_privacy']
   },
   {
     id: 'service',
-    name: 'Salon & Spa Services',
-        desc: 'Stylist / staff commission attribution, customer records, tipping & payroll',
+    name: 'Salon & Spa',
+    desc: 'Staff commission, customer records & appointments',
     modes: ['pos', 'customers', 'payroll', 'till_shift']
   },
   {
     id: 'cloud',
-    name: 'Cloud / Dark Kitchen',
-        desc: 'Delivery hub aggregator sync, online store, KDS stations, inventory costing & data vault',
+    name: 'Cloud Kitchen',
+    desc: 'Aggregator delivery hub & kitchen display stations',
     modes: ['online', 'delivery_hub', 'kds', 'inventory', 'data_vault', 'tax_reconcile']
   }
 ];
@@ -1549,13 +1549,12 @@ export default function Settings() {
             <>
 
               {/* Active Modules & POS Capabilities Card */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    
-                    <h3 className="text-title3" style={{ margin: 0 }}>Active Modules &amp; POS Capabilities</h3>
+                    <h3 className="text-title3" style={{ margin: 0 }}>Active Modules &amp; Capabilities</h3>
                     <span style={{
                       fontSize: '11px',
                       fontWeight: 'var(--weight-bold)',
@@ -1564,11 +1563,11 @@ export default function Settings() {
                       padding: '2px 8px',
                       borderRadius: 'var(--radius-full)'
                     }}>
-                      {(settings.modes ?? []).length} / {MODES.length} Modules Active
+                      {(settings.modes ?? []).length} / {MODES.length} Active
                     </span>
                   </div>
-                  <p className="text-secondary text-footnote" style={{ marginTop: '4px' }}>
-                    Toggle system modules to tailor DineOS to your exact format. Changes reflect instantly on your POS sidebar and cashier terminal.
+                  <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
+                    Enable or disable POS sidebar modules to match your venue format.
                   </p>
                 </div>
               </div>
@@ -1626,20 +1625,20 @@ export default function Settings() {
                 background: 'var(--color-bg-secondary)',
                 border: '1px solid var(--color-separator)',
                 borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-3) var(--space-4)',
+                padding: '10px 14px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 'var(--space-2)'
+                gap: 8
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                  <span style={{ fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', color: 'var(--color-label-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Sparkles size={14} color="var(--color-accent)" /> 1-Tap Setup by Restaurant Format:
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Sparkles size={13} color="var(--color-accent)" /> 1-Tap Presets
                   </span>
                   <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
-                    Auto-selects optimal modules for your venue type
+                    Applies optimal modules in 1 tap
                   </span>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {MODULE_PRESETS.map(preset => {
                     const isBillOnlyPreset = preset.id === 'bill_only';
                     const isPresetLocked = !isSuperAdmin && (
@@ -1656,10 +1655,10 @@ export default function Settings() {
                         disabled={isPresetLocked}
                         style={{
                           fontSize: '12px',
-                          padding: '5px 10px',
+                          padding: '4px 10px',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '6px',
+                          gap: '5px',
                           opacity: isPresetLocked ? 0.55 : 1,
                           cursor: isPresetLocked ? 'not-allowed' : 'pointer'
                         }}
@@ -1709,12 +1708,11 @@ export default function Settings() {
               </div>
 
               {/* POS Terminal Layout Template Card */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      
-                      <h3 className="text-title3" style={{ margin: 0 }}>POS Terminal Layout Template</h3>
+                      <h3 className="text-title3" style={{ margin: 0 }}>POS Layout Template</h3>
                       <span style={{
                         fontSize: '11px',
                         fontWeight: 'var(--weight-bold)',
@@ -1723,16 +1721,16 @@ export default function Settings() {
                         padding: '2px 8px',
                         borderRadius: 'var(--radius-full)'
                       }}>
-                        {settings.posTemplate === 'category_first' ? 'Template 3: Hybrid Category Cards' : settings.posTemplate === 'bistro_sidebar' ? 'Template 2: Left Category Sidebar' : 'Template 1: Modern Grid (Default)'}
+                        {settings.posTemplate === 'category_first' ? 'Category Cards' : settings.posTemplate === 'bistro_sidebar' ? 'Left Sidebar' : 'Modern Grid'}
                       </span>
                     </div>
-                    <p className="text-secondary text-footnote" style={{ marginTop: '4px' }}>
-                      Choose the active layout template for the ordering terminal. The selected template is active across all cashier and staff terminals. Table ordering staff continue using their dedicated mobile waiter flow.
+                    <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
+                      Select the cashier ordering layout for your POS terminals.
                     </p>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-3)', marginTop: 4 }}>
                   {/* Option 1: Modern Grid */}
                   <div
                     id="template-option-modern-grid"
@@ -1749,12 +1747,12 @@ export default function Settings() {
                       } catch (e) {
                         console.warn('[Settings] Failed to save posTemplate:', e);
                       }
-                      toast.success('Active POS template set to Template 1: Modern Grid');
+                      toast.success('Active POS layout set to Modern Grid');
                     }}
                     style={{
-                      border: `2px solid ${(!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                      borderRadius: 'var(--radius-lg)',
-                      padding: 'var(--space-4)',
+                      border: `1.5px solid ${(!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                      borderRadius: 'var(--radius-lg, 12px)',
+                      padding: '12px 14px',
                       background: (!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
                       cursor: 'pointer',
                       display: 'flex',
@@ -1764,18 +1762,41 @@ export default function Settings() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
-                        Template 1: Modern Grid
+                      <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
+                        Modern Grid
                       </span>
-                      {(!settings.posTemplate || settings.posTemplate === 'modern_grid') && (
-                        <Check size={16} color="var(--color-accent)" strokeWidth={3} />
+                      {(!settings.posTemplate || settings.posTemplate === 'modern_grid') ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                          <Check size={13} strokeWidth={3} /> Active
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Default</span>
                       )}
                     </div>
-                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-accent)' }}>
-                      Categories on Top (Horizontal Rail)
-                    </span>
-                    <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.4 }}>
-                      Full-width food grid, horizontal scrolling category pills, and floating action drawers. Ideal for fast casual, QSR counters, and compact screens.
+
+                    {/* Miniature Layout Preview */}
+                    <div className="layout-preview-frame" aria-hidden="true">
+                      <div className="layout-preview-top-rail">
+                        <span className="layout-preview-pill active" />
+                        <span className="layout-preview-pill" />
+                        <span className="layout-preview-pill" />
+                        <span className="layout-preview-pill" />
+                      </div>
+                      <div className="layout-preview-body">
+                        <div className="layout-preview-items-grid">
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                        </div>
+                        <div className="layout-preview-cart" />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
+                      Top category rail · Ideal for QSR & fast-casual counters
                     </p>
                   </div>
 
@@ -1795,12 +1816,12 @@ export default function Settings() {
                       } catch (e) {
                         console.warn('[Settings] Failed to save posTemplate:', e);
                       }
-                      toast.success('Active POS template set to Template 2: Left Category Sidebar');
+                      toast.success('Active POS layout set to Left Category Sidebar');
                     }}
                     style={{
-                      border: `2px solid ${settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                      borderRadius: 'var(--radius-lg)',
-                      padding: 'var(--space-4)',
+                      border: `1.5px solid ${settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                      borderRadius: 'var(--radius-lg, 12px)',
+                      padding: '12px 14px',
                       background: settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
                       cursor: 'pointer',
                       display: 'flex',
@@ -1810,18 +1831,39 @@ export default function Settings() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
-                        Template 2: Left Category Sidebar
+                      <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
+                        Left Category Sidebar
                       </span>
                       {settings.posTemplate === 'bistro_sidebar' && (
-                        <Check size={16} color="var(--color-accent)" strokeWidth={3} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                          <Check size={13} strokeWidth={3} /> Active
+                        </span>
                       )}
                     </div>
-                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-accent)' }}>
-                      Categories on Left (Vertical Rail)
-                    </span>
-                    <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.4 }}>
-                      Exact same POS features with categories arranged as a vertical rail on the left, enlarged text, and emoji-free clean labels for quick fingertip navigation.
+
+                    {/* Miniature Layout Preview */}
+                    <div className="layout-preview-frame" aria-hidden="true">
+                      <div className="layout-preview-body" style={{ height: '100%' }}>
+                        <div className="layout-preview-left-rail">
+                          <span className="layout-preview-rail-item active" />
+                          <span className="layout-preview-rail-item" />
+                          <span className="layout-preview-rail-item" />
+                          <span className="layout-preview-rail-item" />
+                        </div>
+                        <div className="layout-preview-items-grid" style={{ flex: 1 }}>
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                          <div className="layout-preview-item" />
+                        </div>
+                        <div className="layout-preview-cart" />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
+                      Vertical category rail · Fastest for high-volume cashier speed
                     </p>
                   </div>
 
@@ -1841,12 +1883,12 @@ export default function Settings() {
                       } catch (e) {
                         console.warn('[Settings] Failed to save posTemplate:', e);
                       }
-                      toast.success('Active POS template set to Template 3: Hybrid Category Cards');
+                      toast.success('Active POS layout set to Hybrid Category Cards');
                     }}
                     style={{
-                      border: `2px solid ${settings.posTemplate === 'category_first' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                      borderRadius: 'var(--radius-lg)',
-                      padding: 'var(--space-4)',
+                      border: `1.5px solid ${settings.posTemplate === 'category_first' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                      borderRadius: 'var(--radius-lg, 12px)',
+                      padding: '12px 14px',
                       background: settings.posTemplate === 'category_first' ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
                       cursor: 'pointer',
                       display: 'flex',
@@ -1856,18 +1898,31 @@ export default function Settings() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-label)' }}>
-                        Template 3: Hybrid Category Cards
+                      <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
+                        Hybrid Category Cards
                       </span>
                       {settings.posTemplate === 'category_first' && (
-                        <Check size={16} color="var(--color-accent)" strokeWidth={3} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                          <Check size={13} strokeWidth={3} /> Active
+                        </span>
                       )}
                     </div>
-                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-accent)' }}>
-                      Category Cards Grid + Persistent Quick Switcher
-                    </span>
-                    <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.4 }}>
-                      Touch-friendly large category cards for intuitive visual discovery, with a persistent top category bar once opened so staff never have to repeatedly tap Back.
+
+                    {/* Miniature Layout Preview */}
+                    <div className="layout-preview-frame" aria-hidden="true">
+                      <div className="layout-preview-body" style={{ height: '100%' }}>
+                        <div className="layout-preview-cat-cards" style={{ flex: 1 }}>
+                          <div className="layout-preview-cat-tile active" />
+                          <div className="layout-preview-cat-tile" />
+                          <div className="layout-preview-cat-tile" />
+                          <div className="layout-preview-cat-tile" />
+                        </div>
+                        <div className="layout-preview-cart" />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
+                      Visual card tiles · Great for cafes & visual touch discovery
                     </p>
                   </div>
                 </div>
