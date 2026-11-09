@@ -4,11 +4,22 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, doc, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { 
+  Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles, 
+  LayoutGrid, List, Search, Copy, Check, Mail, Clock, Shield 
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const ROLES = ['admin', 'manager', 'cashier', 'waiter', 'kitchen'];
+
+const ROLE_CONFIG = {
+  admin: { label: 'Admin', color: 'badge-purple', hex: '#8b5cf6', desc: 'Full Store - Settings, Menu & Staff' },
+  manager: { label: 'Manager', color: 'badge-green', hex: '#10b981', desc: 'Floor Supervisor - Operations, Tables & Voids' },
+  cashier: { label: 'Cashier', color: 'badge-blue', hex: '#3b82f6', desc: 'Front Counter - Billing, Tenders & Register' },
+  waiter: { label: 'Waiter', color: 'badge-teal', hex: '#06b6d4', desc: 'Floor Staff - Tables & Mobile Ordering' },
+  kitchen: { label: 'Kitchen', color: 'badge-orange', hex: '#f97316', desc: 'Line Cook - KDS Screen Only' },
+};
 
 const ROLE_LABELS = {
   admin: 'Admin (Full Store - Settings, Menu & Staff)',
@@ -28,6 +39,53 @@ export default function StaffManager() {
   const [editId, setEditId] = useState(null);
   const [revealedPins, setRevealedPins] = useState({});
   const [showAllPins, setShowAllPins] = useState(false);
+
+  // View mode: 'grid' (Cards) or 'list' (List)
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('dineos_staff_view_mode') || 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [copiedPinId, setCopiedPinId] = useState(null);
+  const [copiedRestId, setCopiedRestId] = useState(false);
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('dineos_staff_view_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
+
+  const copyPin = (pin, name, id) => {
+    if (!pin) {
+      toast.error('No PIN configured for this staff member');
+      return;
+    }
+    navigator.clipboard?.writeText(String(pin)).then(() => {
+      setCopiedPinId(id);
+      setTimeout(() => setCopiedPinId(null), 2000);
+      toast.success(`Copied PIN (${pin}) for ${name}`, { icon: '📋' });
+    }).catch(() => {
+      toast.success(`PIN: ${pin}`);
+    });
+  };
+
+  const copyRestaurantId = () => {
+    const idToCopy = restaurant?.customId || restaurant?.id;
+    if (!idToCopy) return;
+    navigator.clipboard?.writeText(String(idToCopy)).then(() => {
+      setCopiedRestId(true);
+      setTimeout(() => setCopiedRestId(false), 2000);
+      toast.success(`Copied Restaurant ID: ${idToCopy}`, { icon: '📋' });
+    });
+  };
 
   // Subscribe to isolated staff credentials (admin-only)
   useEffect(() => {
@@ -350,123 +408,503 @@ export default function StaffManager() {
 
   const roleColors = { admin:'badge-purple', manager:'badge-green', cashier:'badge-blue', waiter:'badge-teal', kitchen:'badge-orange' };
 
+  // Filter staff by search and role
+  const filteredStaff = useMemo(() => {
+    return staffList.filter(s => {
+      if (roleFilter !== 'all' && s.role !== roleFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = s.name?.toLowerCase().includes(q);
+        const matchRole = s.role?.toLowerCase().includes(q);
+        const matchEmail = s.email?.toLowerCase().includes(q);
+        const matchPin = s.pin && String(s.pin).includes(q);
+        return matchName || matchRole || matchEmail || matchPin;
+      }
+      return true;
+    });
+  }, [staffList, roleFilter, searchQuery]);
+
+  // Aggregate stats
+  const staffStats = useMemo(() => {
+    const total = staffList.length;
+    const active = staffList.filter(s => s.active !== false).length;
+    const counts = {};
+    staffList.forEach(s => {
+      const r = s.role || 'cashier';
+      counts[r] = (counts[r] || 0) + 1;
+    });
+    return { total, active, counts };
+  }, [staffList]);
+
+  const restaurantLoginId = restaurant?.customId || restaurant?.id || '';
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+      {/* ── Top Header Bar ─────────────────────────────────────────────── */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
         <div>
-          <h2 className="text-title2">{isBillOnly ? 'Cashier Accounts' : 'Staff Manager'}</h2>
-          <p className="text-secondary text-subhead" style={{marginTop:2}}>
-            Restaurant ID for {isBillOnly ? 'Cashier ' : ''}PIN login: <strong style={{fontFamily:'var(--font-mono)', color:'var(--color-accent)'}}>{restaurant?.customId || restaurant?.id}</strong>
+          <h2 className="text-title2" style={{ fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--color-label)' }}>
+            {isBillOnly ? 'Cashier Accounts' : 'Staff Manager'}
+          </h2>
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '13px', color: 'var(--color-label-secondary)' }}>
+            <span>Restaurant ID for PIN login:</span>
+            <button
+              type="button"
+              onClick={copyRestaurantId}
+              title="Click to copy Restaurant ID"
+              style={{
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(16, 185, 129, 0.12)',
+                color: 'var(--color-accent)',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(16, 185, 129, 0.28)',
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                fontSize: '12.5px'
+              }}
+            >
+              <span>{restaurantLoginId}</span>
+              {copiedRestId ? <Check size={12} color="#059669" /> : <Copy size={12} />}
+            </button>
             {restaurant?.customId && (
-              <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginLeft: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
                 (Original ID: {restaurant.id})
               </span>
             )}
-          </p>
+          </div>
         </div>
-        <button className="btn btn-primary" id="add-staff-btn" onClick={() => { setEditId(null); setForm({name:'',pin:'',role:'cashier',email:'',salaryType:'monthly',salaryRate:'',overtimeRate:'1.5'}); setShowPin(false); setShowForm(true); }}>
+
+        <button 
+          className="btn btn-primary" 
+          id="add-staff-btn" 
+          onClick={() => { 
+            setEditId(null); 
+            setForm({name:'',pin:'',role:'cashier',email:'',salaryType:'monthly',salaryRate:'',overtimeRate:'1.5'}); 
+            setShowPin(false); 
+            setShowForm(true); 
+          }}
+          style={{ height: 40, padding: '0 16px', borderRadius: 10, fontWeight: 700, boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)' }}
+        >
           <Plus size={16}/> {isBillOnly ? 'Add Cashier' : 'Add Staff'}
         </button>
       </div>
 
-      <div className="card">
-        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <span className="card-title">{isBillOnly ? 'Cashiers' : 'Staff Members'} ({staffList.length})</span>
-          {staffList.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                setShowAllPins(prev => !prev);
-                setRevealedPins({});
-              }}
-              style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-            >
-              {showAllPins ? <EyeOff size={13} /> : <Eye size={13} />}
-              <span>{showAllPins ? 'Hide All PINs' : 'Show All PINs'}</span>
-            </button>
-          )}
+      {/* ── Quick Role Filter Pill Strip ───────────────────────────── */}
+      {staffList.length > 0 && (
+        <div className="staff-manager-stats-bar">
+          <button
+            type="button"
+            className={`staff-stat-pill ${roleFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setRoleFilter('all')}
+          >
+            <span>All Staff</span>
+            <span className="staff-stat-pill-badge">{staffStats.total}</span>
+          </button>
+
+          {ROLES.map(role => {
+            const count = staffStats.counts[role] || 0;
+            if (count === 0 && roleFilter !== role) return null;
+            return (
+              <button
+                key={role}
+                type="button"
+                className={`staff-stat-pill ${roleFilter === role ? 'active' : ''}`}
+                onClick={() => setRoleFilter(roleFilter === role ? 'all' : role)}
+              >
+                <span style={{ textTransform: 'capitalize' }}>{role}</span>
+                <span className="staff-stat-pill-badge">{count}</span>
+              </button>
+            );
+          })}
         </div>
-        <div>
-          {staffList.length === 0 ? (
-            <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
-              <div style={{fontSize:32}}>👥</div>
-              <div style={{marginTop:'var(--space-2)'}}>{isBillOnly ? 'No cashiers added yet' : 'No staff added yet'}</div>
+      )}
+
+      {/* ── Main Container: Card View & List View ──────────────────── */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Toolbar: Search + View Switcher + Show PINs */}
+        <div className="staff-toolbar">
+          <div className="staff-search-wrapper">
+            <Search size={15} style={{ position: 'absolute', left: 11, color: 'var(--color-label-tertiary)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              className="staff-search-input"
+              placeholder="Search staff by name, role or PIN..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{ position: 'absolute', right: 8, background: 'none', border: 'none', color: 'var(--color-label-tertiary)', cursor: 'pointer', padding: 2 }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* View Mode Toggle Switcher */}
+            <div className="staff-view-switcher" role="tablist" aria-label="Staff layout view">
+              <button
+                type="button"
+                className={`staff-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('grid')}
+                title="Switch to Card Grid View"
+              >
+                <LayoutGrid size={13} />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                className={`staff-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('list')}
+                title="Switch to Tabular List View"
+              >
+                <List size={13} />
+                <span>List</span>
+              </button>
             </div>
-          ) : staffList.map(s => (
-            <div key={s.id} className="staff-row" style={{ opacity: s.active === false ? 0.5 : 1 }}>
-              <div className="staff-row-top">
-                <div className="staff-avatar">
-                  {s.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="staff-info">
-                  <div style={{fontWeight:'var(--weight-semibold)', color:'var(--color-label)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
-                    <span>{s.name}</span>
-                    <span className={`badge ${roleColors[s.role] ?? 'badge-gray'}`}>{s.role}</span>
-                    <span className={`badge ${s.active !== false ? 'badge-green' : 'badge-gray'}`}>
-                      {s.active !== false ? 'Active' : 'Inactive'}
-                    </span>
+
+            {/* Global PIN Visibility Toggle */}
+            {staffList.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setShowAllPins(prev => !prev);
+                  setRevealedPins({});
+                }}
+                style={{ height: 32, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0 10px', borderRadius: 8 }}
+              >
+                {showAllPins ? <EyeOff size={13} /> : <Eye size={13} />}
+                <span>{showAllPins ? 'Hide PINs' : 'Show All PINs'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Content: Cards vs. List ──────────────────────────────── */}
+        {filteredStaff.length === 0 ? (
+          <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
+            <div style={{fontSize:36}}>👥</div>
+            <div style={{marginTop:'var(--space-2)', fontWeight: 600}}>
+              {staffList.length === 0 
+                ? (isBillOnly ? 'No cashiers added yet' : 'No staff added yet')
+                : 'No staff match your search or filter'}
+            </div>
+            {staffList.length > 0 && (
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-sm" 
+                onClick={() => { setSearchQuery(''); setRoleFilter('all'); }}
+                style={{ marginTop: 10 }}
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+        ) : viewMode === 'grid' ? (
+          /* =========================================================
+             Card Grid View (Recommended for Modern Ergonomics)
+             ========================================================= */
+          <div className="staff-cards-grid">
+            {filteredStaff.map(s => {
+              const roleInfo = ROLE_CONFIG[s.role] || { label: s.role, color: 'badge-gray', hex: '#6366f1' };
+              const isPinRevealed = showAllPins || revealedPins[s.id];
+              const isCopied = copiedPinId === s.id;
+
+              return (
+                <div 
+                  key={s.id} 
+                  className={`staff-card role-${s.role || 'cashier'}`}
+                  style={{ opacity: s.active === false ? 0.65 : 1 }}
+                >
+                  {/* Top: Avatar + Name + Badges */}
+                  <div>
+                    <div className="staff-card-header">
+                      <div className="staff-card-avatar" style={{ background: roleInfo.hex }}>
+                        <span>{s.name.charAt(0).toUpperCase()}</span>
+                        <span 
+                          className={`staff-status-dot ${s.active !== false ? 'active' : 'inactive'}`} 
+                          title={s.active !== false ? 'Active' : 'Deactivated'}
+                        />
+                      </div>
+
+                      <div className="staff-card-info">
+                        <div className="staff-card-name" title={s.name}>
+                          {s.name}
+                        </div>
+                        <div className="staff-card-badges">
+                          <span className={`badge ${roleInfo.color}`}>
+                            {s.role}
+                          </span>
+                          <span className={`badge ${s.active !== false ? 'badge-green' : 'badge-gray'}`}>
+                            {s.active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Middle: PIN Micro-Box with Instant Copy */}
+                    <div className="staff-card-pin-box">
+                      <div className="staff-pin-value-group">
+                        <span className="staff-pin-label">PIN:</span>
+                        <span className="staff-pin-digits" style={{ color: isPinRevealed ? 'var(--color-label)' : 'var(--color-label-secondary)' }}>
+                          {isPinRevealed ? (s.pin || 'None') : '••••'}
+                        </span>
+                      </div>
+
+                      <div className="staff-pin-actions">
+                        <button
+                          type="button"
+                          className="staff-micro-icon-btn"
+                          onClick={() => togglePinVisibility(s.id)}
+                          aria-label={isPinRevealed ? `Hide PIN for ${s.name}` : `Show PIN for ${s.name}`}
+                          title={isPinRevealed ? 'Hide PIN' : 'Reveal PIN'}
+                        >
+                          {isPinRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="staff-micro-icon-btn"
+                          onClick={() => copyPin(s.pin, s.name, s.id)}
+                          title="Copy PIN to clipboard"
+                        >
+                          {isCopied ? <Check size={13} color="#059669" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Metadata: Email & Pay Rate */}
+                    {(s.email || s.salaryRate) && (
+                      <div className="staff-card-meta">
+                        {s.email && (
+                          <span className="staff-card-meta-item" title={s.email}>
+                            <Mail size={12} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
+                            <span>{s.email}</span>
+                          </span>
+                        )}
+                        {s.salaryRate ? (
+                          <span className="staff-card-meta-item">
+                            <Clock size={12} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
+                            <span>{s.salaryType === 'hourly' ? 'Hourly' : 'Monthly'} ({formatCurrency(s.salaryRate, restaurant?.currency)})</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
-                  <div style={{
-                    fontSize: 'var(--text-caption1)',
-                    color: 'var(--color-label-secondary)',
-                    marginTop: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '6px'
-                  }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span>PIN:</span>
-                      <span style={{
-                        fontFamily: (showAllPins || revealedPins[s.id]) ? 'monospace' : 'inherit',
-                        letterSpacing: (showAllPins || revealedPins[s.id]) ? '1.5px' : '1px',
-                        fontWeight: (showAllPins || revealedPins[s.id]) ? 700 : 400,
-                        color: (showAllPins || revealedPins[s.id]) ? 'var(--color-label)' : 'inherit'
-                      }}>
-                        {(showAllPins || revealedPins[s.id]) ? (s.pin || 'None') : '●'.repeat(s.pin?.length ?? 4)}
+
+                  {/* Bottom: Action Buttons */}
+                  <div className="staff-card-actions">
+                    <button 
+                      type="button"
+                      className="btn btn-secondary" 
+                      id={`edit-staff-${s.id}`} 
+                      onClick={() => { 
+                        setEditId(s.id); 
+                        setForm({
+                          name: s.name,
+                          pin: '',
+                          role: s.role,
+                          email: s.email ?? '',
+                          salaryType: s.salaryType || 'monthly',
+                          salaryRate: s.salaryRate !== undefined ? String(s.salaryRate) : '',
+                          overtimeRate: s.overtimeRate !== undefined ? String(s.overtimeRate) : '1.5'
+                        }); 
+                        setShowPin(false); 
+                        setShowForm(true); 
+                      }}
+                      title="Edit staff member profile & permissions"
+                    >
+                      <Edit2 size={13} />
+                      <span>Edit</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      className="btn btn-secondary" 
+                      onClick={() => toggleActive(s.id, s.active !== false)} 
+                      id={`toggle-staff-${s.id}`}
+                      title={s.active !== false ? 'Temporarily deactivate staff login' : 'Activate staff login'}
+                    >
+                      {s.active !== false ? (
+                        <>
+                          <UserX size={13} color="var(--color-red)"/>
+                          <span>Deactivate</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck size={13} color="var(--color-green)"/>
+                          <span>Activate</span>
+                        </>
+                      )}
+                    </button>
+
+                    {s.id !== currentUser?.id && (
+                      <button 
+                        type="button"
+                        className="btn btn-secondary" 
+                        style={{ color: 'var(--color-red)', padding: '0 9px' }} 
+                        onClick={() => deleteStaff(s.id)} 
+                        id={`delete-staff-${s.id}`}
+                        title="Delete staff member permanently"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* =========================================================
+             Refined List View (Clean & Compact)
+             ========================================================= */
+          <div className="staff-list-container">
+            {filteredStaff.map(s => {
+              const roleInfo = ROLE_CONFIG[s.role] || { label: s.role, color: 'badge-gray', hex: '#6366f1' };
+              const isPinRevealed = showAllPins || revealedPins[s.id];
+              const isCopied = copiedPinId === s.id;
+
+              return (
+                <div 
+                  key={s.id} 
+                  className="staff-list-row"
+                  style={{ opacity: s.active === false ? 0.65 : 1 }}
+                >
+                  <div className="staff-list-left">
+                    <div className="staff-card-avatar" style={{ width: 40, height: 40, fontSize: 16, borderRadius: 10, background: roleInfo.hex }}>
+                      <span>{s.name.charAt(0).toUpperCase()}</span>
+                      <span 
+                        className={`staff-status-dot ${s.active !== false ? 'active' : 'inactive'}`} 
+                        title={s.active !== false ? 'Active' : 'Deactivated'}
+                      />
+                    </div>
+
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--color-label)' }}>
+                        {s.name}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <span className={`badge ${roleInfo.color}`}>{s.role}</span>
+                        <span className={`badge ${s.active !== false ? 'badge-green' : 'badge-gray'}`}>
+                          {s.active !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Center: PIN & Meta */}
+                  <div className="staff-list-center">
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: 'var(--color-bg)',
+                      border: '1px solid var(--color-separator)',
+                      borderRadius: 8,
+                      padding: '4px 10px'
+                    }}>
+                      <span className="staff-pin-label">PIN:</span>
+                      <span className="staff-pin-digits" style={{ fontSize: 13, color: isPinRevealed ? 'var(--color-label)' : 'var(--color-label-secondary)' }}>
+                        {isPinRevealed ? (s.pin || 'None') : '••••'}
                       </span>
                       <button
                         type="button"
+                        className="staff-micro-icon-btn"
+                        style={{ width: 22, height: 22 }}
                         onClick={() => togglePinVisibility(s.id)}
-                        aria-label={(showAllPins || revealedPins[s.id]) ? `Hide PIN for ${s.name}` : `Show PIN for ${s.name}`}
-                        title={(showAllPins || revealedPins[s.id]) ? 'Hide PIN' : 'Show PIN'}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--color-label-tertiary)',
-                          cursor: 'pointer',
-                          padding: '0 2px',
-                          display: 'inline-flex',
-                          alignItems: 'center'
-                        }}
+                        title={isPinRevealed ? 'Hide PIN' : 'Reveal PIN'}
                       >
-                        {(showAllPins || revealedPins[s.id]) ? <EyeOff size={13} /> : <Eye size={13} />}
+                        {isPinRevealed ? <EyeOff size={11} /> : <Eye size={11} />}
                       </button>
-                    </span>
-                    {s.email ? <span>· {s.email}</span> : null}
-                    {s.salaryRate ? <span>· {s.salaryType === 'hourly' ? 'Hourly' : 'Monthly'} ({formatCurrency(s.salaryRate, restaurant?.currency)})</span> : null}
+                      <button
+                        type="button"
+                        className="staff-micro-icon-btn"
+                        style={{ width: 22, height: 22 }}
+                        onClick={() => copyPin(s.pin, s.name, s.id)}
+                        title="Copy PIN"
+                      >
+                        {isCopied ? <Check size={11} color="#059669" /> : <Copy size={11} />}
+                      </button>
+                    </div>
+
+                    {s.email && (
+                      <span style={{ fontSize: 12, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Mail size={12} color="var(--color-label-tertiary)" />
+                        <span>{s.email}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Right: Actions */}
+                  <div className="staff-list-right">
+                    <button 
+                      type="button"
+                      className="btn btn-secondary btn-sm" 
+                      id={`edit-staff-${s.id}`} 
+                      onClick={() => { 
+                        setEditId(s.id); 
+                        setForm({
+                          name: s.name,
+                          pin: '',
+                          role: s.role,
+                          email: s.email ?? '',
+                          salaryType: s.salaryType || 'monthly',
+                          salaryRate: s.salaryRate !== undefined ? String(s.salaryRate) : '',
+                          overtimeRate: s.overtimeRate !== undefined ? String(s.overtimeRate) : '1.5'
+                        }); 
+                        setShowPin(false); 
+                        setShowForm(true); 
+                      }}
+                    >
+                      <Edit2 size={13}/>
+                      <span>Edit</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => toggleActive(s.id, s.active !== false)} 
+                      id={`toggle-staff-${s.id}`}
+                    >
+                      {s.active !== false ? (
+                        <>
+                          <UserX size={13} color="var(--color-red)"/>
+                          <span>Deactivate</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck size={13} color="var(--color-green)"/>
+                          <span>Activate</span>
+                        </>
+                      )}
+                    </button>
+
+                    {s.id !== currentUser?.id && (
+                      <button 
+                        type="button"
+                        className="btn btn-secondary btn-sm" 
+                        style={{ color: 'var(--color-red)' }} 
+                        onClick={() => deleteStaff(s.id)} 
+                        id={`delete-staff-${s.id}`}
+                      >
+                        <Trash2 size={13}/>
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
-              <div className="staff-actions">
-                <button className="btn btn-secondary btn-sm" id={`edit-staff-${s.id}`} onClick={() => { setEditId(s.id); setForm({name:s.name,pin:'',role:s.role,email:s.email??'',salaryType:s.salaryType||'monthly',salaryRate:s.salaryRate!==undefined?String(s.salaryRate):'',overtimeRate:s.overtimeRate!==undefined?String(s.overtimeRate):'1.5'}); setShowPin(false); setShowForm(true); }}>
-                  <Edit2 size={13}/>
-                  <span>Edit</span>
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => toggleActive(s.id, s.active !== false)} id={`toggle-staff-${s.id}`}>
-                  {s.active !== false ? <><UserX size={13} color="var(--color-red)"/><span>Deactivate</span></> : <><UserCheck size={13} color="var(--color-green)"/><span>Activate</span></>}
-                </button>
-                {s.id !== currentUser?.id && (
-                  <button className="btn btn-secondary btn-sm" style={{color:'var(--color-red)'}} onClick={() => deleteStaff(s.id)} id={`delete-staff-${s.id}`}>
-                    <Trash2 size={13}/>
-                    <span>Delete</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {showForm && (

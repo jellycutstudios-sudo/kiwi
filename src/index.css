@@ -13995,7 +13995,441 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 }
 
-/* --- Staff Manager Rows --- */
+/* ==========================================================================
+   Modern Staff Manager (Card Grid View & Refined List View)
+   ========================================================================== */
+.staff-manager-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.staff-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-separator);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-label-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.staff-stat-pill:hover {
+  background: var(--color-bg-secondary);
+  border-color: #94a3b8;
+  color: var(--color-label);
+}
+
+.staff-stat-pill.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+[data-theme="dark"] .staff-stat-pill.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.staff-stat-pill-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.staff-stat-pill.active .staff-stat-pill-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Controls Bar (Search + View Mode + Show PINs) */
+.staff-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-bg-elevated);
+}
+
+.staff-search-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+}
+
+.staff-search-input {
+  width: 100%;
+  height: 38px;
+  padding-left: 34px;
+  padding-right: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label);
+  outline: none;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.staff-search-input:focus {
+  background: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+[data-theme="dark"] .staff-search-input {
+  background: #0f121b;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .staff-search-input:focus {
+  background: #171b28;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.20);
+}
+
+/* View Mode Segmented Switcher */
+.staff-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator);
+  padding: 3px;
+  border-radius: 10px;
+  gap: 3px;
+}
+
+.staff-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--color-label-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.staff-view-btn:hover {
+  color: var(--color-label);
+}
+
+.staff-view-btn.active {
+  background: #ffffff;
+  color: var(--color-label);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .staff-view-btn.active {
+  background: #252a3d;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Card Grid View (Premium Cards for Staff) */
+.staff-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+  padding: 18px;
+}
+
+.staff-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--color-bg-elevated);
+  border: 1.5px solid var(--color-separator);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.16s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.staff-card:hover {
+  transform: translateY(-2px);
+  border-color: #94a3b8;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="dark"] .staff-card {
+  background: #141724;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .staff-card:hover {
+  background: #181d2c;
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Top Accent Stripe on Cards */
+.staff-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--role-accent, #94a3b8);
+}
+
+.staff-card.role-admin { --role-accent: #a855f7; }
+.staff-card.role-manager { --role-accent: #10b981; }
+.staff-card.role-cashier { --role-accent: #3b82f6; }
+.staff-card.role-waiter { --role-accent: #06b6d4; }
+.staff-card.role-kitchen { --role-accent: #f97316; }
+
+.staff-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.staff-card-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 800;
+  flex-shrink: 0;
+  position: relative;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.staff-status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--color-bg-elevated);
+}
+
+.staff-status-dot.active {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.staff-status-dot.inactive {
+  background: #94a3b8;
+}
+
+.staff-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.staff-card-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-label);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staff-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+/* PIN & Details Box inside Card */
+.staff-card-pin-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-bg);
+  border: 1px solid var(--color-separator);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 14px 0 10px;
+}
+
+[data-theme="dark"] .staff-card-pin-box {
+  background: #0d0f18;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.staff-pin-value-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.staff-pin-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-label-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.staff-pin-digits {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--color-label);
+}
+
+.staff-pin-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.staff-micro-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--color-separator);
+  background: var(--color-bg-elevated);
+  color: var(--color-label-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  padding: 0;
+}
+
+.staff-micro-icon-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-label);
+  border-color: #94a3b8;
+}
+
+.staff-card-meta {
+  font-size: 12px;
+  color: var(--color-label-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.staff-card-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Card Actions Footer */
+.staff-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr auto;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-separator);
+}
+
+.staff-card-actions .btn {
+  height: 34px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 0 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+}
+
+/* Refined List View */
+.staff-list-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.staff-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-separator);
+  transition: background 0.14s ease;
+}
+
+.staff-list-row:last-child {
+  border-bottom: none;
+}
+
+.staff-list-row:hover {
+  background: var(--color-bg);
+}
+
+[data-theme="dark"] .staff-list-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.staff-list-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1.2;
+}
+
+.staff-list-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.staff-list-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Legacy compatibility classes */
 .staff-row {
   display: flex;
   align-items: center;
@@ -14047,25 +14481,30 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 @media (max-width: 768px) {
-  .staff-row {
+  .staff-toolbar {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .staff-search-wrapper {
+    max-width: none;
+    width: 100%;
+  }
+  .staff-cards-grid {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+  .staff-list-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px;
+  }
+  .staff-list-center {
     flex-wrap: wrap;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
   }
-  
-  .staff-info {
-    width: calc(100% - 56px);
-    flex: none;
-  }
-  
-  .staff-meta {
-    width: auto;
-    margin-left: 56px;
-    flex: 1;
-  }
-  
-  .staff-actions {
-    margin-left: auto;
+  .staff-list-right {
+    justify-content: flex-end;
   }
 }
 
