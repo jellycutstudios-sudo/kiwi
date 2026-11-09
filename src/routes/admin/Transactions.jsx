@@ -9,6 +9,8 @@ import InfoTooltip from '../../components/shared/InfoTooltip';
 import toast from 'react-hot-toast';
 import { printReceipt } from '../../utils/print';
 import { useOrderStore } from '../../stores/orderStore';
+import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
+import { getOrderTimestampMs } from '../../utils/timezoneUtils';
 
 export default function Transactions() {
   const { restaurant } = useAuthStore();
@@ -65,10 +67,18 @@ export default function Transactions() {
 
         const snap = await getDocs(q);
         const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Merge local buffered & private sales orders
+        const offlineOrders = (useOfflineQueueStore.getState().queue || []).filter(o => {
+          const orderTime = getOrderTimestampMs(o);
+          return (!orderTime || orderTime >= start.getTime()) && (!restaurant?.id || o.restaurantId === restaurant.id);
+        });
+
+        const existingIds = new Set(docs.map(d => d.id));
+        const combined = [...docs, ...offlineOrders.filter(o => !existingIds.has(o.id))];
         
-        // Filter out unpaid/cancelled orders if desired, or show them with clear badges
-        // For a transaction ledger, we usually want to see completed/billed orders
-        const completedOrders = docs.filter(d => 
+        // Filter out unpaid/cancelled orders for completed transaction ledger
+        const completedOrders = combined.filter(d => 
           (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && 
           d.status !== 'cancelled'
         );
@@ -78,7 +88,19 @@ export default function Transactions() {
           localStorage.setItem(`dineos_cached_transactions_${restaurant.id}`, JSON.stringify(completedOrders.slice(0, 150)));
         } catch {}
       } catch (error) {
-        console.error("Error fetching transactions:", error);
+        console.warn("Transactions cloud query deferred, loading from local buffer:", error);
+        const offlineOrders = (useOfflineQueueStore.getState().queue || []).filter(o => {
+          const orderTime = getOrderTimestampMs(o);
+          return (!orderTime || orderTime >= start.getTime()) && (!restaurant?.id || o.restaurantId === restaurant.id);
+        });
+        const completedOffline = offlineOrders.filter(d => 
+          (d.status === 'billed' || (d.paymentMethod && d.paymentMethod !== 'unpaid')) && 
+          d.status !== 'cancelled'
+        );
+        if (completedOffline.length > 0) {
+          setOrders(completedOffline);
+          return;
+        }
         try {
           const cached = localStorage.getItem(`dineos_cached_transactions_${restaurant.id}`);
           if (cached) {
