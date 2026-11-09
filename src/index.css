@@ -2075,6 +2075,18 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
   background: var(--color-surface);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.pos-menu-panel.categories-left .pos-category-bar::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+
+.pos-menu-panel.categories-left .pos-category-bar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 4px;
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .pos-category-bar {

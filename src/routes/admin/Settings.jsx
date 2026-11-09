@@ -26,6 +26,7 @@ import { useUpdateStore } from '../../stores/updateStore';
 import { saveLocalGroqApiKey } from '../../services/groqService';
 import { TERMINAL_PROVIDERS, getTerminalAdapter } from '../../services/terminal';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
+import { getEffectivePosTemplate, POS_TEMPLATES } from '../../utils/posTemplate';
 
 const ADVANCED_FEATURE_KEYS = ['table', 'kds', 'reservations', 'posters', 'kiosk', 'delivery_hub', 'payroll', 'online'];
 
@@ -1708,225 +1709,230 @@ export default function Settings() {
               </div>
 
               {/* POS Terminal Layout Template Card */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h3 className="text-title3" style={{ margin: 0 }}>POS Layout Template</h3>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: 'var(--weight-bold)',
-                        background: 'var(--color-accent-light)',
-                        color: 'var(--color-accent)',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-full)'
-                      }}>
-                        {settings.posTemplate === 'category_first' ? 'Category Cards' : settings.posTemplate === 'bistro_sidebar' ? 'Left Sidebar' : 'Modern Grid'}
-                      </span>
-                    </div>
-                    <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
-                      Select the cashier ordering layout for your POS terminals.
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-3)', marginTop: 4 }}>
-                  {/* Option 1: Modern Grid */}
-                  <div
-                    id="template-option-modern-grid"
-                    onClick={async () => {
-                      updateField('posTemplate', 'modern_grid');
-                      const updatedRest = { ...(restaurant || {}), posTemplate: 'modern_grid' };
-                      useAuthStore.setState({ restaurant: updatedRest });
-                      if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', 'modern_grid');
-                      window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: 'modern_grid' } }));
-                      try {
-                        if (restaurant?.id) {
-                          await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: 'modern_grid' });
-                        }
-                      } catch (e) {
-                        console.warn('[Settings] Failed to save posTemplate:', e);
-                      }
-                      toast.success('Active POS layout set to Modern Grid');
-                    }}
-                    style={{
-                      border: `1.5px solid ${(!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                      borderRadius: 'var(--radius-lg, 12px)',
-                      padding: '12px 14px',
-                      background: (!settings.posTemplate || settings.posTemplate === 'modern_grid') ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
-                        Modern Grid
-                      </span>
-                      {(!settings.posTemplate || settings.posTemplate === 'modern_grid') ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
-                          <Check size={13} strokeWidth={3} /> Active
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Default</span>
-                      )}
-                    </div>
-
-                    {/* Miniature Layout Preview */}
-                    <div className="layout-preview-frame" aria-hidden="true">
-                      <div className="layout-preview-top-rail">
-                        <span className="layout-preview-pill active" />
-                        <span className="layout-preview-pill" />
-                        <span className="layout-preview-pill" />
-                        <span className="layout-preview-pill" />
-                      </div>
-                      <div className="layout-preview-body">
-                        <div className="layout-preview-items-grid">
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
+              {(() => {
+                const activePosTemplate = settings?.posTemplate || getEffectivePosTemplate(restaurant);
+                return (
+                  <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h3 className="text-title3" style={{ margin: 0 }}>POS Layout Template</h3>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 'var(--weight-bold)',
+                            background: 'var(--color-accent-light)',
+                            color: 'var(--color-accent)',
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-full)'
+                          }}>
+                            {activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST ? 'Category Cards' : activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR ? 'Left Sidebar' : 'Modern Grid'}
+                          </span>
                         </div>
-                        <div className="layout-preview-cart" />
+                        <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
+                          Select the cashier ordering layout for your POS terminals.
+                        </p>
                       </div>
                     </div>
 
-                    <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
-                      Top category rail · Ideal for QSR & fast-casual counters
-                    </p>
-                  </div>
-
-                  {/* Option 2: Left Category Sidebar */}
-                  <div
-                    id="template-option-bistro-sidebar"
-                    onClick={async () => {
-                      updateField('posTemplate', 'bistro_sidebar');
-                      const updatedRest = { ...(restaurant || {}), posTemplate: 'bistro_sidebar' };
-                      useAuthStore.setState({ restaurant: updatedRest });
-                      if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', 'bistro_sidebar');
-                      window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: 'bistro_sidebar' } }));
-                      try {
-                        if (restaurant?.id) {
-                          await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: 'bistro_sidebar' });
-                        }
-                      } catch (e) {
-                        console.warn('[Settings] Failed to save posTemplate:', e);
-                      }
-                      toast.success('Active POS layout set to Left Category Sidebar');
-                    }}
-                    style={{
-                      border: `1.5px solid ${settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                      borderRadius: 'var(--radius-lg, 12px)',
-                      padding: '12px 14px',
-                      background: settings.posTemplate === 'bistro_sidebar' ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
-                        Left Category Sidebar
-                      </span>
-                      {settings.posTemplate === 'bistro_sidebar' && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
-                          <Check size={13} strokeWidth={3} /> Active
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Miniature Layout Preview */}
-                    <div className="layout-preview-frame" aria-hidden="true">
-                      <div className="layout-preview-body" style={{ height: '100%' }}>
-                        <div className="layout-preview-left-rail">
-                          <span className="layout-preview-rail-item active" />
-                          <span className="layout-preview-rail-item" />
-                          <span className="layout-preview-rail-item" />
-                          <span className="layout-preview-rail-item" />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-3)', marginTop: 4 }}>
+                      {/* Option 1: Modern Grid */}
+                      <div
+                        id="template-option-modern-grid"
+                        onClick={async () => {
+                          updateField('posTemplate', POS_TEMPLATES.MODERN_GRID);
+                          const updatedRest = { ...(restaurant || {}), posTemplate: POS_TEMPLATES.MODERN_GRID };
+                          useAuthStore.setState({ restaurant: updatedRest });
+                          if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', POS_TEMPLATES.MODERN_GRID);
+                          window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: POS_TEMPLATES.MODERN_GRID } }));
+                          try {
+                            if (restaurant?.id) {
+                              await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: POS_TEMPLATES.MODERN_GRID });
+                            }
+                          } catch (e) {
+                            console.warn('[Settings] Failed to save posTemplate:', e);
+                          }
+                          toast.success('Active POS layout set to Modern Grid');
+                        }}
+                        style={{
+                          border: `1.5px solid ${activePosTemplate === POS_TEMPLATES.MODERN_GRID ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                          borderRadius: 'var(--radius-lg, 12px)',
+                          padding: '12px 14px',
+                          background: activePosTemplate === POS_TEMPLATES.MODERN_GRID ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
+                            Modern Grid
+                          </span>
+                          {activePosTemplate === POS_TEMPLATES.MODERN_GRID ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                              <Check size={13} strokeWidth={3} /> Active
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Default</span>
+                          )}
                         </div>
-                        <div className="layout-preview-items-grid" style={{ flex: 1 }}>
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
-                          <div className="layout-preview-item" />
+
+                        {/* Miniature Layout Preview */}
+                        <div className="layout-preview-frame" aria-hidden="true">
+                          <div className="layout-preview-top-rail">
+                            <span className="layout-preview-pill active" />
+                            <span className="layout-preview-pill" />
+                            <span className="layout-preview-pill" />
+                            <span className="layout-preview-pill" />
+                          </div>
+                          <div className="layout-preview-body">
+                            <div className="layout-preview-items-grid">
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                            </div>
+                            <div className="layout-preview-cart" />
+                          </div>
                         </div>
-                        <div className="layout-preview-cart" />
+
+                        <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
+                          Top category rail · Ideal for QSR & fast-casual counters
+                        </p>
+                      </div>
+
+                      {/* Option 2: Left Category Sidebar */}
+                      <div
+                        id="template-option-bistro-sidebar"
+                        onClick={async () => {
+                          updateField('posTemplate', POS_TEMPLATES.BISTRO_SIDEBAR);
+                          const updatedRest = { ...(restaurant || {}), posTemplate: POS_TEMPLATES.BISTRO_SIDEBAR };
+                          useAuthStore.setState({ restaurant: updatedRest });
+                          if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', POS_TEMPLATES.BISTRO_SIDEBAR);
+                          window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: POS_TEMPLATES.BISTRO_SIDEBAR } }));
+                          try {
+                            if (restaurant?.id) {
+                              await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: POS_TEMPLATES.BISTRO_SIDEBAR });
+                            }
+                          } catch (e) {
+                            console.warn('[Settings] Failed to save posTemplate:', e);
+                          }
+                          toast.success('Active POS layout set to Left Category Sidebar');
+                        }}
+                        style={{
+                          border: `1.5px solid ${activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                          borderRadius: 'var(--radius-lg, 12px)',
+                          padding: '12px 14px',
+                          background: activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
+                            Left Category Sidebar
+                          </span>
+                          {activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                              <Check size={13} strokeWidth={3} /> Active
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Miniature Layout Preview */}
+                        <div className="layout-preview-frame" aria-hidden="true">
+                          <div className="layout-preview-body" style={{ height: '100%' }}>
+                            <div className="layout-preview-left-rail">
+                              <span className="layout-preview-rail-item active" />
+                              <span className="layout-preview-rail-item" />
+                              <span className="layout-preview-rail-item" />
+                              <span className="layout-preview-rail-item" />
+                            </div>
+                            <div className="layout-preview-items-grid" style={{ flex: 1 }}>
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                              <div className="layout-preview-item" />
+                            </div>
+                            <div className="layout-preview-cart" />
+                          </div>
+                        </div>
+
+                        <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
+                          Vertical category rail · Fastest for high-volume cashier speed
+                        </p>
+                      </div>
+
+                      {/* Option 3: Hybrid Category Cards */}
+                      <div
+                        id="template-option-category-first"
+                        onClick={async () => {
+                          updateField('posTemplate', POS_TEMPLATES.CATEGORY_FIRST);
+                          const updatedRest = { ...(restaurant || {}), posTemplate: POS_TEMPLATES.CATEGORY_FIRST };
+                          useAuthStore.setState({ restaurant: updatedRest });
+                          if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', POS_TEMPLATES.CATEGORY_FIRST);
+                          window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: POS_TEMPLATES.CATEGORY_FIRST } }));
+                          try {
+                            if (restaurant?.id) {
+                              await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: POS_TEMPLATES.CATEGORY_FIRST });
+                            }
+                          } catch (e) {
+                            console.warn('[Settings] Failed to save posTemplate:', e);
+                          }
+                          toast.success('Active POS layout set to Hybrid Category Cards');
+                        }}
+                        style={{
+                          border: `1.5px solid ${activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST ? 'var(--color-accent)' : 'var(--color-separator)'}`,
+                          borderRadius: 'var(--radius-lg, 12px)',
+                          padding: '12px 14px',
+                          background: activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
+                            Hybrid Category Cards
+                          </span>
+                          {activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                              <Check size={13} strokeWidth={3} /> Active
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Miniature Layout Preview */}
+                        <div className="layout-preview-frame" aria-hidden="true">
+                          <div className="layout-preview-body" style={{ height: '100%' }}>
+                            <div className="layout-preview-cat-cards" style={{ flex: 1 }}>
+                              <div className="layout-preview-cat-tile active" />
+                              <div className="layout-preview-cat-tile" />
+                              <div className="layout-preview-cat-tile" />
+                              <div className="layout-preview-cat-tile" />
+                            </div>
+                            <div className="layout-preview-cart" />
+                          </div>
+                        </div>
+
+                        <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
+                          Visual card tiles · Great for cafes & visual touch discovery
+                        </p>
                       </div>
                     </div>
-
-                    <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
-                      Vertical category rail · Fastest for high-volume cashier speed
-                    </p>
                   </div>
-
-                  {/* Option 3: Hybrid Category Cards */}
-                  <div
-                    id="template-option-category-first"
-                    onClick={async () => {
-                      updateField('posTemplate', 'category_first');
-                      const updatedRest = { ...(restaurant || {}), posTemplate: 'category_first' };
-                      useAuthStore.setState({ restaurant: updatedRest });
-                      if (typeof localStorage !== 'undefined') localStorage.setItem('dineos_pos_template', 'category_first');
-                      window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', { detail: { template: 'category_first' } }));
-                      try {
-                        if (restaurant?.id) {
-                          await updateDoc(doc(db, 'restaurants', restaurant.id), { posTemplate: 'category_first' });
-                        }
-                      } catch (e) {
-                        console.warn('[Settings] Failed to save posTemplate:', e);
-                      }
-                      toast.success('Active POS layout set to Hybrid Category Cards');
-                    }}
-                    style={{
-                      border: `1.5px solid ${settings.posTemplate === 'category_first' ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                      borderRadius: 'var(--radius-lg, 12px)',
-                      padding: '12px 14px',
-                      background: settings.posTemplate === 'category_first' ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
-                        Hybrid Category Cards
-                      </span>
-                      {settings.posTemplate === 'category_first' && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
-                          <Check size={13} strokeWidth={3} /> Active
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Miniature Layout Preview */}
-                    <div className="layout-preview-frame" aria-hidden="true">
-                      <div className="layout-preview-body" style={{ height: '100%' }}>
-                        <div className="layout-preview-cat-cards" style={{ flex: 1 }}>
-                          <div className="layout-preview-cat-tile active" />
-                          <div className="layout-preview-cat-tile" />
-                          <div className="layout-preview-cat-tile" />
-                          <div className="layout-preview-cat-tile" />
-                        </div>
-                        <div className="layout-preview-cart" />
-                      </div>
-                    </div>
-
-                    <p style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', margin: 0, lineHeight: 1.35 }}>
-                      Visual card tiles · Great for cafes & visual touch discovery
-                    </p>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* The 6 Modular Pillars */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>

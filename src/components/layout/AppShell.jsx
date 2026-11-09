@@ -337,7 +337,7 @@ export default function AppShell() {
           {isPOS && (
             <div className="pos-topbar-center">
               {/* Back to All Categories button for Template 3 (Category Cards) */}
-              {isCategoryFirst && !catFirstOverview && (
+              {isCategoryFirst && (!catFirstOverview || Boolean(search?.trim())) && (
                 <button
                   type="button"
                   id="topbar-back-to-categories-btn"

@@ -181,8 +181,16 @@ export default function POS() {
   useEffect(() => {
     if (isCategoryFirst) {
       setCatFirstOverview(true);
+      setActiveCat('all');
     }
   }, [isCategoryFirst, setCatFirstOverview]);
+
+  // When returning to category overview in category_first mode, cleanly reset active category back to 'all'
+  useEffect(() => {
+    if (isCategoryFirst && catFirstOverview) {
+      setActiveCat('all');
+    }
+  }, [isCategoryFirst, catFirstOverview]);
 
   const trimmedSearch = typeof search === 'string' ? search.trim() : '';
   const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !trimmedSearch;
@@ -1554,6 +1562,14 @@ export default function POS() {
                 className="pos-category-card pos-cat-theme-emerald"
                 id="cat-card-all"
                 onClick={() => { setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setActiveCat('all');
+                    setCatFirstOverview(false);
+                    setSearch('');
+                  }
+                }}
                 role="button"
                 tabIndex={0}
               >
@@ -1577,6 +1593,14 @@ export default function POS() {
                     id={`cat-card-${c.id}`}
                     className={`pos-category-card ${themeClass}`}
                     onClick={() => { setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveCat(c.id);
+                        setCatFirstOverview(false);
+                        setSearch('');
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                   >
