@@ -1,7 +1,7 @@
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Cloud, CloudOff, RefreshCw, X, CheckCircle2, Clock, Layers, Trash2 } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, X, CheckCircle2, Clock, Layers, Trash2, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function OfflineSyncModal({ isOpen, onClose }) {
@@ -29,6 +29,40 @@ export default function OfflineSyncModal({ isOpen, onClose }) {
       clearQueue();
       toast('Offline queue cleared');
     }
+  };
+
+  const handleExportCSV = () => {
+    if (queue.length === 0) {
+      toast.error('No buffered orders to export');
+      return;
+    }
+
+    const headers = ['Order ID', 'Token', 'Date/Time', 'Type', 'Table', 'Payment Method', 'Items Count', 'Total'];
+    const rows = queue.map(o => {
+      const date = o.createdAt || o.offlineQueuedAt || new Date().toISOString();
+      const itemsCount = (o.items || []).reduce((sum, it) => sum + (it.qty || 1), 0);
+      return [
+        `"${o.id || ''}"`,
+        `"${o.token || ''}"`,
+        `"${new Date(date).toLocaleString()}"`,
+        `"${o.type || 'takeaway'}"`,
+        `"${o.tableName || ''}"`,
+        `"${o.paymentMethod || 'unpaid'}"`,
+        itemsCount,
+        o.total || 0
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `offline_outbox_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Offline outbox exported to CSV!');
   };
 
   return (
@@ -121,15 +155,26 @@ export default function OfflineSyncModal({ isOpen, onClose }) {
             <span>Buffered Orders in Outbox ({queue.length})</span>
           </div>
           {queue.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={handleClearAll}
-              style={{ fontSize: '11px', height: 26, padding: '0 8px', color: '#ef4444' }}
-              title="Purge offline buffer"
-            >
-              <Trash2 size={12} style={{ marginRight: 4 }} /> Clear Outbox
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleExportCSV}
+                style={{ fontSize: '11px', height: 26, padding: '0 8px' }}
+                title="Export offline buffer to CSV spreadsheet"
+              >
+                <Download size={12} style={{ marginRight: 4 }} /> Export CSV
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleClearAll}
+                style={{ fontSize: '11px', height: 26, padding: '0 8px', color: '#ef4444' }}
+                title="Purge offline buffer"
+              >
+                <Trash2 size={12} style={{ marginRight: 4 }} /> Clear Outbox
+              </button>
+            </div>
           )}
         </div>
 

@@ -23,6 +23,7 @@ import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
 import AdminSecuritySettings from '../../components/settings/AdminSecuritySettings';
 import { useUpdateStore } from '../../stores/updateStore';
+import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { saveLocalGroqApiKey } from '../../services/groqService';
 import { TERMINAL_PROVIDERS, getTerminalAdapter } from '../../services/terminal';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
@@ -2509,7 +2510,24 @@ export default function Settings() {
                       if (enable) {
                         toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.');
                       } else {
-                        toast('Cloud sync mode re-enabled.');
+                        const currentQueue = useOfflineQueueStore.getState().queue || [];
+                        if (currentQueue.length > 0) {
+                          const shouldSync = window.confirm(
+                            `${currentQueue.length} pending local orders found in outbox. Upload to cloud now?`
+                          );
+                          if (shouldSync) {
+                            toast('Uploading offline orders to cloud…', { icon: '☁️' });
+                            useOfflineQueueStore.getState().processQueue().then(res => {
+                              if (res?.syncedCount > 0) {
+                                toast.success(`Successfully uploaded ${res.syncedCount} offline order${res.syncedCount > 1 ? 's' : ''}!`);
+                              }
+                            });
+                          } else {
+                            toast('Cloud sync mode re-enabled. Outbox orders remain available to sync anytime.');
+                          }
+                        } else {
+                          toast('Cloud sync mode re-enabled.');
+                        }
                       }
                     }}
                   />
