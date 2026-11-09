@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import './i18n';
 import './index.css';
 import { useAuthStore } from './stores/authStore';
+import { isDesktopOrStandalone } from './utils/deviceMode';
 import AppShell from './components/layout/AppShell';
 import LoadingScreen from './components/shared/LoadingScreen';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -109,7 +110,7 @@ export default function App() {
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public routes — no auth needed */}
-          <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={defaultRouteForRole(userRole)} replace /> : <Navigate to="/pending-approval" replace />) : <LandingPage />} />
+          <Route path="/"                             element={isAuth ? (isApproved ? <Navigate to={defaultRouteForRole(userRole)} replace /> : <Navigate to="/pending-approval" replace />) : (isDesktopOrStandalone() ? <Navigate to="/login" replace /> : <LandingPage />)} />
           <Route path="/landing"                      element={<LandingPage />} />
           <Route path="/display/tokens/:restaurantId" element={<TokenDisplay />} />
           <Route path="/display/slides/:restaurantId" element={<PosterDisplay />} />

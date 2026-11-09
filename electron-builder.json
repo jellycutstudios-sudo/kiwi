@@ -1,0 +1,38 @@
+{
+  "appId": "com.dineos.pos",
+  "productName": "DineOS Point of Sale",
+  "copyright": "Copyright © 2026 DineOS",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/icons/icon-512.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "DineOS POS"
+  },
+  "mac": {
+    "target": ["dmg"],
+    "icon": "public/icons/icon-512.png",
+    "category": "public.app-category.business"
+  }
+}
