@@ -13579,14 +13579,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     display: flex !important;
     flex-direction: row !important;
     position: fixed !important;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
-    left: 8px !important;
-    right: 8px !important;
-    width: calc(100% - 16px) !important;
-    max-width: calc(100% - 16px) !important;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
+    max-width: calc(100% - 20px) !important;
     align-items: center !important;
     justify-content: space-between !important;
-    gap: 6px !important;
+    gap: 8px !important;
     z-index: 95 !important;
     pointer-events: none !important;
     box-sizing: border-box !important;
@@ -13613,11 +13613,11 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   /* View Mode Switcher Button (Cards vs Keys) in Dock */
   .pos-mobile-dock-view-btn,
   .pos-mobile-dock-btn {
-    height: 40px !important;
-    width: 40px !important;
-    min-width: 40px !important;
+    height: 48px !important;
+    width: 48px !important;
+    min-width: 48px !important;
     padding: 0 !important;
-    border-radius: 20px !important;
+    border-radius: 24px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -13625,7 +13625,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     background: #ffffff !important;
     border: 1px solid rgba(0, 0, 0, 0.12) !important;
     color: #0f172a !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10) !important;
     transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1) !important;
     flex-shrink: 0 !important;
     touch-action: manipulation !important;
@@ -13640,7 +13640,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
   .dock-icon-bolt {
     color: #f59e0b;
-    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4));
+    filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.45));
   }
 
   .dock-icon-grid {
@@ -13652,26 +13652,26 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     background: #181c2c !important;
     border: 1px solid rgba(255, 255, 255, 0.16) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
   }
 
   [data-theme="dark"] .dock-icon-grid {
     color: #38bdf8;
-    filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.4));
+    filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
   }
 
   /* Dietary Segmented Control Group in Dock */
   .pos-mobile-dietary-group {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 2px !important;
-    padding: 2px !important;
-    border-radius: 20px !important;
-    height: 40px !important;
+    gap: 3px !important;
+    padding: 3px !important;
+    border-radius: 24px !important;
+    height: 48px !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
     border: 1px solid rgba(0, 0, 0, 0.12) !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10) !important;
     flex-shrink: 1 !important;
     min-width: 0 !important;
   }
@@ -13679,22 +13679,22 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   [data-theme="dark"] .pos-mobile-dietary-group {
     background: #181c2c !important;
     border: 1px solid rgba(255, 255, 255, 0.16) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
   }
 
   .pos-mobile-dietary-btn {
-    height: 34px !important;
-    padding: 0 10px !important;
-    border-radius: 17px !important;
+    height: 42px !important;
+    padding: 0 12px !important;
+    border-radius: 21px !important;
     border: 1px solid transparent !important;
     background: transparent !important;
-    font-size: 11.5px !important;
-    font-weight: 700 !important;
+    font-size: 13px !important;
+    font-weight: 750 !important;
     letter-spacing: 0.1px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 5px !important;
+    gap: 6px !important;
     cursor: pointer !important;
     color: #64748b !important;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -13715,12 +13715,12 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
   /* Popular Flame Button in Dietary Group */
   .pos-mobile-dietary-btn.popular {
-    width: 34px !important;
-    height: 34px !important;
-    min-width: 34px !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
     padding: 0 !important;
     justify-content: center !important;
-    border-radius: 17px !important;
+    border-radius: 21px !important;
   }
 
   /* Active Dietary States with Soft Luminous Accents */
@@ -13775,13 +13775,13 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     left: auto !important;
     top: auto !important;
     margin: 0 !important;
-    height: 40px !important;
-    border-radius: 20px !important;
-    padding: 0 12px !important;
+    height: 48px !important;
+    border-radius: 24px !important;
+    padding: 0 16px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 7px !important;
+    gap: 8px !important;
     flex-shrink: 0 !important;
     white-space: nowrap !important;
     cursor: pointer !important;
@@ -13790,8 +13790,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     -webkit-tap-highlight-color: transparent !important;
     background: #0f172a !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
     transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
@@ -13805,15 +13805,15 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     background: linear-gradient(135deg, #f97316 0%, #ea580c 55%, #c2410c 100%) !important;
     color: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.35) !important;
-    box-shadow: 0 6px 18px rgba(234, 88, 12, 0.45), 0 2px 4px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+    box-shadow: 0 8px 24px rgba(234, 88, 12, 0.45), 0 2px 4px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
   }
 
   .pos-mobile-dock-cart-btn.empty,
   .pos-mobile-bottom-dock .mobile-cart-toggle-bar.empty {
     width: auto !important;
-    height: 40px !important;
-    padding: 0 12px !important;
-    border-radius: 20px !important;
+    height: 48px !important;
+    padding: 0 16px !important;
+    border-radius: 24px !important;
   }
 
   .mobile-cart-badge-wrap {
@@ -13825,14 +13825,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   .mobile-cart-count-badge {
     background: #ffffff;
     color: #ea580c;
-    min-width: 21px;
-    height: 21px;
+    min-width: 22px;
+    height: 22px;
     padding: 0 6px;
     border-radius: 11px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 850;
     line-height: 1;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
@@ -13845,8 +13845,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 
   .mobile-cart-total-amount {
-    font-size: 13.5px;
-    font-weight: 800;
+    font-size: 14.5px;
+    font-weight: 850;
     letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
   }
@@ -13917,10 +13917,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     }
     .pos-mobile-dock-view-btn,
     .pos-mobile-dock-btn {
-      width: 40px !important;
-      height: 40px !important;
-      min-width: 40px !important;
-      border-radius: 20px !important;
+      width: 48px !important;
+      height: 48px !important;
+      min-width: 48px !important;
+      border-radius: 24px !important;
       padding: 0 !important;
       justify-content: center !important;
     }
@@ -13931,44 +13931,46 @@ html.dark .settings-nav-item.active .settings-nav-icon {
       left: 6px !important;
       right: 6px !important;
       width: calc(100% - 12px) !important;
-      gap: 5px !important;
+      gap: 6px !important;
     }
     .pos-mobile-dock-left {
-      gap: 4px !important;
+      gap: 5px !important;
     }
     .pos-mobile-dock-view-btn,
     .pos-mobile-dock-btn {
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px !important;
+      border-radius: 22px !important;
+    }
+    .pos-mobile-dietary-group {
+      height: 44px !important;
+      border-radius: 22px !important;
+      padding: 3px !important;
+      gap: 2px !important;
+    }
+    .pos-mobile-dietary-btn {
+      height: 38px !important;
+      padding: 0 9px !important;
+      font-size: 12px !important;
+      gap: 4px !important;
+      border-radius: 19px !important;
+    }
+    .pos-mobile-dietary-btn.popular {
       width: 38px !important;
       height: 38px !important;
       min-width: 38px !important;
       border-radius: 19px !important;
     }
-    .pos-mobile-dietary-group {
-      height: 38px !important;
-      border-radius: 19px !important;
-      padding: 2px !important;
-      gap: 2px !important;
-    }
-    .pos-mobile-dietary-btn {
-      height: 32px !important;
-      padding: 0 8px !important;
-      font-size: 11px !important;
-      gap: 4px !important;
-    }
-    .pos-mobile-dietary-btn.popular {
-      width: 32px !important;
-      height: 32px !important;
-      min-width: 32px !important;
-    }
     .pos-mobile-dock-cart-btn,
     .pos-mobile-bottom-dock .mobile-cart-toggle-bar {
-      height: 38px !important;
-      border-radius: 19px !important;
-      padding: 0 10px !important;
+      height: 44px !important;
+      border-radius: 22px !important;
+      padding: 0 12px !important;
       gap: 6px !important;
     }
     .mobile-cart-total-amount {
-      font-size: 12px !important;
+      font-size: 13px !important;
     }
   }
 

@@ -1844,12 +1844,12 @@ export default function POS() {
             >
               {menuDensity === 'visual' ? (
                 <>
-                  <Zap size={16} className="dock-icon-bolt" />
+                  <Zap size={18} className="dock-icon-bolt" />
                   <span className="dock-btn-label">Keys</span>
                 </>
               ) : (
                 <>
-                  <LayoutGrid size={16} className="dock-icon-grid" />
+                  <LayoutGrid size={18} className="dock-icon-grid" />
                   <span className="dock-btn-label">Cards</span>
                 </>
               )}
@@ -1883,7 +1883,7 @@ export default function POS() {
                 aria-label="Non-Vegetarian filter"
                 aria-pressed={dietaryFilter === 'non-veg'}
               >
-                <span className="food-badge-nonveg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
+                <span className="food-badge-nonveg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
                 <span className="dietary-label--full">Non-Veg</span>
                 <span className="dietary-label--short">Non</span>
               </button>
@@ -1899,7 +1899,7 @@ export default function POS() {
                 aria-label="Popular filter"
                 aria-pressed={dietaryFilter === 'bestseller'}
               >
-                <Flame size={15} />
+                <Flame size={17} />
               </button>
             </div>
           </div>
@@ -1919,7 +1919,7 @@ export default function POS() {
               {items.length > 0 ? (
                 <>
                   <div className="mobile-cart-badge-wrap">
-                    <ShoppingCart size={18} strokeWidth={2.4} />
+                    <ShoppingCart size={20} strokeWidth={2.4} />
                     <span className="mobile-cart-count-badge">
                       {items.reduce((sum, i) => sum + i.qty, 0)}
                     </span>
