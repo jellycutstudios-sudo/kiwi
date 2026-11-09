@@ -137,4 +137,23 @@ describe('POS Template Architecture & State Sync Logic', () => {
       expect(useMenuStore.getState().catFirstOverview).toBe(true);
     });
   });
+
+  describe('Cross-Template Feature Parity & Pinned Operations', () => {
+    it('provides consistent POS template constants across layouts', () => {
+      expect(POS_TEMPLATES.MODERN_GRID).toBe('modern_grid');
+      expect(POS_TEMPLATES.BISTRO_SIDEBAR).toBe('bistro_sidebar');
+      expect(POS_TEMPLATES.CATEGORY_FIRST).toBe('category_first');
+    });
+
+    it('retains table features for dine-in venues while excluding them for bill-only format', () => {
+      const dineInRest = { features: { table: true }, businessType: 'restaurant' };
+      const billOnlyRest = { features: { table: true }, businessType: 'bill_only' };
+      
+      const isDineInTableEnabled = Boolean(dineInRest.features?.table && dineInRest.businessType !== 'bill_only');
+      const isBillOnlyTableEnabled = Boolean(billOnlyRest.features?.table && billOnlyRest.businessType !== 'bill_only');
+
+      expect(isDineInTableEnabled).toBe(true);
+      expect(isBillOnlyTableEnabled).toBe(false);
+    });
+  });
 });

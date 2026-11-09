@@ -1439,6 +1439,64 @@ export default function POS() {
         {/* ── Category Chips Bar (Hidden on Category Cards Overview) ─────────── */}
         {!isShowingCategoryCards && (
           <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
+            {/* Pinned Quick Operations (Floor Map & Active Kitchen/Takeaway Orders) */}
+            {(((restaurant?.features?.table || modes.includes('table')) && !isBillOnly) || runningOrders.length > 0) && (
+              <>
+                <div className="pos-category-bar-pinned">
+                  {/* Floor Map / Tables Pill */}
+                  {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
+                    <button
+                      type="button"
+                      className="pos-op-card pos-op-card--tables"
+                      id="pos-pinned-tables-btn"
+                      onClick={() => navigate('/tables')}
+                      title="Go to Table Map & Floor Plan"
+                    >
+                      <Armchair size={15} className="pos-op-pill-icon" />
+                      <span className="pos-op-pill-title">
+                        {tableName ? `Table ${tableName}` : 'Floor Map'}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Active Orders Pill */}
+                  {runningOrders.length > 0 && (
+                    <button
+                      type="button"
+                      className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
+                      id="pos-pinned-active-orders-btn"
+                      onClick={() => {
+                        if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                        else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                        else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                        else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                        else setActiveOrdersFilter('all');
+                        setShowActiveOrdersModal(true);
+                      }}
+                      title="View active kitchen tickets, takeaway & settlement pass"
+                    >
+                      {readyOrdersCount > 0 ? (
+                        <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                      ) : (
+                        <FileText size={15} className="pos-op-pill-icon" />
+                      )}
+                      <span className="pos-op-pill-title">
+                        {readyOrdersCount > 0 
+                          ? `${readyOrdersCount} Ready` 
+                          : pendingOnlineOrdersCount > 0 
+                          ? `${pendingOnlineOrdersCount} Online` 
+                          : `${runningOrders.length} Running`}
+                      </span>
+                      {readyOrdersCount > 0 && (
+                        <span className="pos-op-pulse-dot" />
+                      )}
+                    </button>
+                  )}
+                </div>
+                <div className="pos-bar-divider" />
+              </>
+            )}
+
             <div className="pos-category-scroll">
               {/* Category Chips - Clean & Emoji-Free */}
               <button
@@ -1486,18 +1544,20 @@ export default function POS() {
             {/* Quick Operations & Utility Pill Bar (Option A: Slim, Touch-Friendly, Never Truncates) */}
             <div className={`pos-operations-strip ${runningOrders.length === 0 ? 'has-two-cards' : ''}`}>
               {/* 1. Floor Map / Tables Pill */}
-              <button
-                type="button"
-                className="pos-op-card pos-op-card--tables"
-                id="cat-card-tables"
-                onClick={() => navigate('/tables')}
-                title="Go to Table Map & Floor Plan"
-              >
-                <Armchair size={15} className="pos-op-pill-icon" />
-                <span className="pos-op-pill-title">
-                  {tableName ? `Table ${tableName}` : 'Floor Map'}
-                </span>
-              </button>
+              {((restaurant?.features?.table || modes.includes('table')) && !isBillOnly) && (
+                <button
+                  type="button"
+                  className="pos-op-card pos-op-card--tables"
+                  id="cat-card-tables"
+                  onClick={() => navigate('/tables')}
+                  title="Go to Table Map & Floor Plan"
+                >
+                  <Armchair size={15} className="pos-op-pill-icon" />
+                  <span className="pos-op-pill-title">
+                    {tableName ? `Table ${tableName}` : 'Floor Map'}
+                  </span>
+                </button>
+              )}
 
               {/* 2. Active Orders Pill */}
               {runningOrders.length > 0 && (
