@@ -12,7 +12,7 @@ import { notifyAdminOfNewTrial } from '../utils/sendTrialNotification';
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginWithEmail, loginWithPin, loading, error, clearError, restaurant: currentRest } = useAuthStore();
+  const { loginWithEmail, loginWithPin, loading, error, clearError } = useAuthStore();
   // Derive initial mode from URL query param at mount — no useEffect needed
   const [mode, setMode] = useState(() => {
     const queryMode = searchParams.get('mode');
@@ -31,7 +31,7 @@ export default function Login() {
   const [pin, setPin] = useState('');
   const [restaurantId, setRestaurantId] = useState(() => {
     if (isDemoMode && searchParams.get('demo') === 'staff') return 'rest1';
-    return safeStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '';
+    return '';
   });
 
   // Registration states (Minimal 3 fields: Name, Mobile/Email, Password)
@@ -73,13 +73,13 @@ export default function Login() {
   };
 
   const submitPin = useCallback(async (p) => {
-    const targetRest = (restaurantId || safeStorage.getItem('rupos_last_rest_id') || currentRest?.slug || currentRest?.id || '').trim();
+    const targetRest = String(restaurantId || '').trim();
     if (!targetRest) {
-      toast.error('Enter Restaurant ID, Name, or Phone first');
+      toast.error('Please enter your Restaurant ID first');
       setPin('');
+      document.getElementById('login-restaurant-id')?.focus();
       return;
     }
-    safeStorage.setItem('rupos_last_rest_id', targetRest);
     const res = await loginWithPin(targetRest, p);
     if (!res.ok) {
       toast.error(res.error);
@@ -97,9 +97,14 @@ export default function Login() {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [restaurantId, currentRest, loginWithPin, navigate]);
+  }, [restaurantId, loginWithPin, navigate]);
 
   const handlePinKey = useCallback((key) => {
+    if (!String(restaurantId || '').trim()) {
+      toast.error('Please enter your Restaurant ID first');
+      document.getElementById('login-restaurant-id')?.focus();
+      return;
+    }
     setPin((prev) => {
       if (prev.length >= 4) return prev;
       const next = prev + key;
@@ -108,7 +113,7 @@ export default function Login() {
       }
       return next;
     });
-  }, [submitPin]);
+  }, [restaurantId, submitPin]);
 
   // Support typing PIN via physical keyboard on desktop
   useEffect(() => {
@@ -267,7 +272,14 @@ export default function Login() {
               <button
                 key={item.m}
                 id={`login-mode-${item.m}`}
-                onClick={() => { setMode(item.m); clearError(); setPin(''); }}
+                onClick={() => {
+                  setMode(item.m);
+                  clearError();
+                  setPin('');
+                  if (item.m === 'pin' && !(isDemoMode && searchParams.get('demo') === 'staff')) {
+                    setRestaurantId('');
+                  }
+                }}
                 className={`login-mode-btn ${mode === item.m ? 'active' : ''}`}
                 type="button"
                 role="tab"
@@ -369,18 +381,26 @@ export default function Login() {
           ) : mode === 'pin' ? (
             <div className="login-form">
               <div className="form-group login-rest-id-group">
-                <label className="form-label" htmlFor="login-restaurant-id">Restaurant ID, Name, or Phone</label>
+                <label className="form-label" htmlFor="login-restaurant-id">Restaurant ID</label>
                 <input
                   id="login-restaurant-id"
                   className="form-input"
-                  placeholder="e.g. rest1 or Demo Restaurant"
+                  placeholder="Enter Restaurant ID (e.g. kiwi or rest1)"
                   value={restaurantId}
                   onChange={e => {
                     setRestaurantId(e.target.value);
-                    if (e.target.value.trim()) {
-                      safeStorage.setItem('rupos_last_rest_id', e.target.value.trim());
+                    if (error) clearError();
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (e.target.value.trim()) {
+                        document.getElementById('login-restaurant-id')?.blur();
+                      }
                     }
                   }}
+                  autoComplete="off"
+                  autoFocus={mode === 'pin'}
                 />
               </div>
 

@@ -249,7 +249,7 @@ export const useAuthStore = create(
           if (db) {
             try {
               let actualRestId = cleanRestId;
-              let restData = get().restaurant || getInitialPersistedAuth().restaurant;
+              let restData = null;
 
               // Map demo/kiwi aliases to rest1
               if (['kiwi', 'demo'].includes(cleanRestId.toLowerCase())) {
@@ -263,21 +263,21 @@ export const useAuthStore = create(
                 // A. Try customId
                 const qCustom = query(collection(db, 'restaurants'), where('customId', 'in', [cleanRestId, lowerRestId]));
                 const sCustom = await getDocs(qCustom);
-                if (!sCustom.empty) {
+                if (sCustom?.docs?.length) {
                   rSnap = sCustom.docs[0];
                   actualRestId = rSnap.id;
                 } else {
                   // B. Try slug
                   const qSlug = query(collection(db, 'restaurants'), where('slug', 'in', [cleanRestId, lowerRestId]));
                   const sSlug = await getDocs(qSlug);
-                  if (!sSlug.empty) {
+                  if (sSlug?.docs?.length) {
                     rSnap = sSlug.docs[0];
                     actualRestId = rSnap.id;
                   }
                 }
 
                 // C. Try phone number (if input looks like digits)
-                if (!rSnap.exists()) {
+                if (!rSnap || !rSnap.exists()) {
                   const digits = cleanRestId.replace(/\D/g, '');
                   if (digits.length >= 6) {
                     const phoneCandidates = [digits];
@@ -285,7 +285,7 @@ export const useAuthStore = create(
                     if (digits.length === 10) phoneCandidates.push(`+91${digits}`, `91${digits}`);
                     const qPhone = query(collection(db, 'restaurants'), where('phone', 'in', phoneCandidates));
                     const sPhone = await getDocs(qPhone);
-                    if (!sPhone.empty) {
+                    if (sPhone?.docs?.length) {
                       rSnap = sPhone.docs[0];
                       actualRestId = rSnap.id;
                     }
@@ -293,19 +293,19 @@ export const useAuthStore = create(
                 }
 
                 // D. Try name match (case-insensitive / slug-normalized)
-                if (!rSnap.exists()) {
+                if (!rSnap || !rSnap.exists()) {
                   const qName = query(collection(db, 'restaurants'), where('name', '==', cleanRestId));
                   const sName = await getDocs(qName);
-                  if (!sName.empty) {
+                  if (sName?.docs?.length) {
                     rSnap = sName.docs[0];
                     actualRestId = rSnap.id;
                   } else {
                     try {
                       const allRests = await getDocs(collection(db, 'restaurants'));
                       const cleanNorm = cleanRestId.toLowerCase().replace(/[^a-z0-9]/g, '');
-                      for (const d of allRests.docs) {
-                        const dName = (d.data().name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                        const dSlug = (d.data().slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                      for (const d of (allRests?.docs || [])) {
+                        const dName = (d.data?.()?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const dSlug = (d.data?.()?.slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                         if (cleanNorm && (dName === cleanNorm || dSlug === cleanNorm)) {
                           rSnap = d;
                           actualRestId = d.id;
@@ -368,7 +368,6 @@ export const useAuthStore = create(
                 }
 
                 clearFailedAttempts();
-                safeStorage.setItem('rupos_last_rest_id', actualRestId);
                 set({
                   user: firebaseUser || { uid: staffData.id, isPinLogin: true },
                   staffDoc: staffData,
@@ -386,7 +385,7 @@ export const useAuthStore = create(
                     || safeStorage.getItem(`dineos_cached_staff_${cleanRestId}`) 
                     || safeStorage.getItem('dineos_cached_staff');
                   const cachedList = JSON.parse(cachedRaw || '[]');
-                  matched = cachedList.find(s => String(s.pin || '').trim() === cleanPin && s.active !== false);
+                  matched = cachedList.find(s => String(s.pin || '').trim() === cleanPin && s.active !== false && (!s.restaurantId || s.restaurantId === actualRestId || s.restaurantId === cleanRestId));
                 } catch {}
 
                 // Fallback B: Demo staff for rest1 or demo restaurant
@@ -428,7 +427,6 @@ export const useAuthStore = create(
                   }
 
                   clearFailedAttempts();
-                  safeStorage.setItem('rupos_last_rest_id', actualRestId);
                   set({
                     user: firebaseUser || { uid: staffData.id, isPinLogin: true },
                     staffDoc: staffData,
@@ -458,9 +456,13 @@ export const useAuthStore = create(
 
           // 4. Offline / local fallback (uses cached staff roster on this terminal when offline)
           try {
-            const cachedStaff = JSON.parse(safeStorage.getItem('dineos_cached_staff') || '[]');
+            const cachedStaff = JSON.parse(safeStorage.getItem(`dineos_cached_staff_${cleanRestId}`) || safeStorage.getItem('dineos_cached_staff') || '[]');
             const cleanPin = String(pin || '').trim();
-            const matched = cachedStaff.find(s => String(s.pin).trim() === cleanPin && s.active !== false);
+            const matched = cachedStaff.find(s =>
+              String(s.pin || '').trim() === cleanPin &&
+              s.active !== false &&
+              (!s.restaurantId || s.restaurantId === cleanRestId || ['rest1', 'demo', 'kiwi'].includes(cleanRestId.toLowerCase()))
+            );
             if (matched) {
               let actualRestId = matched.restaurantId || cleanRestId;
               let restData = get().restaurant || getInitialPersistedAuth().restaurant;
@@ -629,6 +631,7 @@ export const useAuthStore = create(
         set({ user: null, staffDoc: null, restaurant: null, loading: false });
         try {
           safeStorage.removeItem('restaurant-os-auth');
+          safeStorage.removeItem('rupos_last_rest_id');
         } catch {}
         
         try {
