@@ -2124,11 +2124,10 @@ export default function POS() {
                     }}
                     title={tableId ? `Table ${tableName} assigned - Tap to switch` : 'Tap to select table from floor map'}
                   >
-                    <Armchair size={12} className="summary-chip-icon" />
+                    <Armchair size={13} className="summary-chip-icon" />
                     <span className="summary-chip-label">
                       {tableId ? `Table ${tableName}` : 'Select Table'}
                     </span>
-                    {!tableId && <span className="summary-chip-badge">Choose ▾</span>}
                   </button>
                   {tableId && (
                     <button
@@ -2149,7 +2148,7 @@ export default function POS() {
               {/* Customer Chip */}
               {(customer || customerName) && (
                 <span className="cart-header-summary-chip cust-chip" title="Assigned customer">
-                  <User size={12} className="summary-chip-icon" />
+                  <User size={13} className="summary-chip-icon" />
                   <span className="summary-chip-label">
                     {customer ? customer.name : customerName}
                   </span>
@@ -2165,9 +2164,9 @@ export default function POS() {
                 setIsHeaderCollapsed(false);
               }}
               title="Expand full order details"
+              aria-label="Expand full order details"
             >
-              <span>Edit</span>
-              <ChevronDown size={11} />
+              <ChevronDown size={14} />
             </button>
           </div>
         ) : (
