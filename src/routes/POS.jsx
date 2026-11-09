@@ -1883,8 +1883,9 @@ export default function POS() {
                 aria-label="Non-Vegetarian filter"
                 aria-pressed={dietaryFilter === 'non-veg'}
               >
-                <span className="food-badge-nonveg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
-                <span>Non-Veg</span>
+                <span className="food-badge-nonveg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
+                <span className="dietary-label--full">Non-Veg</span>
+                <span className="dietary-label--short">Non</span>
               </button>
 
               <button
@@ -1907,7 +1908,7 @@ export default function POS() {
             {/* Tactile Cart Action Button */}
             <button
               type="button"
-              className={`mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`} 
+              className={`pos-mobile-dock-cart-btn mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`} 
               onClick={() => {
                 hapticTap('medium');
                 setMobileCartOpen(true);
