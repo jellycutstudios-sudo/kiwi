@@ -421,25 +421,22 @@ export default function AppShell() {
                   <button
                     type="button"
                     onClick={() => setMenuDensity('visual', true)}
-                    title="Visual Cards with photos"
+                    title="Visual Cards view"
                     aria-label="Visual Cards view"
                     className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
                     id="pos-switch-cards-btn"
                   >
-                    <LayoutGrid size={14} className="density-icon" />
-                    <span className="density-label">Cards</span>
+                    <LayoutGrid size={15} className="density-icon" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setMenuDensity('dense', true)}
-                    title="Fast QSR Touch Keys"
-                    aria-label="Fast QSR Touch Keys view"
+                    title="Fast Keys view"
+                    aria-label="Fast Keys view"
                     className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
                     id="pos-switch-keys-btn"
                   >
-                    <Zap size={13} className="density-bolt-icon" />
-                    <span className="density-label density-label--full">Fast Keys</span>
-                    <span className="density-label density-label--short">Keys</span>
+                    <Zap size={14} className="density-bolt-icon" />
                   </button>
                 </div>
 

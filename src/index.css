@@ -3337,6 +3337,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .density-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   border: 1px solid transparent;
   background: transparent;
@@ -3352,6 +3353,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   line-height: 1;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.pos-topbar-controls .density-btn {
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  gap: 0;
 }
 
 [data-theme="dark"] .density-btn {

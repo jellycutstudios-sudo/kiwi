@@ -118,3 +118,4 @@ ipcMain.handle('pos:toggle-kiosk', (event, enable) => {
   mainWindow.setKiosk(next);
   return next;
 });
+

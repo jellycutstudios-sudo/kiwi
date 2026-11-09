@@ -7,3 +7,4 @@ contextBridge.exposeInMainWorld('electron', {
   printSilent: (options) => ipcRenderer.invoke('pos:print-silent', options),
   toggleKiosk: (enable) => ipcRenderer.invoke('pos:toggle-kiosk', enable),
 });
+

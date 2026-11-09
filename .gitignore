@@ -33,4 +33,6 @@ functions/.env
 .vercel
 serviceAccountKey.json
 *serviceAccount*.json
+release/
+dist_electron/
 
