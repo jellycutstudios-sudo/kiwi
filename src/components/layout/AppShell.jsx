@@ -350,7 +350,8 @@ export default function AppShell() {
                   title="Back to all Category Cards"
                 >
                   <ArrowLeft size={15} strokeWidth={2.5} />
-                  <span>All Categories</span>
+                  <span className="pos-topbar-all-cats-text">All Categories</span>
+                  <span className="pos-topbar-short-cats-text">Categories</span>
                 </button>
               )}
 

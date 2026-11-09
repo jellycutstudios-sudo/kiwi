@@ -18,7 +18,7 @@ import toast from 'react-hot-toast';
 import { 
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
-  FileText, Check, Clock, LayoutGrid,
+  FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, ArrowRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User
 } from 'lucide-react';
@@ -163,13 +163,14 @@ export default function POS() {
     }))
   );
   const { issueToken } = useTokenStore();
-  const { categories, loading: loadingMenu, search, setSearch, menuDensity, catFirstOverview, setCatFirstOverview } = useMenuStore(
+  const { categories, loading: loadingMenu, search, setSearch, menuDensity, setMenuDensity, catFirstOverview, setCatFirstOverview } = useMenuStore(
     useShallow((state) => ({
       categories: state.categories,
       loading: state.loading,
       search: state.search,
       setSearch: state.setSearch,
       menuDensity: state.menuDensity,
+      setMenuDensity: state.setMenuDensity,
       catFirstOverview: state.catFirstOverview,
       setCatFirstOverview: state.setCatFirstOverview
     }))
@@ -188,6 +189,7 @@ export default function POS() {
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
   const dietaryFilter = useMenuStore(s => s.dietaryFilter);
+  const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const prevItemCountRef = useRef(0);
@@ -1826,28 +1828,114 @@ export default function POS() {
         )}
         </div>
 
-        {/* Floating Cart Button for mobile/tablet */}
-        <div 
-          className={`mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`} 
-          onClick={() => setMobileCartOpen(true)}
-          title={t('cart')}
-        >
-          {items.length > 0 ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShoppingCart size={18} />
-                <span style={{ background: '#10b981', color: '#ffffff', minWidth: '20px', height: '20px', padding: '0 5px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
-                  {items.reduce((sum, i) => sum + i.qty, 0)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontWeight: 'var(--weight-bold)' }}>{formatCurrency(total, currency)}</span>
-                <span style={{ fontSize: '10px' }}>▲</span>
-              </div>
-            </>
-          ) : (
-            <ShoppingCart size={20} />
-          )}
+        {/* Mobile POS Bottom Action Dock: View Switcher, Dietary Filters & Cart (Thumb-optimized) */}
+        <div className="pos-mobile-bottom-dock mobile-only" role="region" aria-label="Quick operations dock">
+          <div className="pos-mobile-dock-left">
+            {/* View Mode Switcher: Cards vs Fast Keys */}
+            <button
+              type="button"
+              className={`pos-mobile-dock-btn pos-mobile-view-toggle ${menuDensity === 'dense' ? 'is-keys' : 'is-cards'}`}
+              onClick={() => {
+                hapticTap('light');
+                setMenuDensity(menuDensity === 'visual' ? 'dense' : 'visual', true);
+              }}
+              title={menuDensity === 'visual' ? 'Switch to Fast Keys view' : 'Switch to Photo Cards view'}
+              aria-label={menuDensity === 'visual' ? 'Switch to Fast Keys' : 'Switch to Cards'}
+            >
+              {menuDensity === 'visual' ? (
+                <>
+                  <Zap size={14} className="dock-icon-bolt" />
+                  <span className="dock-btn-label">Keys</span>
+                </>
+              ) : (
+                <>
+                  <LayoutGrid size={14} className="dock-icon-grid" />
+                  <span className="dock-btn-label">Cards</span>
+                </>
+              )}
+            </button>
+
+            {/* Dietary Filter Segmented Pills */}
+            <div className="pos-mobile-dietary-group" role="toolbar" aria-label="Dietary filters">
+              <button
+                type="button"
+                className={`pos-mobile-dietary-btn veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
+                onClick={() => {
+                  hapticTap('light');
+                  setDietaryFilter(f => f === 'veg' ? 'all' : 'veg');
+                }}
+                title="Filter Vegetarian dishes"
+                aria-label="Vegetarian filter"
+                aria-pressed={dietaryFilter === 'veg'}
+              >
+                <span className="food-badge-veg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
+                <span>Veg</span>
+              </button>
+
+              <button
+                type="button"
+                className={`pos-mobile-dietary-btn nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+                onClick={() => {
+                  hapticTap('light');
+                  setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg');
+                }}
+                title="Filter Non-Vegetarian dishes"
+                aria-label="Non-Vegetarian filter"
+                aria-pressed={dietaryFilter === 'non-veg'}
+              >
+                <span className="food-badge-nonveg" style={{ width: 11, height: 11, borderWidth: 1.5 }} />
+                <span>Non-Veg</span>
+              </button>
+
+              <button
+                type="button"
+                className={`pos-mobile-dietary-btn popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+                onClick={() => {
+                  hapticTap('light');
+                  setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller');
+                }}
+                title="Filter Popular & Bestseller dishes"
+                aria-label="Popular filter"
+                aria-pressed={dietaryFilter === 'bestseller'}
+              >
+                <Flame size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div className="pos-mobile-dock-right">
+            {/* Tactile Cart Action Button */}
+            <button
+              type="button"
+              className={`mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`} 
+              onClick={() => {
+                hapticTap('medium');
+                setMobileCartOpen(true);
+              }}
+              title={t('cart')}
+              aria-label={`Open Cart (${items.reduce((sum, i) => sum + i.qty, 0)} items)`}
+            >
+              {items.length > 0 ? (
+                <>
+                  <div className="mobile-cart-badge-wrap">
+                    <ShoppingCart size={17} strokeWidth={2.4} />
+                    <span className="mobile-cart-count-badge">
+                      {items.reduce((sum, i) => sum + i.qty, 0)}
+                    </span>
+                  </div>
+                  <div className="mobile-cart-total-wrap">
+                    <span className="mobile-cart-total-amount">{formatCurrency(total, currency)}</span>
+                    <span className="mobile-cart-caret">▲</span>
+                  </div>
+                </>
+              ) : (
+                <div className="mobile-cart-empty-inner">
+                  <ShoppingCart size={18} strokeWidth={2.2} />
+                  <span className="mobile-cart-empty-label">Cart</span>
+                </div>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
