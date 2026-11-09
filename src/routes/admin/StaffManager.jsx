@@ -6,7 +6,7 @@ import { collection, doc, onSnapshot, writeBatch, getDoc, setDoc } from 'firebas
 import { db } from '../../firebase';
 import { 
   Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles, 
-  LayoutGrid, List, Search, Copy, Check, Mail, Clock, Shield 
+  LayoutGrid, List, Search, Copy, Check, Mail, Clock 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -405,8 +405,6 @@ export default function StaffManager() {
       toast.error('Failed to remove staff: ' + err.message);
     }
   };
-
-  const roleColors = { admin:'badge-purple', manager:'badge-green', cashier:'badge-blue', waiter:'badge-teal', kitchen:'badge-orange' };
 
   // Filter staff by search and role
   const filteredStaff = useMemo(() => {

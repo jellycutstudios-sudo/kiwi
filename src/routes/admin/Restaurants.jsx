@@ -10,8 +10,8 @@ import {
   Plus, ExternalLink, Building2, BarChart3, TrendingUp, ShoppingCart, 
   AlertTriangle, RefreshCw, Layers, ShieldCheck, 
   Globe, Sparkles, Sliders, Users, Flame,
-  Search, Phone, Mail, User, Clock, CheckCircle2, XCircle, AlertCircle,
-  Trash2, Copy, Check, Rocket
+  Search, Phone, Mail, User, Clock, CheckCircle2, AlertCircle,
+  Copy, Check, Rocket
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CURRENCY_OPTIONS, formatCurrency } from '../../utils/formatCurrency';
@@ -348,7 +348,7 @@ export default function Restaurants() {
     navigate('/dashboard');
   };
 
-  const handleDeleteRestaurant = async (restaurantItem) => {
+  const _handleDeleteRestaurant = async (restaurantItem) => {
     if (!window.confirm(`Permanently delete account "${restaurantItem.name}" (${restaurantItem.id})? This cannot be undone.`)) {
       return;
     }

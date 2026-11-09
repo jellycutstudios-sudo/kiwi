@@ -50,12 +50,13 @@ export default function Transactions() {
     if (!restaurant?.id) return;
     const fetchOrders = async () => {
       setLoading(true);
+      const start = new Date();
+      if (dateRange === 'today') start.setHours(0, 0, 0, 0);
+      else if (dateRange === 'week') start.setDate(start.getDate() - 7);
+      else if (dateRange === 'month') start.setDate(start.getDate() - 30);
+      else start.setFullYear(2000); // effectively 'all'
+
       try {
-        const start = new Date();
-        if (dateRange === 'today') start.setHours(0, 0, 0, 0);
-        else if (dateRange === 'week') start.setDate(start.getDate() - 7);
-        else if (dateRange === 'month') start.setDate(start.getDate() - 30);
-        else start.setFullYear(2000); // effectively 'all'
 
         // Limit to 1000 orders to prevent heavy reads on client
         const q = query(

@@ -15,10 +15,6 @@ import {
 import '../landing-neo.css';
 
 export default function LandingPage() {
-  if (isDesktopOrStandalone()) {
-    return <Navigate to="/login" replace />;
-  }
-
   const { t, i18n } = useTranslation();
   const { user, staffDoc } = useAuthStore();
   const isAuth = !!user || !!staffDoc;
@@ -46,6 +42,10 @@ export default function LandingPage() {
     { id: 'T2', table: 'Table 02', items: ['2x Double Bacon Burger', '1x Truffle Fries'], time: '12:40 Priority', urgent: true, done: false },
     { id: 'T5', table: 'Table 05', items: ['1x Margherita Pizza 12"', '1x Veggie Supreme'], time: '04:15 Cooking', urgent: false, done: false }
   ]);
+
+  if (isDesktopOrStandalone()) {
+    return <Navigate to="/login" replace />;
+  }
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar');

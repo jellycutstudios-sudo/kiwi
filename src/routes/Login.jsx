@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { safeStorage } from '../utils/safeStorage';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowLeft, Delete } from 'lucide-react';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';

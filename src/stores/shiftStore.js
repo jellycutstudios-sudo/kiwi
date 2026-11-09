@@ -31,6 +31,12 @@ export const useShiftStore = create((set, get) => ({
   activeShift: getInitialShift(),
 
   subscribeActiveShift: (restaurantId, shiftMode, staffId, onReady) => {
+    const rest = useAuthStore.getState().restaurant;
+    if (rest?.localStorageOnly || rest?.privateSalesMode) {
+      if (typeof onReady === 'function') onReady();
+      return () => {};
+    }
+
     let constraints = [where('status', '==', 'open')];
     if (shiftMode === 'staff' && staffId) {
       constraints.push(where('openedById', '==', staffId));
@@ -58,7 +64,7 @@ export const useShiftStore = create((set, get) => ({
 
   checkActiveShift: async (restaurantId, shiftMode, staffId) => {
     const rest = useAuthStore.getState().restaurant;
-    if (rest?.localStorageOnly || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    if (rest?.localStorageOnly || rest?.privateSalesMode || (typeof navigator !== 'undefined' && !navigator.onLine)) {
       return get().activeShift;
     }
     try {
@@ -113,7 +119,7 @@ export const useShiftStore = create((set, get) => ({
 
     try {
       const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (!rest?.localStorageOnly && !rest?.privateSalesMode && typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         const ref = await addDoc(collection(db, 'restaurants', restaurantId, 'shifts'), {
           ...payload,
@@ -155,7 +161,7 @@ export const useShiftStore = create((set, get) => ({
 
     try {
       const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (!rest?.localStorageOnly && !rest?.privateSalesMode && typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
         const updates = {};
@@ -262,7 +268,7 @@ export const useShiftStore = create((set, get) => ({
 
     try {
       const rest = useAuthStore.getState().restaurant;
-      if (!rest?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+      if (!rest?.localStorageOnly && !rest?.privateSalesMode && typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         const docRef = doc(db, 'restaurants', restaurantId, 'shifts', shiftId);
         await updateDoc(docRef, {

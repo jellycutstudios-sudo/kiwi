@@ -19,7 +19,7 @@ import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid, Zap,
-  Printer, Lock, Wallet, ArrowDownRight, ArrowRight, Coins, HeartHandshake,
+  Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';

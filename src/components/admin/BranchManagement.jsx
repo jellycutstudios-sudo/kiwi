@@ -122,7 +122,7 @@ export default function BranchManagement({ restaurants, usersMap, onEnter, onSta
         ownerUid,
         owner,
         brandTitle,
-        branches: branchList.sort((a, b) => (a.id === mainBranch?.id ? -1 : 1))
+        branches: branchList.sort((a, _b) => (a.id === mainBranch?.id ? -1 : 1))
       };
     });
   }, [ungrouped, usersMap]);
