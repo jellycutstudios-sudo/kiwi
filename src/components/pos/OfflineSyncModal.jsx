@@ -1,7 +1,7 @@
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Cloud, CloudOff, RefreshCw, X, CheckCircle2, Clock, Layers, Trash2, Download } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, X, CheckCircle2, Clock, Layers, Trash2, Download, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function OfflineSyncModal({ isOpen, onClose }) {
@@ -147,6 +147,26 @@ export default function OfflineSyncModal({ isOpen, onClose }) {
             <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
           </button>
         </div>
+
+        {/* Private Sales Alert Banner */}
+        {restaurant?.privateSalesMode && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: 10,
+            background: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: '12px',
+            color: '#10b981'
+          }}>
+            <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+            <div style={{ lineHeight: 1.4 }}>
+              <strong>Private Sales Mode Active:</strong> Sales amounts, transactions, and drawer revenues are kept strictly on this register and will not be pushed to the cloud.
+            </div>
+          </div>
+        )}
 
         {/* Queue List Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>

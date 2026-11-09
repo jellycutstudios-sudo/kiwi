@@ -2462,20 +2462,21 @@ export default function Settings() {
               <div 
                 className="card card-padded"
                 style={{ 
-                  borderLeft: settings.localStorageOnly ? '4px solid #38bdf8' : '1px solid var(--color-separator)',
-                  background: settings.localStorageOnly ? 'rgba(56, 189, 248, 0.03)' : 'var(--color-bg-elevated)',
+                  borderLeft: settings.localStorageOnly ? '4px solid #38bdf8' : (settings.privateSalesMode ? '4px solid #10b981' : '1px solid var(--color-separator)'),
+                  background: settings.localStorageOnly ? 'rgba(56, 189, 248, 0.03)' : (settings.privateSalesMode ? 'rgba(16, 185, 129, 0.03)' : 'var(--color-bg-elevated)'),
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 'var(--space-3)'
+                  gap: 'var(--space-4)'
                 }}
               >
+                {/* Mode 1: Complete Air-Gapped Offline Mode */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                   <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                       <HardDrive size={18} color={settings.localStorageOnly ? '#38bdf8' : 'var(--color-accent)'} />
                       <h3 className="text-title3" style={{ margin: 0 }}>
-                        Local-Only Storage Mode (Air-Gapped)
+                        Complete Offline Mode (Air-Gapped)
                       </h3>
                       {settings.localStorageOnly && (
                         <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
@@ -2484,7 +2485,7 @@ export default function Settings() {
                       )}
                     </div>
                     <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                      100% offline storage. Orders, drawer shifts, and settings stay strictly on this device without cloud sync.
+                      100% offline isolation. Orders, menu, shifts, tables, and settings operate entirely on this device and local LAN with zero cloud connection.
                     </p>
                   </div>
                   <ToggleSwitch
@@ -2508,7 +2509,7 @@ export default function Settings() {
                       }
 
                       if (enable) {
-                        toast.success('Local-Only Storage Mode activated! Sales data will stay on this device.');
+                        toast.success('Complete Offline Mode activated! All data stays strictly on this device.');
                       } else {
                         const currentQueue = useOfflineQueueStore.getState().queue || [];
                         if (currentQueue.length > 0) {
@@ -2528,6 +2529,61 @@ export default function Settings() {
                         } else {
                           toast('Cloud sync mode re-enabled.');
                         }
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Mode 2: Private Sales Mode (Do Not Sync Sales & Transactions) */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  justifyContent: 'space-between', 
+                  flexWrap: 'wrap', 
+                  gap: 12,
+                  paddingTop: 'var(--space-3)',
+                  borderTop: '1px solid var(--color-separator)'
+                }}>
+                  <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <ShieldCheck size={18} color={settings.privateSalesMode ? '#10b981' : 'var(--color-accent)'} />
+                      <h3 className="text-title3" style={{ margin: 0 }}>
+                        Private Sales Mode (Don't Sync Financials)
+                      </h3>
+                      {settings.privateSalesMode && (
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          Financials Shielded
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-secondary text-footnote" style={{ margin: 0 }}>
+                      Operational sync stays connected (online orders, menu, multi-device tables, KDS), but <strong>sales transactions, revenue amounts, and drawer floats are never sent to the cloud</strong>. All financial records stay strictly local on this register.
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    id="toggle-private-sales-mode"
+                    checked={Boolean(settings.privateSalesMode)}
+                    onChange={async e => {
+                      const enable = e.target.checked;
+                      updateField('privateSalesMode', enable);
+                      
+                      const updatedRest = { ...(restaurant || {}), privateSalesMode: enable };
+                      useAuthStore.setState({ restaurant: updatedRest });
+                      try {
+                        if (typeof localStorage !== 'undefined' && restaurant?.id) {
+                          localStorage.setItem(`dineos_cached_settings_${restaurant.id}`, JSON.stringify(updatedRest));
+                        }
+                        if (typeof navigator !== 'undefined' && navigator.onLine && restaurant?.id) {
+                          await updateDoc(doc(db, 'restaurants', restaurant.id), { privateSalesMode: enable });
+                        }
+                      } catch (err) {
+                        console.warn('[Settings] Failed to save privateSalesMode directly:', err);
+                      }
+
+                      if (enable) {
+                        toast.success('Private Sales Mode activated! Sales and revenue will not be sent to cloud.', { icon: '🛡️' });
+                      } else {
+                        toast('Standard cloud financial sync re-enabled.');
                       }
                     }}
                   />

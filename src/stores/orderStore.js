@@ -863,14 +863,15 @@ export const useOrderStore = create((set, get) => ({
       }
     }
 
-    // Zero-Downtime Fast Path: True network outage, paid sales transaction in Local-Only mode, or editing an existing offline order
+    // Zero-Downtime Fast Path: True network outage, paid sales transaction in Local-Only or Private Sales mode, or editing an existing offline order
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
     const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isPrivateSales = Boolean(restaurant?.privateSalesMode);
     const isTrueNetworkOffline = isBrowser && (navigator.onLine === false || useOfflineQueueStore.getState().isOnline === false);
     const isOfflineEditing = Boolean(editingOrderId && typeof editingOrderId === 'string' && editingOrderId.startsWith('offline_'));
 
-    // In Local-Only Mode, paid sales data stays 100% on device, while kitchen tickets (unpaid) sync to KDS
-    const isLocalOnlySale = isLocalOnly && isPaid;
+    // In Local-Only Mode or Private Sales Mode, paid sales data stays 100% on device, while kitchen tickets (unpaid) can sync to KDS
+    const isLocalOnlySale = (isLocalOnly || isPrivateSales) && isPaid;
 
     if (isTrueNetworkOffline || isLocalOnlySale || isOfflineEditing) {
       if (editingOrderId) {
@@ -1682,6 +1683,7 @@ export const useOrderStore = create((set, get) => ({
     try {
       const isOfflineOrder = typeof orderId === 'string' && orderId.startsWith('offline_');
       const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      const isPrivateSales = Boolean(useAuthStore.getState().restaurant?.privateSalesMode);
       const isNetworkOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
       // 1. Resolve existing order from activeOrders in memory or offline queue
@@ -1754,6 +1756,16 @@ export const useOrderStore = create((set, get) => ({
           try {
             await useAuthStore.getState().ensureAnonymousAuth();
             const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+
+            if (isPrivateSales) {
+              // Private Sales Mode: Close order on cloud without sending sales amount, payments or shift financials
+              await updateDoc(orderRef, {
+                status: 'completed',
+                isPrivateSale: true,
+                updatedAt: serverTimestamp()
+              }).catch(e => console.warn('[settleOrder] Private order cloud update deferred:', e?.message));
+              return;
+            }
             
             // Cloud update for order
             const cloudOrderPromise = updateDoc(orderRef, {

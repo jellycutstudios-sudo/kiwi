@@ -147,6 +147,8 @@ export const useOfflineQueueStore = create((set, get) => {
         return { syncedCount: 0, failedCount: 0, isLocalOnly: true };
       }
 
+      const isPrivateSales = Boolean(restaurant?.privateSalesMode);
+
       // Ensure anonymous or valid auth session before pushing
       try {
         await useAuthStore.getState().ensureAnonymousAuth();
@@ -161,6 +163,13 @@ export const useOfflineQueueStore = create((set, get) => {
       const remainingQueue = [];
 
       for (const order of queue) {
+        const isPaid = order.paid === true || (order.paymentMethod && order.paymentMethod !== 'unpaid');
+        if (isPrivateSales && isPaid) {
+          // Private Sales Mode: Do NOT upload financial sales records to cloud
+          remainingQueue.push(order);
+          continue;
+        }
+
         try {
           // Prepare clean document for Firestore
           const targetOrderId = order.id.startsWith('offline_') 
@@ -299,6 +308,11 @@ export const useOfflineQueueStore = create((set, get) => {
       if (syncedCount > 0) {
         toast.success(`Synced ${syncedCount} offline order${syncedCount > 1 ? 's' : ''} to cloud!`, {
           icon: '☁️',
+          duration: 4000
+        });
+      } else if (isPrivateSales && remainingQueue.length > 0) {
+        toast('Private Sales Mode: Financial sales records kept securely on this device.', {
+          icon: '🛡️',
           duration: 4000
         });
       }
