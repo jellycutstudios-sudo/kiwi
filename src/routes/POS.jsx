@@ -59,6 +59,27 @@ const checkIsVegItem = (item) => {
   return (/veg|paneer|salad|pasta|dal|roti|rice|mushroom|cheese|margherita/i.test(item.name || '') && !/chicken|mutton|fish|beef|pork|egg|meat|prawn|salmon/i.test(item.name || ''));
 };
 
+const getDisplayPrice = (item, currency) => {
+  const hasModifiers = item?.modifierGroups && item.modifierGroups.length > 0;
+  if (hasModifiers && parseFloat(item.price) === 0) {
+    let minPrice = Infinity;
+    for (let i = 0; i < item.modifierGroups.length; i++) {
+      const opts = item.modifierGroups[i].options;
+      if (Array.isArray(opts)) {
+        for (let j = 0; j < opts.length; j++) {
+          const p = opts[j].priceAdd;
+          if (p > 0 && p < minPrice) {
+            minPrice = p;
+          }
+        }
+      }
+    }
+    const resolvedMin = minPrice === Infinity ? 0 : minPrice;
+    return { isFrom: true, text: formatCurrency(resolvedMin, currency) };
+  }
+  return { isFrom: false, text: formatCurrency(item?.price || 0, currency) };
+};
+
 function EmptyCartState({ onAddCustomItem }) {
   return (
     <div className="pos-empty-cart-minimal">
@@ -1699,13 +1720,7 @@ export default function POS() {
               const isVegItem = checkIsVegItem(item);
               
               if (menuDensity === 'dense') {
-                const formattedPrice = hasModifiers && parseFloat(item.price) === 0 ? (
-                  (() => {
-                    const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                    const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                    return { isFrom: true, text: formatCurrency(minPrice, currency) };
-                  })()
-                ) : { isFrom: false, text: formatCurrency(item.price, currency) };
+                const formattedPrice = getDisplayPrice(item, currency);
 
                 return (
                   <div
@@ -1810,7 +1825,7 @@ export default function POS() {
                   )}
                   <div className="menu-item-img-wrap">
                     {item.imageUrl || item.image ? (
-                      <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" />
+                      <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
                     ) : (() => {
                       const visuals = getItemVisuals(item);
                       return (

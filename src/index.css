@@ -3675,6 +3675,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 96px;
 }
 
 /* Hover elevation: subtle lift & soft shadow */
@@ -3890,6 +3892,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 180px;
 }
 
 .menu-item-card:hover {
