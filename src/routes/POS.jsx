@@ -2894,7 +2894,7 @@ export default function POS() {
             className="cart-action-buttons" 
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: orderType === 'dine-in' ? '44px 1fr 1.35fr' : '1fr 1.35fr', 
+              gridTemplateColumns: orderType === 'dine-in' ? '44px 1fr 1.35fr' : '1fr 1.25fr', 
               gap: 8,
               padding: '10px 12px 14px'
             }}
@@ -2919,10 +2919,17 @@ export default function POS() {
               onClick={handleSendToKitchen}
               disabled={!items.length}
               type="button"
-              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}
               title={orderType === 'takeaway' ? 'Send order to kitchen and collect payment when customer picks up' : (kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)")}
             >
-              <span>{orderType === 'takeaway' ? 'Kitchen (Pay on Pickup)' : (kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen')}</span>
+              {orderType === 'takeaway' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 750 }}>Kitchen</span>
+                  <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay on Pickup</span>
+                </div>
+              ) : (
+                <span>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
+              )}
             </button>
             <button
               className="cart-action-btn-checkout"
@@ -2930,10 +2937,10 @@ export default function POS() {
               onClick={handleCheckout}
               disabled={!items.length}
               type="button"
-              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px' }}
               title={orderType === 'takeaway' ? "Collect payment immediately & fire order to kitchen (KOT)" : "Proceed to payment & checkout"}
             >
-              <span>{orderType === 'takeaway' ? `Pay & Kitchen · ${formatCurrency(remainingTotal, currency)}` : `Pay ${formatCurrency(remainingTotal, currency)}`}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 800 }}>Pay {formatCurrency(remainingTotal, currency)}</span>
             </button>
           </div>
         ) : (
