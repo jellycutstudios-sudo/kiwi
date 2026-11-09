@@ -13521,15 +13521,16 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 .burger-menu-btn,
 .sidebar-close-btn,
 .mobile-sidebar-overlay,
-.mobile-cart-toggle-bar {
-  display: none;
+.mobile-cart-toggle-bar,
+.pos-mobile-bottom-dock {
+  display: none !important;
 }
 
 .mobile-only {
   display: none !important;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .desktop-only {
     display: none !important;
   }
@@ -13560,58 +13561,65 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   /* Mobile POS Bottom Action Dock (Thumb-Zone Ergonomics) */
   .pos-mobile-bottom-dock {
     display: flex !important;
-    position: fixed;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    left: 10px;
-    right: 10px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    z-index: 95;
-    pointer-events: none;
-    box-sizing: border-box;
+    flex-direction: row !important;
+    position: fixed !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    z-index: 95 !important;
+    pointer-events: none !important;
+    box-sizing: border-box !important;
     animation: fadeIn 0.2s ease-out;
   }
 
   .pos-mobile-dock-left {
-    pointer-events: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    flex-shrink: 1;
+    pointer-events: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
   }
 
   .pos-mobile-dock-right {
-    pointer-events: auto;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
+    pointer-events: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
   }
 
   /* View Mode Switcher Button (Cards vs Keys) in Dock */
-  .pos-mobile-dock-view-btn {
-    height: 44px;
-    padding: 0 11px;
-    border-radius: 22px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11.5px;
-    font-weight: 750;
-    cursor: pointer;
-    background: #ffffff;
-    border: 1.5px solid #cbd5e1;
-    color: #0f172a;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-    flex-shrink: 0;
-    touch-action: manipulation;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
+  .pos-mobile-dock-view-btn,
+  .pos-mobile-dock-btn {
+    height: 44px !important;
+    padding: 0 12px !important;
+    border-radius: 22px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    font-size: 11.5px !important;
+    font-weight: 750 !important;
+    cursor: pointer !important;
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    touch-action: manipulation !important;
+    user-select: none !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
-  .pos-mobile-dock-view-btn:active {
+  .pos-mobile-dock-view-btn:active,
+  .pos-mobile-dock-btn:active {
     transform: scale(0.95);
   }
 
@@ -13623,11 +13631,12 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     color: #2563eb;
   }
 
-  [data-theme="dark"] .pos-mobile-dock-view-btn {
-    background: #181c2c;
-    border: 1.5px solid rgba(255, 255, 255, 0.16);
-    color: #ffffff;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+  [data-theme="dark"] .pos-mobile-dock-view-btn,
+  [data-theme="dark"] .pos-mobile-dock-btn {
+    background: #181c2c !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75) !important;
   }
 
   [data-theme="dark"] .dock-icon-grid {
@@ -13636,23 +13645,23 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
   /* Dietary Segmented Control Group in Dock */
   .pos-mobile-dietary-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 3px;
-    border-radius: 22px;
-    height: 44px;
-    box-sizing: border-box;
-    background: #ffffff;
-    border: 1.5px solid #cbd5e1;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-    flex-shrink: 0;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    padding: 3px !important;
+    border-radius: 22px !important;
+    height: 44px !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    flex-shrink: 0 !important;
   }
 
   [data-theme="dark"] .pos-mobile-dietary-group {
-    background: #181c2c;
-    border: 1.5px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+    background: #181c2c !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75) !important;
   }
 
   .pos-mobile-dietary-btn {
@@ -13726,6 +13735,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     bottom: auto !important;
     right: auto !important;
     left: auto !important;
+    top: auto !important;
     margin: 0 !important;
     height: 44px !important;
     border-radius: 22px !important;
@@ -13740,17 +13750,17 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     touch-action: manipulation !important;
     user-select: none !important;
     -webkit-tap-highlight-color: transparent !important;
-    background: #0f172a;
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #0f172a !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
   }
 
   .pos-mobile-bottom-dock .mobile-cart-toggle-bar:not(.empty) {
     background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
     color: #ffffff !important;
-    border: 1.5px solid rgba(255, 255, 255, 0.28) !important;
-    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.40), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.32) !important;
+    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
   }
 
   .pos-mobile-bottom-dock .mobile-cart-toggle-bar.empty {
@@ -13855,32 +13865,39 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
   /* Extra compact dock adjustments for smaller mobile phones (<=440px) */
   @media (max-width: 440px) {
-    .pos-mobile-dock-view-btn .dock-btn-label {
-      display: none;
+    .pos-mobile-dock-view-btn .dock-btn-label,
+    .pos-mobile-dock-btn .dock-btn-label {
+      display: none !important;
     }
-    .pos-mobile-dock-view-btn {
-      padding: 0 10px;
+    .pos-mobile-dock-view-btn,
+    .pos-mobile-dock-btn {
+      padding: 0 10px !important;
     }
     .pos-mobile-dietary-btn {
-      padding: 0 6px;
-      font-size: 11px;
-      gap: 3px;
+      padding: 0 6px !important;
+      font-size: 11px !important;
+      gap: 3px !important;
     }
     .pos-mobile-bottom-dock .mobile-cart-toggle-bar {
       padding: 0 10px !important;
       gap: 6px !important;
     }
     .mobile-cart-total-amount {
-      font-size: 12px;
+      font-size: 12px !important;
     }
   }
 
   @media (max-width: 375px) {
     .pos-mobile-dietary-btn.nonveg span:last-child {
-      display: none;
+      display: none !important;
     }
     .pos-mobile-dietary-btn.veg span:last-child {
-      display: none;
+      display: none !important;
+    }
+    .pos-mobile-dietary-btn {
+      width: 30px !important;
+      padding: 0 !important;
+      justify-content: center !important;
     }
   }
 

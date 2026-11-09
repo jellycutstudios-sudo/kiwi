@@ -1829,12 +1829,12 @@ export default function POS() {
         </div>
 
         {/* Mobile POS Bottom Action Dock: View Switcher, Dietary Filters & Cart (Thumb-optimized) */}
-        <div className="pos-mobile-bottom-dock mobile-only" role="region" aria-label="Quick operations dock">
+        <div className="pos-mobile-bottom-dock" role="region" aria-label="Quick operations dock">
           <div className="pos-mobile-dock-left">
             {/* View Mode Switcher: Cards vs Fast Keys */}
             <button
               type="button"
-              className={`pos-mobile-dock-btn pos-mobile-view-toggle ${menuDensity === 'dense' ? 'is-keys' : 'is-cards'}`}
+              className={`pos-mobile-dock-view-btn pos-mobile-view-toggle ${menuDensity === 'dense' ? 'is-keys' : 'is-cards'}`}
               onClick={() => {
                 hapticTap('light');
                 setMenuDensity(menuDensity === 'visual' ? 'dense' : 'visual', true);
