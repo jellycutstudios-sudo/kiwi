@@ -14803,6 +14803,131 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 }
 
+/* --- Staff Role Segmented Picker Modal Controls --- */
+.staff-role-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+}
+
+@media (max-width: 520px) {
+  .staff-role-picker-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.staff-role-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 4px 9px;
+  background: var(--color-bg-secondary);
+  border: 1.5px solid var(--color-separator);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  color: var(--color-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.staff-role-picker-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-label-tertiary);
+  color: var(--color-label);
+}
+
+.staff-role-picker-btn.active {
+  border-width: 1.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 700;
+}
+
+.staff-role-picker-btn.active.role-admin {
+  background: rgba(139, 92, 246, 0.12) !important;
+  border-color: #8b5cf6 !important;
+  color: #a78bfa !important;
+}
+
+.staff-role-picker-btn.active.role-manager {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: #10b981 !important;
+  color: #34d399 !important;
+}
+
+.staff-role-picker-btn.active.role-cashier {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: #3b82f6 !important;
+  color: #60a5fa !important;
+}
+
+.staff-role-picker-btn.active.role-waiter {
+  background: rgba(6, 182, 212, 0.12) !important;
+  border-color: #06b6d4 !important;
+  color: #22d3ee !important;
+}
+
+.staff-role-picker-btn.active.role-kitchen {
+  background: rgba(249, 115, 22, 0.12) !important;
+  border-color: #f97316 !important;
+  color: #fb923c !important;
+}
+
+.staff-role-scope-card {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staff-role-scope-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.staff-role-scope-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-label);
+}
+
+.staff-role-scope-desc {
+  font-size: 11.5px;
+  color: var(--color-label-secondary);
+  line-height: 1.35;
+}
+
+.staff-role-scope-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.staff-role-scope-chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(125, 125, 125, 0.08);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label-secondary);
+  letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .staff-role-scope-chip {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 
 /* --- TV Display Flash Animations --- */
 .flash-animate {

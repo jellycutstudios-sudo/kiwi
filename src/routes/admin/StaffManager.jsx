@@ -6,7 +6,8 @@ import { collection, doc, onSnapshot, writeBatch, getDoc, setDoc } from 'firebas
 import { db } from '../../firebase';
 import { 
   Plus, Edit2, Trash2, X, UserCheck, UserX, Eye, EyeOff, Sparkles, 
-  LayoutGrid, List, Search, Copy, Check, Mail, Clock 
+  LayoutGrid, List, Search, Copy, Check, Mail, Clock,
+  Shield, CreditCard, Utensils, ChefHat
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -14,19 +15,54 @@ import { formatCurrency } from '../../utils/formatCurrency';
 const ROLES = ['admin', 'manager', 'cashier', 'waiter', 'kitchen'];
 
 const ROLE_CONFIG = {
-  admin: { label: 'Admin', color: 'badge-purple', hex: '#8b5cf6', desc: 'Full Store - Settings, Menu & Staff' },
-  manager: { label: 'Manager', color: 'badge-green', hex: '#10b981', desc: 'Floor Supervisor - Operations, Tables & Voids' },
-  cashier: { label: 'Cashier', color: 'badge-blue', hex: '#3b82f6', desc: 'Front Counter - Billing, Tenders & Register' },
-  waiter: { label: 'Waiter', color: 'badge-teal', hex: '#06b6d4', desc: 'Floor Staff - Tables & Mobile Ordering' },
-  kitchen: { label: 'Kitchen', color: 'badge-orange', hex: '#f97316', desc: 'Line Cook - KDS Screen Only' },
+  admin: {
+    label: 'Admin',
+    color: 'badge-purple',
+    hex: '#8b5cf6',
+    desc: 'Full Store Access',
+    summary: 'Full control over settings, menu, reports, inventory & staff accounts.',
+    permissions: ['Settings', 'Reports', 'Menu Editor', 'Staff PINs', 'Inventory'],
+  },
+  manager: {
+    label: 'Manager',
+    color: 'badge-green',
+    hex: '#10b981',
+    desc: 'Floor Supervisor',
+    summary: 'Oversee daily floor operations, table assignments & void approvals.',
+    permissions: ['Floor Plan', 'Void & Comp', 'Cash Shifts', 'Table Swap'],
+  },
+  cashier: {
+    label: 'Cashier',
+    color: 'badge-blue',
+    hex: '#3b82f6',
+    desc: 'Front Counter & Billing',
+    summary: 'Operate the register, split checks, accept tenders & print receipts.',
+    permissions: ['Register Billing', 'Split Checks', 'Tender Cash/Card', 'Receipts'],
+  },
+  waiter: {
+    label: 'Waiter',
+    color: 'badge-teal',
+    hex: '#06b6d4',
+    desc: 'Floor & Table Ordering',
+    summary: 'Take table orders, fire kitchen courses & manage handheld terminal.',
+    permissions: ['Take Orders', 'Seat Splitting', 'Fire Courses', 'Mobile POS'],
+  },
+  kitchen: {
+    label: 'Kitchen',
+    color: 'badge-orange',
+    hex: '#f97316',
+    desc: 'Kitchen Display (KDS)',
+    summary: 'View incoming tickets, track prep timers & mark dishes ready.',
+    permissions: ['KDS Screen', 'Prep Timers', 'Station Filter', 'Bump Tickets'],
+  },
 };
 
 const ROLE_LABELS = {
-  admin: 'Admin (Full Store - Settings, Menu & Staff)',
-  manager: 'Manager (Floor Supervisor - Operations, Tables & Voids)',
-  cashier: 'Cashier (Front Counter - Billing, Tenders & Register)',
-  waiter: 'Waiter (Floor Staff - Tables & Mobile Ordering)',
-  kitchen: 'Kitchen (Line Cook - KDS Screen Only)',
+  admin: 'Admin · Full Access',
+  manager: 'Manager · Floor & Voids',
+  cashier: 'Cashier · Register & Billing',
+  waiter: 'Waiter · Tables & Orders',
+  kitchen: 'Kitchen · KDS Display',
 };
 
 export default function StaffManager() {
@@ -977,21 +1013,25 @@ export default function StaffManager() {
               </div>
               {isBillOnly ? (
                 <div className="form-group">
-                  <label className="form-label">Role</label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Role</label>
+                    <span className="badge badge-blue">Cashier</span>
+                  </div>
                   <div style={{
-                    padding: '8px 12px',
+                    padding: '10px 14px',
                     background: 'var(--color-bg-secondary)',
                     border: '1px solid var(--color-separator)',
-                    borderRadius: 'var(--radius-md)',
+                    borderRadius: 'var(--radius-md, 8px)',
                     fontSize: '13px',
-                    fontWeight: 600,
-                    color: 'var(--color-label)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <span>Cashier (Register & Counter Billing)</span>
-                    <span className="badge badge-blue">Cashier</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CreditCard size={15} color="#3b82f6" />
+                      <span style={{ fontWeight: 600, color: 'var(--color-label)' }}>Cashier</span>
+                    </div>
+                    <span className="badge badge-blue">Register & Billing</span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: '4px' }}>
                     Cashiers can only bill items and operate the register. Settings and sales reports are protected.
@@ -999,10 +1039,65 @@ export default function StaffManager() {
                 </div>
               ) : (
                 <div className="form-group">
-                  <label className="form-label">Role</label>
-                  <select id="staff-role-select" className="form-select" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Role</label>
+                    <span className={`badge ${ROLE_CONFIG[form.role]?.color || 'badge-blue'}`}>
+                      {ROLE_CONFIG[form.role]?.label || form.role}
+                    </span>
+                  </div>
+
+                  {/* Clean Segmented Role Grid */}
+                  <div className="staff-role-picker-grid" role="radiogroup" aria-label="Staff role selection">
+                    {ROLES.map(r => {
+                      const cfg = ROLE_CONFIG[r];
+                      const isSelected = form.role === r;
+                      const RoleIcon = r === 'admin' ? Shield :
+                                       r === 'manager' ? UserCheck :
+                                       r === 'cashier' ? CreditCard :
+                                       r === 'waiter' ? Utensils : ChefHat;
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          className={`staff-role-picker-btn role-${r} ${isSelected ? 'active' : ''}`}
+                          onClick={() => setForm(f => ({ ...f, role: r }))}
+                          id={`staff-role-btn-${r}`}
+                        >
+                          <RoleIcon size={16} />
+                          <span>{cfg.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Synced native select for forms and accessibility */}
+                  <select
+                    id="staff-role-select"
+                    className="sr-only"
+                    value={form.role}
+                    onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  >
                     {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || (r.charAt(0).toUpperCase()+r.slice(1))}</option>)}
                   </select>
+
+                  {/* Organized Role Scope Card */}
+                  <div className="staff-role-scope-card">
+                    <div className="staff-role-scope-header">
+                      <span className="staff-role-scope-title">{ROLE_CONFIG[form.role]?.desc}</span>
+                      <span className="staff-role-scope-desc">{ROLE_CONFIG[form.role]?.summary}</span>
+                    </div>
+                    <div className="staff-role-scope-chips">
+                      {ROLE_CONFIG[form.role]?.permissions?.map(perm => (
+                        <span key={perm} className="staff-role-scope-chip">
+                          {perm}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="form-group">
