@@ -2,19 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { X, Search, LayoutGrid, Check, Plus } from 'lucide-react';
 import { hapticTap } from '../../utils/soundNotifications';
 
-const THEME_ACCENTS = [
-  { border: 'rgba(56, 189, 248, 0.35)', bg: 'rgba(56, 189, 248, 0.08)', text: '#7dd3fc', badge: 'rgba(56, 189, 248, 0.18)' },
-  { border: 'rgba(168, 85, 247, 0.35)', bg: 'rgba(168, 85, 247, 0.08)', text: '#d8b4fe', badge: 'rgba(168, 85, 247, 0.18)' },
-  { border: 'rgba(245, 158, 11, 0.35)', bg: 'rgba(245, 158, 11, 0.08)', text: '#fcd34d', badge: 'rgba(245, 158, 11, 0.18)' },
-  { border: 'rgba(239, 68, 68, 0.35)', bg: 'rgba(239, 68, 68, 0.08)', text: '#fca5a5', badge: 'rgba(239, 68, 68, 0.18)' },
-  { border: 'rgba(16, 185, 129, 0.35)', bg: 'rgba(16, 185, 129, 0.08)', text: '#6ee7b7', badge: 'rgba(16, 185, 129, 0.18)' },
-  { border: 'rgba(236, 72, 153, 0.35)', bg: 'rgba(236, 72, 153, 0.08)', text: '#f472b6', badge: 'rgba(236, 72, 153, 0.18)' },
-  { border: 'rgba(99, 102, 241, 0.35)', bg: 'rgba(99, 102, 241, 0.08)', text: '#a5b4fc', badge: 'rgba(99, 102, 241, 0.18)' },
-  { border: 'rgba(20, 184, 166, 0.35)', bg: 'rgba(20, 184, 166, 0.08)', text: '#5eead4', badge: 'rgba(20, 184, 166, 0.18)' },
-  { border: 'rgba(249, 115, 22, 0.35)', bg: 'rgba(249, 115, 22, 0.08)', text: '#fdba74', badge: 'rgba(249, 115, 22, 0.18)' },
-  { border: 'rgba(132, 204, 22, 0.35)', bg: 'rgba(132, 204, 22, 0.08)', text: '#bef264', badge: 'rgba(132, 204, 22, 0.18)' },
-];
-
 export default function CategoryGridModal({
   isOpen,
   onClose,
@@ -65,9 +52,9 @@ export default function CategoryGridModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
-        background: 'rgba(0, 0, 0, 0.72)',
-        backdropFilter: 'blur(8px)',
+        padding: '20px',
+        background: 'rgba(0, 0, 0, 0.78)',
+        backdropFilter: 'blur(10px)',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -79,39 +66,40 @@ export default function CategoryGridModal({
       <div
         className="modal pos-cat-grid-modal animate-scale-up"
         style={{
-          width: '740px',
+          width: '940px',
           maxWidth: '96vw',
-          maxHeight: '88vh',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          borderRadius: '16px',
+          borderRadius: '20px',
           overflow: 'hidden',
-          background: 'var(--color-bg-elevated, #131622)',
-          border: '1px solid rgba(255, 255, 255, 0.16)',
-          boxShadow: '0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+          background: '#0d101a',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 32px 100px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08)',
         }}
       >
         {/* Modal Header */}
         <div
           className="pos-cat-grid-header"
           style={{
-            padding: '16px 20px',
+            padding: '20px 28px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: '1px solid var(--color-separator, rgba(255, 255, 255, 0.1))',
-            gap: '12px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            gap: '16px',
             flexWrap: 'wrap',
+            background: 'rgba(255, 255, 255, 0.02)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '9px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '11px',
                 background: 'rgba(16, 185, 129, 0.16)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
                 color: '#34d399',
                 display: 'flex',
                 alignItems: 'center',
@@ -119,48 +107,48 @@ export default function CategoryGridModal({
                 flexShrink: 0,
               }}
             >
-              <LayoutGrid size={18} strokeWidth={2.4} />
+              <LayoutGrid size={22} strokeWidth={2.4} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <h3
                   style={{
                     margin: 0,
-                    fontSize: '16px',
-                    fontWeight: 750,
-                    color: 'var(--color-label, #ffffff)',
-                    letterSpacing: '-0.01em',
+                    fontSize: '19px',
+                    fontWeight: 800,
+                    color: '#ffffff',
+                    letterSpacing: '-0.02em',
                   }}
                 >
                   All Menu Categories
                 </h3>
                 <span
                   style={{
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    padding: '1.5px 7px',
+                    fontSize: '12px',
+                    fontWeight: 750,
+                    padding: '2px 9px',
                     borderRadius: '999px',
-                    background: 'rgba(255, 255, 255, 0.12)',
-                    color: 'var(--color-label-secondary, #94a3b8)',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: '#94a3b8',
                   }}
                 >
-                  {categories.length}
+                  {categories.length} Categories
                 </span>
               </div>
               <p
                 style={{
-                  margin: '2px 0 0 0',
-                  fontSize: '12px',
-                  color: 'var(--color-label-tertiary, #64748b)',
+                  margin: '3px 0 0 0',
+                  fontSize: '13px',
+                  color: '#94a3b8',
                 }}
               >
-                1-tap jump to any category · Never scroll horizontally
+                Tap any category to filter items · 1-tap instant switch
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* Quick search if multiple categories */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Quick search input */}
             {categories.length > 5 && (
               <div
                 style={{
@@ -170,11 +158,11 @@ export default function CategoryGridModal({
                 }}
               >
                 <Search
-                  size={14}
+                  size={15}
                   style={{
                     position: 'absolute',
-                    left: '10px',
-                    color: 'var(--color-label-tertiary, #64748b)',
+                    left: '12px',
+                    color: '#94a3b8',
                     pointerEvents: 'none',
                   }}
                 />
@@ -184,14 +172,14 @@ export default function CategoryGridModal({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    height: '32px',
-                    width: '160px',
-                    padding: '0 28px 0 30px',
-                    fontSize: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-separator, rgba(255, 255, 255, 0.14))',
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    color: 'var(--color-label, #ffffff)',
+                    height: '36px',
+                    width: '190px',
+                    padding: '0 30px 0 34px',
+                    fontSize: '13px',
+                    borderRadius: '9px',
+                    border: '1px solid rgba(255, 255, 255, 0.14)',
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    color: '#ffffff',
                     outline: 'none',
                   }}
                 />
@@ -201,16 +189,16 @@ export default function CategoryGridModal({
                     onClick={() => setSearch('')}
                     style={{
                       position: 'absolute',
-                      right: '6px',
+                      right: '8px',
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--color-label-tertiary, #64748b)',
+                      color: '#94a3b8',
                       cursor: 'pointer',
                       padding: 2,
                     }}
                     title="Clear search"
                   >
-                    <X size={13} />
+                    <X size={14} />
                   </button>
                 )}
               </div>
@@ -221,54 +209,57 @@ export default function CategoryGridModal({
               onClick={onClose}
               className="btn btn-secondary btn-icon"
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#ffffff',
               }}
               title="Close (Esc)"
               aria-label="Close"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Modal Body: Touch-Friendly Tiles Grid */}
+        {/* Modal Body: High-Contrast Premium Tiles Grid */}
         <div
           className="pos-cat-grid-body"
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '16px 20px',
+            padding: '22px 28px',
             overscrollBehavior: 'contain',
           }}
         >
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
-              gap: '12px',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
+              gap: '14px',
             }}
           >
-            {/* 1. All Items Tile */}
+            {/* 1. All Items Master Card */}
             <button
               type="button"
               className={`pos-cat-touch-tile ${activeCat === 'all' ? 'active' : ''}`}
               onClick={() => handleSelect('all')}
               style={{
-                minHeight: '82px',
-                padding: '14px 16px',
-                borderRadius: '12px',
+                minHeight: '96px',
+                padding: '16px 18px',
+                borderRadius: '14px',
                 border: activeCat === 'all'
                   ? '1.5px solid #10b981'
                   : '1px solid rgba(16, 185, 129, 0.35)',
                 background: activeCat === 'all'
-                  ? 'rgba(16, 185, 129, 0.22)'
-                  : 'rgba(16, 185, 129, 0.08)',
-                color: activeCat === 'all' ? '#ffffff' : '#6ee7b7',
+                  ? '#1a2736'
+                  : '#151825',
+                color: '#ffffff',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -276,17 +267,17 @@ export default function CategoryGridModal({
                 cursor: 'pointer',
                 transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                 boxShadow: activeCat === 'all'
-                  ? '0 0 16px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                  : 'none',
+                  ? '0 0 24px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.25)',
                 position: 'relative',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                 <span
                   style={{
-                    fontSize: '15px',
-                    fontWeight: 750,
-                    color: 'inherit',
+                    fontSize: '17px',
+                    fontWeight: 800,
+                    color: '#ffffff',
                     lineHeight: 1.25,
                   }}
                 >
@@ -295,8 +286,8 @@ export default function CategoryGridModal({
                 {activeCat === 'all' && (
                   <span
                     style={{
-                      width: '18px',
-                      height: '18px',
+                      width: '22px',
+                      height: '22px',
                       borderRadius: '50%',
                       background: '#10b981',
                       color: '#ffffff',
@@ -304,33 +295,33 @@ export default function CategoryGridModal({
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
+                      boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
                     }}
                   >
-                    <Check size={11} strokeWidth={3} />
+                    <Check size={13} strokeWidth={3.5} />
                   </span>
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
                 <span
                   style={{
-                    fontSize: '11.5px',
-                    fontWeight: 700,
-                    padding: '2px 7px',
+                    fontSize: '12px',
+                    fontWeight: 750,
+                    padding: '3px 10px',
                     borderRadius: '999px',
-                    background: 'rgba(255, 255, 255, 0.16)',
-                    color: '#ffffff',
+                    background: activeCat === 'all' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.1)',
+                    color: activeCat === 'all' ? '#6ee7b7' : '#cbd5e1',
                   }}
                 >
                   {totalItemsCount} items
                 </span>
-                <span style={{ fontSize: '11px', opacity: 0.7 }}>Whole Menu</span>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Entire Menu</span>
               </div>
             </button>
 
-            {/* Category Tiles */}
-            {filteredCategories.map((c, idx) => {
-              const theme = THEME_ACCENTS[idx % THEME_ACCENTS.length];
+            {/* Category Cards - High Contrast Obsidian Luxury */}
+            {filteredCategories.map((c) => {
               const isActive = activeCat === c.id;
               const itemCount = c.items?.length || 0;
 
@@ -342,16 +333,16 @@ export default function CategoryGridModal({
                   className={`pos-cat-touch-tile ${isActive ? 'active' : ''}`}
                   onClick={() => handleSelect(c.id)}
                   style={{
-                    minHeight: '82px',
-                    padding: '14px 16px',
-                    borderRadius: '12px',
+                    minHeight: '96px',
+                    padding: '16px 18px',
+                    borderRadius: '14px',
                     border: isActive
-                      ? '1.5px solid #ffffff'
-                      : `1px solid ${theme.border}`,
+                      ? '1.5px solid #10b981'
+                      : '1px solid rgba(255, 255, 255, 0.11)',
                     background: isActive
-                      ? '#252a3d'
-                      : theme.bg,
-                    color: isActive ? '#ffffff' : theme.text,
+                      ? '#1a2736'
+                      : '#151825',
+                    color: '#ffffff',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
@@ -359,17 +350,17 @@ export default function CategoryGridModal({
                     cursor: 'pointer',
                     transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                     boxShadow: isActive
-                      ? '0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
-                      : '0 2px 6px rgba(0, 0, 0, 0.15)',
+                      ? '0 0 24px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
+                      : '0 2px 8px rgba(0, 0, 0, 0.25)',
                     position: 'relative',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                     <span
                       style={{
-                        fontSize: '15px',
+                        fontSize: '17px',
                         fontWeight: 750,
-                        color: isActive ? '#ffffff' : 'var(--color-label, #ffffff)',
+                        color: '#ffffff',
                         lineHeight: 1.25,
                         overflow: 'hidden',
                         display: '-webkit-box',
@@ -382,8 +373,8 @@ export default function CategoryGridModal({
                     {isActive && (
                       <span
                         style={{
-                          width: '18px',
-                          height: '18px',
+                          width: '22px',
+                          height: '22px',
                           borderRadius: '50%',
                           background: '#10b981',
                           color: '#ffffff',
@@ -391,34 +382,38 @@ export default function CategoryGridModal({
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
+                          boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
                         }}
                       >
-                        <Check size={11} strokeWidth={3} />
+                        <Check size={13} strokeWidth={3.5} />
                       </span>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
                     <span
                       style={{
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        padding: '2px 7px',
+                        fontSize: '12px',
+                        fontWeight: 750,
+                        padding: '3px 10px',
                         borderRadius: '999px',
-                        background: isActive ? 'rgba(255, 255, 255, 0.22)' : theme.badge,
-                        color: isActive ? '#ffffff' : theme.text,
+                        background: isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                        color: isActive ? '#6ee7b7' : '#cbd5e1',
                       }}
                     >
                       {itemCount} item{itemCount !== 1 ? 's' : ''}
                     </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        color: 'var(--color-label-tertiary, #64748b)',
-                      }}
-                    >
-                      {isActive ? 'Active' : 'Tap to open'}
-                    </span>
+                    {isActive && (
+                      <span
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          color: '#10b981',
+                        }}
+                      >
+                        Active
+                      </span>
+                    )}
                   </div>
                 </button>
               );
@@ -435,12 +430,12 @@ export default function CategoryGridModal({
                   onOpenCustomItem();
                 }}
                 style={{
-                  minHeight: '82px',
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  border: '1.5px dashed rgba(245, 158, 11, 0.45)',
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  color: '#fcd34d',
+                  minHeight: '96px',
+                  padding: '16px 18px',
+                  borderRadius: '14px',
+                  border: '1.5px dashed rgba(255, 255, 255, 0.22)',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  color: '#f1f5f9',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
@@ -449,13 +444,13 @@ export default function CategoryGridModal({
                   transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Plus size={16} strokeWidth={2.5} />
-                  <span style={{ fontSize: '15px', fontWeight: 750 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={18} strokeWidth={2.5} style={{ color: '#38bdf8' }} />
+                  <span style={{ fontSize: '17px', fontWeight: 750, color: '#ffffff' }}>
                     Custom Item
                   </span>
                 </div>
-                <span style={{ fontSize: '11.5px', color: '#fef08a' }}>
+                <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                   Punch off-menu special
                 </span>
               </button>
@@ -463,13 +458,13 @@ export default function CategoryGridModal({
           </div>
 
           {filteredCategories.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--color-label-tertiary, #64748b)' }}>
-              <p style={{ margin: 0, fontWeight: 600 }}>No categories found matching "{search}"</p>
+            <div style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>No categories found matching "{search}"</p>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setSearch('')}
-                style={{ marginTop: '10px' }}
+                style={{ marginTop: '12px', borderRadius: '8px' }}
               >
                 Clear Search
               </button>
@@ -481,22 +476,22 @@ export default function CategoryGridModal({
         <div
           className="pos-cat-grid-footer"
           style={{
-            padding: '12px 20px',
-            borderTop: '1px solid var(--color-separator, rgba(255, 255, 255, 0.1))',
+            padding: '14px 28px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'rgba(0, 0, 0, 0.15)',
+            background: 'rgba(255, 255, 255, 0.02)',
           }}
         >
-          <span style={{ fontSize: '12px', color: 'var(--color-label-tertiary, #64748b)' }}>
-            Tip: Tapping any category card selects it and closes this view automatically.
+          <span style={{ fontSize: '12.5px', color: '#64748b' }}>
+            Tip: Tap any category to jump directly · Press Esc to dismiss
           </span>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={onClose}
-            style={{ borderRadius: '8px', padding: '0 16px', height: '32px' }}
+            style={{ borderRadius: '8px', padding: '0 20px', height: '34px', fontSize: '13px' }}
           >
             Close (Esc)
           </button>

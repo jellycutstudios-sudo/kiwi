@@ -1530,33 +1530,54 @@ export default function POS() {
             </div>
             <div className="pos-bar-divider" />
 
-            <div className="pos-category-scroll">
-              {/* Category Chips - Clean & Emoji-Free */}
+            <div className="pos-category-actions">
+              {/* All Items Quick Toggle */}
               <button
                 id="cat-all"
+                type="button"
                 role="tab"
                 aria-selected={activeCat === 'all'}
                 className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
                 onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                title="View All Menu Items"
               >
                 <span className="category-chip-name">All Items</span>
                 <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
               </button>
-              {categories.map(c => (
-                <button
-                  key={c.id}
-                  id={`cat-${c.id}`}
-                  role="tab"
-                  aria-selected={activeCat === c.id}
-                  className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
-                  onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
-                >
-                  <span className="category-chip-name">{c.name}</span>
-                  {c.items?.length > 0 && (
-                    <span className="category-chip-count">{c.items.length}</span>
-                  )}
-                </button>
-              ))}
+
+              {/* Active Category Chip with 1-click Clear */}
+              {activeCat !== 'all' && (() => {
+                const currentCat = categories.find(c => c.id === activeCat);
+                if (!currentCat) return null;
+                return (
+                  <button
+                    key={currentCat.id}
+                    id={`cat-${currentCat.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={true}
+                    className="category-chip active pos-active-cat-chip"
+                    onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                    title={`Active: ${currentCat.name} (click to switch category)`}
+                  >
+                    <span className="category-chip-name">{currentCat.name}</span>
+                    <span className="category-chip-count">{currentCat.items?.length || 0}</span>
+                    <span
+                      className="pos-active-cat-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap('light');
+                        setActiveCat('all');
+                      }}
+                      title="Clear filter & show all items"
+                    >
+                      ×
+                    </span>
+                  </button>
+                );
+              })()}
+
+              {/* Custom Item Chip */}
               <button
                 type="button"
                 id="add-custom-item-chip"
@@ -3250,10 +3271,6 @@ export default function POS() {
           setActiveCat(catId);
           setCatFirstOverview(false);
           setSearch('');
-          // Smoothly scroll active category chip into view in the horizontal bar if present
-          setTimeout(() => {
-            document.getElementById(`cat-${catId}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-          }, 50);
         }}
         onOpenCustomItem={() => setShowOpenItemModal(true)}
       />

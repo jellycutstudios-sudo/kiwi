@@ -2819,6 +2819,54 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   transform: scale(0.97);
 }
 
+/* Category Actions Bar (Zero Horizontal Scroll) */
+.pos-category-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Active Category Chip on Top Bar */
+.pos-active-cat-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: rgba(16, 185, 129, 0.18) !important;
+  border: 1.5px solid #10b981 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.25) !important;
+  cursor: pointer !important;
+}
+
+.pos-active-cat-chip:hover {
+  background: rgba(16, 185, 129, 0.26) !important;
+  border-color: #34d399 !important;
+}
+
+.pos-active-cat-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 2px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.pos-active-cat-close:hover {
+  background: #ef4444;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
 /* Responsive Scaling for Tablets & Mobile Phones */
 @media (max-width: 640px) {
   .pos-operations-strip {
