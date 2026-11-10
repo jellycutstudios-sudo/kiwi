@@ -2,6 +2,21 @@ import { useState, useMemo, useEffect } from 'react';
 import { X, Search, LayoutGrid, Check, Plus } from 'lucide-react';
 import { hapticTap } from '../../utils/soundNotifications';
 
+const POS_MODAL_CATEGORY_THEMES = [
+  'pos-cat-theme-blue',
+  'pos-cat-theme-purple',
+  'pos-cat-theme-amber',
+  'pos-cat-theme-crimson',
+  'pos-cat-theme-teal',
+  'pos-cat-theme-rose',
+  'pos-cat-theme-indigo',
+  'pos-cat-theme-cyan',
+  'pos-cat-theme-orange',
+  'pos-cat-theme-lime',
+  'pos-cat-theme-fuchsia',
+  'pos-cat-theme-emerald',
+];
+
 export default function CategoryGridModal({
   isOpen,
   onClose,
@@ -132,7 +147,7 @@ export default function CategoryGridModal({
                     color: '#94a3b8',
                   }}
                 >
-                  {categories.length} Categories
+                  {categories.length}
                 </span>
               </div>
               <p
@@ -142,7 +157,7 @@ export default function CategoryGridModal({
                   color: '#94a3b8',
                 }}
               >
-                Tap any category to filter items · 1-tap instant switch
+                1-tap jump to any category · Never scroll horizontally
               </p>
             </div>
           </div>
@@ -247,173 +262,65 @@ export default function CategoryGridModal({
             {/* 1. All Items Master Card */}
             <button
               type="button"
-              className={`pos-cat-touch-tile ${activeCat === 'all' ? 'active' : ''}`}
+              className={`pos-cat-modal-tile pos-cat-theme-emerald ${activeCat === 'all' ? 'active' : ''}`}
               onClick={() => handleSelect('all')}
-              style={{
-                minHeight: '96px',
-                padding: '16px 18px',
-                borderRadius: '14px',
-                border: activeCat === 'all'
-                  ? '1.5px solid #10b981'
-                  : '1px solid rgba(16, 185, 129, 0.35)',
-                background: activeCat === 'all'
-                  ? '#1a2736'
-                  : '#151825',
-                color: '#ffffff',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                textAlign: 'left',
-                cursor: 'pointer',
-                transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-                boxShadow: activeCat === 'all'
-                  ? '0 0 24px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
-                  : '0 2px 8px rgba(0, 0, 0, 0.25)',
-                position: 'relative',
-              }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                <span
-                  style={{
-                    fontSize: '17px',
-                    fontWeight: 800,
-                    color: '#ffffff',
-                    lineHeight: 1.25,
-                  }}
-                >
+                <span className="pos-cat-modal-title">
                   All Items
                 </span>
                 {activeCat === 'all' && (
-                  <span
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      borderRadius: '50%',
-                      background: '#10b981',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
-                    }}
-                  >
-                    <Check size={13} strokeWidth={3.5} />
+                  <span className="pos-cat-modal-check">
+                    <Check size={12} strokeWidth={3.5} />
                   </span>
                 )}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 750,
-                    padding: '3px 10px',
-                    borderRadius: '999px',
-                    background: activeCat === 'all' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.1)',
-                    color: activeCat === 'all' ? '#6ee7b7' : '#cbd5e1',
-                  }}
-                >
+                <span className="pos-cat-modal-count">
                   {totalItemsCount} items
                 </span>
-                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Entire Menu</span>
+                <span className="pos-cat-modal-action-hint">
+                  {activeCat === 'all' ? 'Active' : 'Whole Menu'}
+                </span>
               </div>
             </button>
 
-            {/* Category Cards - High Contrast Obsidian Luxury */}
-            {filteredCategories.map((c) => {
+            {/* Category Cards - Color-Coded Cashier Themes */}
+            {filteredCategories.map((c, idx) => {
               const isActive = activeCat === c.id;
               const itemCount = c.items?.length || 0;
+              const originalIdx = categories.findIndex(cat => cat.id === c.id);
+              const themeClass = POS_MODAL_CATEGORY_THEMES[
+                (originalIdx >= 0 ? originalIdx : idx) % POS_MODAL_CATEGORY_THEMES.length
+              ];
 
               return (
                 <button
                   key={c.id}
                   id={`cat-modal-tile-${c.id}`}
                   type="button"
-                  className={`pos-cat-touch-tile ${isActive ? 'active' : ''}`}
+                  className={`pos-cat-modal-tile ${themeClass} ${isActive ? 'active' : ''}`}
                   onClick={() => handleSelect(c.id)}
-                  style={{
-                    minHeight: '96px',
-                    padding: '16px 18px',
-                    borderRadius: '14px',
-                    border: isActive
-                      ? '1.5px solid #10b981'
-                      : '1px solid rgba(255, 255, 255, 0.11)',
-                    background: isActive
-                      ? '#1a2736'
-                      : '#151825',
-                    color: '#ffffff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: isActive
-                      ? '0 0 24px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
-                      : '0 2px 8px rgba(0, 0, 0, 0.25)',
-                    position: 'relative',
-                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                    <span
-                      style={{
-                        fontSize: '17px',
-                        fontWeight: 750,
-                        color: '#ffffff',
-                        lineHeight: 1.25,
-                        overflow: 'hidden',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                      }}
-                    >
+                    <span className="pos-cat-modal-title">
                       {c.name}
                     </span>
                     {isActive && (
-                      <span
-                        style={{
-                          width: '22px',
-                          height: '22px',
-                          borderRadius: '50%',
-                          background: '#10b981',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
-                        }}
-                      >
-                        <Check size={13} strokeWidth={3.5} />
+                      <span className="pos-cat-modal-check">
+                        <Check size={12} strokeWidth={3.5} />
                       </span>
                     )}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        fontWeight: 750,
-                        padding: '3px 10px',
-                        borderRadius: '999px',
-                        background: isActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.08)',
-                        color: isActive ? '#6ee7b7' : '#cbd5e1',
-                      }}
-                    >
+                    <span className="pos-cat-modal-count">
                       {itemCount} item{itemCount !== 1 ? 's' : ''}
                     </span>
-                    {isActive && (
-                      <span
-                        style={{
-                          fontSize: '11.5px',
-                          fontWeight: 700,
-                          color: '#10b981',
-                        }}
-                      >
-                        Active
-                      </span>
-                    )}
+                    <span className="pos-cat-modal-action-hint">
+                      {isActive ? 'Active' : 'Tap to open'}
+                    </span>
                   </div>
                 </button>
               );
@@ -423,36 +330,24 @@ export default function CategoryGridModal({
             {onOpenCustomItem && (
               <button
                 type="button"
-                className="pos-cat-touch-tile pos-cat-touch-tile--custom"
+                className="pos-cat-modal-tile pos-cat-modal-tile--custom pos-cat-theme-amber"
                 onClick={() => {
                   hapticTap('light');
                   onClose();
                   onOpenCustomItem();
                 }}
-                style={{
-                  minHeight: '96px',
-                  padding: '16px 18px',
-                  borderRadius: '14px',
-                  border: '1.5px dashed rgba(255, 255, 255, 0.22)',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  color: '#f1f5f9',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Plus size={18} strokeWidth={2.5} style={{ color: '#38bdf8' }} />
-                  <span style={{ fontSize: '17px', fontWeight: 750, color: '#ffffff' }}>
+                  <Plus size={18} strokeWidth={2.8} style={{ color: '#f59e0b' }} />
+                  <span className="pos-cat-modal-title" style={{ color: '#fbbf24' }}>
                     Custom Item
                   </span>
                 </div>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  Punch off-menu special
-                </span>
+                <div style={{ marginTop: '14px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
+                    Punch off-menu special
+                  </span>
+                </div>
               </button>
             )}
           </div>
@@ -485,7 +380,7 @@ export default function CategoryGridModal({
           }}
         >
           <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-            Tip: Tap any category to jump directly · Press Esc to dismiss
+            Tip: Tapping any category card selects it and closes this view automatically.
           </span>
           <button
             type="button"

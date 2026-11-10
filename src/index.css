@@ -2819,6 +2819,130 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   transform: scale(0.97);
 }
 
+/* Category Grid Modal (High-Contrast Theme-Coded Touch Tiles) */
+.pos-cat-modal-tile {
+  min-height: 98px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(var(--cat-tint, 148, 163, 184), 0.45);
+  background: linear-gradient(150deg, rgba(var(--cat-tint, 148, 163, 184), 0.16) 0%, rgba(var(--cat-tint, 148, 163, 184), 0.04) 45%, rgba(18, 22, 34, 0.96) 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.pos-cat-modal-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--cat-accent, #3b82f6);
+  background: linear-gradient(150deg, rgba(var(--cat-tint, 148, 163, 184), 0.26) 0%, rgba(var(--cat-tint, 148, 163, 184), 0.08) 45%, rgba(22, 28, 44, 0.98) 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 18px rgba(var(--cat-tint, 148, 163, 184), 0.32);
+}
+
+.pos-cat-modal-tile:active {
+  transform: scale(0.97);
+}
+
+/* Active Tile State */
+.pos-cat-modal-tile.active {
+  border: 2px solid #ffffff !important;
+  background: linear-gradient(150deg, rgba(var(--cat-tint, 16, 185, 129), 0.32) 0%, rgba(var(--cat-tint, 16, 185, 129), 0.10) 45%, rgba(20, 28, 42, 0.98) 100%) !important;
+  box-shadow: 0 0 0 1px #ffffff, 0 8px 30px rgba(var(--cat-tint, 16, 185, 129), 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+}
+
+/* Tile Title */
+.pos-cat-modal-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--cat-name-color, #ffffff);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.pos-cat-modal-tile.active .pos-cat-modal-title {
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* Active Check Badge */
+.pos-cat-modal-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cat-accent, #10b981);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(var(--cat-tint, 16, 185, 129), 0.7);
+}
+
+/* Footer / Count Pill */
+.pos-cat-modal-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--cat-name-color, #ffffff);
+  background: rgba(var(--cat-tint, 148, 163, 184), 0.22);
+  border: 1px solid rgba(var(--cat-tint, 148, 163, 184), 0.55);
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.pos-cat-modal-tile.active .pos-cat-modal-count {
+  background: rgba(var(--cat-tint, 16, 185, 129), 0.32);
+  border-color: rgba(var(--cat-tint, 16, 185, 129), 0.75);
+  color: #ffffff;
+}
+
+.pos-cat-modal-action-hint {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.pos-cat-modal-tile.active .pos-cat-modal-action-hint {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+/* Custom Item Tile */
+.pos-cat-modal-tile--custom {
+  --cat-accent: #f59e0b;
+  --cat-tint: 245, 158, 11;
+  --cat-name-color: #fde047;
+  border: 1.5px dashed rgba(245, 158, 11, 0.45) !important;
+  background: rgba(245, 158, 11, 0.04) !important;
+  box-shadow: none !important;
+}
+
+.pos-cat-modal-tile--custom:hover {
+  border-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(245, 158, 11, 0.25) !important;
+  transform: translateY(-2px);
+}
+
 /* Category Actions Bar (Zero Horizontal Scroll) */
 .pos-category-actions {
   display: inline-flex;
