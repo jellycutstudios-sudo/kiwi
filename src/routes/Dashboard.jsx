@@ -822,15 +822,7 @@ export default function Dashboard() {
         <div
           role="group"
           aria-label="Sales Scope"
-          style={{
-            display: 'inline-flex',
-            background: 'var(--color-bg-secondary)',
-            padding: '3px',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--color-separator)',
-            gap: '3px',
-            flexWrap: 'wrap'
-          }}
+          className="sales-scope-rail"
         >
           <button
             type="button"
@@ -840,7 +832,7 @@ export default function Dashboard() {
             <span className="sales-scope-dot" />
             <span>Settled Revenue</span>
             <span className="sales-scope-val">
-              ({formatCurrency(todayStats.settledSales, currency)})
+              {formatCurrency(todayStats.settledSales, currency)}
             </span>
           </button>
 
@@ -852,7 +844,7 @@ export default function Dashboard() {
             <span className="sales-scope-dot" />
             <span>Live Open Tabs</span>
             <span className="sales-scope-val">
-              ({formatCurrency(effectiveOpenSales, currency)})
+              {formatCurrency(effectiveOpenSales, currency)}
             </span>
           </button>
 
@@ -864,7 +856,7 @@ export default function Dashboard() {
             <span className="sales-scope-dot" />
             <span>Gross Shift Total</span>
             <span className="sales-scope-val">
-              ({formatCurrency(effectiveTotalSales, currency)})
+              {formatCurrency(effectiveTotalSales, currency)}
             </span>
           </button>
         </div>
