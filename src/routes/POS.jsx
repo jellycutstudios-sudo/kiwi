@@ -1016,17 +1016,11 @@ export default function POS() {
     }
   }, [isRetail, isService, isBillOnly, orderType, setOrderType]);
 
-  const [tableSelAction, setTableSelAction] = useState('checkout');
+  const [tableSelAction, setTableSelAction] = useState('select');
 
   const handleCheckout = async () => {
     if (!items.length) return;
-    if (orderType === 'dine-in' && !tableId && modes.includes('table') && !isBillOnly) {
-      setTableSelAction('checkout');
-      setShowTableSel(true);
-      return;
-    }
     setPaymentMethod('cash');
-    setTableSelAction('checkout');
     setShowPayment(true);
   };
 
@@ -2210,6 +2204,7 @@ export default function POS() {
                     className={`cart-header-summary-chip table-chip ${tableId ? 'has-table' : 'needs-table'}`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      setTableSelAction('select');
                       setShowTableSel(true);
                     }}
                     title={tableId ? `Table ${tableName} assigned - Tap to switch` : 'Tap to select table from floor map'}
@@ -2314,7 +2309,10 @@ export default function POS() {
                       <div className="cart-service-row cart-service-table-row">
                         <button
                           type="button"
-                          onClick={() => setShowTableSel(true)}
+                          onClick={() => {
+                            setTableSelAction('select');
+                            setShowTableSel(true);
+                          }}
                           className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
                           id="select-table-dropdown"
                           title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
@@ -3106,9 +3104,7 @@ export default function POS() {
 
                 toast.success(`Added items to Table ${name}'s running order`);
 
-                if (tableSelAction === 'checkout') {
-                  setShowPayment(true);
-                } else if (tableSelAction === 'kitchen') {
+                if (tableSelAction === 'kitchen') {
                   setPaymentMethod('unpaid');
                   const res = await submitOrder(restaurant, staffDoc?.id);
                   if (!res.ok) { toast.error(res.error); return; }
@@ -3130,25 +3126,21 @@ export default function POS() {
 
             // Case 2: Table is free
             setTable(id, name);
-            if (items.length) {
-              if (tableSelAction === 'checkout') {
-                setShowPayment(true);
-              } else {
-                const currentItems = [...items];
-                setPaymentMethod('unpaid');
-                const res = await submitOrder(restaurant, staffDoc?.id);
-                if (!res.ok) { toast.error(res.error); return; }
-                toast.success('Order sent to kitchen!');
-                if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
-                  setTimeout(() => {
-                    printKitchenTickets({
-                      restaurant,
-                      order: { id: res.orderId, tableName: name, tableId: id, type: 'dine-in' },
-                      items: currentItems,
-                      staffName: staffDoc?.name || 'Waiter'
-                    });
-                  }, 100);
-                }
+            if (items.length && tableSelAction === 'kitchen') {
+              const currentItems = [...items];
+              setPaymentMethod('unpaid');
+              const res = await submitOrder(restaurant, staffDoc?.id);
+              if (!res.ok) { toast.error(res.error); return; }
+              toast.success('Order sent to kitchen!');
+              if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
+                setTimeout(() => {
+                  printKitchenTickets({
+                    restaurant,
+                    order: { id: res.orderId, tableName: name, tableId: id, type: 'dine-in' },
+                    items: currentItems,
+                    staffName: staffDoc?.name || 'Waiter'
+                  });
+                }, 100);
               }
             } else {
               toast.success(`Assigned to Table ${name}`);
