@@ -30,6 +30,7 @@ import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
+import CategoryGridModal from '../components/pos/CategoryGridModal';
 import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -293,6 +294,7 @@ export default function POS() {
   // Live active orders in store
   const activeOrders = useOrderStore(s => s.activeOrders);
   const [showActiveOrdersModal, setShowActiveOrdersModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [activeOrdersFilter, setActiveOrdersFilter] = useState('all');
 
   // Derive active dine-in table orders directly from orderStore (eliminates duplicate Firestore query)
@@ -1460,63 +1462,73 @@ export default function POS() {
         {/* ── Category Chips Bar (Hidden on Category Cards Overview) ─────────── */}
         {!isShowingCategoryCards && (
           <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
-            {/* Pinned Quick Operations (Floor Map & Active Kitchen/Takeaway Orders) */}
-            {(((restaurant?.features?.table || modes.includes('table')) && !isBillOnly) || runningOrders.length > 0) && (
-              <>
-                <div className="pos-category-bar-pinned">
-                  {/* Floor Map / Tables Pill */}
-                  {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
-                    <button
-                      type="button"
-                      className="pos-op-card pos-op-card--tables"
-                      id="pos-pinned-tables-btn"
-                      onClick={() => navigate('/tables')}
-                      title="Go to Table Map & Floor Plan"
-                    >
-                      <Armchair size={15} className="pos-op-pill-icon" />
-                      <span className="pos-op-pill-title">
-                        {tableName ? `Table ${tableName}` : 'Floor Map'}
-                      </span>
-                    </button>
-                  )}
+            {/* Pinned Quick Operations (Floor Map, Active Orders & All Categories Launcher) */}
+            <div className="pos-category-bar-pinned">
+              {/* Floor Map / Tables Pill */}
+              {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
+                <button
+                  type="button"
+                  className="pos-op-card pos-op-card--tables"
+                  id="pos-pinned-tables-btn"
+                  onClick={() => navigate('/tables')}
+                  title="Go to Table Map & Floor Plan"
+                >
+                  <Armchair size={15} className="pos-op-pill-icon" />
+                  <span className="pos-op-pill-title">
+                    {tableName ? `Table ${tableName}` : 'Floor Map'}
+                  </span>
+                </button>
+              )}
 
-                  {/* Active Orders Pill */}
-                  {runningOrders.length > 0 && (
-                    <button
-                      type="button"
-                      className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
-                      id="pos-pinned-active-orders-btn"
-                      onClick={() => {
-                        if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                        else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                        else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                        else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                        else setActiveOrdersFilter('all');
-                        setShowActiveOrdersModal(true);
-                      }}
-                      title="View active kitchen tickets, takeaway & settlement pass"
-                    >
-                      {readyOrdersCount > 0 ? (
-                        <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
-                      ) : (
-                        <FileText size={15} className="pos-op-pill-icon" />
-                      )}
-                      <span className="pos-op-pill-title">
-                        {readyOrdersCount > 0 
-                          ? `${readyOrdersCount} Ready` 
-                          : pendingOnlineOrdersCount > 0 
-                          ? `${pendingOnlineOrdersCount} Online` 
-                          : `${runningOrders.length} Running`}
-                      </span>
-                      {readyOrdersCount > 0 && (
-                        <span className="pos-op-pulse-dot" />
-                      )}
-                    </button>
+              {/* Active Orders Pill */}
+              {runningOrders.length > 0 && (
+                <button
+                  type="button"
+                  className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
+                  id="pos-pinned-active-orders-btn"
+                  onClick={() => {
+                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                    else setActiveOrdersFilter('all');
+                    setShowActiveOrdersModal(true);
+                  }}
+                  title="View active kitchen tickets, takeaway & settlement pass"
+                >
+                  {readyOrdersCount > 0 ? (
+                    <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                  ) : (
+                    <FileText size={15} className="pos-op-pill-icon" />
                   )}
-                </div>
-                <div className="pos-bar-divider" />
-              </>
-            )}
+                  <span className="pos-op-pill-title">
+                    {readyOrdersCount > 0 
+                      ? `${readyOrdersCount} Ready` 
+                      : pendingOnlineOrdersCount > 0 
+                      ? `${pendingOnlineOrdersCount} Online` 
+                      : `${runningOrders.length} Running`}
+                  </span>
+                  {readyOrdersCount > 0 && (
+                    <span className="pos-op-pulse-dot" />
+                  )}
+                </button>
+              )}
+
+              {/* Pinned Category Grid Launcher (Option A: Instant Big Categories Popup) */}
+              <button
+                type="button"
+                className="pos-op-card pos-op-card--categories"
+                id="pos-pinned-categories-btn"
+                onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                title="Browse all categories in full grid (Instant Access)"
+              >
+                <LayoutGrid size={15} className="pos-op-pill-icon" />
+                <span className="pos-op-pill-title">Categories</span>
+                <span className="pos-op-cat-count">{categories.length}</span>
+                <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
+              </button>
+            </div>
+            <div className="pos-bar-divider" />
 
             <div className="pos-category-scroll">
               {/* Category Chips - Clean & Emoji-Free */}
@@ -3227,6 +3239,24 @@ export default function POS() {
           }}
         />
       )}
+
+      {/* Instant All Categories Grid Modal (Option A) */}
+      <CategoryGridModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        categories={categories}
+        activeCat={activeCat}
+        onSelectCategory={(catId) => {
+          setActiveCat(catId);
+          setCatFirstOverview(false);
+          setSearch('');
+          // Smoothly scroll active category chip into view in the horizontal bar if present
+          setTimeout(() => {
+            document.getElementById(`cat-${catId}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }, 50);
+        }}
+        onOpenCustomItem={() => setShowOpenItemModal(true)}
+      />
 
       {/* Active Kitchen & Takeaway Orders Modal */}
       {showActiveOrdersModal && (

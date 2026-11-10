@@ -2758,6 +2758,67 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 2px 8px rgba(217, 119, 6, 0.20) !important;
 }
 
+/* Card 4: Categories Launcher (Option A: Pinned Button) */
+[data-theme="dark"] .pos-op-card--categories {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
+  color: #6ee7b7 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .pos-op-card--categories:hover {
+  background: rgba(16, 185, 129, 0.24) !important;
+  border-color: #34d399 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .pos-op-card--categories,
+:root:not([data-theme="dark"]) .pos-op-card--categories {
+  background: #ecfdf5 !important;
+  border: 1.5px solid #10b981 !important;
+  color: #065f46 !important;
+  font-weight: 750 !important;
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.12) !important;
+}
+
+[data-theme="light"] .pos-op-card--categories:hover,
+:root:not([data-theme="dark"]) .pos-op-card--categories:hover {
+  background: #d1fae5 !important;
+  border-color: #059669 !important;
+  color: #064e3b !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.20) !important;
+}
+
+.pos-op-cat-count {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  padding: 1px 6px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: inherit !important;
+  line-height: 1.2 !important;
+}
+
+[data-theme="light"] .pos-op-cat-count,
+:root:not([data-theme="dark"]) .pos-op-cat-count {
+  background: rgba(6, 95, 70, 0.14) !important;
+  color: #065f46 !important;
+}
+
+/* Category Grid Modal Touch Tiles (Option A) */
+.pos-cat-touch-tile {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.pos-cat-touch-tile:hover {
+  transform: translateY(-2px);
+}
+
+.pos-cat-touch-tile:active {
+  transform: scale(0.97);
+}
+
 /* Responsive Scaling for Tablets & Mobile Phones */
 @media (max-width: 640px) {
   .pos-operations-strip {
