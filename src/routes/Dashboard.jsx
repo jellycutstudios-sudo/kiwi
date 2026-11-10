@@ -782,19 +782,19 @@ export default function Dashboard() {
       <div className="sales-assistant-hero animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 360px', minWidth: 0 }}>
           <div className="sales-assistant-avatar-wrap">
-            <Bot size={22} />
+            <Bot size={20} />
             <div className="sales-assistant-pulse-dot" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#10b981' }}>
+              <span className="sales-assistant-title">
                 Sales Assistant
               </span>
-              <span className="badge badge-teal" style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px' }}>
+              <span className="badge badge-gray" style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px' }}>
                 {salesAssistantSummary.headline}
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.45', color: 'var(--color-label)', fontWeight: 500 }}>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.45', color: 'var(--color-label-secondary)', fontWeight: 500 }}>
               {salesAssistantSummary.message}
             </p>
           </div>
@@ -804,21 +804,9 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setShowAiAdvisor(true)}
-            className="btn btn-primary btn-sm"
-            style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-            }}
+            className="btn btn-primary btn-sm sales-assistant-ask-btn"
           >
-            <Sparkles size={13} fill="#fff" /> Ask Assistant
+            <Sparkles size={13} /> Ask Assistant
           </button>
         </div>
       </div>
@@ -847,24 +835,11 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setSalesViewMode('settled')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '12px',
-              fontWeight: salesViewMode === 'settled' ? 700 : 500,
-              background: salesViewMode === 'settled' ? 'var(--color-bg-elevated)' : 'transparent',
-              color: salesViewMode === 'settled' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-              border: salesViewMode === 'settled' ? '1px solid var(--color-separator)' : 'none',
-              boxShadow: salesViewMode === 'settled' ? 'var(--shadow-xs)' : 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6
-            }}
+            className={`sales-scope-pill ${salesViewMode === 'settled' ? 'active' : ''}`}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
+            <span className="sales-scope-dot" />
             <span>Settled Revenue</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'settled' ? '#10b981' : 'var(--color-label-tertiary)' }}>
+            <span className="sales-scope-val">
               ({formatCurrency(todayStats.settledSales, currency)})
             </span>
           </button>
@@ -872,24 +847,11 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setSalesViewMode('open')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '12px',
-              fontWeight: salesViewMode === 'open' ? 700 : 500,
-              background: salesViewMode === 'open' ? 'var(--color-bg-elevated)' : 'transparent',
-              color: salesViewMode === 'open' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-              border: salesViewMode === 'open' ? '1px solid var(--color-separator)' : 'none',
-              boxShadow: salesViewMode === 'open' ? 'var(--shadow-xs)' : 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6
-            }}
+            className={`sales-scope-pill ${salesViewMode === 'open' ? 'active' : ''}`}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+            <span className="sales-scope-dot" />
             <span>Live Open Tabs</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'open' ? '#f59e0b' : 'var(--color-label-tertiary)' }}>
+            <span className="sales-scope-val">
               ({formatCurrency(effectiveOpenSales, currency)})
             </span>
           </button>
@@ -897,24 +859,11 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setSalesViewMode('pipeline')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '12px',
-              fontWeight: salesViewMode === 'pipeline' ? 700 : 500,
-              background: salesViewMode === 'pipeline' ? 'var(--color-bg-elevated)' : 'transparent',
-              color: salesViewMode === 'pipeline' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-              border: salesViewMode === 'pipeline' ? '1px solid var(--color-separator)' : 'none',
-              boxShadow: salesViewMode === 'pipeline' ? 'var(--shadow-xs)' : 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6
-            }}
+            className={`sales-scope-pill ${salesViewMode === 'pipeline' ? 'active' : ''}`}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+            <span className="sales-scope-dot" />
             <span>Gross Shift Total</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: salesViewMode === 'pipeline' ? '#3b82f6' : 'var(--color-label-tertiary)' }}>
+            <span className="sales-scope-val">
               ({formatCurrency(effectiveTotalSales, currency)})
             </span>
           </button>
@@ -932,11 +881,7 @@ export default function Dashboard() {
         {/* Vital 1: Settled Revenue (Finalized) */}
         <div
           className={`sales-vital-card animate-fade-in ${salesViewMode === 'settled' ? 'sales-vital-active' : ''}`}
-          style={{
-            animationDelay: '0ms',
-            border: salesViewMode === 'settled' ? '2px solid #10b981' : '1px solid var(--color-separator)',
-            cursor: 'pointer'
-          }}
+          style={{ animationDelay: '0ms', cursor: 'pointer' }}
           onClick={() => setSalesViewMode('settled')}
           role="button"
           tabIndex={0}
@@ -948,31 +893,25 @@ export default function Dashboard() {
                 Settled Revenue
                 <InfoTooltip text="Finalized revenue from customer bills closed and paid for today." size={11} />
               </span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.4px',
-                color: '#059669'
-              }}>
+              <span className="sales-vital-tagline">
                 Paid &amp; Closed Today
               </span>
             </div>
-            <div className="sales-vital-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
-              <TrendingUp size={16} strokeWidth={2.5} />
+            <div className="sales-vital-icon">
+              <TrendingUp size={15} strokeWidth={2.5} />
             </div>
           </div>
-          <div className="sales-vital-value" style={{ color: '#10b981' }}>
+          <div className="sales-vital-value">
             {loading ? <div className="skeleton" style={{ height: 26, width: 90, borderRadius: 6 }} /> : formatCurrency(todayStats.settledSales, currency)}
           </div>
           <div className="sales-vital-sub">
             {salesDelta !== null ? (
-              <span style={{ color: salesDelta >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <span style={{ color: salesDelta >= 0 ? '#10b981' : '#f43f5e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 {salesDelta >= 0 ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
                 {salesDelta >= 0 ? '+' : ''}{salesDelta}% vs yday · {todayStats.settledOrders} paid check{todayStats.settledOrders !== 1 ? 's' : ''}
               </span>
             ) : (
-              <span style={{ color: 'var(--color-label-secondary)' }}>
+              <span style={{ color: 'var(--color-label-tertiary)' }}>
                 {todayStats.settledOrders} paid check{todayStats.settledOrders !== 1 ? 's' : ''} finalized today
               </span>
             )}
@@ -982,11 +921,7 @@ export default function Dashboard() {
         {/* Vital 2: Live Dining Tabs (In Service) */}
         <div
           className={`sales-vital-card animate-fade-in ${salesViewMode === 'open' ? 'sales-vital-active' : ''}`}
-          style={{
-            animationDelay: '50ms',
-            border: salesViewMode === 'open' ? '2px solid #f59e0b' : '1px solid var(--color-separator)',
-            cursor: 'pointer'
-          }}
+          style={{ animationDelay: '50ms', cursor: 'pointer' }}
           onClick={() => setSalesViewMode('open')}
           role="button"
           tabIndex={0}
@@ -998,25 +933,19 @@ export default function Dashboard() {
                 Live Open Tabs
                 <InfoTooltip text="Total unbilled food & drinks currently ordered across active dining tables." size={11} />
               </span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.4px',
-                color: '#d97706'
-              }}>
+              <span className="sales-vital-tagline">
                 Active in Dining Room
               </span>
             </div>
-            <div className="sales-vital-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
-              <ShoppingCart size={16} strokeWidth={2.5} />
+            <div className="sales-vital-icon">
+              <ShoppingCart size={15} strokeWidth={2.5} />
             </div>
           </div>
-          <div className="sales-vital-value" style={{ color: '#d97706' }}>
+          <div className="sales-vital-value">
             {loading ? <div className="skeleton" style={{ height: 26, width: 80, borderRadius: 6 }} /> : formatCurrency(effectiveOpenSales, currency)}
           </div>
           <div className="sales-vital-sub">
-            <span style={{ color: 'var(--color-label-secondary)' }}>
+            <span style={{ color: 'var(--color-label-tertiary)' }}>
               {effectiveOpenOrders} active dining table{effectiveOpenOrders !== 1 ? 's' : ''} in service
             </span>
           </div>
@@ -1025,11 +954,7 @@ export default function Dashboard() {
         {/* Vital 3: Gross Shift Total */}
         <div
           className={`sales-vital-card animate-fade-in ${salesViewMode === 'pipeline' ? 'sales-vital-active' : ''}`}
-          style={{
-            animationDelay: '100ms',
-            border: salesViewMode === 'pipeline' ? '2px solid #3b82f6' : '1px solid var(--color-separator)',
-            cursor: 'pointer'
-          }}
+          style={{ animationDelay: '100ms', cursor: 'pointer' }}
           onClick={() => setSalesViewMode('pipeline')}
           role="button"
           tabIndex={0}
@@ -1041,25 +966,19 @@ export default function Dashboard() {
                 Gross Shift Total
                 <InfoTooltip text="Combined gross potential: today's settled checks plus currently active dining tabs." size={11} />
               </span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.4px',
-                color: '#2563eb'
-              }}>
+              <span className="sales-vital-tagline">
                 Settled + Open Tabs
               </span>
             </div>
-            <div className="sales-vital-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
-              <CheckCircle2 size={16} strokeWidth={2.5} />
+            <div className="sales-vital-icon">
+              <CheckCircle2 size={15} strokeWidth={2.5} />
             </div>
           </div>
           <div className="sales-vital-value">
             {loading ? <div className="skeleton" style={{ height: 26, width: 90, borderRadius: 6 }} /> : formatCurrency(effectiveTotalSales, currency)}
           </div>
           <div className="sales-vital-sub">
-            <span style={{ color: 'var(--color-label-secondary)' }}>
+            <span style={{ color: 'var(--color-label-tertiary)' }}>
               {effectiveTotalOrders} total check{effectiveTotalOrders !== 1 ? 's' : ''} across shift
             </span>
           </div>
@@ -1073,12 +992,12 @@ export default function Dashboard() {
                 Settled Funds
                 <InfoTooltip text="Realized payment method breakdown of settled sales today." size={11} />
               </span>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#8b5cf6' }}>
+              <span className="sales-vital-tagline">
                 Reconciliation
               </span>
             </div>
-            <div className="sales-vital-icon" style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6' }}>
-              <Wallet size={16} strokeWidth={2.5} />
+            <div className="sales-vital-icon">
+              <Wallet size={15} strokeWidth={2.5} />
             </div>
           </div>
           <div className="sales-vital-value">
@@ -1087,7 +1006,7 @@ export default function Dashboard() {
           {/* Segmented Reconciliation Bar */}
           <div className="sales-reconciliation-bar">
             {paymentReconciliation.upiPct > 0 && (
-              <div className="sales-rec-segment" style={{ width: `${paymentReconciliation.upiPct}%`, background: '#8b5cf6' }} title={`UPI: ${formatCurrency(paymentReconciliation.amt.upi, currency)} (${paymentReconciliation.upiPct}%)`} />
+              <div className="sales-rec-segment" style={{ width: `${paymentReconciliation.upiPct}%`, background: '#6366f1' }} title={`UPI: ${formatCurrency(paymentReconciliation.amt.upi, currency)} (${paymentReconciliation.upiPct}%)`} />
             )}
             {paymentReconciliation.cashPct > 0 && (
               <div className="sales-rec-segment" style={{ width: `${paymentReconciliation.cashPct}%`, background: '#10b981' }} title={`Cash: ${formatCurrency(paymentReconciliation.amt.cash, currency)} (${paymentReconciliation.cashPct}%)`} />
@@ -1097,7 +1016,7 @@ export default function Dashboard() {
             )}
           </div>
           <div className="sales-rec-legend">
-            <span><span className="sales-rec-dot" style={{ background: '#8b5cf6' }} />UPI {paymentReconciliation.upiPct}%</span>
+            <span><span className="sales-rec-dot" style={{ background: '#6366f1' }} />UPI {paymentReconciliation.upiPct}%</span>
             <span><span className="sales-rec-dot" style={{ background: '#10b981' }} />Cash {paymentReconciliation.cashPct}%</span>
             <span><span className="sales-rec-dot" style={{ background: '#38bdf8' }} />Card {paymentReconciliation.cardPct}%</span>
           </div>
@@ -1278,9 +1197,9 @@ export default function Dashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div className="card card-padded dashboard-insights-card">
             <h3 className="text-title3 dashboard-insights-title" style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-              <Lightbulb size={18} strokeWidth={2.5} />
+              <Lightbulb size={17} strokeWidth={2} style={{ color: 'var(--color-label)' }} />
               <span>Sales &amp; Operational Recommendations</span>
-              <span className="badge badge-purple" style={{ fontSize: '10px', fontWeight: 700 }}>AI Advisor</span>
+              <span className="badge badge-gray" style={{ fontSize: '10px', fontWeight: 700 }}>AI Advisor</span>
             </h3>
             <p style={{ margin: '0 0 var(--space-4) 0', fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
               Operational guidance derived from 7-day volume patterns and live dining pace.
@@ -1291,18 +1210,20 @@ export default function Dashboard() {
                 <div key={idx} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
                   <div className="dashboard-insights-icon-box" style={{
                     padding: 8,
-                    borderRadius: 'var(--radius-lg)',
+                    borderRadius: 'var(--radius-lg, 10px)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginTop: 2
+                    marginTop: 2,
+                    background: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-separator)'
                   }}>
-                    <tip.icon size={16} color={tip.color} strokeWidth={2.5} />
+                    <tip.icon size={15} style={{ color: 'var(--color-label-secondary)' }} strokeWidth={2} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <h4 className="dashboard-insights-tip-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700 }}>{tip.title}</h4>
-                    <p className="dashboard-insights-tip-desc" style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45', fontWeight: 500 }}>
-                      {tip.description.split('**').map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
+                    <h4 className="dashboard-insights-tip-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>{tip.title}</h4>
+                    <p className="dashboard-insights-tip-desc" style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45', fontWeight: 500, color: 'var(--color-label-secondary)' }}>
+                      {tip.description.split('**').map((part, i) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--color-label)' }}>{part}</strong> : part)}
                     </p>
                   </div>
                 </div>
@@ -1311,13 +1232,13 @@ export default function Dashboard() {
               {/* Kitchen Turnaround alert */}
               {todayStats.avgCookTime > 20 && (
                 <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
-                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(239, 68, 68, 0.1)' }}>
-                    <AlertCircle size={16} color="#ef4444" strokeWidth={2.5} />
+                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <AlertCircle size={15} color="#ef4444" strokeWidth={2} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>Kitchen Bottleneck Alert</h4>
-                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45' }}>
-                      Average prep duration is <strong>{todayStats.avgCookTime} mins</strong> today (target is under 20 mins). Check for order backlogs.
+                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45', color: 'var(--color-label-secondary)' }}>
+                      Average prep duration is <strong style={{ color: 'var(--color-label)' }}>{todayStats.avgCookTime} mins</strong> today (target is under 20 mins). Check for order backlogs.
                     </p>
                   </div>
                 </div>
@@ -1326,12 +1247,12 @@ export default function Dashboard() {
               {/* Cancellations warning */}
               {cancellations > 1 && (
                 <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
-                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(239, 68, 68, 0.1)' }}>
-                    <XCircle size={16} color="#ef4444" strokeWidth={2.5} />
+                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <XCircle size={15} color="#ef4444" strokeWidth={2} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>{cancellations} Cancellations Logged</h4>
-                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45' }}>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45', color: 'var(--color-label-secondary)' }}>
                       Review void logs to verify if kitchen delays or item stockouts caused cancellations.
                     </p>
                   </div>
@@ -1341,16 +1262,16 @@ export default function Dashboard() {
               {/* Reservations Advisory */}
               {reservationsToday.count > 0 && (
                 <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
-                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'rgba(56, 189, 248, 0.12)' }}>
-                    <CalendarClock size={16} color="#0284c7" strokeWidth={2.5} />
+                  <div className="dashboard-insights-icon-box" style={{ padding: 8, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2, background: 'var(--color-bg-secondary)', border: '1px solid var(--color-separator)' }}>
+                    <CalendarClock size={15} style={{ color: 'var(--color-label-secondary)' }} strokeWidth={2} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <h4 className="dashboard-insights-tip-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0369a1' }}>
+                    <h4 className="dashboard-insights-tip-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
                       {reservationsToday.count} Reservation{reservationsToday.count > 1 ? 's' : ''} Today
                     </h4>
-                    <p className="dashboard-insights-tip-desc" style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45' }}>
+                    <p className="dashboard-insights-tip-desc" style={{ margin: '3px 0 0 0', fontSize: '12px', lineHeight: '1.45', color: 'var(--color-label-secondary)' }}>
                       {reservationsToday.next ? (
-                        <>Next seating: <strong>{reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}</strong> ({reservationsToday.next.guests || 2} guests){reservationsToday.next.time ? ` at ${reservationsToday.next.time}` : ''}.</>
+                        <>Next seating: <strong style={{ color: 'var(--color-label)' }}>{reservationsToday.next.customerName || reservationsToday.next.name || 'Guest'}</strong> ({reservationsToday.next.guests || 2} guests){reservationsToday.next.time ? ` at ${reservationsToday.next.time}` : ''}.</>
                       ) : (
                         'Ensure reserved tables are tagged and prepared.'
                       )}
@@ -1366,8 +1287,9 @@ export default function Dashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {/* Menu Velocity Card */}
           <div className="card card-padded" style={{ border: '1px solid var(--color-separator)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }}>
-            <h3 className="text-title3" style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
-              <Flame size={18} color="#f59e0b" /> Menu Velocity
+            <h3 className="text-title3" style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700 }}>
+              <Flame size={17} strokeWidth={2} style={{ color: 'var(--color-label)' }} />
+              <span>Menu Velocity</span>
               <span className="badge badge-gray" style={{ fontSize: '10px', fontWeight: 700 }}>Past 7 Days</span>
             </h3>
             <p style={{ margin: '0 0 var(--space-4) 0', fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
@@ -1376,24 +1298,24 @@ export default function Dashboard() {
 
             {/* Bestsellers */}
             <div style={{ marginBottom: 'var(--space-4)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: '#10b981', marginBottom: '8px', letterSpacing: '0.6px' }}>
-                <Flame size={12} fill="#10b981" /> Top Movers
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', marginBottom: '10px', letterSpacing: '0.6px' }}>
+                Top Movers
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {bestSellers.map((item, idx) => {
                   const maxQty = bestSellers[0]?.qty || 1;
                   const pct = Math.round((item.qty / maxQty) * 100);
                   return (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Utensils size={13} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
                           {item.name}
                         </span>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)' }}>{item.qty} sold</span>
                       </div>
-                      <div style={{ width: '100%', height: '6px', background: 'var(--color-bg-secondary)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '3px' }} />
+                      <div style={{ width: '100%', height: '5px', background: 'var(--color-bg-secondary)', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)', borderRadius: '999px' }} />
                       </div>
                     </div>
                   );
@@ -1406,13 +1328,14 @@ export default function Dashboard() {
 
             {/* Slow Movers */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: '#ef4444', marginBottom: '8px', letterSpacing: '0.6px' }}>
-                <Snowflake size={12} /> Underperforming Items to Bundle
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', marginBottom: '10px', letterSpacing: '0.6px' }}>
+                <Snowflake size={11} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
+                <span>Underperforming Items to Bundle</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {slowMovers.map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Utensils size={12} style={{ color: 'var(--color-label-tertiary)', flexShrink: 0 }} />
                       {item.name}
                     </span>
