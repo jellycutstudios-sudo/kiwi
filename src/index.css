@@ -2083,18 +2083,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
   background: var(--color-surface);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  scrollbar-width: none;
 }
 
 .pos-menu-panel.categories-left .pos-category-bar::-webkit-scrollbar {
-  display: block;
-  width: 4px;
-}
-
-.pos-menu-panel.categories-left .pos-category-bar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
-  border-radius: 4px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .pos-category-bar {
@@ -11509,12 +11504,34 @@ html.dark .tm-segmented-glider {
 }
 
 /* ============================================================
-   Scrollbar Styling
+   Native App Touch-Friendly Hidden Scrollbars (Option 1)
    ============================================================ */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-fill); border-radius: var(--radius-full); }
-::-webkit-scrollbar-thumb:hover { background: var(--color-fill-secondary); }
+html,
+body,
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
 
 /* ============================================================
    RTL Adjustments
@@ -16110,10 +16127,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     overflow-y: auto !important;
     overscroll-behavior: contain !important;
     -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: thin !important;
+    scrollbar-width: none !important;
   }
 
-  .table-select-body::-webkit-scrollbar:horizontal {
+  .table-select-body::-webkit-scrollbar {
     display: none !important;
     height: 0 !important;
     width: 0 !important;
@@ -18084,23 +18101,27 @@ html.dark .form-label {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Custom Scrollbars in Dark */
-[data-theme="dark"] ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Custom Scrollbars in Dark - Clean Native App (Hidden) */
+[data-theme="dark"] ::-webkit-scrollbar,
+:root[data-theme="dark"] ::-webkit-scrollbar,
+.dark ::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+[data-theme="dark"] ::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb,
+.dark ::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-track {
-  background: transparent;
+[data-theme="dark"] ::-webkit-scrollbar-track,
+:root[data-theme="dark"] ::-webkit-scrollbar-track,
+.dark ::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
 }
 
 /* ============================================================
@@ -18222,25 +18243,13 @@ html.dark .modal-tabs-glider {
   overflow-y: auto;
   padding: 18px 22px;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-separator) transparent;
+  scrollbar-width: none;
 }
 
 .modal-unified-editor .modal-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.modal-unified-editor .modal-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.modal-unified-editor .modal-body::-webkit-scrollbar-thumb {
-  background: var(--color-separator);
-  border-radius: 4px;
-}
-
-.modal-unified-editor .modal-body::-webkit-scrollbar-thumb:hover {
-  background: var(--color-label-tertiary);
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .modal-unified-editor .modal-body > * {
