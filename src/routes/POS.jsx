@@ -1508,80 +1508,132 @@ export default function POS() {
                 </button>
               )}
 
-              {/* Pinned Category Grid Launcher (Option A: Instant Big Categories Popup) */}
-              <button
-                type="button"
-                className="pos-op-card pos-op-card--categories"
-                id="pos-pinned-categories-btn"
-                onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
-                title="Browse all categories in full grid (Instant Access)"
-              >
-                <LayoutGrid size={15} className="pos-op-pill-icon" />
-                <span className="pos-op-pill-title">Categories</span>
-                <span className="pos-op-cat-count">{categories.length}</span>
-                <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
-              </button>
+              {/* Pinned Category Grid Launcher (Option A: Instant Big Categories Popup - Template 1 Only) */}
+              {!isBistro && (
+                <button
+                  type="button"
+                  className="pos-op-card pos-op-card--categories"
+                  id="pos-pinned-categories-btn"
+                  onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                  title="Browse all categories in full grid (Instant Access)"
+                >
+                  <LayoutGrid size={15} className="pos-op-pill-icon" />
+                  <span className="pos-op-pill-title">Categories</span>
+                  <span className="pos-op-cat-count">{categories.length}</span>
+                  <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
+                </button>
+              )}
             </div>
-            <div className="pos-bar-divider" />
+            {!isBistro && <div className="pos-bar-divider" />}
 
-            <div className="pos-category-actions">
-              {/* All Items Quick Toggle */}
-              <button
-                id="cat-all"
-                type="button"
-                role="tab"
-                aria-selected={activeCat === 'all'}
-                className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-                onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                title="View All Menu Items"
-              >
-                <span className="category-chip-name">All Items</span>
-                <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
-              </button>
+            {/* Template 1 vs Template 2 Category Display */}
+            {isBistro ? (
+              /* Template 2: Vertical Left Sidebar - Direct Full Category List (No Popup) */
+              <div className="pos-category-scroll">
+                {/* All Items Quick Toggle */}
+                <button
+                  id="cat-all"
+                  type="button"
+                  role="tab"
+                  aria-selected={activeCat === 'all'}
+                  className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                  title="View All Menu Items"
+                >
+                  <span className="category-chip-name">All Items</span>
+                  <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
+                </button>
 
-              {/* Active Category Chip with 1-click Clear */}
-              {activeCat !== 'all' && (() => {
-                const currentCat = categories.find(c => c.id === activeCat);
-                if (!currentCat) return null;
-                return (
+                {/* All Category Chips in Left Rail */}
+                {categories.map(c => (
                   <button
-                    key={currentCat.id}
-                    id={`cat-${currentCat.id}`}
+                    key={c.id}
+                    id={`cat-${c.id}`}
                     type="button"
                     role="tab"
-                    aria-selected={true}
-                    className="category-chip active pos-active-cat-chip"
-                    onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
-                    title={`Active: ${currentCat.name} (click to switch category)`}
+                    aria-selected={activeCat === c.id}
+                    className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
                   >
-                    <span className="category-chip-name">{currentCat.name}</span>
-                    <span className="category-chip-count">{currentCat.items?.length || 0}</span>
-                    <span
-                      className="pos-active-cat-close"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        hapticTap('light');
-                        setActiveCat('all');
-                      }}
-                      title="Clear filter & show all items"
-                    >
-                      ×
-                    </span>
+                    <span className="category-chip-name">{c.name}</span>
+                    {c.items?.length > 0 && (
+                      <span className="category-chip-count">{c.items.length}</span>
+                    )}
                   </button>
-                );
-              })()}
+                ))}
 
-              {/* Custom Item Chip */}
-              <button
-                type="button"
-                id="add-custom-item-chip"
-                className="category-chip category-chip--custom"
-                onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
-                title="Add off-menu daily special or custom priced item"
-              >
-                <span className="category-chip-name">+ Custom Item</span>
-              </button>
-            </div>
+                {/* Custom Item Chip */}
+                <button
+                  type="button"
+                  id="add-custom-item-chip"
+                  className="category-chip category-chip--custom"
+                  onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
+                  title="Add off-menu daily special or custom priced item"
+                >
+                  <span className="category-chip-name">+ Custom Item</span>
+                </button>
+              </div>
+            ) : (
+              /* Template 1: Horizontal Top Bar - Category Actions with Popup Launcher */
+              <div className="pos-category-actions">
+                {/* All Items Quick Toggle */}
+                <button
+                  id="cat-all"
+                  type="button"
+                  role="tab"
+                  aria-selected={activeCat === 'all'}
+                  className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                  title="View All Menu Items"
+                >
+                  <span className="category-chip-name">All Items</span>
+                  <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
+                </button>
+
+                {/* Active Category Chip with 1-click Clear */}
+                {activeCat !== 'all' && (() => {
+                  const currentCat = categories.find(c => c.id === activeCat);
+                  if (!currentCat) return null;
+                  return (
+                    <button
+                      key={currentCat.id}
+                      id={`cat-${currentCat.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={true}
+                      className="category-chip active pos-active-cat-chip"
+                      onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                      title={`Active: ${currentCat.name} (click to switch category)`}
+                    >
+                      <span className="category-chip-name">{currentCat.name}</span>
+                      <span className="category-chip-count">{currentCat.items?.length || 0}</span>
+                      <span
+                        className="pos-active-cat-close"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap('light');
+                          setActiveCat('all');
+                        }}
+                        title="Clear filter & show all items"
+                      >
+                        ×
+                      </span>
+                    </button>
+                  );
+                })()}
+
+                {/* Custom Item Chip */}
+                <button
+                  type="button"
+                  id="add-custom-item-chip"
+                  className="category-chip category-chip--custom"
+                  onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
+                  title="Add off-menu daily special or custom priced item"
+                >
+                  <span className="category-chip-name">+ Custom Item</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -3253,19 +3305,21 @@ export default function POS() {
         />
       )}
 
-      {/* Instant All Categories Grid Modal (Option A) */}
-      <CategoryGridModal
-        isOpen={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        categories={categories}
-        activeCat={activeCat}
-        onSelectCategory={(catId) => {
-          setActiveCat(catId);
-          setCatFirstOverview(false);
-          setSearch('');
-        }}
-        onOpenCustomItem={() => setShowOpenItemModal(true)}
-      />
+      {/* Instant All Categories Grid Modal (Option A - Template 1 Only) */}
+      {!isBistro && (
+        <CategoryGridModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          categories={categories}
+          activeCat={activeCat}
+          onSelectCategory={(catId) => {
+            setActiveCat(catId);
+            setCatFirstOverview(false);
+            setSearch('');
+          }}
+          onOpenCustomItem={() => setShowOpenItemModal(true)}
+        />
+      )}
 
       {/* Active Kitchen & Takeaway Orders Modal */}
       {showActiveOrdersModal && (
