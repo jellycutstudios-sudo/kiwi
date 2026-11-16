@@ -1932,20 +1932,25 @@ export default function POS() {
                     })()}
                   </div>
                   <div className="menu-item-body">
-                    <div className="menu-item-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                    <div className="menu-item-name" title={item.name}>
+                      <span className="menu-item-name-text">{item.name}</span>
                       {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
                       {(item.isBestseller || item.bestseller || item.popular) && (
                         <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
                       )}
                     </div>
-                    <div className="menu-item-price" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>
+                    <div className="menu-item-price">
+                      <span className="menu-item-price-val">
                         {hasModifiers && parseFloat(item.price) === 0 ? (
                           (() => {
                             const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
                             const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                            return `From ${formatCurrency(minPrice, currency)}`;
+                            return (
+                              <>
+                                <span className="menu-item-from-prefix">From</span>
+                                <span>{formatCurrency(minPrice, currency)}</span>
+                              </>
+                            );
                           })()
                         ) : (
                           formatCurrency(item.price, currency)
