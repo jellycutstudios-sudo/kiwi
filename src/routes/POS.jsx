@@ -1031,7 +1031,7 @@ export default function POS() {
     }
     if (orderType === 'dine-in' && !tableId && modes.includes('table')) {
       if (isEffectiveHandheld) {
-        toast('Please select a table to send order to kitchen');
+        toast(isKitchenActive ? 'Please select a table to send order to kitchen' : 'Please select a table to save order');
         return { needsTable: true };
       }
       setTableSelAction('kitchen');
@@ -1059,12 +1059,14 @@ export default function POS() {
     setPaymentMethod('unpaid');
     const res = await submitOrder(restaurant, staffDoc?.id);
     if (!res.ok) { 
-      toast.error(res.error || 'Failed to send to kitchen'); 
+      toast.error(res.error || (isKitchenActive ? 'Failed to send to kitchen' : 'Failed to save order')); 
       return { error: res.error }; 
     }
 
     if (res.isOffline) {
-      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})! Ticket printing...` : `Order buffered offline! Ticket printing...`, { duration: 4500 });
+      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})!` : `Order buffered offline!`, { duration: 4500 });
+    } else if (!isKitchenActive) {
+      toast.success(isEdit ? 'Order updated on table!' : (snapTableName ? `Order saved to Table ${snapTableName}!` : 'Order saved to table!'));
     } else {
       toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!');
     }
@@ -1406,6 +1408,7 @@ export default function POS() {
           tableOrders={tableOrders}
           staffName={staffDoc?.name || 'Server'}
           isFloorStaff={isFloorStaff}
+          isKitchenActive={isKitchenActive}
           onCloseHandheld={handleCloseHandheld}
           onSendToKitchen={handleSendToKitchen}
           onPrintPreBill={handlePrintPreBill}
@@ -3060,9 +3063,25 @@ export default function POS() {
               disabled={!items.length}
               type="button"
               style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}
-              title={orderType === 'takeaway' ? 'Send order to kitchen and collect payment when customer picks up' : (kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)")}
+              title={
+                !isKitchenActive
+                  ? (orderType === 'dine-in' ? 'Save order to table for cashier counter payment' : 'Hold order for pickup')
+                  : (orderType === 'takeaway' ? 'Send order to kitchen and collect payment when customer picks up' : (kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)"))
+              }
             >
-              {orderType === 'takeaway' ? (
+              {!isKitchenActive ? (
+                orderType === 'takeaway' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 750 }}>Hold Order</span>
+                    <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay on Pickup</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 750 }}>Save Table</span>
+                    <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay at Counter</span>
+                  </div>
+                )
+              ) : orderType === 'takeaway' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 750 }}>Kitchen</span>
                   <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay on Pickup</span>
@@ -3160,7 +3179,7 @@ export default function POS() {
                   setPaymentMethod('unpaid');
                   const res = await submitOrder(restaurant, staffDoc?.id);
                   if (!res.ok) { toast.error(res.error); return; }
-                  toast.success('New items sent to kitchen!');
+                  toast.success(isKitchenActive ? 'New items sent to kitchen!' : `Added items to Table ${name}!`);
                   if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
                     setTimeout(() => {
                       printKitchenTickets({
@@ -3183,7 +3202,7 @@ export default function POS() {
               setPaymentMethod('unpaid');
               const res = await submitOrder(restaurant, staffDoc?.id);
               if (!res.ok) { toast.error(res.error); return; }
-              toast.success('Order sent to kitchen!');
+              toast.success(isKitchenActive ? 'Order sent to kitchen!' : `Order saved to Table ${name}!`);
               if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
                 setTimeout(() => {
                   printKitchenTickets({

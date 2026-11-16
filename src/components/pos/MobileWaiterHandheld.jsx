@@ -59,6 +59,7 @@ export default function MobileWaiterHandheld({
   tableOrders = {},
   staffName = 'Server',
   isFloorStaff = false,
+  isKitchenActive: isKitchenActiveProp,
   onCloseHandheld,
   onSendToKitchen,
   onPrintPreBill,
@@ -72,6 +73,14 @@ export default function MobileWaiterHandheld({
     loadOrderToCart, setItemDetails, fireHeldItems,
     note, setNote
   } = useOrderStore();
+
+  const isKitchenActive = useMemo(() => {
+    if (typeof isKitchenActiveProp === 'boolean') return isKitchenActiveProp;
+    const modes = Array.isArray(restaurant?.modes) ? restaurant.modes : [];
+    const hasKdsMode = modes.length > 0 ? modes.includes('kds') : (restaurant?.features?.enableKds ?? true);
+    const isKitchenDisabled = restaurant?.kitchenConfig?.mode === 'disabled';
+    return Boolean(hasKdsMode && !isKitchenDisabled);
+  }, [isKitchenActiveProp, restaurant?.modes, restaurant?.features?.enableKds, restaurant?.kitchenConfig?.mode]);
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -340,7 +349,7 @@ export default function MobileWaiterHandheld({
     }
     if (orderType === 'dine-in' && !tableId) {
       setShowTableSheet(true);
-      toast('Please select a table to send order to kitchen', { icon: '🪑' });
+      toast(isKitchenActive ? 'Please select a table to send order to kitchen' : 'Please select a table to save order', { icon: '🪑' });
       return;
     }
     const res = await onSendToKitchen();
@@ -757,8 +766,17 @@ export default function MobileWaiterHandheld({
               className="btn btn-primary handheld-fire-btn"
               onClick={handleSendKitchenClick}
             >
-              <Flame size={15} />
-              <span>Send Kitchen</span>
+              {isKitchenActive ? (
+                <>
+                  <Flame size={15} />
+                  <span>Send Kitchen</span>
+                </>
+              ) : (
+                <>
+                  <Check size={15} strokeWidth={2.5} />
+                  <span>Save to Table</span>
+                </>
+              )}
             </button>
           )}
 
@@ -887,7 +905,7 @@ export default function MobileWaiterHandheld({
                 <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 10, border: '1px solid var(--color-separator)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <FileText size={12} /> Table / Kitchen Instructions:
+                      <FileText size={12} /> {isKitchenActive ? 'Table / Kitchen Instructions:' : 'Table Order Notes:'}
                     </span>
                     {note && (
                       <button 
@@ -936,7 +954,7 @@ export default function MobileWaiterHandheld({
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Add special instructions for kitchen/bar..."
+                    placeholder={isKitchenActive ? "Add special instructions for kitchen/bar..." : "Add order notes or guest preferences..."}
                     value={note || ''}
                     onChange={e => setNote(e.target.value)}
                     style={{ height: 34, fontSize: 12, borderRadius: 6 }}
@@ -944,7 +962,7 @@ export default function MobileWaiterHandheld({
                 </div>
               )}
 
-              {/* Primary Fire Button Inside Sheet */}
+              {/* Primary Fire / Save Button Inside Sheet */}
               {items.length > 0 && (
                 <button
                   type="button"
@@ -960,12 +978,21 @@ export default function MobileWaiterHandheld({
                     borderRadius: 10,
                     marginTop: 10,
                     fontSize: 14,
-                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                    boxShadow: isKitchenActive ? '0 4px 12px rgba(239, 68, 68, 0.3)' : '0 4px 12px rgba(16, 185, 129, 0.25)'
                   }}
                   onClick={handleSendKitchenClick}
                 >
-                  <Flame size={17} />
-                  <span>Send Order to Kitchen</span>
+                  {isKitchenActive ? (
+                    <>
+                      <Flame size={17} />
+                      <span>Send Order to Kitchen</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={17} strokeWidth={2.5} />
+                      <span>Save Order to Table</span>
+                    </>
+                  )}
                 </button>
               )}
 
