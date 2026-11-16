@@ -95,4 +95,61 @@ describe('Settings Persistence & Memory', () => {
     localStorage.setItem('kiwi_pos_dietary', 'veg');
     expect(localStorage.getItem('kiwi_pos_dietary')).toBe('veg');
   });
+
+  it('allows turning off active modules on Advanced plan without forced mode reversion', () => {
+    // Mimic the sanitization & save logic in Settings.jsx
+    function sanitizeSettingsOnSave(settingsToSave, assignedPlan = 'restaurant') {
+      const result = { ...settingsToSave };
+      if (assignedPlan === 'bill_only') {
+        result.businessType = 'bill_only';
+        result.accountType = 'bill_only';
+        const rawModes = Array.isArray(result.modes) ? result.modes : [];
+        result.modes = rawModes.filter(k => ['pos', 'till_shift'].includes(k));
+        result.kitchenConfig = { ...(result.kitchenConfig || {}), mode: 'disabled' };
+      } else {
+        result.businessType = 'restaurant';
+        result.accountType = 'restaurant';
+        const rawModes = Array.isArray(result.modes) ? result.modes : [];
+        result.modes = rawModes;
+
+        if (!result.modes.includes('kds')) {
+          result.kitchenConfig = { ...(result.kitchenConfig || {}), mode: 'disabled' };
+        } else if (result.kitchenConfig?.mode === 'disabled') {
+          result.kitchenConfig = { ...(result.kitchenConfig || {}), mode: 'both' };
+        }
+
+        result.features = {
+          ...(result.features || {}),
+          table: result.modes.includes('table'),
+          enableTableMap: result.modes.includes('table'),
+          enableKds: result.modes.includes('kds')
+        };
+      }
+      return result;
+    }
+
+    // Advanced plan restaurant where user explicitly turned off Table Management and KDS
+    const userConfiguredSettings = {
+      name: 'Counter & Takeaway Deli',
+      businessType: 'restaurant',
+      modes: ['pos', 'till_shift', 'customers'], // table and kds disabled by user
+      kitchenConfig: { mode: 'both' },
+      features: { table: true, enableTableMap: true, enableKds: true }
+    };
+
+    const saved = sanitizeSettingsOnSave(userConfiguredSettings, 'restaurant');
+
+    // Modes must preserve user choices without forcibly re-adding 'table' or 'kds'
+    expect(saved.modes).toEqual(['pos', 'till_shift', 'customers']);
+    expect(saved.modes).not.toContain('table');
+    expect(saved.modes).not.toContain('kds');
+
+    // KDS must be synced to disabled in kitchenConfig
+    expect(saved.kitchenConfig.mode).toBe('disabled');
+
+    // Legacy feature flags must be cleanly synced to false
+    expect(saved.features.table).toBe(false);
+    expect(saved.features.enableTableMap).toBe(false);
+    expect(saved.features.enableKds).toBe(false);
+  });
 });

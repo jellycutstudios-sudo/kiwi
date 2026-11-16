@@ -791,19 +791,44 @@ export default function Settings() {
           settingsToSave.businessType = 'restaurant';
           settingsToSave.accountType = 'restaurant';
 
+          // Preserve whatever modes the user explicitly configured
           const rawModes = Array.isArray(settingsToSave.modes) ? settingsToSave.modes : [];
-          const requiredAdvancedModes = ['pos', 'table', 'kds', 'reservations', 'payroll', 'till_shift'];
-          settingsToSave.modes = Array.from(new Set([...rawModes, ...requiredAdvancedModes]));
+          settingsToSave.modes = rawModes;
 
-          if (!settingsToSave.kitchenConfig || settingsToSave.kitchenConfig.mode === 'disabled') {
+          // Sync kitchenConfig.mode if KDS was toggled off
+          if (!settingsToSave.modes.includes('kds')) {
+            settingsToSave.kitchenConfig = { ...(settingsToSave.kitchenConfig || {}), mode: 'disabled' };
+          } else if (settingsToSave.kitchenConfig?.mode === 'disabled') {
             settingsToSave.kitchenConfig = { ...(settingsToSave.kitchenConfig || {}), mode: 'both' };
           }
+
+          // Sync legacy features flags with modes state so legacy checks stay consistent
+          settingsToSave.features = {
+            ...(settingsToSave.features || {}),
+            table: settingsToSave.modes.includes('table'),
+            enableTableMap: settingsToSave.modes.includes('table'),
+            enableKds: settingsToSave.modes.includes('kds')
+          };
         }
       } else {
         // Super Admin saving settings can freely set or toggle formats
         const targetType = settingsToSave.businessType || 'restaurant';
         settingsToSave.businessType = targetType;
         settingsToSave.accountType = targetType;
+
+        if (settingsToSave.modes) {
+          if (!settingsToSave.modes.includes('kds')) {
+            settingsToSave.kitchenConfig = { ...(settingsToSave.kitchenConfig || {}), mode: 'disabled' };
+          } else if (settingsToSave.kitchenConfig?.mode === 'disabled') {
+            settingsToSave.kitchenConfig = { ...(settingsToSave.kitchenConfig || {}), mode: 'both' };
+          }
+          settingsToSave.features = {
+            ...(settingsToSave.features || {}),
+            table: settingsToSave.modes.includes('table'),
+            enableTableMap: settingsToSave.modes.includes('table'),
+            enableKds: settingsToSave.modes.includes('kds')
+          };
+        }
       }
 
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
@@ -1979,9 +2004,29 @@ export default function Settings() {
                         if (!m) return null;
                         const isFeatureLocked = isLockedPlan && ADVANCED_FEATURE_KEYS.includes(m.key);
                         const active = !isFeatureLocked && (settings.modes ?? []).includes(m.key);
+
+                        const handleToggle = (nextChecked) => {
+                          if (isFeatureLocked) {
+                            toast.error(`"${m.label}" requires the Advanced Dine-In plan.`);
+                            return;
+                          }
+                          const modes = settings.modes ?? [];
+                          const nextModes = nextChecked ? Array.from(new Set([...modes, m.key])) : modes.filter(x => x !== m.key);
+                          updateField('modes', nextModes);
+                          if (m.key === 'kds') {
+                            updateField('kitchenConfig.mode', nextChecked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
+                            updateField('features.enableKds', nextChecked);
+                          }
+                          if (m.key === 'table') {
+                            updateField('features.table', nextChecked);
+                            updateField('features.enableTableMap', nextChecked);
+                          }
+                        };
+
                         return (
                           <div
                             key={m.key}
+                            onClick={() => handleToggle(!active)}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -1995,7 +2040,8 @@ export default function Settings() {
                               gap: '16px',
                               minHeight: '74px',
                               boxSizing: 'border-box',
-                              opacity: isFeatureLocked ? 0.75 : 1
+                              opacity: isFeatureLocked ? 0.75 : 1,
+                              cursor: isFeatureLocked ? 'not-allowed' : 'pointer'
                             }}
                           >
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -2021,7 +2067,7 @@ export default function Settings() {
                                     {m.isAction === 'vault' ? (
                                       <button
                                         type="button"
-                                        onClick={(e) => { e.preventDefault(); handleExportDataVault(); }}
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportDataVault(); }}
                                         style={{
                                           background: 'none',
                                           border: 'none',
@@ -2040,7 +2086,7 @@ export default function Settings() {
                                     ) : m.isAction === 'tally' ? (
                                       <button
                                         type="button"
-                                        onClick={(e) => { e.preventDefault(); handleExportTally(); }}
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportTally(); }}
                                         style={{
                                           background: 'none',
                                           border: 'none',
@@ -2088,16 +2134,7 @@ export default function Settings() {
                               checked={isFeatureLocked ? false : active}
                               disabled={isFeatureLocked}
                               onChange={e => {
-                                if (isFeatureLocked) {
-                                  toast.error(`"${m.label}" requires the Advanced Dine-In plan.`);
-                                  return;
-                                }
-                                const modes = settings.modes ?? [];
-                                const checked = e.target.checked;
-                                updateField('modes', checked ? [...modes, m.key] : modes.filter(x => x !== m.key));
-                                if (m.key === 'kds') {
-                                  updateField('kitchenConfig.mode', checked ? (settings.kitchenConfig?.mode === 'disabled' ? 'both' : (settings.kitchenConfig?.mode || 'both')) : 'disabled');
-                                }
+                                handleToggle(e.target.checked);
                               }}
                             />
                           </div>
