@@ -2711,17 +2711,19 @@ export default function POS() {
                             )}
                           </div>
 
-                          {/* Tactile Stepper on bottom right */}
+                          {/* Tactile Stepper on bottom right (Enhanced touch target & direct keypad) */}
                           <div className="cart-stepper">
                             <button
                               type="button"
                               className="cart-stepper-btn"
                               onClick={() => handleCartDecrement(i)}
                               title="Decrease quantity"
+                              aria-label={`Decrease ${i.name} quantity`}
                             >
-                              <Minus size={11} strokeWidth={2.5} />
+                              <Minus size={13} strokeWidth={2.8} />
                             </button>
-                            <span 
+                            <button 
+                              type="button"
                               className="cart-stepper-count"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2739,11 +2741,11 @@ export default function POS() {
                                   }
                                 });
                               }}
-                              title="Tap to set quantity directly"
-                              style={{ cursor: 'pointer' }}
+                              title="Tap to type custom quantity"
+                              aria-label={`Current quantity ${i.qty}. Tap to enter custom quantity`}
                             >
                               {i.qty}
-                            </span>
+                            </button>
                             <button
                               type="button"
                               className="cart-stepper-btn"
@@ -2752,8 +2754,9 @@ export default function POS() {
                                 updateQty(i.id, i.qty + 1);
                               }}
                               title="Increase quantity"
+                              aria-label={`Increase ${i.name} quantity`}
                             >
-                              <Plus size={11} strokeWidth={2.5} />
+                              <Plus size={13} strokeWidth={2.8} />
                             </button>
                           </div>
                         </div>
