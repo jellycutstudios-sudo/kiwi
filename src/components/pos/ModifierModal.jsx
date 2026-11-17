@@ -376,7 +376,6 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
           {/* Step 1 — Style selector */}
           <div>
             <div className="vm-step-header">
-              <span className="vm-step-num">1</span>
               <span className="vm-step-title">{matrix.styleLabel ?? 'Style'}</span>
               {selectedStyle && <span className="vm-step-selected">✓ {selectedStyle}</span>}
             </div>
@@ -415,10 +414,9 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
           {/* Step 2 — Portion selector (enabled only after style chosen) */}
           <div style={{ opacity: selectedStyle ? 1 : 0.4, pointerEvents: selectedStyle ? 'all' : 'none', transition: 'opacity 0.2s' }}>
             <div className="vm-step-header">
-              <span className="vm-step-num" style={selectedStyle ? {} : { background: 'var(--color-separator)', color: 'var(--color-label-tertiary)' }}>2</span>
               <span className="vm-step-title">{matrix.portionLabel ?? 'Portion'}</span>
               {totalItemCount > 0 && <span className="vm-step-selected">✓ {totalItemCount} selected</span>}
-              {!selectedStyle && <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>Select style first</span>}
+              {!selectedStyle && <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginLeft: 6 }}>Select style first</span>}
             </div>
             <div className="vm-portion-grid">
               {portions.map(p => {
