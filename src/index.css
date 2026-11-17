@@ -5503,12 +5503,21 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   gap: 8px;
 }
 
+.cart-item-card-title-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  flex: 1;
+  min-width: 0;
+}
+
 .cart-item-card-name {
   font-size: 13px;
   font-weight: 700;
   color: var(--color-label);
   line-height: 1.25;
-  flex: 1;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5808,19 +5817,31 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border-color: rgba(239, 68, 68, 0.2);
 }
 
-.cart-item-modifiers {
-  display: flex;
+.cart-item-modifiers,
+.cart-item-modifiers-inline {
+  display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .cart-modifier-chip {
-  font-size: 9.5px;
-  color: var(--color-label-secondary);
-  background: var(--color-fill-tertiary);
-  padding: 1px 5px;
-  border-radius: 3px;
-  border: 1px solid var(--color-separator-opaque);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #0369a1;
+  background: rgba(14, 165, 233, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .cart-modifier-chip {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.28);
 }
 
 /* Quick Order Note Presets */

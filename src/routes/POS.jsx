@@ -2654,11 +2654,22 @@ export default function POS() {
                     <div className="cart-course-cards">
                     {courseItems.map(i => (
                       <div key={i.id} className="cart-item-card">
-                        {/* Row 1: Item Name (left) + Remove [X] (top-right) */}
+                        {/* Row 1: Item Name & Modifiers (left) + Remove [X] (top-right) */}
                         <div className="cart-item-card-top">
-                          <span className="cart-item-card-name" title={i.name}>
-                            {i.name}
-                          </span>
+                          <div className="cart-item-card-title-wrap">
+                            <span className="cart-item-card-name" title={i.name}>
+                              {i.name}
+                            </span>
+                            {i.selectedModifiers?.length > 0 && (
+                              <div className="cart-item-modifiers-inline">
+                                {i.selectedModifiers.map((m, idx) => (
+                                  <span key={idx} className="cart-modifier-chip">
+                                    +{m.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           <button
                             type="button"
                             className="cart-item-card-remove"
@@ -2669,17 +2680,6 @@ export default function POS() {
                             <X size={13} strokeWidth={2.2} />
                           </button>
                         </div>
-
-                        {/* Optional Modifiers */}
-                        {i.selectedModifiers?.length > 0 && (
-                          <div className="cart-item-modifiers">
-                            {i.selectedModifiers.map((m, idx) => (
-                              <span key={idx} className="cart-modifier-chip">
-                                +{m.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
 
                         {/* Row 2: Price & Badges (bottom-left) + Stepper (bottom-right) */}
                         <div className="cart-item-card-bottom">
