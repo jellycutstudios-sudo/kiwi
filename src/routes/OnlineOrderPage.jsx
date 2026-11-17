@@ -259,6 +259,35 @@ export default function OnlineOrderPage() {
 
   const addToCart = (item, selectedModifiers = [], flatPrice = null, qty = 1) => {
     triggerHapticSuccess();
+    // Check if bulk multi-portion array
+    if (Array.isArray(selectedModifiers) && selectedModifiers.length > 0 && selectedModifiers[0].selectedModifiers) {
+      setCart(c => {
+        let updated = [...c];
+        selectedModifiers.forEach(entry => {
+          const entryMods = entry.selectedModifiers || [];
+          const entryPrice = entry.flatPrice;
+          const entryQty = Math.max(1, parseInt(entry.qty, 10) || 1);
+          const customId = item.id + '-' + entryMods.map(m => m.id).sort().join('-');
+          const ex = updated.find(i => i.id === customId);
+          if (ex) {
+            updated = updated.map(i => i.id === customId ? { ...i, qty: i.qty + entryQty } : i);
+          } else {
+            updated.push({
+              ...item,
+              id: customId,
+              menuItemId: item.id,
+              selectedModifiers: entryMods,
+              modifierTotal: entryPrice,
+              price: entryPrice,
+              qty: entryQty
+            });
+          }
+        });
+        return updated;
+      });
+      return;
+    }
+
     const addedQty = Math.max(1, parseInt(qty, 10) || 1);
     setCart(c => {
       const isVariant = flatPrice !== null && flatPrice !== undefined;

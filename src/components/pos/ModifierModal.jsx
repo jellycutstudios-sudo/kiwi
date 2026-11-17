@@ -1,20 +1,24 @@
 import { useState, useRef } from 'react';
-import { X, Check, ChevronRight, Plus, Minus } from 'lucide-react';
+import { X, Check, ChevronRight, Plus, Minus, Hash } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { getItemVisuals } from '../../utils/itemVisuals';
+import { hapticTap } from '../../utils/soundNotifications';
+import TouchQuantityPadModal from './TouchQuantityPadModal';
 
 /* ─────────────────────────────────────────────────────────────
-   QUANTITY SELECTOR BAR (Stepper + Direct Input + Quick Chips)
+   QUANTITY SELECTOR BAR (Stepper + Direct Input + Bulk Chips + Touch Keypad)
 ────────────────────────────────────────────────────────────── */
-function QuantityBar({ qty, setQty }) {
-  const quickPresets = [1, 2, 3, 4, 5];
+function QuantityBar({ qty, setQty, onOpenKeypad }) {
+  const quickPresets = [1, 2, 3, 5, 10, 20, 50];
 
   const handleDec = () => {
+    hapticTap('light');
     setQty(prev => Math.max(1, (parseInt(prev, 10) || 1) - 1));
   };
 
   const handleInc = () => {
+    hapticTap('light');
     setQty(prev => Math.min(999, (parseInt(prev, 10) || 1) + 1));
   };
 
@@ -123,21 +127,46 @@ function QuantityBar({ qty, setQty }) {
           >
             <Plus size={15} strokeWidth={2.5} />
           </button>
+          {onOpenKeypad && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-icon"
+              onClick={onOpenKeypad}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                color: 'var(--color-accent)'
+              }}
+              title="Open Touch Keypad"
+              aria-label="Open Touch Keypad"
+            >
+              <Hash size={16} strokeWidth={2.5} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Quick Quantity Chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflowX: 'auto' }}>
         {quickPresets.map(n => {
           const isSelected = Number(qty) === n;
           return (
             <button
               key={n}
               type="button"
-              onClick={() => setQty(n)}
+              onClick={() => {
+                hapticTap('light');
+                setQty(n);
+              }}
               style={{
-                width: 32,
+                minWidth: 32,
                 height: 32,
+                padding: '0 6px',
                 borderRadius: 8,
                 fontSize: 12.5,
                 fontWeight: isSelected ? 800 : 600,
@@ -220,44 +249,82 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
   const portions = matrix?.portionAxis ?? [];
   const prices  = matrix?.prices ?? {};
 
-  const [selectedStyle,   setSelectedStyle]   = useState(styles[0]   ?? null);
-  const [selectedPortion, setSelectedPortion] = useState(null);
-  const [qty, setQty] = useState(1);
+  const [selectedStyle, setSelectedStyle] = useState(styles[0] ?? null);
+  // Map of portionName -> quantity, e.g. { 'Full': 2, 'Half': 1 }
+  const [portionQuantities, setPortionQuantities] = useState({});
+  const [keypadTarget, setKeypadTarget] = useState(null);
 
-  const effectiveQty = Math.max(1, parseInt(qty, 10) || 1);
+  // Active portion entries for current style
+  const activePortionEntries = Object.entries(portionQuantities).filter(
+    ([p, q]) => q > 0 && selectedStyle && prices[`${selectedStyle}|${p}`] !== undefined
+  );
 
-  const currentPrice = (selectedStyle && selectedPortion)
-    ? (prices[`${selectedStyle}|${selectedPortion}`] ?? 0)
-    : null;
+  const totalItemCount = activePortionEntries.reduce((sum, [_, q]) => sum + q, 0);
+  const totalPrice = activePortionEntries.reduce((sum, [p, q]) => {
+    const pPrice = prices[`${selectedStyle}|${p}`] ?? 0;
+    return sum + (pPrice * q);
+  }, 0);
 
-  const totalPrice = currentPrice !== null ? currentPrice * effectiveQty : null;
-
-  const canConfirm = selectedStyle && selectedPortion && currentPrice !== null;
-
+  const canConfirm = selectedStyle && totalItemCount > 0;
   const styleColors = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4'];
+
+  // Single portion helper (if exactly 1 portion selected)
+  const singlePortion = activePortionEntries.length === 1 ? activePortionEntries[0][0] : null;
+  const singleQty = activePortionEntries.length === 1 ? activePortionEntries[0][1] : 1;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    // Emit as two flat modifiers so the rest of the system (cart, KDS, print) stays unchanged
-    const mods = [
-      {
-        modifierGroupId: '__style__',
-        modifierGroupName: matrix.styleLabel  ?? 'Style',
-        id: `style-${selectedStyle}`,
-        name: selectedStyle,
-        priceAdd: 0,
-        isVariantAxis: true,
-      },
-      {
-        modifierGroupId: '__portion__',
-        modifierGroupName: matrix.portionLabel ?? 'Portion',
-        id: `portion-${selectedPortion}`,
-        name: selectedPortion,
-        priceAdd: currentPrice,
-        isVariantAxis: true,
-      }
-    ];
-    onConfirm(mods, currentPrice, effectiveQty);
+    if (activePortionEntries.length === 1) {
+      const [pName, q] = activePortionEntries[0];
+      const pPrice = prices[`${selectedStyle}|${pName}`] ?? 0;
+      const mods = [
+        {
+          modifierGroupId: '__style__',
+          modifierGroupName: matrix.styleLabel ?? 'Style',
+          id: `style-${selectedStyle}`,
+          name: selectedStyle,
+          priceAdd: 0,
+          isVariantAxis: true,
+        },
+        {
+          modifierGroupId: '__portion__',
+          modifierGroupName: matrix.portionLabel ?? 'Portion',
+          id: `portion-${pName}`,
+          name: pName,
+          priceAdd: pPrice,
+          isVariantAxis: true,
+        }
+      ];
+      onConfirm(mods, pPrice, q);
+    } else {
+      // Bulk multi-portion (e.g. 2 Full and 1 Half in one order)
+      const bulkItems = activePortionEntries.map(([pName, q]) => {
+        const pPrice = prices[`${selectedStyle}|${pName}`] ?? 0;
+        return {
+          selectedModifiers: [
+            {
+              modifierGroupId: '__style__',
+              modifierGroupName: matrix.styleLabel ?? 'Style',
+              id: `style-${selectedStyle}`,
+              name: selectedStyle,
+              priceAdd: 0,
+              isVariantAxis: true,
+            },
+            {
+              modifierGroupId: '__portion__',
+              modifierGroupName: matrix.portionLabel ?? 'Portion',
+              id: `portion-${pName}`,
+              name: pName,
+              priceAdd: pPrice,
+              isVariantAxis: true,
+            }
+          ],
+          flatPrice: pPrice,
+          qty: q
+        };
+      });
+      onConfirm(bulkItems);
+    }
   };
 
   return (
@@ -295,7 +362,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                 {item.name}
               </h2>
               <div style={{ fontSize: 13, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
-                {effectiveQty > 1 ? `Pick style then portion — ${effectiveQty} items` : 'Pick style then portion — 1 item'}
+                {totalItemCount > 1 ? `Pick style then portion — ${totalItemCount} items` : 'Pick style then portion — 1 item'}
               </div>
             </div>
           </div>
@@ -325,10 +392,16 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                     style={isActive ? { borderColor: col, background: col + '18', color: col } : {}}
                     onClick={() => {
                       setSelectedStyle(s);
-                      // Reset portion if current combo doesn't exist
-                      if (selectedPortion && prices[`${s}|${selectedPortion}`] === undefined) {
-                        setSelectedPortion(null);
-                      }
+                      // Clear portions that don't exist in new style
+                      setPortionQuantities(prev => {
+                        const updated = {};
+                        Object.entries(prev).forEach(([p, q]) => {
+                          if (prices[`${s}|${p}`] !== undefined) {
+                            updated[p] = q;
+                          }
+                        });
+                        return updated;
+                      });
                     }}
                   >
                     {isActive && <Check size={13} strokeWidth={3} />}
@@ -344,21 +417,126 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             <div className="vm-step-header">
               <span className="vm-step-num" style={selectedStyle ? {} : { background: 'var(--color-separator)', color: 'var(--color-label-tertiary)' }}>2</span>
               <span className="vm-step-title">{matrix.portionLabel ?? 'Portion'}</span>
-              {selectedPortion && <span className="vm-step-selected">✓ {selectedPortion}</span>}
+              {totalItemCount > 0 && <span className="vm-step-selected">✓ {totalItemCount} selected</span>}
               {!selectedStyle && <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>Select style first</span>}
             </div>
             <div className="vm-portion-grid">
               {portions.map(p => {
                 const price = selectedStyle ? (prices[`${selectedStyle}|${p}`] ?? null) : null;
-                const isActive = selectedPortion === p;
                 const unavailable = price === null || price === undefined;
+                const currentQty = portionQuantities[p] || 0;
+                const isActive = currentQty > 0;
+
+                if (isActive) {
+                  return (
+                    <div
+                      key={p}
+                      className="vm-portion-btn vm-portion-btn--active"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        minHeight: 82,
+                        cursor: 'default'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span className="vm-portion-name" style={{ fontWeight: 800 }}>{p}</span>
+                        <span className="vm-portion-price" style={{ fontWeight: 800, color: 'var(--color-accent)' }}>
+                          {formatCurrency(price, currency)}
+                        </span>
+                      </div>
+
+                      <div 
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-icon"
+                          onClick={() => {
+                            hapticTap('light');
+                            setPortionQuantities(prev => {
+                              const next = { ...prev };
+                              if ((next[p] || 0) <= 1) {
+                                delete next[p];
+                              } else {
+                                next[p] = next[p] - 1;
+                              }
+                              return next;
+                            });
+                          }}
+                          style={{ width: 32, height: 32, borderRadius: 8, padding: 0 }}
+                          title={`Decrease ${p} quantity`}
+                          aria-label={`Decrease ${p} quantity`}
+                        >
+                          <Minus size={14} strokeWidth={2.5} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setKeypadTarget({
+                              name: `${item.name} (${p})`,
+                              qty: currentQty,
+                              unitPrice: price,
+                              onConfirm: (newQ) => {
+                                setPortionQuantities(prev => ({ ...prev, [p]: newQ }));
+                              }
+                            });
+                          }}
+                          style={{
+                            minWidth: 40,
+                            height: 32,
+                            borderRadius: 8,
+                            border: '1.5px solid var(--color-accent)',
+                            background: 'var(--color-bg)',
+                            color: 'var(--color-label)',
+                            fontWeight: 900,
+                            fontSize: 15,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Tap to type custom quantity"
+                        >
+                          {currentQty}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-icon"
+                          onClick={() => {
+                            hapticTap('light');
+                            setPortionQuantities(prev => ({
+                              ...prev,
+                              [p]: Math.min(999, (prev[p] || 0) + 1)
+                            }));
+                          }}
+                          style={{ width: 32, height: 32, borderRadius: 8, padding: 0 }}
+                          title={`Increase ${p} quantity`}
+                          aria-label={`Increase ${p} quantity`}
+                        >
+                          <Plus size={14} strokeWidth={2.5} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={p}
                     type="button"
-                    className={`vm-portion-btn ${isActive ? 'vm-portion-btn--active' : ''} ${unavailable ? 'vm-portion-btn--disabled' : ''}`}
+                    className={`vm-portion-btn ${unavailable ? 'vm-portion-btn--disabled' : ''}`}
                     disabled={unavailable}
-                    onClick={() => setSelectedPortion(p)}
+                    onClick={() => {
+                      hapticTap('light');
+                      setPortionQuantities(prev => ({ ...prev, [p]: 1 }));
+                    }}
+                    style={{ minHeight: 82 }}
                   >
                     <span className="vm-portion-name">{p}</span>
                     <span className="vm-portion-price">
@@ -370,20 +548,93 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             </div>
           </div>
 
-          {/* Quantity Selector */}
-          <QuantityBar qty={qty} setQty={setQty} />
+          {/* If single portion is selected: show QuantityBar with bulk presets and keypad */}
+          {singlePortion && (
+            <QuantityBar
+              qty={singleQty}
+              setQty={(newQ) => {
+                const parsed = typeof newQ === 'function' ? newQ(singleQty) : newQ;
+                const safeNum = Math.max(1, parseInt(parsed, 10) || 1);
+                setPortionQuantities(prev => ({ ...prev, [singlePortion]: safeNum }));
+              }}
+              onOpenKeypad={() => {
+                const price = prices[`${selectedStyle}|${singlePortion}`] ?? 0;
+                setKeypadTarget({
+                  name: `${item.name} (${singlePortion})`,
+                  qty: singleQty,
+                  unitPrice: price,
+                  onConfirm: (newQ) => {
+                    setPortionQuantities(prev => ({ ...prev, [singlePortion]: newQ }));
+                  }
+                });
+              }}
+            />
+          )}
+
+          {/* If multi-portion selected: show breakdown badge! */}
+          {activePortionEntries.length > 1 && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              padding: '12px 14px',
+              background: 'var(--color-bg-secondary)',
+              borderRadius: 12,
+              border: '1px solid var(--color-separator)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                  Selected Portions ({totalItemCount} items total)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPortionQuantities({})}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {activePortionEntries.map(([pName, pQty]) => {
+                  const pPrice = prices[`${selectedStyle}|${pName}`] ?? 0;
+                  return (
+                    <span 
+                      key={pName}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '5px 10px',
+                        borderRadius: 8,
+                        background: 'var(--color-bg-elevated)',
+                        border: '1px solid var(--color-separator)',
+                        fontSize: 13,
+                        fontWeight: 800
+                      }}
+                    >
+                      <span>{pName} × {pQty}</span>
+                      <span style={{ color: 'var(--color-accent)' }}>{formatCurrency(pPrice * pQty, currency)}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Summary pill */}
           {canConfirm && (
             <div className="vm-summary">
               <span className="vm-summary-combo">
-                {selectedStyle} · {selectedPortion}
+                {selectedStyle} · {activePortionEntries.map(([p, q]) => `${q > 1 ? `${q} ` : ''}${p}`).join(' + ')}
               </span>
-              {effectiveQty > 1 && (
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)' }}>
-                  × {effectiveQty}
-                </span>
-              )}
               <ChevronRight size={14} style={{ color: 'var(--color-label-tertiary)' }} />
               <span className="vm-summary-price">{formatCurrency(totalPrice, currency)}</span>
             </div>
@@ -405,11 +656,22 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
           >
             {canConfirm
-              ? `Add ${effectiveQty > 1 ? `${effectiveQty} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
+              ? `Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
               : 'Select style & portion'}
           </button>
         </div>
       </div>
+
+      {/* On-screen Touch Quantity Keypad Modal */}
+      <TouchQuantityPadModal
+        isOpen={!!keypadTarget}
+        itemName={keypadTarget?.name}
+        initialQty={keypadTarget?.qty || 1}
+        unitPrice={keypadTarget?.unitPrice}
+        currency={currency}
+        onConfirm={(newQ) => keypadTarget?.onConfirm?.(newQ)}
+        onClose={() => setKeypadTarget(null)}
+      />
     </div>
   );
 }
@@ -435,6 +697,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   const [prevItem, setPrevItem] = useState(item);
   const [selections, setSelections] = useState(() => getInitialSelections(item));
   const [qty, setQty] = useState(1);
+  const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const modalRef = useRef(null);
   useFocusTrap(modalRef, !!item);
 
@@ -628,7 +891,11 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           })}
 
           {/* Quantity Selector */}
-          <QuantityBar qty={qty} setQty={setQty} />
+          <QuantityBar
+            qty={qty}
+            setQty={setQty}
+            onOpenKeypad={() => setIsKeypadOpen(true)}
+          />
         </div>
 
         <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
@@ -649,6 +916,16 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           </button>
         </div>
       </div>
+
+      <TouchQuantityPadModal
+        isOpen={isKeypadOpen}
+        itemName={item.name}
+        initialQty={effectiveQty}
+        unitPrice={totalUnitPrice}
+        currency={currency}
+        onConfirm={(newQ) => setQty(newQ)}
+        onClose={() => setIsKeypadOpen(false)}
+      />
     </div>
   );
 }
@@ -669,7 +946,7 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
         currency={currency}
         onClose={onClose}
         onConfirm={(mods, flatPrice, qty = 1) => {
-          // For variant matrix: price IS the flat price, no base
+          // Supports both single modifier array and bulk items array
           onConfirm(mods, flatPrice, qty);
         }}
       />

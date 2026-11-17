@@ -13,6 +13,7 @@ import { localSyncChannel } from '../../utils/localSyncChannel';
 import { transliterateFood, SUPPORTED_WAITER_LANGUAGES } from '../../utils/foodTransliteration';
 import toast from 'react-hot-toast';
 import ModifierModal from './ModifierModal';
+import TouchQuantityPadModal from './TouchQuantityPadModal';
 
 const COMMON_ALLERGIES = [
   { id: 'nut_free', label: '🥜 Nut Allergy' },
@@ -129,6 +130,7 @@ export default function MobileWaiterHandheld({
   const [showTableSheet, setShowTableSheet] = useState(false);
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
+  const [keypadItem, setKeypadItem] = useState(null);
   const [customizingItem, setCustomizingItem] = useState(null); // item being customized with course/allergy
   const [itemCustomForm, setItemCustomForm] = useState({
     course: 'Mains',
@@ -140,6 +142,31 @@ export default function MobileWaiterHandheld({
 
   const handleConfirmModifier = (selectedModifiers, flatPrice, qty = 1) => {
     if (!activeModifierItem) return;
+
+    // Check if multiple portions were selected (bulk array)
+    if (Array.isArray(selectedModifiers) && selectedModifiers.length > 0 && selectedModifiers[0].selectedModifiers) {
+      selectedModifiers.forEach(entry => {
+        const entryMods = entry.selectedModifiers || [];
+        const entryPrice = entry.flatPrice;
+        const entryQty = Math.max(1, parseInt(entry.qty, 10) || 1);
+        const customId = activeModifierItem.id + '-' + entryMods.map(m => m.id).sort().join('-');
+        const cartItem = {
+          ...activeModifierItem,
+          id: customId,
+          menuItemId: activeModifierItem.id,
+          name: activeModifierItem.name,
+          selectedModifiers: entryMods,
+          modifierTotal: entryPrice,
+          price: entryPrice,
+          qty: entryQty
+        };
+        addItem(cartItem);
+      });
+      hapticTap('medium');
+      setActiveModifierItem(null);
+      return;
+    }
+
     const isVariant = flatPrice !== undefined && flatPrice !== null;
     const modifierTotal = isVariant
       ? 0
@@ -628,7 +655,29 @@ export default function MobileWaiterHandheld({
               >
                 {/* Visual badge for current cart quantity on card */}
                 {cartQty > 0 && (
-                  <div className="handheld-card-badge">
+                  <div 
+                    className="handheld-card-badge"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      hapticTap('light');
+                      setKeypadItem({
+                        name: item.name,
+                        qty: cartQty,
+                        unitPrice: item.price,
+                        onConfirm: (newQ) => {
+                          if (hasModifiers) {
+                            if (singleCartItem) {
+                              updateQty(singleCartItem.id, newQ, singleCartItem.selectedModifiers);
+                            }
+                          } else {
+                            updateQty(item.id, newQ);
+                          }
+                        }
+                      });
+                    }}
+                    title="Tap to set quantity"
+                    style={{ cursor: 'pointer' }}
+                  >
                     <span>{cartQty}</span>
                   </div>
                 )}
@@ -676,7 +725,31 @@ export default function MobileWaiterHandheld({
                       >
                         <Minus size={15} strokeWidth={2.8} />
                       </button>
-                      <span className="handheld-step-qty">{cartQty}</span>
+                      <span 
+                        className="handheld-step-qty"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap('light');
+                          setKeypadItem({
+                            name: item.name,
+                            qty: cartQty,
+                            unitPrice: item.price,
+                            onConfirm: (newQ) => {
+                              if (hasModifiers) {
+                                if (singleCartItem) {
+                                  updateQty(singleCartItem.id, newQ, singleCartItem.selectedModifiers);
+                                }
+                              } else {
+                                updateQty(item.id, newQ);
+                              }
+                            }
+                          });
+                        }}
+                        title="Tap to set quantity directly"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {cartQty}
+                      </span>
                       <button
                         type="button"
                         className="handheld-step-btn plus"
@@ -877,7 +950,21 @@ export default function MobileWaiterHandheld({
                         >
                           <Minus size={12} />
                         </button>
-                        <span style={{ fontWeight: 800, fontSize: 13, minWidth: 20, textAlign: 'center' }}>
+                        <span 
+                          style={{ fontWeight: 800, fontSize: 13, minWidth: 28, textAlign: 'center', cursor: 'pointer', padding: '3px 6px', background: 'var(--color-bg-tertiary)', borderRadius: 6 }}
+                          onClick={() => {
+                            hapticTap('light');
+                            setKeypadItem({
+                              name: cartItem.name,
+                              qty: cartItem.qty,
+                              unitPrice: cartItem.price,
+                              onConfirm: (newQ) => {
+                                updateQty(cartItem.id, newQ, cartItem.selectedModifiers);
+                              }
+                            });
+                          }}
+                          title="Tap to set quantity directly"
+                        >
                           {cartItem.qty}
                         </span>
                         <button
@@ -1343,6 +1430,17 @@ export default function MobileWaiterHandheld({
           onConfirm={handleConfirmModifier}
         />
       )}
+
+      {/* ── Touch-Friendly Fast Quantity Keypad Modal ── */}
+      <TouchQuantityPadModal
+        isOpen={!!keypadItem}
+        itemName={keypadItem?.name}
+        initialQty={keypadItem?.qty || 1}
+        unitPrice={keypadItem?.unitPrice}
+        currency={currency}
+        onConfirm={(newQ) => keypadItem?.onConfirm?.(newQ)}
+        onClose={() => setKeypadItem(null)}
+      />
     </div>
   );
 }

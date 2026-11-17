@@ -31,6 +31,7 @@ import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
 import CategoryGridModal from '../components/pos/CategoryGridModal';
+import TouchQuantityPadModal from '../components/pos/TouchQuantityPadModal';
 import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -238,6 +239,7 @@ export default function POS() {
   const [showSplitBillModal, setShowSplitBillModal] = useState(false);
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
+  const [touchKeypadTarget, setTouchKeypadTarget] = useState(null);
   // Cache original order items when editing — avoids a Firestore getDoc on every cart tap
   const originalOrderItemsRef = useRef(null);
 
@@ -2723,18 +2725,22 @@ export default function POS() {
                               className="cart-stepper-count"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const val = window.prompt(`Set quantity for "${i.name}":`, i.qty);
-                                if (val !== null) {
-                                  const parsed = parseInt(val.trim(), 10);
-                                  if (!isNaN(parsed) && parsed > 0) {
-                                    hapticTap('medium');
-                                    updateQty(i.id, parsed);
-                                  } else if (parsed === 0) {
-                                    handleCartRemove(i);
+                                hapticTap('light');
+                                setTouchKeypadTarget({
+                                  name: i.name,
+                                  qty: i.qty,
+                                  unitPrice: i.price,
+                                  onConfirm: (newQ) => {
+                                    if (newQ === 0) {
+                                      handleCartRemove(i);
+                                    } else {
+                                      updateQty(i.id, newQ, i.selectedModifiers);
+                                    }
                                   }
-                                }
+                                });
                               }}
                               title="Tap to set quantity directly"
+                              style={{ cursor: 'pointer' }}
                             >
                               {i.qty}
                             </span>
@@ -3268,7 +3274,30 @@ export default function POS() {
           currency={currency}
           onClose={() => setActiveModifierItem(null)}
           onConfirm={(selectedModifiers, flatPrice, qty = 1) => {
-            // flatPrice is set by VariantMatrixPicker — it IS the total price (no base added)
+            // Check if multiple portions were selected (bulk array)
+            if (Array.isArray(selectedModifiers) && selectedModifiers.length > 0 && selectedModifiers[0].selectedModifiers) {
+              selectedModifiers.forEach(entry => {
+                const entryMods = entry.selectedModifiers || [];
+                const entryPrice = entry.flatPrice;
+                const entryQty = Math.max(1, parseInt(entry.qty, 10) || 1);
+                const customId = activeModifierItem.id + '-' + entryMods.map(m => m.id).sort().join('-');
+                const cartItem = {
+                  ...activeModifierItem,
+                  id: customId,
+                  menuItemId: activeModifierItem.id,
+                  name: activeModifierItem.name,
+                  selectedModifiers: entryMods,
+                  modifierTotal: entryPrice,
+                  price: entryPrice,
+                  qty: entryQty
+                };
+                addItem(cartItem);
+              });
+              setActiveModifierItem(null);
+              return;
+            }
+
+            // Single item flow
             const isVariant = flatPrice !== undefined && flatPrice !== null;
             const modifierTotal = isVariant
               ? 0
@@ -4356,6 +4385,17 @@ export default function POS() {
           </div>
         </div>
       )}
+
+      {/* POS Touch Quantity Pad Modal */}
+      <TouchQuantityPadModal
+        isOpen={!!touchKeypadTarget}
+        itemName={touchKeypadTarget?.name}
+        initialQty={touchKeypadTarget?.qty || 1}
+        unitPrice={touchKeypadTarget?.unitPrice}
+        currency={currency}
+        onConfirm={(newQ) => touchKeypadTarget?.onConfirm?.(newQ)}
+        onClose={() => setTouchKeypadTarget(null)}
+      />
     </>
   );
 }

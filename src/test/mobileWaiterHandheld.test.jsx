@@ -372,6 +372,151 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     expect(added.price).toBe(750);
   });
 
+  it('allows ordering multiple portions simultaneously (e.g. 2 Full and 1 Half) in a single modal trip', () => {
+    useOrderStore.getState().clearCart();
+
+    const itemWithModifiers = {
+      id: '8a049dac-dd7c-4ff8-9c00-b53f0f07a706',
+      name: 'Garlic chicken',
+      price: 360,
+      isVeg: false,
+      categoryId: 'cat_mains',
+      modifierGroups: [
+        {
+          id: 'grp_gravy',
+          name: 'Gravy',
+          required: true,
+          minSelect: 1,
+          maxSelect: 1,
+          options: [
+            { id: 'opt_qtr', name: 'Quarter', priceAdd: 250 },
+            { id: 'opt_half', name: 'Half', priceAdd: 350 },
+            { id: 'opt_full', name: 'Full', priceAdd: 750 }
+          ]
+        },
+        {
+          id: 'grp_paste',
+          name: 'Paste',
+          required: true,
+          minSelect: 1,
+          maxSelect: 1,
+          options: [
+            { id: 'opt_paste_qtr', name: 'Quarter', priceAdd: 270 },
+            { id: 'opt_paste_half', name: 'Half', priceAdd: 340 },
+            { id: 'opt_paste_full', name: 'Full', priceAdd: 780 }
+          ]
+        }
+      ]
+    };
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="INR"
+        menuItems={[...sampleMenuItems, itemWithModifiers]}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // Tap on Garlic chicken card to open ModifierModal
+    fireEvent.click(screen.getByText('Garlic chicken'));
+
+    // Step 1: Style Gravy
+    fireEvent.click(screen.getByText('Gravy'));
+
+    // Step 2: Tap "Full" to add 1 Full
+    fireEvent.click(screen.getByText('Full'));
+
+    // Increment Full to 2 using its inline '+' stepper button
+    const incFullBtn = screen.getByRole('button', { name: /Increase Full quantity/i });
+    fireEvent.click(incFullBtn);
+
+    // Tap "Half" to also add 1 Half
+    fireEvent.click(screen.getByText('Half'));
+
+    // Total: 2 Full (₹1,500) + 1 Half (₹350) = 3 items @ ₹1,850.00
+    expect(screen.getByText('Pick style then portion — 3 items')).toBeTruthy();
+    expect(screen.getByText(/3 selected/i)).toBeTruthy();
+
+    const confirmBtn = screen.getByRole('button', { name: /Add 3 to Cart · ₹1,850.00/i });
+    expect(confirmBtn).toBeTruthy();
+
+    // Confirm both portions together!
+    fireEvent.click(confirmBtn);
+
+    // Cart now has 2 distinct line items added in a single trip!
+    const cartItems = useOrderStore.getState().items;
+    expect(cartItems.length).toBe(2);
+
+    const fullItem = cartItems.find(i => i.selectedModifiers.some(m => m.name === 'Full'));
+    const halfItem = cartItems.find(i => i.selectedModifiers.some(m => m.name === 'Half'));
+
+    expect(fullItem).toBeTruthy();
+    expect(fullItem.qty).toBe(2);
+    expect(fullItem.price).toBe(750);
+
+    expect(halfItem).toBeTruthy();
+    expect(halfItem.qty).toBe(1);
+    expect(halfItem.price).toBe(350);
+  });
+
+  it('allows setting high bulk quantity (50 Rotis) via TouchQuantityPadModal in one tap', () => {
+    useOrderStore.getState().clearCart();
+
+    const rotiItem = {
+      id: 'dish_roti_1',
+      name: 'Butter Roti',
+      price: 20,
+      isVeg: true,
+      categoryId: 'cat_mains'
+    };
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="INR"
+        menuItems={[rotiItem]}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // Tap Add to add 1 Roti
+    fireEvent.click(screen.getByText('Add'));
+
+    // Tap on the quantity display (1) to open TouchQuantityPadModal
+    const stepQty = screen.getByTitle('Tap to set quantity directly');
+    fireEvent.click(stepQty);
+
+    // Keypad opens showing title and quick presets
+    expect(screen.getByText('Set Quantity')).toBeTruthy();
+    expect(screen.getAllByText('Butter Roti').length).toBeGreaterThan(0);
+
+    // Tap the '50' preset button
+    const preset50 = screen.getByRole('button', { name: '50' });
+    fireEvent.click(preset50);
+
+    // Confirm: 50 Rotis
+    const setBtn = screen.getByRole('button', { name: /Confirm: 50/i });
+    fireEvent.click(setBtn);
+
+    // Verify cart has 50 Rotis immediately without tapping 50 times
+    const cartItems = useOrderStore.getState().items;
+    expect(cartItems[0].name).toBe('Butter Roti');
+    expect(cartItems[0].qty).toBe(50);
+  });
+
   it('allows waiter to switch dish language to Malayalam and view phonetic script', () => {
     const dishes = [
       { id: 'dish_gc', name: 'Garlic Chicken', price: 280, isVeg: false, categoryId: 'cat_mains' }
