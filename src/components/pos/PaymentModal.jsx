@@ -5,7 +5,7 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, Coins } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, Coins, Printer } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -31,8 +31,15 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
     getPointsDiscountAmount, tipAmount, setTip,
     tableName, tokenNumber, upiRef, setUpiRef,
-    setTerminalTx, getSettledTotal, getRemainingTotal
+    setTerminalTx, getSettledTotal, getRemainingTotal,
+    billPrinted
   } = useOrderStore();
+
+  const [shouldPrintReceipt, setShouldPrintReceipt] = useState(() => !billPrinted);
+
+  useEffect(() => {
+    setShouldPrintReceipt(!billPrinted);
+  }, [billPrinted]);
 
   const {
     giftCardCode, giftCardDeduction, applyGiftCard, removeGiftCard
@@ -424,7 +431,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
         setTimeout(async () => {
           setSplitPayments([]);
           setTerminalStatus(null);
-          await onConfirm();
+          await onConfirm({ shouldPrintReceipt });
         }, 1000);
       }
     }, delay);
@@ -469,7 +476,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     }
 
     try {
-      await onConfirm();
+      await onConfirm({ shouldPrintReceipt });
     } finally {
       setLoading(false);
     }
@@ -1772,6 +1779,44 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Thermal Receipt Print Preference */}
+          <div 
+            onClick={() => setShouldPrintReceipt(prev => !prev)}
+            style={{
+              marginTop: 10,
+              padding: '8px 12px',
+              borderRadius: 10,
+              background: shouldPrintReceipt ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+              border: shouldPrintReceipt ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              userSelect: 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Printer size={15} color={shouldPrintReceipt ? '#38bdf8' : '#64748b'} />
+              <div>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: shouldPrintReceipt ? '#ffffff' : '#94a3b8' }}>
+                  Print Receipt on Settle
+                </span>
+                {billPrinted && (
+                  <span style={{ display: 'block', fontSize: 11, color: '#38bdf8' }}>
+                    ✓ Pre-bill already printed &middot; Print off to avoid duplicate
+                  </span>
+                )}
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={shouldPrintReceipt}
+              onChange={e => setShouldPrintReceipt(e.target.checked)}
+              onClick={e => e.stopPropagation()}
+              style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+            />
           </div>
         </div>
 

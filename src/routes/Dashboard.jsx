@@ -174,20 +174,22 @@ export default function Dashboard() {
       };
       await settleOrder(restaurant.id, order.id, method, order.total);
 
-      // Print settled receipt automatically
-      setTimeout(() => {
-        try {
-          printReceipt({
-            restaurant,
-            order: orderSnapshot,
-            items: orderSnapshot.items || [],
-            taxInfo: orderSnapshot.taxInfo,
-            staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
-          });
-        } catch (printErr) {
-          console.warn('[Dashboard] Receipt print failed on quick settle:', printErr);
-        }
-      }, 100);
+      // Print settled receipt automatically only if bill was not already given
+      if (!order.billPrinted) {
+        setTimeout(() => {
+          try {
+            printReceipt({
+              restaurant,
+              order: orderSnapshot,
+              items: orderSnapshot.items || [],
+              taxInfo: orderSnapshot.taxInfo,
+              staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
+            });
+          } catch (printErr) {
+            console.warn('[Dashboard] Receipt print failed on quick settle:', printErr);
+          }
+        }, 100);
+      }
     } catch (err) {
       toast.error('Failed to settle order: ' + err.message);
     } finally {

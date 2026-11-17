@@ -23,6 +23,7 @@ export default function ActiveOrdersModal({
   const activeOrders = useOrderStore(s => s.activeOrders);
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const settleOrder = useOrderStore(s => s.settleOrder);
+  const markBillPrinted = useOrderStore(s => s.markBillPrinted);
 
   const [filterType, setFilterType] = useState(initialFilter);
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,7 +95,7 @@ export default function ActiveOrdersModal({
 
   if (!isOpen) return null;
 
-  const handlePrint = (order) => {
+  const handlePrint = async (order) => {
     try {
       printReceipt({
         restaurant,
@@ -103,28 +104,33 @@ export default function ActiveOrdersModal({
         taxInfo: order.taxInfo,
         staffName: order.staffName || staffName,
       });
+      await markBillPrinted(restaurant.id, order.id, order.staffName || staffName);
       toast.success(`Printing bill for ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'Order')}`, { icon: '🖨️' });
     } catch (err) {
       toast.error('Print failed: ' + err.message);
     }
   };
 
-  const handleQuickCashSettle = async (order) => {
+  const handleQuickCashSettle = async (order, shouldPrint = !order.billPrinted) => {
     if (settlingId) return;
     setSettlingId(order.id);
     try {
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
-      toast.success(`Order settled via CASH ✓ Bill closed`);
-      // Background print paid receipt
-      setTimeout(() => {
-        printReceipt({
-          restaurant,
-          order: { ...order, paymentMethod: 'cash' },
-          items: order.items || [],
-          taxInfo: order.taxInfo,
-          staffName,
-        });
-      }, 100);
+      if (shouldPrint) {
+        toast.success(`Order settled via CASH ✓ Printing receipt...`);
+        // Background print paid receipt
+        setTimeout(() => {
+          printReceipt({
+            restaurant,
+            order: { ...order, paymentMethod: 'cash' },
+            items: order.items || [],
+            taxInfo: order.taxInfo,
+            staffName,
+          });
+        }, 100);
+      } else {
+        toast.success(`Order settled via CASH ✓ (Print skipped — bill already given)`);
+      }
     } catch (err) {
       toast.error('Settle failed: ' + err.message);
     } finally {
@@ -484,6 +490,22 @@ export default function ActiveOrdersModal({
                             READY
                           </span>
                         )}
+                        {order.billPrinted && isUnpaid && (
+                          <span style={{
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.45)',
+                            padding: '2px 7px',
+                            borderRadius: 6,
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3.5
+                          }} title={order.billPrintedAt ? `Bill printed at ${new Date(order.billPrintedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bill has been printed'}>
+                            <Printer size={10.5} /> BILL GIVEN
+                          </span>
+                        )}
                         {!isUnpaid && (
                           <span style={{
                             background: 'rgba(16, 185, 129, 0.15)',
@@ -633,21 +655,22 @@ export default function ActiveOrdersModal({
                           gap: 5,
                           padding: '0 10px',
                           borderRadius: 8,
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid rgba(255, 255, 255, 0.18)',
-                          color: '#ffffff',
+                          background: order.billPrinted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                          border: order.billPrinted ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(255, 255, 255, 0.18)',
+                          color: order.billPrinted ? '#34d399' : '#ffffff',
                           display: 'inline-flex',
                           alignItems: 'center',
                           cursor: 'pointer'
                         }}
-                        title="Print Customer Bill"
+                        title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
                       >
-                        <Printer size={13} /> Bill
+                        {order.billPrinted ? <Check size={13} strokeWidth={2.5} /> : <Printer size={13} />}
+                        {order.billPrinted ? 'Bill Printed' : 'Bill'}
                       </button>
                     </div>
 
                     {/* Right: Settlement */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                       {isUnpaid ? (
                         <>
                           {onOpenPayment && (
@@ -672,34 +695,108 @@ export default function ActiveOrdersModal({
                                 alignItems: 'center',
                                 cursor: 'pointer'
                               }}
-                              title="Card / UPI"
+                              title="Card / UPI / Split Payment"
                             >
                               <CreditCard size={13} /> Card / UPI
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => handleQuickCashSettle(order)}
-                            disabled={settlingId === order.id}
-                            style={{
-                              height: 38,
-                              fontSize: 13,
-                              fontWeight: 800,
-                              gap: 5,
-                              padding: '0 13px',
-                              borderRadius: 8,
-                              background: '#10b981',
-                              border: 'none',
-                              color: '#ffffff',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
-                            }}
-                            title="Quick Cash Settle"
-                          >
-                            <Zap size={13} fill="#fff" /> Quick Cash
-                          </button>
+                          {order.billPrinted ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickCashSettle(order, false)}
+                                disabled={settlingId === order.id}
+                                style={{
+                                  height: 38,
+                                  fontSize: 12.5,
+                                  fontWeight: 800,
+                                  gap: 5,
+                                  padding: '0 12px',
+                                  borderRadius: 8,
+                                  background: '#10b981',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
+                                }}
+                                title="Collect cash & close order (No duplicate print — customer already has bill)"
+                              >
+                                <Zap size={13} fill="#fff" /> Settle (No Print)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickCashSettle(order, true)}
+                                disabled={settlingId === order.id}
+                                style={{
+                                  height: 38,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  gap: 4,
+                                  padding: '0 9px',
+                                  borderRadius: 8,
+                                  background: 'rgba(16, 185, 129, 0.12)',
+                                  border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                                  color: '#34d399',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer'
+                                }}
+                                title="Collect cash AND print paid tax receipt"
+                              >
+                                <Printer size={12} /> & Print
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickCashSettle(order, true)}
+                                disabled={settlingId === order.id}
+                                style={{
+                                  height: 38,
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  gap: 5,
+                                  padding: '0 13px',
+                                  borderRadius: 8,
+                                  background: '#10b981',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
+                                }}
+                                title="Quick Cash Settle & Print Receipt"
+                              >
+                                <Zap size={13} fill="#fff" /> Quick Cash
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickCashSettle(order, false)}
+                                disabled={settlingId === order.id}
+                                style={{
+                                  height: 38,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  gap: 4,
+                                  padding: '0 9px',
+                                  borderRadius: 8,
+                                  background: 'rgba(255, 255, 255, 0.08)',
+                                  border: '1px solid rgba(255, 255, 255, 0.18)',
+                                  color: '#cbd5e1',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer'
+                                }}
+                                title="Settle without printing receipt"
+                              >
+                                No Print
+                              </button>
+                            </>
+                          )}
                         </>
                       ) : (
                         <button

@@ -170,7 +170,9 @@ export default function POS() {
       setActiveSeat: state.setActiveSeat,
       setItemSeat: state.setItemSeat,
       settleSubCheck: state.settleSubCheck,
-      settledChecks: state.settledChecks
+      settledChecks: state.settledChecks,
+      billPrinted: state.billPrinted,
+      markBillPrinted: state.markBillPrinted
     }))
   );
 
@@ -1104,7 +1106,7 @@ export default function POS() {
     }
   };
 
-  const handlePrintPreBill = () => {
+  const handlePrintPreBill = async () => {
     if (!items.length) return;
     const printOrder = {
       id: editingOrderId || 'PRE-BILL',
@@ -1129,6 +1131,9 @@ export default function POS() {
       staffName: staffDoc?.name || 'Cashier',
       isManual: true
     });
+    if (editingOrderId) {
+      await markBillPrinted(restaurant.id, editingOrderId, staffDoc?.name || 'Cashier');
+    }
     toast.success(`Guest check printed for Table ${tableName || ''}!`);
   };
 
@@ -1169,12 +1174,16 @@ export default function POS() {
     ), { duration: 6000 });
   };
 
-  const handlePaymentConfirm = async () => {
+  const handlePaymentConfirm = async (options = {}) => {
     // Instant-close modal for 0ms cashier latency
     setShowPayment(false);
     const toastId = toast.loading('Completing payment & placing order...', { duration: 4000 });
 
     try {
+      // Check if pre-bill was already printed before submitOrder clears cart
+      const wasBillAlreadyPrinted = Boolean(useOrderStore.getState().billPrinted);
+      const shouldPrintReceipt = options?.shouldPrintReceipt ?? (!wasBillAlreadyPrinted);
+
       // If QSR mode — issue token (if not already set)
       let token = modes.includes('token') ? tokenNumber : null;
       if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
@@ -1237,13 +1246,15 @@ export default function POS() {
 
       // Print tickets in background without blocking POS interface
       setTimeout(() => {
-        printReceipt({
-          restaurant,
-          order: printOrder,
-          items: snapItems,
-          taxInfo: snapTaxInfo,
-          staffName: snapStaffName,
-        });
+        if (shouldPrintReceipt) {
+          printReceipt({
+            restaurant,
+            order: printOrder,
+            items: snapItems,
+            taxInfo: snapTaxInfo,
+            staffName: snapStaffName,
+          });
+        }
 
         const shouldPrintKot = snapOrderType === 'dine-in'
           ? (kitchenConfig?.autoPrintOnDineIn !== false)

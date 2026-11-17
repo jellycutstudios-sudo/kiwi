@@ -62,6 +62,7 @@ export default function TableMap() {
   const setTable = useOrderStore(s => s.setTable);
   const setOrderType = useOrderStore(s => s.setOrderType);
   const activeOrders = useOrderStore(s => s.activeOrders);
+  const markBillPrinted = useOrderStore(s => s.markBillPrinted);
 
   const isFloorStaff = ['waiter', 'server', 'runner', 'captain'].includes(staffDoc?.role);
   const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -884,25 +885,27 @@ export default function TableMap() {
       setSelected(null);
       toast.success(`Settled via ${method.toUpperCase()} ✓ Table freed`);
 
-      // Print final settled receipt / tax invoice automatically upon payment collection
-      setTimeout(() => {
-        try {
-          printReceipt({
-            restaurant,
-            order: orderSnapshot,
-            items: orderSnapshot.items || [],
-            taxInfo: orderSnapshot.taxInfo,
-            staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
-          });
-        } catch (printErr) {
-          console.warn('[TableMap] Receipt print failed on settle:', printErr);
-        }
-      }, 100);
+      // Print final settled receipt automatically upon payment collection ONLY if bill wasn't already printed
+      if (!selectedOrder.billPrinted) {
+        setTimeout(() => {
+          try {
+            printReceipt({
+              restaurant,
+              order: orderSnapshot,
+              items: orderSnapshot.items || [],
+              taxInfo: orderSnapshot.taxInfo,
+              staffName: orderSnapshot.staffName || staffDoc?.name || 'Cashier'
+            });
+          } catch (printErr) {
+            console.warn('[TableMap] Receipt print failed on settle:', printErr);
+          }
+        }, 100);
+      }
     } catch (err) { toast.error('Settle failed: ' + err.message); }
     finally { setIsSettling(false); }
   };
 
-  const handlePrintBill = () => {
+  const handlePrintBill = async () => {
     if (!selectedOrder) return;
     printReceipt({
       restaurant,
@@ -912,6 +915,7 @@ export default function TableMap() {
       staffName: selectedOrder.staffName || staffDoc?.name || (isFloorStaff ? 'Waiter' : 'Cashier'),
       isManual: true
     });
+    await markBillPrinted(restaurant.id, selectedOrder.id, selectedOrder.staffName || staffDoc?.name || (isFloorStaff ? 'Waiter' : 'Cashier'));
     toast.success(isFloorStaff ? `Pre-bill printed for Table ${selectedTable?.name || ''}!` : 'Bill sent to printer!');
   };
 
@@ -2039,12 +2043,14 @@ export default function TableMap() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: 8,
-                        border: '1px solid var(--color-separator-opaque)'
+                        border: selOrder?.billPrinted ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--color-separator-opaque)',
+                        color: selOrder?.billPrinted ? '#34d399' : undefined,
+                        background: selOrder?.billPrinted ? 'rgba(16, 185, 129, 0.12)' : undefined
                       }}
                       onClick={handlePrintBill}
-                      title={isFloorStaff ? 'Print pre-bill estimate for table' : 'Print customer receipt bill'}
+                      title={selOrder?.billPrinted ? 'Bill already printed. Tap to reprint.' : (isFloorStaff ? 'Print pre-bill estimate for table' : 'Print customer receipt bill')}
                     >
-                      <Printer size={16} /> {isFloorStaff ? 'Print Pre-Bill' : 'Print Bill'}
+                      <Printer size={16} /> {selOrder?.billPrinted ? '✓ Bill Printed' : (isFloorStaff ? 'Print Pre-Bill' : 'Print Bill')}
                     </button>
                   </div>
 
@@ -2302,11 +2308,23 @@ export default function TableMap() {
                             <button
                               type="button"
                               className="btn btn-primary btn-sm"
-                              style={{ height: 32, padding: '0 12px', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+                              style={{
+                                height: 32,
+                                padding: '0 12px',
+                                fontWeight: 700,
+                                fontSize: 12,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                flexShrink: 0,
+                                background: selOrder?.billPrinted ? 'rgba(16, 185, 129, 0.2)' : undefined,
+                                border: selOrder?.billPrinted ? '1px solid rgba(16, 185, 129, 0.5)' : undefined,
+                                color: selOrder?.billPrinted ? '#34d399' : undefined
+                              }}
                               onClick={handlePrintBill}
-                              title="Print pre-bill receipt for guest"
+                              title={selOrder?.billPrinted ? 'Pre-bill already printed. Tap to reprint.' : 'Print pre-bill receipt for guest'}
                             >
-                              <Printer size={13} /> Pre-Bill
+                              <Printer size={13} /> {selOrder?.billPrinted ? '✓ Pre-Bill' : 'Pre-Bill'}
                             </button>
                           </div>
                         ) : (

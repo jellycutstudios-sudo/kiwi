@@ -52,7 +52,8 @@ const savePersistedCart = (state) => {
       discount: state.discount,
       discountType: state.discountType,
       tipAmount: state.tipAmount,
-      editingOrderId: state.editingOrderId
+      editingOrderId: state.editingOrderId,
+      billPrinted: Boolean(state.billPrinted)
     };
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartSnapshot));
   } catch {}
@@ -82,6 +83,7 @@ export const useOrderStore = create((set, get) => ({
   customer: null,
   redeemingPoints: false,
   editingOrderId: initialCart?.editingOrderId || null,
+  billPrinted: Boolean(initialCart?.billPrinted),
   assignedWaiterId: null,
   assignedWaiterName: null,
 
@@ -198,6 +200,7 @@ export const useOrderStore = create((set, get) => ({
       note: order.note || '',
       paymentMethod: order.paymentMethod || 'cash',
       editingOrderId: order.id,
+      billPrinted: Boolean(order.billPrinted),
       discount: Number(order.discount) || 0,
       discountType: order.discountType ?? 'fixed',
       splitPayments: order.splitPayments ?? [],
@@ -213,7 +216,7 @@ export const useOrderStore = create((set, get) => ({
     clearPersistedCart();
     set({
       items: [], activeSeat: null, settledChecks: [], orderType: 'dine-in', tokenNumber: null, tableId: null, tableName: null,
-      customerName: '', customerPhone: '', note: '', editingOrderId: null,
+      customerName: '', customerPhone: '', note: '', editingOrderId: null, billPrinted: false,
       discount: 0, discountType: 'fixed', splitPayments: [],
       customer: null, redeemingPoints: false,
       tipAmount: 0, upiRef: '', terminalTx: null,
@@ -1507,6 +1510,40 @@ export const useOrderStore = create((set, get) => ({
       try {
         localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
       } catch {}
+    }
+  },
+
+  markBillPrinted: async (restaurantId, orderId, printedBy = null) => {
+    if (!orderId) return;
+    const nowIso = new Date().toISOString();
+    const patch = {
+      billPrinted: true,
+      billPrintedAt: nowIso,
+      billPrintedBy: printedBy || 'Staff'
+    };
+
+    // 1. Optimistic in-memory update & broadcast across tabs (0ms latency)
+    get().patchActiveOrder(orderId, patch);
+
+    // If currently editing this order in POS cart, update local cart flag too
+    if (get().editingOrderId === orderId) {
+      set({ billPrinted: true });
+    }
+
+    // 2. Persist to Firestore in background without blocking POS interface
+    try {
+      if (restaurantId && typeof navigator !== 'undefined' && navigator.onLine) {
+        useAuthStore.getState().ensureAnonymousAuth()
+          .then(() => {
+            updateDoc(doc(db, 'restaurants', restaurantId, 'orders', orderId), {
+              ...patch,
+              updatedAt: serverTimestamp()
+            }).catch(e => console.warn('[useOrderStore] markBillPrinted cloud sync deferred:', e?.message));
+          })
+          .catch(e => console.warn('[useOrderStore] markBillPrinted auth deferred:', e?.message));
+      }
+    } catch (e) {
+      console.warn('[useOrderStore] markBillPrinted cloud sync deferred:', e?.message);
     }
   },
 
