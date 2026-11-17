@@ -444,6 +444,7 @@ export default function ActiveOrdersModal({
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 10,
+                    overflow: 'hidden',
                     boxShadow: isOnlinePending ? '0 4px 18px rgba(168, 85, 247, 0.28)' : (isReady ? '0 4px 18px rgba(16, 185, 129, 0.22)' : '0 4px 14px rgba(0, 0, 0, 0.4)'),
                     transition: 'all 0.15s ease',
                   }}
@@ -492,18 +493,18 @@ export default function ActiveOrdersModal({
                         )}
                         {order.billPrinted && isUnpaid && (
                           <span style={{
-                            background: 'rgba(56, 189, 248, 0.15)',
+                            background: 'rgba(56, 189, 248, 0.12)',
                             color: '#38bdf8',
-                            border: '1px solid rgba(56, 189, 248, 0.45)',
+                            border: '1px solid rgba(56, 189, 248, 0.3)',
                             padding: '2px 7px',
                             borderRadius: 6,
                             fontSize: 10.5,
-                            fontWeight: 800,
+                            fontWeight: 700,
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: 3.5
                           }} title={order.billPrintedAt ? `Bill printed at ${new Date(order.billPrintedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bill has been printed'}>
-                            <Printer size={10.5} /> BILL GIVEN
+                            <Printer size={10} /> Bill Printed
                           </span>
                         )}
                         {!isUnpaid && (
@@ -606,7 +607,7 @@ export default function ActiveOrdersModal({
                     )}
                   </div>
 
-                  {/* Action Buttons: 1 Single Clean Row (Zero wrapping!) */}
+                  {/* Action Buttons: 1 Single Clean Row (Zero wrapping, perfectly balanced) */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -615,216 +616,171 @@ export default function ActiveOrdersModal({
                     paddingTop: 8,
                     borderTop: '1px solid rgba(255, 255, 255, 0.08)'
                   }}>
-                    {/* Left: Tools */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      {onLoadOrderToCart && (
+                    {/* Left: Tools (Edit + Bill) */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        {onLoadOrderToCart && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onLoadOrderToCart(order);
+                              onClose();
+                              toast.success(`Loaded ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'order')} into cart`);
+                            }}
+                            style={{
+                              height: 36,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              gap: 4.5,
+                              padding: '0 9px',
+                              borderRadius: 8,
+                              background: 'rgba(255, 255, 255, 0.07)',
+                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              color: '#e2e8f0',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              cursor: 'pointer'
+                            }}
+                            title="Edit order in cart"
+                          >
+                            <Edit2 size={12} /> Edit
+                          </button>
+                        )}
+
                         <button
                           type="button"
-                          onClick={() => {
-                            onLoadOrderToCart(order);
-                            onClose();
-                            toast.success(`Loaded ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'order')} into cart`);
-                          }}
+                          onClick={() => handlePrint(order)}
                           style={{
-                            height: 38,
-                            fontSize: 12.5,
+                            height: 36,
+                            fontSize: 12,
                             fontWeight: 700,
-                            gap: 5,
-                            padding: '0 10px',
+                            gap: 4.5,
+                            padding: '0 9px',
                             borderRadius: 8,
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.18)',
-                            color: '#ffffff',
+                            background: order.billPrinted ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.07)',
+                            border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.15)',
+                            color: order.billPrinted ? '#38bdf8' : '#e2e8f0',
                             display: 'inline-flex',
                             alignItems: 'center',
                             cursor: 'pointer'
                           }}
-                          title="Edit order in cart"
+                          title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
                         >
-                          <Edit2 size={13} /> Edit
+                          <Printer size={12} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
                         </button>
-                      )}
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handlePrint(order)}
-                        style={{
-                          height: 38,
-                          fontSize: 12.5,
-                          fontWeight: 700,
-                          gap: 5,
-                          padding: '0 10px',
-                          borderRadius: 8,
-                          background: order.billPrinted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-                          border: order.billPrinted ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(255, 255, 255, 0.18)',
-                          color: order.billPrinted ? '#34d399' : '#ffffff',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          cursor: 'pointer'
-                        }}
-                        title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
-                      >
-                        {order.billPrinted ? <Check size={13} strokeWidth={2.5} /> : <Printer size={13} />}
-                        {order.billPrinted ? 'Bill Printed' : 'Bill'}
-                      </button>
-                    </div>
-
-                    {/* Right: Settlement */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-                      {isUnpaid ? (
-                        <>
-                          {onOpenPayment && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onLoadOrderToCart(order);
-                                onClose();
-                                onOpenPayment();
-                              }}
-                              style={{
-                                height: 38,
-                                fontSize: 12.5,
-                                fontWeight: 700,
-                                gap: 5,
-                                padding: '0 11px',
-                                borderRadius: 8,
-                                background: 'rgba(56, 189, 248, 0.12)',
-                                border: '1.5px solid rgba(56, 189, 248, 0.4)',
-                                color: '#38bdf8',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                cursor: 'pointer'
-                              }}
-                              title="Card / UPI / Split Payment"
-                            >
-                              <CreditCard size={13} /> Card / UPI
-                            </button>
-                          )}
-                          {order.billPrinted ? (
-                            <>
+                      {/* Right: Settlement (Card / UPI + Unified Quick Cash Split Pill) */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        {isUnpaid ? (
+                          <>
+                            {onOpenPayment && (
                               <button
                                 type="button"
-                                onClick={() => handleQuickCashSettle(order, false)}
+                                onClick={() => {
+                                  onLoadOrderToCart(order);
+                                  onClose();
+                                  onOpenPayment();
+                                }}
+                                style={{
+                                  height: 36,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  gap: 4.5,
+                                  padding: '0 9px',
+                                  borderRadius: 8,
+                                  background: 'rgba(56, 189, 248, 0.1)',
+                                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                                  color: '#38bdf8',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer'
+                                }}
+                                title="Card / UPI / Split Payment"
+                              >
+                                <CreditCard size={12} /> Card / UPI
+                              </button>
+                            )}
+
+                            {/* Unified Split Quick Cash Pill: Left side skips duplicate print if bill given; Right side forces print */}
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'stretch',
+                              borderRadius: 8,
+                              overflow: 'hidden',
+                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                            }}>
+                              <button
+                                type="button"
+                                aria-label="Quick Cash"
+                                onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
                                 disabled={settlingId === order.id}
                                 style={{
-                                  height: 38,
+                                  height: 36,
                                   fontSize: 12.5,
                                   fontWeight: 800,
-                                  gap: 5,
-                                  padding: '0 12px',
-                                  borderRadius: 8,
+                                  gap: 4,
+                                  padding: '0 10px',
                                   background: '#10b981',
                                   border: 'none',
                                   color: '#ffffff',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
-                                }}
-                                title="Collect cash & close order (No duplicate print — customer already has bill)"
-                              >
-                                <Zap size={13} fill="#fff" /> Settle (No Print)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickCashSettle(order, true)}
-                                disabled={settlingId === order.id}
-                                style={{
-                                  height: 38,
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  gap: 4,
-                                  padding: '0 9px',
-                                  borderRadius: 8,
-                                  background: 'rgba(16, 185, 129, 0.12)',
-                                  border: '1.5px solid rgba(16, 185, 129, 0.4)',
-                                  color: '#34d399',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
                                   cursor: 'pointer'
                                 }}
-                                title="Collect cash AND print paid tax receipt"
+                                title={order.billPrinted ? "Quick Cash (Bill already given — duplicate print skipped)" : "Quick Cash Settle & Print Receipt"}
                               >
-                                <Printer size={12} /> & Print
+                                <Zap size={12} fill="#fff" /> Quick Cash
                               </button>
-                            </>
-                          ) : (
-                            <>
                               <button
                                 type="button"
+                                aria-label="Print Receipt & Settle"
                                 onClick={() => handleQuickCashSettle(order, true)}
                                 disabled={settlingId === order.id}
                                 style={{
-                                  height: 38,
-                                  fontSize: 13,
-                                  fontWeight: 800,
-                                  gap: 5,
-                                  padding: '0 13px',
-                                  borderRadius: 8,
-                                  background: '#10b981',
+                                  height: 36,
+                                  padding: '0 8px',
+                                  background: '#059669',
                                   border: 'none',
+                                  borderLeft: '1px solid rgba(255, 255, 255, 0.25)',
                                   color: '#ffffff',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
-                                }}
-                                title="Quick Cash Settle & Print Receipt"
-                              >
-                                <Zap size={13} fill="#fff" /> Quick Cash
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickCashSettle(order, false)}
-                                disabled={settlingId === order.id}
-                                style={{
-                                  height: 38,
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  gap: 4,
-                                  padding: '0 9px',
-                                  borderRadius: 8,
-                                  background: 'rgba(255, 255, 255, 0.08)',
-                                  border: '1px solid rgba(255, 255, 255, 0.18)',
-                                  color: '#cbd5e1',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
+                                  justifyContent: 'center',
                                   cursor: 'pointer'
                                 }}
-                                title="Settle without printing receipt"
+                                title="Print receipt and settle"
                               >
-                                No Print
+                                <Printer size={12} />
                               </button>
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkComplete(order)}
-                          style={{
-                            height: 38,
-                            fontSize: 13,
-                            fontWeight: 800,
-                            gap: 5,
-                            padding: '0 16px',
-                            borderRadius: 8,
-                            background: 'var(--color-primary, #3b82f6)',
-                            border: 'none',
-                            color: '#ffffff',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            cursor: 'pointer'
-                          }}
-                          title="Complete order"
-                        >
-                          <Check size={14} strokeWidth={2.5} /> Complete
-                        </button>
-                      )}
+                            </div>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkComplete(order)}
+                            style={{
+                              height: 36,
+                              fontSize: 12.5,
+                              fontWeight: 800,
+                              gap: 5,
+                              padding: '0 14px',
+                              borderRadius: 8,
+                              background: 'var(--color-primary, #3b82f6)',
+                              border: 'none',
+                              color: '#ffffff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              cursor: 'pointer'
+                            }}
+                            title="Complete order"
+                          >
+                            <Check size={13} strokeWidth={2.5} /> Complete
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
+                );
             })
           )}
         </div>

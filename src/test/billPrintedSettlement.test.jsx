@@ -51,7 +51,7 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
     expect(typeof updated.billPrintedAt).toBe('string');
   });
 
-  it('displays BILL GIVEN badge and Settle (No Print) when bill was already printed', () => {
+  it('displays minimal Bill Printed badge and Bill ✓ when bill was already printed', () => {
     const printedOrder = {
       id: 'order_printed',
       tableName: 'Table 5',
@@ -78,20 +78,18 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
       />
     );
 
-    // Header badge
-    expect(screen.getByText(/BILL GIVEN/i)).toBeInTheDocument();
-
-    // Bill button state
+    // Subtle header badge
     expect(screen.getByText(/Bill Printed/i)).toBeInTheDocument();
 
-    // Settle without print button
-    expect(screen.getByRole('button', { name: /Settle \(No Print\)/i })).toBeInTheDocument();
+    // Compact bill button state
+    expect(screen.getByText(/Bill ✓/i)).toBeInTheDocument();
 
-    // Optional & Print button
-    expect(screen.getByRole('button', { name: /& Print/i })).toBeInTheDocument();
+    // Unified Quick Cash pill button
+    expect(screen.getByRole('button', { name: /^Quick Cash$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Print Receipt & Settle/i })).toBeInTheDocument();
   });
 
-  it('settles order without invoking printReceipt when Settle (No Print) is tapped', async () => {
+  it('settles order without duplicate print when Quick Cash is tapped on an already-printed bill', async () => {
     const settleOrderMock = vi.fn().mockResolvedValue(true);
     useOrderStore.setState({
       settleOrder: settleOrderMock,
@@ -117,8 +115,8 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
       />
     );
 
-    const noPrintBtn = screen.getByRole('button', { name: /Settle \(No Print\)/i });
-    fireEvent.click(noPrintBtn);
+    const quickCashBtn = screen.getByRole('button', { name: /^Quick Cash$/i });
+    fireEvent.click(quickCashBtn);
 
     await waitFor(() => {
       expect(settleOrderMock).toHaveBeenCalledWith('rest_123', 'order_to_settle', 'cash', 650);
@@ -128,7 +126,7 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
     expect(printModule.printReceipt).not.toHaveBeenCalled();
   });
 
-  it('prints receipt when explicit & Print button is tapped on an already-printed bill', async () => {
+  it('forces receipt print when attached print icon on Quick Cash pill is tapped', async () => {
     const settleOrderMock = vi.fn().mockResolvedValue(true);
     useOrderStore.setState({
       settleOrder: settleOrderMock,
@@ -154,8 +152,8 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
       />
     );
 
-    const printSettleBtn = screen.getByRole('button', { name: /& Print/i });
-    fireEvent.click(printSettleBtn);
+    const forcePrintBtn = screen.getByRole('button', { name: /Print Receipt & Settle/i });
+    fireEvent.click(forcePrintBtn);
 
     await waitFor(() => {
       expect(settleOrderMock).toHaveBeenCalledWith('rest_123', 'order_explicit_print', 'cash', 900);
@@ -166,7 +164,8 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
     });
   });
 
-  it('shows Quick Cash button when bill was NOT previously printed', () => {
+  it('prints receipt when Quick Cash is tapped on an unprinted counter order', async () => {
+    const settleOrderMock = vi.fn().mockResolvedValue(true);
     const unprintedOrder = {
       id: 'order_fresh',
       tableName: 'Table 1',
@@ -179,6 +178,7 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
     };
 
     useOrderStore.setState({
+      settleOrder: settleOrderMock,
       activeOrders: [unprintedOrder]
     });
 
@@ -192,7 +192,15 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
       />
     );
 
-    expect(screen.queryByText(/BILL GIVEN/i)).toBeNull();
-    expect(screen.getByRole('button', { name: /Quick Cash/i })).toBeInTheDocument();
+    const quickCashBtn = screen.getByRole('button', { name: /^Quick Cash$/i });
+    fireEvent.click(quickCashBtn);
+
+    await waitFor(() => {
+      expect(settleOrderMock).toHaveBeenCalledWith('rest_123', 'order_fresh', 'cash', 350);
+    });
+
+    await waitFor(() => {
+      expect(printModule.printReceipt).toHaveBeenCalled();
+    });
   });
 });
