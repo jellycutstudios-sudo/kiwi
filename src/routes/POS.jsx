@@ -3267,7 +3267,7 @@ export default function POS() {
           item={activeModifierItem}
           currency={currency}
           onClose={() => setActiveModifierItem(null)}
-          onConfirm={(selectedModifiers, flatPrice) => {
+          onConfirm={(selectedModifiers, flatPrice, qty = 1) => {
             // flatPrice is set by VariantMatrixPicker — it IS the total price (no base added)
             const isVariant = flatPrice !== undefined && flatPrice !== null;
             const modifierTotal = isVariant
@@ -3277,6 +3277,7 @@ export default function POS() {
               ? flatPrice
               : (activeModifierItem.price + modifierTotal);
             const customId = activeModifierItem.id + '-' + selectedModifiers.map(m => m.id).sort().join('-');
+            const itemQty = Math.max(1, parseInt(qty, 10) || 1);
             const cartItem = {
               ...activeModifierItem,
               id: customId,
@@ -3284,7 +3285,8 @@ export default function POS() {
               name: activeModifierItem.name,
               selectedModifiers,
               modifierTotal: isVariant ? flatPrice : modifierTotal,
-              price: unitPrice
+              price: unitPrice,
+              qty: itemQty
             };
             addItem(cartItem);
             setActiveModifierItem(null);

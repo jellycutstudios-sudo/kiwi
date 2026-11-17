@@ -120,20 +120,21 @@ export const useOrderStore = create((set, get) => ({
       JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? []) &&
       (i.seatNumber ?? null) === (itemSeat ?? null)
     );
+    const addedQty = Math.max(1, parseInt(item.qty, 10) || 1);
     if (existing) {
       set({ 
         items: items.map(i => 
           (i.id === item.id && 
            JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? []) &&
            (i.seatNumber ?? null) === (itemSeat ?? null)) 
-            ? { ...i, qty: i.qty + 1 } 
+            ? { ...i, qty: i.qty + addedQty } 
             : i
         ) 
       });
     } else {
       set({ items: [...items, { 
         ...item, 
-        qty: 1, 
+        qty: addedQty, 
         course: item.course ?? 'Mains', 
         prepState: item.prepState ?? 'fired',
         seatNumber: itemSeat

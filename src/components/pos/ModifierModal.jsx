@@ -1,8 +1,164 @@
 import { useState, useRef } from 'react';
-import { X, Check, ChevronRight } from 'lucide-react';
+import { X, Check, ChevronRight, Plus, Minus } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { getItemVisuals } from '../../utils/itemVisuals';
+
+/* ─────────────────────────────────────────────────────────────
+   QUANTITY SELECTOR BAR (Stepper + Direct Input + Quick Chips)
+────────────────────────────────────────────────────────────── */
+function QuantityBar({ qty, setQty }) {
+  const quickPresets = [1, 2, 3, 4, 5];
+
+  const handleDec = () => {
+    setQty(prev => Math.max(1, (parseInt(prev, 10) || 1) - 1));
+  };
+
+  const handleInc = () => {
+    setQty(prev => Math.min(999, (parseInt(prev, 10) || 1) + 1));
+  };
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    if (val === '') {
+      setQty('');
+      return;
+    }
+    const clean = val.replace(/[^0-9]/g, '');
+    if (clean === '') {
+      setQty('');
+      return;
+    }
+    const parsed = parseInt(clean, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      setQty(Math.min(999, parsed));
+    }
+  };
+
+  const handleBlur = () => {
+    const parsed = parseInt(qty, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      setQty(1);
+    }
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '10px 14px',
+      background: 'var(--color-bg-secondary)',
+      border: '1px solid var(--color-separator)',
+      borderRadius: '12px',
+      gap: 12,
+      flexWrap: 'wrap'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+          Quantity
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-icon"
+            onClick={handleDec}
+            disabled={Number(qty) <= 1}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              fontSize: 18,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0
+            }}
+            title="Decrease quantity"
+            aria-label="Decrease quantity"
+          >
+            <Minus size={15} strokeWidth={2.5} />
+          </button>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={qty}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            onFocus={e => e.target.select()}
+            style={{
+              width: 52,
+              height: 36,
+              textAlign: 'center',
+              fontSize: 16,
+              fontWeight: 800,
+              borderRadius: 8,
+              border: '1.5px solid var(--color-separator)',
+              background: 'var(--color-bg)',
+              color: 'var(--color-label)',
+              outline: 'none',
+              padding: 0
+            }}
+            aria-label="Quantity"
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-icon"
+            onClick={handleInc}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              fontSize: 18,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0
+            }}
+            title="Increase quantity"
+            aria-label="Increase quantity"
+          >
+            <Plus size={15} strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Quantity Chips */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {quickPresets.map(n => {
+          const isSelected = Number(qty) === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setQty(n)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                fontSize: 12.5,
+                fontWeight: isSelected ? 800 : 600,
+                border: isSelected ? '1.5px solid var(--color-accent)' : '1px solid var(--color-separator)',
+                background: isSelected ? 'var(--color-accent-light, rgba(56, 189, 248, 0.15))' : 'var(--color-bg)',
+                color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s'
+              }}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* ─────────────────────────────────────────────────────────────
    VARIANT MATRIX MODE
@@ -66,10 +222,15 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
 
   const [selectedStyle,   setSelectedStyle]   = useState(styles[0]   ?? null);
   const [selectedPortion, setSelectedPortion] = useState(null);
+  const [qty, setQty] = useState(1);
+
+  const effectiveQty = Math.max(1, parseInt(qty, 10) || 1);
 
   const currentPrice = (selectedStyle && selectedPortion)
     ? (prices[`${selectedStyle}|${selectedPortion}`] ?? 0)
     : null;
+
+  const totalPrice = currentPrice !== null ? currentPrice * effectiveQty : null;
 
   const canConfirm = selectedStyle && selectedPortion && currentPrice !== null;
 
@@ -96,7 +257,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
         isVariantAxis: true,
       }
     ];
-    onConfirm(mods, currentPrice);
+    onConfirm(mods, currentPrice, effectiveQty);
   };
 
   return (
@@ -134,7 +295,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                 {item.name}
               </h2>
               <div style={{ fontSize: 13, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
-                Pick style then portion — 1 item
+                {effectiveQty > 1 ? `Pick style then portion — ${effectiveQty} items` : 'Pick style then portion — 1 item'}
               </div>
             </div>
           </div>
@@ -209,14 +370,22 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             </div>
           </div>
 
+          {/* Quantity Selector */}
+          <QuantityBar qty={qty} setQty={setQty} />
+
           {/* Summary pill */}
           {canConfirm && (
             <div className="vm-summary">
               <span className="vm-summary-combo">
                 {selectedStyle} · {selectedPortion}
               </span>
+              {effectiveQty > 1 && (
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)' }}>
+                  × {effectiveQty}
+                </span>
+              )}
               <ChevronRight size={14} style={{ color: 'var(--color-label-tertiary)' }} />
-              <span className="vm-summary-price">{formatCurrency(currentPrice, currency)}</span>
+              <span className="vm-summary-price">{formatCurrency(totalPrice, currency)}</span>
             </div>
           )}
         </div>
@@ -236,7 +405,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
           >
             {canConfirm
-              ? `Add to Cart · ${formatCurrency(currentPrice, currency)}`
+              ? `Add ${effectiveQty > 1 ? `${effectiveQty} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
               : 'Select style & portion'}
           </button>
         </div>
@@ -265,16 +434,19 @@ function getInitialSelections(item) {
 function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   const [prevItem, setPrevItem] = useState(item);
   const [selections, setSelections] = useState(() => getInitialSelections(item));
+  const [qty, setQty] = useState(1);
   const modalRef = useRef(null);
   useFocusTrap(modalRef, !!item);
 
   if (item !== prevItem) {
     setPrevItem(item);
     setSelections(getInitialSelections(item));
+    setQty(1);
   }
 
   if (!item) return null;
 
+  const effectiveQty = Math.max(1, parseInt(qty, 10) || 1);
   const modifierGroups = item.modifierGroups ?? [];
 
   const handleSelect = (group, option) => {
@@ -303,6 +475,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   const modifierTotal = Object.values(selections).reduce((sum, opts) =>
     sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0), 0), 0);
   const totalUnitPrice = basePrice + modifierTotal;
+  const totalPrice = totalUnitPrice * effectiveQty;
 
   const isGroupSatisfied = (group) => {
     if (!group.required) return true;
@@ -325,7 +498,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
         });
       });
     });
-    onConfirm(flatModifiers);
+    onConfirm(flatModifiers, null, effectiveQty);
   };
 
   return (
@@ -372,7 +545,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {modifierGroups.map(group => {
             const groupSelections = selections[group.id] ?? [];
             const satisfied = isGroupSatisfied(group);
@@ -453,6 +626,9 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
               </div>
             );
           })}
+
+          {/* Quantity Selector */}
+          <QuantityBar qty={qty} setQty={setQty} />
         </div>
 
         <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
@@ -469,7 +645,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
             disabled={!isValid}
             style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
           >
-            Add to Cart · {formatCurrency(totalUnitPrice, currency)}
+            Add {effectiveQty > 1 ? `${effectiveQty} ` : ''}to Cart · {formatCurrency(totalPrice, currency)}
           </button>
         </div>
       </div>
@@ -492,9 +668,9 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
         matrix={effectiveMatrix}
         currency={currency}
         onClose={onClose}
-        onConfirm={(mods, flatPrice) => {
+        onConfirm={(mods, flatPrice, qty = 1) => {
           // For variant matrix: price IS the flat price, no base
-          onConfirm(mods, flatPrice);
+          onConfirm(mods, flatPrice, qty);
         }}
       />
     );
@@ -504,7 +680,9 @@ export default function ModifierModal({ item, currency, onConfirm, onClose }) {
     <ClassicModifierPicker
       item={item}
       currency={currency}
-      onConfirm={onConfirm}
+      onConfirm={(mods, flatPrice, qty = 1) => {
+        onConfirm(mods, flatPrice, qty);
+      }}
       onClose={onClose}
     />
   );

@@ -257,8 +257,9 @@ export default function OnlineOrderPage() {
     textAlign: 'center',
   };
 
-  const addToCart = (item, selectedModifiers = [], flatPrice = null) => {
+  const addToCart = (item, selectedModifiers = [], flatPrice = null, qty = 1) => {
     triggerHapticSuccess();
+    const addedQty = Math.max(1, parseInt(qty, 10) || 1);
     setCart(c => {
       const isVariant = flatPrice !== null && flatPrice !== undefined;
       const modifierTotal = isVariant ? 0 : selectedModifiers.reduce((sum, m) => sum + m.priceAdd, 0);
@@ -269,7 +270,7 @@ export default function OnlineOrderPage() {
 
       const ex = c.find(i => i.id === customId);
       if (ex) {
-        return c.map(i => i.id === customId ? { ...i, qty: i.qty + 1 } : i);
+        return c.map(i => i.id === customId ? { ...i, qty: i.qty + addedQty } : i);
       } else {
         return [...c, {
           ...item,
@@ -278,7 +279,7 @@ export default function OnlineOrderPage() {
           selectedModifiers,
           modifierTotal: isVariant ? flatPrice : modifierTotal,
           price: unitPrice,
-          qty: 1
+          qty: addedQty
         }];
       }
     });
@@ -2132,8 +2133,8 @@ export default function OnlineOrderPage() {
           item={activeModifierItem}
           currency={currency}
           onClose={() => setActiveModifierItem(null)}
-          onConfirm={(selectedModifiers, flatPrice) => {
-            addToCart(activeModifierItem, selectedModifiers, flatPrice ?? null);
+          onConfirm={(selectedModifiers, flatPrice, qty = 1) => {
+            addToCart(activeModifierItem, selectedModifiers, flatPrice ?? null, qty);
             setActiveModifierItem(null);
           }}
         />

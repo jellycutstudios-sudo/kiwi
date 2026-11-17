@@ -277,6 +277,101 @@ describe('Pillar 3: Mobile Waiter Handheld & Course Engine', () => {
     expect(cartItems[0].selectedModifiers.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('allows quantity adjustment via stepper, chips, and typing inside modifier modal', () => {
+    useOrderStore.getState().clearCart();
+
+    const itemWithModifiers = {
+      id: '8a049dac-dd7c-4ff8-9c00-b53f0f07a706',
+      name: 'Garlic chicken',
+      price: 360,
+      isVeg: false,
+      categoryId: 'cat_mains',
+      modifierGroups: [
+        {
+          id: 'grp_gravy',
+          name: 'Gravy',
+          required: true,
+          minSelect: 1,
+          maxSelect: 1,
+          options: [
+            { id: 'opt_qtr', name: 'Quarter', priceAdd: 250 },
+            { id: 'opt_half', name: 'Half', priceAdd: 350 },
+            { id: 'opt_full', name: 'Full', priceAdd: 750 }
+          ]
+        },
+        {
+          id: 'grp_paste',
+          name: 'Paste',
+          required: true,
+          minSelect: 1,
+          maxSelect: 1,
+          options: [
+            { id: 'opt_paste_qtr', name: 'Quarter', priceAdd: 270 },
+            { id: 'opt_paste_half', name: 'Half', priceAdd: 340 },
+            { id: 'opt_paste_full', name: 'Full', priceAdd: 780 }
+          ]
+        }
+      ]
+    };
+
+    render(
+      <MobileWaiterHandheld
+        restaurant={mockRestaurant}
+        currency="INR"
+        menuItems={[...sampleMenuItems, itemWithModifiers]}
+        categories={sampleCategories}
+        staffName="Alex"
+        onCloseHandheld={vi.fn()}
+        onSendToKitchen={vi.fn()}
+        onPrintPreBill={vi.fn()}
+        onOpenSplitModal={vi.fn()}
+        onOpenPayment={vi.fn()}
+      />
+    );
+
+    // Tap on Garlic chicken card to open ModifierModal
+    fireEvent.click(screen.getByText('Garlic chicken'));
+
+    // Select Style: Gravy and Portion: Full (₹750.00)
+    fireEvent.click(screen.getByText('Gravy'));
+    fireEvent.click(screen.getByText('Full'));
+
+    // Check stepper buttons and quantity chips exist
+    const decBtn = screen.getByRole('button', { name: /Decrease quantity/i });
+    const incBtn = screen.getByRole('button', { name: /Increase quantity/i });
+    const qtyInput = screen.getByLabelText('Quantity');
+    expect(decBtn).toBeTruthy();
+    expect(incBtn).toBeTruthy();
+    expect(qtyInput).toBeTruthy();
+    expect(qtyInput.value).toBe('1');
+
+    // Tap '+' to increase quantity to 2
+    fireEvent.click(incBtn);
+    expect(qtyInput.value).toBe('2');
+    expect(screen.getByText('Pick style then portion — 2 items')).toBeTruthy();
+
+    // Confirm button updates to "Add 2 to Cart · ₹1,500.00"
+    const confirmBtn = screen.getByRole('button', { name: /Add 2 to Cart · ₹1,500.00/i });
+    expect(confirmBtn).toBeTruthy();
+
+    // Tap chip '3'
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    expect(qtyInput.value).toBe('3');
+
+    // Or type directly '2' into the input field
+    fireEvent.change(qtyInput, { target: { value: '2' } });
+    expect(qtyInput.value).toBe('2');
+
+    // Confirm and add to cart
+    fireEvent.click(confirmBtn);
+
+    const cartItems = useOrderStore.getState().items;
+    const added = cartItems.find(i => i.name === 'Garlic chicken');
+    expect(added).toBeTruthy();
+    expect(added.qty).toBe(2);
+    expect(added.price).toBe(750);
+  });
+
   it('allows waiter to switch dish language to Malayalam and view phonetic script', () => {
     const dishes = [
       { id: 'dish_gc', name: 'Garlic Chicken', price: 280, isVeg: false, categoryId: 'cat_mains' }

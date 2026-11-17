@@ -138,7 +138,7 @@ export default function MobileWaiterHandheld({
     itemNote: ''
   });
 
-  const handleConfirmModifier = (selectedModifiers, flatPrice) => {
+  const handleConfirmModifier = (selectedModifiers, flatPrice, qty = 1) => {
     if (!activeModifierItem) return;
     const isVariant = flatPrice !== undefined && flatPrice !== null;
     const modifierTotal = isVariant
@@ -148,6 +148,7 @@ export default function MobileWaiterHandheld({
       ? flatPrice
       : (activeModifierItem.price + modifierTotal);
     const customId = activeModifierItem.id + '-' + selectedModifiers.map(m => m.id).sort().join('-');
+    const itemQty = Math.max(1, parseInt(qty, 10) || 1);
     const cartItem = {
       ...activeModifierItem,
       id: customId,
@@ -155,7 +156,8 @@ export default function MobileWaiterHandheld({
       name: activeModifierItem.name,
       selectedModifiers,
       modifierTotal: isVariant ? flatPrice : modifierTotal,
-      price: unitPrice
+      price: unitPrice,
+      qty: itemQty
     };
     hapticTap('medium');
     addItem(cartItem);
