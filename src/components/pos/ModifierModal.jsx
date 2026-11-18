@@ -250,82 +250,104 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
   const prices  = matrix?.prices ?? {};
 
   const [selectedStyle, setSelectedStyle] = useState(styles[0] ?? null);
-  // Map of portionName -> quantity, e.g. { 'Full': 2, 'Half': 1 }
-  const [portionQuantities, setPortionQuantities] = useState({});
+  // Map of "style|portion" -> quantity, e.g. { 'Gravy|Quarter': 2, 'Paste|Full': 1 }
+  const [comboQuantities, setComboQuantities] = useState({});
   const [keypadTarget, setKeypadTarget] = useState(null);
 
-  // Active portion entries for current style
-  const activePortionEntries = Object.entries(portionQuantities).filter(
-    ([p, q]) => q > 0 && selectedStyle && prices[`${selectedStyle}|${p}`] !== undefined
-  );
+  // Ordered active entries across ALL styles (so switching style tabs preserves previous style selections)
+  const activeComboEntries = [];
+  styles.forEach(s => {
+    portions.forEach(p => {
+      const key = `${s}|${p}`;
+      if (Object.prototype.hasOwnProperty.call(comboQuantities, key) && prices[key] !== undefined) {
+        const raw = comboQuantities[key];
+        const q = Math.max(1, parseInt(raw, 10) || 1);
+        activeComboEntries.push({ style: s, portion: p, key, rawQty: raw, qty: q, price: prices[key] });
+      }
+    });
+  });
 
-  const totalItemCount = activePortionEntries.reduce((sum, [_, q]) => sum + q, 0);
-  const totalPrice = activePortionEntries.reduce((sum, [p, q]) => {
-    const pPrice = prices[`${selectedStyle}|${p}`] ?? 0;
-    return sum + (pPrice * q);
-  }, 0);
+  const getStyleCount = (s) =>
+    activeComboEntries.reduce((sum, e) => (e.style === s ? sum + e.qty : sum), 0);
 
-  const canConfirm = selectedStyle && totalItemCount > 0;
+  const selectedStyleSet = new Set(activeComboEntries.map(e => e.style));
+  const hasMultipleStyles = selectedStyleSet.size > 1;
+
+  const totalItemCount = activeComboEntries.reduce((sum, e) => sum + e.qty, 0);
+  const totalPrice = activeComboEntries.reduce((sum, e) => sum + (e.price * e.qty), 0);
+
+  const canConfirm = totalItemCount > 0;
   const styleColors = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4'];
 
-  // Single portion helper (if exactly 1 portion selected)
-  const singlePortion = activePortionEntries.length === 1 ? activePortionEntries[0][0] : null;
-  const singleQty = activePortionEntries.length === 1 ? activePortionEntries[0][1] : 1;
+  // Single combo helper (only show QuantityBar when exactly 1 combo is active AND matches current tab)
+  const singleCombo = activeComboEntries.length === 1 ? activeComboEntries[0] : null;
+  const showSingleQuantityBar = singleCombo && singleCombo.style === selectedStyle;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    if (activePortionEntries.length === 1) {
-      const [pName, q] = activePortionEntries[0];
-      const pPrice = prices[`${selectedStyle}|${pName}`] ?? 0;
+    if (activeComboEntries.length === 1) {
+      const entry = activeComboEntries[0];
       const mods = [
         {
           modifierGroupId: '__style__',
           modifierGroupName: matrix.styleLabel ?? 'Style',
-          id: `style-${selectedStyle}`,
-          name: selectedStyle,
+          id: `style-${entry.style}`,
+          name: entry.style,
           priceAdd: 0,
           isVariantAxis: true,
         },
         {
           modifierGroupId: '__portion__',
           modifierGroupName: matrix.portionLabel ?? 'Portion',
-          id: `portion-${pName}`,
-          name: pName,
-          priceAdd: pPrice,
+          id: `portion-${entry.portion}`,
+          name: entry.portion,
+          priceAdd: entry.price,
           isVariantAxis: true,
         }
       ];
-      onConfirm(mods, pPrice, q);
+      onConfirm(mods, entry.price, entry.qty);
     } else {
-      // Bulk multi-portion (e.g. 2 Full and 1 Half in one order)
-      const bulkItems = activePortionEntries.map(([pName, q]) => {
-        const pPrice = prices[`${selectedStyle}|${pName}`] ?? 0;
-        return {
-          selectedModifiers: [
-            {
-              modifierGroupId: '__style__',
-              modifierGroupName: matrix.styleLabel ?? 'Style',
-              id: `style-${selectedStyle}`,
-              name: selectedStyle,
-              priceAdd: 0,
-              isVariantAxis: true,
-            },
-            {
-              modifierGroupId: '__portion__',
-              modifierGroupName: matrix.portionLabel ?? 'Portion',
-              id: `portion-${pName}`,
-              name: pName,
-              priceAdd: pPrice,
-              isVariantAxis: true,
-            }
-          ],
-          flatPrice: pPrice,
-          qty: q
-        };
-      });
+      // Bulk multi-portion / multi-style (e.g. 2 Gravy Quarter + 1 Paste Full in one order)
+      const bulkItems = activeComboEntries.map(entry => ({
+        selectedModifiers: [
+          {
+            modifierGroupId: '__style__',
+            modifierGroupName: matrix.styleLabel ?? 'Style',
+            id: `style-${entry.style}`,
+            name: entry.style,
+            priceAdd: 0,
+            isVariantAxis: true,
+          },
+          {
+            modifierGroupId: '__portion__',
+            modifierGroupName: matrix.portionLabel ?? 'Portion',
+            id: `portion-${entry.portion}`,
+            name: entry.portion,
+            priceAdd: entry.price,
+            isVariantAxis: true,
+          }
+        ],
+        flatPrice: entry.price,
+        qty: entry.qty
+      }));
       onConfirm(bulkItems);
     }
   };
+
+  // Group summary text cleanly by style
+  const summaryText = hasMultipleStyles
+    ? styles
+        .map(s => {
+          const entries = activeComboEntries.filter(e => e.style === s);
+          if (!entries.length) return null;
+          const part = entries.map(e => `${e.qty > 1 ? `${e.qty} ` : ''}${e.portion}`).join(' + ');
+          return `${s} (${part})`;
+        })
+        .filter(Boolean)
+        .join(' + ')
+    : activeComboEntries.length > 0
+      ? `${activeComboEntries[0].style} · ${activeComboEntries.map(e => `${e.qty > 1 ? `${e.qty} ` : ''}${e.portion}`).join(' + ')}`
+      : '';
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -373,45 +395,65 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
 
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
 
-          {/* Step 1 — Style selector */}
+          {/* Step 1 — Style selector tabs (each style remembers its own portion counts) */}
           <div>
             <div className="vm-step-header">
               <span className="vm-step-title">{matrix.styleLabel ?? 'Style'}</span>
-              {selectedStyle && <span className="vm-step-selected">✓ {selectedStyle}</span>}
+              {hasMultipleStyles
+                ? <span className="vm-step-selected">✓ {selectedStyleSet.size} styles</span>
+                : selectedStyle && <span className="vm-step-selected">✓ {selectedStyle}</span>}
             </div>
             <div className="vm-style-grid">
               {styles.map((s, idx) => {
                 const isActive = selectedStyle === s;
+                const styleCount = getStyleCount(s);
                 const col = styleColors[idx % styleColors.length];
                 return (
                   <button
                     key={s}
                     type="button"
                     className={`vm-style-btn ${isActive ? 'vm-style-btn--active' : ''}`}
-                    style={isActive ? { borderColor: col, background: col + '18', color: col } : {}}
+                    style={
+                      isActive
+                        ? { borderColor: col, background: col + '18', color: col }
+                        : styleCount > 0
+                          ? { borderColor: col + '88', background: col + '0f', color: 'var(--color-label)' }
+                          : {}
+                    }
                     onClick={() => {
+                      hapticTap('light');
                       setSelectedStyle(s);
-                      // Clear portions that don't exist in new style
-                      setPortionQuantities(prev => {
-                        const updated = {};
-                        Object.entries(prev).forEach(([p, q]) => {
-                          if (prices[`${s}|${p}`] !== undefined) {
-                            updated[p] = q;
-                          }
-                        });
-                        return updated;
-                      });
                     }}
                   >
                     {isActive && <Check size={13} strokeWidth={3} />}
-                    {s}
+                    <span>{s}</span>
+                    {styleCount > 0 && (
+                      <span
+                        style={{
+                          minWidth: 20,
+                          height: 20,
+                          padding: '0 6px',
+                          borderRadius: 999,
+                          background: col,
+                          color: '#ffffff',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {styleCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Step 2 — Portion selector (enabled only after style chosen) */}
+          {/* Step 2 — Portion selector for currently active style tab */}
           <div style={{ opacity: selectedStyle ? 1 : 0.4, pointerEvents: selectedStyle ? 'all' : 'none', transition: 'opacity 0.2s' }}>
             <div className="vm-step-header">
               <span className="vm-step-title">{matrix.portionLabel ?? 'Portion'}</span>
@@ -420,12 +462,13 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             </div>
             <div className="vm-portion-grid">
               {portions.map(p => {
-                const price = selectedStyle ? (prices[`${selectedStyle}|${p}`] ?? null) : null;
+                const comboKey = selectedStyle ? `${selectedStyle}|${p}` : '';
+                const price = selectedStyle ? (prices[comboKey] ?? null) : null;
                 const unavailable = price === null || price === undefined;
-                const currentQty = portionQuantities[p] || 0;
-                const isActive = currentQty > 0;
+                const hasCombo = comboKey && Object.prototype.hasOwnProperty.call(comboQuantities, comboKey);
+                const currentQty = hasCombo ? Math.max(1, parseInt(comboQuantities[comboKey], 10) || 1) : 0;
 
-                if (isActive) {
+                if (hasCombo) {
                   return (
                     <div
                       key={p}
@@ -455,12 +498,13 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                           className="btn btn-secondary btn-icon"
                           onClick={() => {
                             hapticTap('light');
-                            setPortionQuantities(prev => {
+                            setComboQuantities(prev => {
                               const next = { ...prev };
-                              if ((next[p] || 0) <= 1) {
-                                delete next[p];
+                              const cur = Math.max(1, parseInt(next[comboKey], 10) || 1);
+                              if (cur <= 1) {
+                                delete next[comboKey];
                               } else {
-                                next[p] = next[p] - 1;
+                                next[comboKey] = cur - 1;
                               }
                               return next;
                             });
@@ -476,11 +520,11 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                           type="button"
                           onClick={() => {
                             setKeypadTarget({
-                              name: `${item.name} (${p})`,
+                              name: `${item.name} (${selectedStyle} · ${p})`,
                               qty: currentQty,
                               unitPrice: price,
                               onConfirm: (newQ) => {
-                                setPortionQuantities(prev => ({ ...prev, [p]: newQ }));
+                                setComboQuantities(prev => ({ ...prev, [comboKey]: newQ }));
                               }
                             });
                           }}
@@ -508,9 +552,9 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                           className="btn btn-secondary btn-icon"
                           onClick={() => {
                             hapticTap('light');
-                            setPortionQuantities(prev => ({
+                            setComboQuantities(prev => ({
                               ...prev,
-                              [p]: Math.min(999, (prev[p] || 0) + 1)
+                              [comboKey]: Math.min(999, (parseInt(prev[comboKey], 10) || 0) + 1)
                             }));
                           }}
                           style={{ width: 32, height: 32, borderRadius: 8, padding: 0 }}
@@ -532,7 +576,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                     disabled={unavailable}
                     onClick={() => {
                       hapticTap('light');
-                      setPortionQuantities(prev => ({ ...prev, [p]: 1 }));
+                      setComboQuantities(prev => ({ ...prev, [comboKey]: 1 }));
                     }}
                     style={{ minHeight: 82 }}
                   >
@@ -546,31 +590,36 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             </div>
           </div>
 
-          {/* If single portion is selected: show QuantityBar with bulk presets and keypad */}
-          {singlePortion && (
+          {/* If single combo is selected on the active tab: show QuantityBar with bulk presets and keypad */}
+          {showSingleQuantityBar && (
             <QuantityBar
-              qty={singleQty}
+              qty={singleCombo.rawQty}
               setQty={(newQ) => {
-                const parsed = typeof newQ === 'function' ? newQ(singleQty) : newQ;
-                const safeNum = Math.max(1, parseInt(parsed, 10) || 1);
-                setPortionQuantities(prev => ({ ...prev, [singlePortion]: safeNum }));
+                setComboQuantities(prev => {
+                  const current = prev[singleCombo.key] ?? 1;
+                  const resolved = typeof newQ === 'function' ? newQ(current) : newQ;
+                  if (resolved === '') {
+                    return { ...prev, [singleCombo.key]: '' };
+                  }
+                  const safeNum = Math.max(1, parseInt(resolved, 10) || 1);
+                  return { ...prev, [singleCombo.key]: safeNum };
+                });
               }}
               onOpenKeypad={() => {
-                const price = prices[`${selectedStyle}|${singlePortion}`] ?? 0;
                 setKeypadTarget({
-                  name: `${item.name} (${singlePortion})`,
-                  qty: singleQty,
-                  unitPrice: price,
+                  name: `${item.name} (${singleCombo.style} · ${singleCombo.portion})`,
+                  qty: singleCombo.qty,
+                  unitPrice: singleCombo.price,
                   onConfirm: (newQ) => {
-                    setPortionQuantities(prev => ({ ...prev, [singlePortion]: newQ }));
+                    setComboQuantities(prev => ({ ...prev, [singleCombo.key]: newQ }));
                   }
                 });
               }}
             />
           )}
 
-          {/* If multi-portion selected: show breakdown badge! */}
-          {activePortionEntries.length > 1 && (
+          {/* If multiple portions or styles are selected: show interactive breakdown bar */}
+          {activeComboEntries.length > 1 && (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -582,11 +631,14 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
-                  Selected Portions ({totalItemCount} items total)
+                  Selected ({totalItemCount} items total)
                 </span>
                 <button
                   type="button"
-                  onClick={() => setPortionQuantities({})}
+                  onClick={() => {
+                    hapticTap('light');
+                    setComboQuantities({});
+                  }}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -601,11 +653,25 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                 </button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {activePortionEntries.map(([pName, pQty]) => {
-                  const pPrice = prices[`${selectedStyle}|${pName}`] ?? 0;
+                {activeComboEntries.map(entry => {
+                  const styleIdx = Math.max(0, styles.indexOf(entry.style));
+                  const styleCol = styleColors[styleIdx % styleColors.length];
                   return (
-                    <span 
-                      key={pName}
+                    <button
+                      key={entry.key}
+                      type="button"
+                      onClick={() => {
+                        hapticTap('light');
+                        setSelectedStyle(entry.style);
+                        setKeypadTarget({
+                          name: `${item.name} (${entry.style} · ${entry.portion})`,
+                          qty: entry.qty,
+                          unitPrice: entry.price,
+                          onConfirm: (newQ) => {
+                            setComboQuantities(prev => ({ ...prev, [entry.key]: newQ }));
+                          }
+                        });
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -613,14 +679,20 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                         padding: '5px 10px',
                         borderRadius: 8,
                         background: 'var(--color-bg-elevated)',
-                        border: '1px solid var(--color-separator)',
+                        border: `1px solid ${hasMultipleStyles ? styleCol + '55' : 'var(--color-separator)'}`,
                         fontSize: 13,
-                        fontWeight: 800
+                        fontWeight: 800,
+                        color: 'var(--color-label)',
+                        cursor: 'pointer'
                       }}
+                      title={`Tap to edit ${entry.style} ${entry.portion} quantity`}
                     >
-                      <span>{pName} × {pQty}</span>
-                      <span style={{ color: 'var(--color-accent)' }}>{formatCurrency(pPrice * pQty, currency)}</span>
-                    </span>
+                      {hasMultipleStyles && (
+                        <span style={{ color: styleCol, fontWeight: 800 }}>{entry.style} ·</span>
+                      )}
+                      <span>{entry.portion} × {entry.qty}</span>
+                      <span style={{ color: 'var(--color-accent)' }}>{formatCurrency(entry.price * entry.qty, currency)}</span>
+                    </button>
                   );
                 })}
               </div>
@@ -631,7 +703,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
           {canConfirm && (
             <div className="vm-summary">
               <span className="vm-summary-combo">
-                {selectedStyle} · {activePortionEntries.map(([p, q]) => `${q > 1 ? `${q} ` : ''}${p}`).join(' + ')}
+                {summaryText}
               </span>
               <ChevronRight size={14} style={{ color: 'var(--color-label-tertiary)' }} />
               <span className="vm-summary-price">{formatCurrency(totalPrice, currency)}</span>

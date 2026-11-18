@@ -212,3 +212,80 @@ describe('ModifierModal — Single-group multi-size selection (e.g. Small & Larg
     expect(bulkItems[1].selectedModifiers.map(m => m.name)).toEqual(['Large', 'Extra Cheese']);
   });
 });
+
+describe('ModifierModal — Variant Matrix multi-style tabbed selection (e.g. Gravy & Paste)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  const garlicChicken = {
+    id: 'item_garlic_chicken',
+    name: 'Garlic chicken',
+    price: 0,
+    modifierGroups: [
+      {
+        id: 'grp_gravy',
+        name: 'Gravy',
+        required: true,
+        maxSelect: 1,
+        options: [
+          { id: 'opt_g_qtr', name: 'Quarter', priceAdd: 250 },
+          { id: 'opt_g_half', name: 'Half', priceAdd: 350 },
+          { id: 'opt_g_full', name: 'Full', priceAdd: 750 },
+        ],
+      },
+      {
+        id: 'grp_paste',
+        name: 'Paste',
+        required: true,
+        maxSelect: 1,
+        options: [
+          { id: 'opt_p_qtr', name: 'Quarter', priceAdd: 270 },
+          { id: 'opt_p_half', name: 'Half', priceAdd: 340 },
+          { id: 'opt_p_full', name: 'Full', priceAdd: 780 },
+        ],
+      },
+    ],
+  };
+
+  it('preserves Gravy quantities when switching to Paste and submits both styles together', () => {
+    const onConfirm = vi.fn();
+    render(
+      <ModifierModal
+        item={garlicChicken}
+        currency="INR"
+        onConfirm={onConfirm}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Pick 2 Gravy Quarter (2 * 250 = 500)
+    fireEvent.click(screen.getByRole('button', { name: /Quarter/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Increase Quarter quantity/i }));
+    expect(screen.getByRole('button', { name: /Add 2 to Cart · ₹500\.00/i })).toBeTruthy();
+
+    // Switch to Paste tab — Quarter should NOT carry over to Paste, while Gravy keeps its 2 badge
+    fireEvent.click(screen.getByRole('button', { name: /Paste/i }));
+    expect(screen.getByRole('button', { name: /^Gravy\s*2$/i })).toBeTruthy();
+
+    // Pick 1 Paste Full (780)
+    fireEvent.click(screen.getByRole('button', { name: /Full/i }));
+    expect(screen.getByRole('button', { name: /^Paste\s*1$/i })).toBeTruthy();
+    expect(screen.getByText('✓ 2 styles')).toBeTruthy();
+
+    // Combined total: 2 Gravy Quarter (₹500) + 1 Paste Full (₹780) = 3 items @ ₹1,280.00
+    const confirmBtn = screen.getByRole('button', { name: /Add 3 to Cart · ₹1,280\.00/i });
+    fireEvent.click(confirmBtn);
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const [bulkItems] = onConfirm.mock.calls[0];
+    expect(bulkItems).toHaveLength(2);
+
+    expect(bulkItems[0]).toMatchObject({ flatPrice: 250, qty: 2 });
+    expect(bulkItems[0].selectedModifiers.map(m => m.name)).toEqual(['Gravy', 'Quarter']);
+
+    expect(bulkItems[1]).toMatchObject({ flatPrice: 780, qty: 1 });
+    expect(bulkItems[1].selectedModifiers.map(m => m.name)).toEqual(['Paste', 'Full']);
+  });
+});
