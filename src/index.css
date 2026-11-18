@@ -5481,7 +5481,32 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border: 1.5px solid #cbd5e1;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
   transition: transform 0.18s var(--ease-spring-pop), box-shadow 0.18s var(--ease-spring-pop), border-color 0.14s ease, background 0.12s ease;
+}
+
+.cart-item-card:active {
+  transform: scale(0.99);
+}
+
+.cart-item-note-preview {
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 500;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 2px solid #f59e0b;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .cart-item-note-preview {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+  border-left-color: #fbbf24;
 }
 
 .cart-item-card:hover {

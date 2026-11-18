@@ -32,6 +32,7 @@ import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
 import CategoryGridModal from '../components/pos/CategoryGridModal';
 import TouchQuantityPadModal from '../components/pos/TouchQuantityPadModal';
+import CartItemEditModal from '../components/pos/CartItemEditModal';
 import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -130,7 +131,7 @@ export default function POS() {
     customer, setCustomerProfile, setRedeemingPoints,
     loadOrderToCart,
     tokenNumber, setToken,
-    activeSeat, setActiveSeat, setItemSeat,
+    activeSeat, setActiveSeat, setItemSeat, setItemDetails,
     settleSubCheck, settledChecks
   } = useOrderStore(
     useShallow((state) => ({
@@ -169,6 +170,7 @@ export default function POS() {
       activeSeat: state.activeSeat,
       setActiveSeat: state.setActiveSeat,
       setItemSeat: state.setItemSeat,
+      setItemDetails: state.setItemDetails,
       settleSubCheck: state.settleSubCheck,
       settledChecks: state.settledChecks,
       billPrinted: state.billPrinted,
@@ -242,6 +244,7 @@ export default function POS() {
   const [showTableSel, setShowTableSel] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   const [touchKeypadTarget, setTouchKeypadTarget] = useState(null);
+  const [editingCartItem, setEditingCartItem] = useState(null);
   // Cache original order items when editing — avoids a Firestore getDoc on every cart tap
   const originalOrderItemsRef = useRef(null);
 
@@ -749,6 +752,49 @@ export default function POS() {
     } else {
       removeItem(item.id, item.selectedModifiers);
     }
+  };
+
+  const handleSaveCartItemEdit = (updates) => {
+    if (!editingCartItem) return;
+    const targetItem = editingCartItem;
+    const targetQty = Math.max(1, parseInt(updates.qty, 10) || 1);
+
+    setItemDetails(
+      targetItem.id,
+      {
+        itemNote: updates.itemNote,
+        prepState: updates.prepState,
+        course: updates.course,
+        seatNumber: updates.seatNumber,
+      },
+      targetItem.selectedModifiers
+    );
+
+    if (targetQty !== targetItem.qty) {
+      if (editingOrderId && hasMode('audit_shield') && targetQty < targetItem.qty) {
+        const cachedOriginalItems = originalOrderItemsRef.current ?? [];
+        const originalItem = cachedOriginalItems.find(oi =>
+          oi.id === targetItem.id &&
+          JSON.stringify(oi.selectedModifiers ?? []) === JSON.stringify(targetItem.selectedModifiers ?? [])
+        );
+        if (originalItem && targetQty < originalItem.qty) {
+          setEditingCartItem(null);
+          setVoidAction({
+            type: 'decrement',
+            item: targetItem,
+            currentQty: targetItem.qty,
+            targetQty,
+          });
+          setVoidReason('Burnt/Kitchen Error');
+          setManagerPin('');
+          setShowVoidModal(true);
+          return;
+        }
+      }
+      updateQty(targetItem.id, targetQty, targetItem.selectedModifiers);
+    }
+
+    setEditingCartItem(null);
   };
 
   const handleVoidAuthorizeSubmit = async () => {
@@ -2653,7 +2699,25 @@ export default function POS() {
                     {/* Course Items */}
                     <div className="cart-course-cards">
                     {courseItems.map(i => (
-                      <div key={i.id} className="cart-item-card">
+                      <div
+                        key={i.id}
+                        className="cart-item-card"
+                        role="button"
+                        tabIndex={0}
+                        title="Tap card to customize quantity, note, or kitchen prep"
+                        onClick={() => {
+                          hapticTap('light');
+                          setEditingCartItem(i);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            hapticTap('light');
+                            setEditingCartItem(i);
+                          }
+                        }}
+                      >
                         {/* Row 1: Item Name & Modifiers (left) + Remove [X] (top-right) */}
                         <div className="cart-item-card-top">
                           <div className="cart-item-card-title-wrap">
@@ -2673,13 +2737,23 @@ export default function POS() {
                           <button
                             type="button"
                             className="cart-item-card-remove"
-                            onClick={() => handleCartRemove(i)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCartRemove(i);
+                            }}
                             title="Remove item"
                             aria-label={`Remove ${i.name}`}
                           >
                             <X size={13} strokeWidth={2.2} />
                           </button>
                         </div>
+
+                        {/* Optional Kitchen Note Preview — only shown when a note is set */}
+                        {(i.itemNote || i.notes) && (
+                          <div className="cart-item-note-preview" title={i.itemNote || i.notes}>
+                            {i.itemNote || i.notes}
+                          </div>
+                        )}
 
                         {/* Row 2: Price & Badges (bottom-left) + Stepper (bottom-right) */}
                         <div className="cart-item-card-bottom">
@@ -2698,7 +2772,10 @@ export default function POS() {
                               <button
                                 type="button"
                                 className="cart-status-badge hold"
-                                onClick={() => useOrderStore.getState().toggleItemHold(i.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  useOrderStore.getState().toggleItemHold(i.id);
+                                }}
                                 title="On hold - click to fire"
                               >
                                 <Clock size={10} /> Hold
@@ -2710,7 +2787,8 @@ export default function POS() {
                               <button
                                 type="button"
                                 className="cart-item-seat-badge"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   hapticTap('light');
                                   const nextSeat = i.seatNumber >= 4 ? null : i.seatNumber + 1;
                                   setItemSeat(i.id, nextSeat, i.selectedModifiers);
@@ -2723,11 +2801,14 @@ export default function POS() {
                           </div>
 
                           {/* Tactile Stepper on bottom right (Enhanced touch target & direct keypad) */}
-                          <div className="cart-stepper">
+                          <div className="cart-stepper" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               className="cart-stepper-btn"
-                              onClick={() => handleCartDecrement(i)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCartDecrement(i);
+                              }}
                               title="Decrease quantity"
                               aria-label={`Decrease ${i.name} quantity`}
                             >
@@ -2760,9 +2841,10 @@ export default function POS() {
                             <button
                               type="button"
                               className="cart-stepper-btn"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 hapticTap('light');
-                                updateQty(i.id, i.qty + 1);
+                                updateQty(i.id, i.qty + 1, i.selectedModifiers);
                               }}
                               title="Increase quantity"
                               aria-label={`Increase ${i.name} quantity`}
@@ -4399,6 +4481,21 @@ export default function POS() {
           </div>
         </div>
       )}
+
+      {/* POS Cart Item Customization Modal (Tap any cart card to edit qty, note, hold/course/seat) */}
+      <CartItemEditModal
+        item={editingCartItem}
+        currency={currency}
+        orderType={orderType}
+        onSave={handleSaveCartItemEdit}
+        onRemove={() => {
+          if (editingCartItem) {
+            handleCartRemove(editingCartItem);
+          }
+          setEditingCartItem(null);
+        }}
+        onClose={() => setEditingCartItem(null)}
+      />
 
       {/* POS Touch Quantity Pad Modal */}
       <TouchQuantityPadModal
