@@ -36,7 +36,7 @@ import CartItemEditModal from '../components/pos/CartItemEditModal';
 import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { hapticTap, playNotificationTone, vibrateDevice } from '../utils/soundNotifications';
+import { hapticTap } from '../utils/soundNotifications';
 import { localSyncChannel } from '../utils/localSyncChannel';
 import { getItemVisuals } from '../utils/itemVisuals';
 
@@ -463,72 +463,8 @@ export default function POS() {
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
 
 
-  // Global Real-time Kitchen Food Ready Alerts
-  useEffect(() => {
-    const unsub = localSyncChannel.subscribe((msg) => {
-      if (msg.type === 'FOOD_READY_ALERT' && msg.payload) {
-        const payload = msg.payload;
-        try {
-          playNotificationTone('kitchen-bell', 1.0);
-          vibrateDevice([250, 150, 250]);
-        } catch {}
-
-        toast.custom((t) => (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)',
-            color: '#ffffff',
-            padding: '10px 14px',
-            borderRadius: 12,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            border: '1.5px solid #10b981',
-            minWidth: 280,
-            maxWidth: 400,
-            animation: 'tableReadyPulseGlow 2.5s infinite ease-in-out'
-          }}>
-            <Bell size={22} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>{payload.tableName || 'Table'}</span>
-                <span style={{ background: '#ffffff', color: '#065f46', fontSize: 9.5, fontWeight: 900, padding: '1px 5px', borderRadius: 4 }}>READY</span>
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {payload.itemName || 'Dishes ready at kitchen pass'}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                toast.dismiss(t.id);
-                if (payload.orderId && restaurant?.id) {
-                  await useOrderStore.getState().markOrderOrItemsServed(restaurant.id, payload.orderId);
-                  toast.success('Food Picked Up!');
-                }
-              }}
-              style={{
-                background: '#ffffff',
-                color: '#065f46',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: 11.5,
-                padding: '6px 11px',
-                borderRadius: 6,
-                cursor: 'pointer',
-                flexShrink: 0,
-                boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-              }}
-            >
-              Picked Up
-            </button>
-          </div>
-        ), { duration: 15000, position: 'top-center' });
-      }
-    });
-
-    return () => unsub();
-  }, [restaurant?.id]);
+  // Global Real-time Kitchen Food Ready Alerts are handled cleanly by the single
+  // WaiterReadySlidePopup capsule (prevents duplicate 15s toasts & overlapping chimes).
 
   // Global Hardware Barcode Scanner Listener (HID Keyboard Event)
   useEffect(() => {
@@ -558,10 +494,10 @@ export default function POS() {
           );
 
           if (match) {
+            hapticTap('light');
             addItem(match);
-            toast.success(`Scanned: ${match.name}!`);
           } else {
-            toast.error(`Barcode not recognized: ${scannedCode}`);
+            toast.error(`Barcode not recognized: ${scannedCode}`, { id: 'barcode-err' });
           }
           barcodeBuffer = '';
         }
@@ -1114,11 +1050,11 @@ export default function POS() {
     }
 
     if (res.isOffline) {
-      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})!` : `Order buffered offline!`, { duration: 4500 });
+      toast.success(modes.includes('token') && (res.token || token) ? `Order buffered offline (#${res.token || token})` : `Order buffered offline`, { id: 'pos-action', duration: 3500 });
     } else if (!isKitchenActive) {
-      toast.success(isEdit ? 'Order updated on table!' : (snapTableName ? `Order saved to Table ${snapTableName}!` : 'Order saved to table!'));
+      toast.success(isEdit ? 'Order updated' : (snapTableName ? `Saved to Table ${snapTableName}` : 'Order saved'), { id: 'pos-action' });
     } else {
-      toast.success(isEdit ? 'Order updated in kitchen!' : 'Order sent to kitchen!');
+      toast.success(isEdit ? 'Order updated in kitchen' : 'Order sent to kitchen', { id: 'pos-action' });
     }
     
     // Print kitchen tickets (KOT) only when not in display-only (KDS paperless) mode
@@ -1180,7 +1116,7 @@ export default function POS() {
     if (editingOrderId) {
       await markBillPrinted(restaurant.id, editingOrderId, staffDoc?.name || 'Cashier');
     }
-    toast.success(`Guest check printed for Table ${tableName || ''}!`);
+    toast.success(`Bill printed${tableName ? ` · Table ${tableName}` : ''}`, { id: 'pos-action' });
   };
 
   const handleReleaseTable = async () => {
@@ -2195,9 +2131,9 @@ export default function POS() {
                     setConfirmClearCart(true);
                     setTimeout(() => setConfirmClearCart(false), 3000);
                   } else {
+                    hapticTap('medium');
                     clearCart();
                     setConfirmClearCart(false);
-                    toast.success('Cart cleared');
                   }
                 }} 
                 id="clear-cart-btn"
@@ -3250,10 +3186,10 @@ export default function POS() {
             // Case 1: Table is occupied and has an active order
             if (activeOrder) {
               if (items.length === 0) {
-                // Empty cart: Load running order directly
+                // Empty cart: Load running order directly (cart header updates immediately)
+                hapticTap('light');
                 loadOrderToCart(activeOrder);
                 originalOrderItemsRef.current = activeOrder.items ?? [];
-                toast.success(`Loaded active order for Table ${name}`);
                 return;
               } else {
                 // Cart already has items: Merge into existing table order
@@ -3280,13 +3216,11 @@ export default function POS() {
                 // Cache the ORIGINAL (server-side) items for void checks, not the merged ones
                 originalOrderItemsRef.current = activeOrder.items ?? [];
 
-                toast.success(`Added items to Table ${name}'s running order`);
-
                 if (tableSelAction === 'kitchen') {
                   setPaymentMethod('unpaid');
                   const res = await submitOrder(restaurant, staffDoc?.id);
                   if (!res.ok) { toast.error(res.error); return; }
-                  toast.success(isKitchenActive ? 'New items sent to kitchen!' : `Added items to Table ${name}!`);
+                  toast.success(isKitchenActive ? `Added & sent to kitchen · Table ${name}` : `Added to Table ${name}`, { id: 'pos-action' });
                   if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
                     setTimeout(() => {
                       printKitchenTickets({
@@ -3297,6 +3231,8 @@ export default function POS() {
                       });
                     }, 100);
                   }
+                } else {
+                  toast.success(`Merged into Table ${name}`, { id: 'pos-action' });
                 }
                 return;
               }
@@ -3309,7 +3245,7 @@ export default function POS() {
               setPaymentMethod('unpaid');
               const res = await submitOrder(restaurant, staffDoc?.id);
               if (!res.ok) { toast.error(res.error); return; }
-              toast.success(isKitchenActive ? 'Order sent to kitchen!' : `Order saved to Table ${name}!`);
+              toast.success(isKitchenActive ? 'Order sent to kitchen' : `Saved to Table ${name}`, { id: 'pos-action' });
               if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && kitchenConfig?.autoPrintOnDineIn !== false) {
                 setTimeout(() => {
                   printKitchenTickets({
@@ -3321,7 +3257,7 @@ export default function POS() {
                 }, 100);
               }
             } else {
-              toast.success(`Assigned to Table ${name}`);
+              hapticTap('light');
             }
           }}
           onClose={() => setShowTableSel(false)}

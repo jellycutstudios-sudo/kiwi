@@ -19,6 +19,29 @@ let activeOrdersUnsub = null;
 let subscribedOrdersRestId = null;
 let ordersSubCount = 0;
 const localCancelledOrderIds = new Set();
+const localCreatedOrderIds = new Set();
+
+export const markLocalCreatedOrder = (orderId) => {
+  if (!orderId) return;
+  localCreatedOrderIds.add(orderId);
+  // Auto-expire after 60s so the set never grows unbounded
+  setTimeout(() => localCreatedOrderIds.delete(orderId), 60000);
+};
+
+export const isLocalCreatedOrder = (orderId) => localCreatedOrderIds.has(orderId);
+
+const isWaiterReadyCapsuleActive = (notifConfig) => {
+  if (notifConfig?.waiterSlidePopupEnabled === false) return false;
+  if (typeof window === 'undefined') return false;
+  const path = window.location?.pathname || '';
+  return path === '/pos' || path === '/tables';
+};
+
+const isKdsActiveTab = () => {
+  const role = useAuthStore.getState().staffDoc?.role;
+  if (role === 'kitchen') return true;
+  return typeof window !== 'undefined' && window.location?.pathname === '/kds';
+};
 
 const CART_STORAGE_KEY = 'dineos_active_cart';
 
@@ -882,6 +905,7 @@ export const useOrderStore = create((set, get) => ({
         orderData.id = editingOrderId;
       }
       const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
+      markLocalCreatedOrder(offlineRes.orderId);
       const localActiveOrder = {
         ...orderData,
         id: offlineRes.orderId,
@@ -1090,6 +1114,7 @@ export const useOrderStore = create((set, get) => ({
         // Auto-generate doc ID for new order reference
         const orderDocRef = doc(collection(db, 'restaurants', restaurant.id, 'orders'));
         orderId = orderDocRef.id;
+        markLocalCreatedOrder(orderId);
 
         // Add new order write to batch with status pending for security rule compatibility
         batch.set(orderDocRef, { ...orderData, status: 'pending' });
@@ -1342,16 +1367,19 @@ export const useOrderStore = create((set, get) => ({
           };
 
           if (change.type === 'added') {
-            // New Online Order (Pending)
+            // Suppress self-echo notifications & sirens for orders placed by this same terminal
+            if (localCreatedOrderIds.has(orderId)) {
+              localCreatedOrderIds.delete(orderId);
+              return;
+            }
+            // New Online Order (Pending) — alert cashier/manager with single deduped toast
             if (data.type === 'online' && data.status === 'pending') {
               playChime();
-              toast('🔔 New online order received!', { duration: 6000 });
+              toast('🔔 New online order received!', { id: 'online-order-new', duration: 4000 });
             }
-            // New POS/Dine-In/Takeaway Order placed by another terminal/waiter
-            else if (data.status === 'pending') {
+            // New POS/Dine-In/Takeaway Order placed by another terminal — alert KDS only (avoid spamming cashiers)
+            else if (data.status === 'pending' && isKdsActiveTab()) {
               playChime();
-              const orderDesc = data.tableName ? `Table ${data.tableName}` : `Order #${orderId.slice(-4).toUpperCase()}`;
-              toast(`🍽️ New order placed for ${orderDesc}!`, { duration: 5000 });
             }
           }
 
@@ -1374,35 +1402,38 @@ export const useOrderStore = create((set, get) => ({
 
                 // Only alert front-of-house staff (waiters, cashiers, admins), not kitchen display
                 if (currentRole !== 'kitchen') {
-                  const tone = notifConfig.readySoundTone || 'kitchen-bell';
-                  const effectiveVolume = notifConfig.soundVolume === 'soft' ? 0.6 : notifConfig.soundVolume === 'normal' ? 0.8 : 1.0;
-                  try {
-                    playNotificationTone(tone, effectiveVolume);
-                    const audio = new Audio('/sounds/order-chime.wav');
-                    audio.play().catch(() => {});
-                  } catch (e) {
-                    console.warn('Audio ring alert failed:', e);
-                  }
-
-                  if (notifConfig.vibrateOnReady !== false) {
-                    vibrateDevice([300, 150, 300, 150, 300]);
-                  }
-
-                  // Broadcast locally so active tab/handheld components pop the pickup banner
+                  // Broadcast locally so active handheld / ready-pass components sync immediately
                   localSyncChannel.broadcast('FOOD_READY_ALERT', data.lastFoodReadyAlert);
 
-                  const tblDesc = data.lastFoodReadyAlert.tableName || (data.tableName ? `Table ${data.tableName}` : 'Table');
-                  const itemDesc = data.lastFoodReadyAlert.itemName || 'Food Plated at Pass';
-                  toast.success(`🔔 ${tblDesc}: ${itemDesc} is READY!`, {
-                    duration: 8000,
-                    icon: '🔔',
-                    style: {
-                      background: '#0f172a',
-                      color: '#ffffff',
-                      border: '2px solid #f59e0b',
-                      fontWeight: 800
+                  // On /pos and /tables, WaiterReadySlidePopup already renders a single clean capsule + chime.
+                  // Only play sound + show a deduped fallback toast when the capsule isn't active.
+                  if (!isWaiterReadyCapsuleActive(notifConfig)) {
+                    const tone = notifConfig.readySoundTone || 'kitchen-bell';
+                    const effectiveVolume = notifConfig.soundVolume === 'soft' ? 0.6 : notifConfig.soundVolume === 'normal' ? 0.8 : 1.0;
+                    try {
+                      playNotificationTone(tone, effectiveVolume);
+                    } catch (e) {
+                      console.warn('Audio ring alert failed:', e);
                     }
-                  });
+
+                    if (notifConfig.vibrateOnReady !== false) {
+                      vibrateDevice([250, 120, 250]);
+                    }
+
+                    const tblDesc = data.lastFoodReadyAlert.tableName || (data.tableName ? `Table ${data.tableName}` : 'Table');
+                    const itemDesc = data.lastFoodReadyAlert.itemName || 'Ready at Pass';
+                    toast.success(`🔔 ${tblDesc}: ${itemDesc} is READY!`, {
+                      id: `ready-${orderId}`,
+                      duration: 3500,
+                      icon: '🔔',
+                      style: {
+                        background: '#0f172a',
+                        color: '#ffffff',
+                        border: '2px solid #f59e0b',
+                        fontWeight: 800
+                      }
+                    });
+                  }
                 }
               }
             }
@@ -1419,6 +1450,9 @@ export const useOrderStore = create((set, get) => ({
                 if (currentRole === 'kitchen') return;
                 const notifConfig = currentRest?.notifications ?? {};
 
+                // On /pos and /tables with the Ready capsule enabled, avoid double sound + duplicate toast
+                if (isWaiterReadyCapsuleActive(notifConfig)) return;
+
                 const tone = notifConfig.readySoundTone || 'reception-bell';
                 const isCashier = ['cashier', 'admin', 'super_admin'].includes(currentRole);
                 const isWaiter = ['waiter', 'admin', 'super_admin'].includes(currentRole);
@@ -1432,13 +1466,15 @@ export const useOrderStore = create((set, get) => ({
                   if (notifConfig.vibrateOnReady !== false) {
                     vibrateDevice([200, 100, 200]);
                   }
-                } else {
-                  playChime();
                 }
 
                 const orderDesc = data.tableName ? `Table ${data.tableName}` : `Takeaway #${orderId.slice(-4).toUpperCase()}`;
-                const waiterAttribution = data.assignedWaiterName ? ` · Server: ${data.assignedWaiterName}` : '';
-                toast.success(`🍳 ${orderDesc} is READY to serve!${waiterAttribution}`, { duration: 6000, icon: '🔔' });
+                const waiterAttribution = data.assignedWaiterName ? ` · ${data.assignedWaiterName}` : '';
+                toast.success(`🍳 ${orderDesc} is READY!${waiterAttribution}`, {
+                  id: `ready-${orderId}`,
+                  duration: 3500,
+                  icon: '🔔'
+                });
               }
             }
           }
@@ -1448,9 +1484,8 @@ export const useOrderStore = create((set, get) => ({
             if (wasCancelledLocally) {
               localCancelledOrderIds.delete(orderId);
             } else if (data.status === 'cancelled') {
-              playChime();
               const orderDesc = data.tableName ? `Table ${data.tableName}` : `Order #${orderId.slice(-4).toUpperCase()}`;
-              toast.error(`❌ ${orderDesc} has been CANCELLED!`, { duration: 6000 });
+              toast.error(`${orderDesc} cancelled`, { id: `cancel-${orderId}`, duration: 3500 });
             }
           }
         });
@@ -1925,12 +1960,14 @@ localSyncChannel.subscribe((msg) => {
       }
       return { activeOrders: [payload.order, ...existing] };
     });
-    // Trigger audio chime for new kitchen ticket on other tabs
-    try {
-      playNotificationTone('loud-siren', 1.0);
-      const audio = new Audio('/sounds/order-chime.wav');
-      audio.play().catch(() => {});
-    } catch {}
+    // Only play new-ticket siren on KDS screen or kitchen role (never blast cashiers on other tabs)
+    if (isKdsActiveTab()) {
+      try {
+        playNotificationTone('loud-siren', 1.0);
+        const audio = new Audio('/sounds/order-chime.wav');
+        audio.play().catch(() => {});
+      } catch {}
+    }
   } else if (type === 'LOCAL_ORDER_UPDATED' && payload.orderId) {
     useOrderStore.setState(s => ({
       activeOrders: (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, ...payload.partial } : o)

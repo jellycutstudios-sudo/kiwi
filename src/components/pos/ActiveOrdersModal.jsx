@@ -105,7 +105,7 @@ export default function ActiveOrdersModal({
         staffName: order.staffName || staffName,
       });
       await markBillPrinted(restaurant.id, order.id, order.staffName || staffName);
-      toast.success(`Printing bill for ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'Order')}`, { icon: '🖨️' });
+      toast.success(`Bill printed · ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'Order')}`, { id: 'pos-action', icon: '🖨️' });
     } catch (err) {
       toast.error('Print failed: ' + err.message);
     }
@@ -117,7 +117,7 @@ export default function ActiveOrdersModal({
     try {
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
       if (shouldPrint) {
-        toast.success(`Order settled via CASH ✓ Printing receipt...`);
+        toast.success(`Paid via Cash ✓ Printing receipt`, { id: 'pos-action' });
         // Background print paid receipt
         setTimeout(() => {
           printReceipt({
@@ -129,7 +129,7 @@ export default function ActiveOrdersModal({
           });
         }, 100);
       } else {
-        toast.success(`Order settled via CASH ✓ (Print skipped — bill already given)`);
+        toast.success(`Paid via Cash ✓ (No duplicate print)`, { id: 'pos-action' });
       }
     } catch (err) {
       toast.error('Settle failed: ' + err.message);
@@ -141,7 +141,7 @@ export default function ActiveOrdersModal({
   const handleMarkComplete = async (order) => {
     try {
       await updateOrderStatus(restaurant.id, order.id, 'completed');
-      toast.success(`Order handed over & completed! ✓`);
+      toast.success(`Order completed ✓`, { id: 'pos-action' });
     } catch (err) {
       toast.error('Update failed: ' + err.message);
     }
@@ -624,7 +624,6 @@ export default function ActiveOrdersModal({
                             onClick={() => {
                               onLoadOrderToCart(order);
                               onClose();
-                              toast.success(`Loaded ${order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'order')} into cart`);
                             }}
                             style={{
                               height: 36,

@@ -163,6 +163,7 @@ export default function AppShell() {
             <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>DineOS has an upgrade available.</div>
           </div>
           <button
+            type="button"
             onClick={() => {
               toast.dismiss(t.id);
               applyUpdate();
@@ -181,10 +182,27 @@ export default function AppShell() {
           >
             Update Now
           </button>
+          <button
+            type="button"
+            onClick={() => toast.dismiss(t.id)}
+            aria-label="Dismiss update notification"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-label-tertiary)',
+              cursor: 'pointer',
+              padding: '4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
         </div>
       ), {
         id: 'sw-update-toast',
-        duration: Infinity,
+        duration: 10000,
         style: {
           background: 'var(--color-bg-elevated)',
           color: 'var(--color-label)',

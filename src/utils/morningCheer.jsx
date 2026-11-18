@@ -116,7 +116,7 @@ export function triggerMorningCheer({ staffName = '', force = false } = {}) {
       </div>
     </div>
   ), {
-    duration: 7000,
+    duration: 4000,
     style: {
       borderRadius: 'var(--radius-lg, 12px)',
       background: 'var(--color-bg-elevated, #ffffff)',

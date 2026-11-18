@@ -338,7 +338,6 @@ export default function MobileWaiterHandheld({
     if (activeOrder) {
       if (items.length === 0) {
         loadOrderToCart(activeOrder);
-        toast.success(`Loaded active order for Table ${tbl.name}`, { icon: '🍽️' });
       } else {
         const existingItems = activeOrder.items || [];
         const currentCartItems = [...items];
@@ -361,12 +360,11 @@ export default function MobileWaiterHandheld({
           ...activeOrder,
           items: merged
         });
-        toast.success(`Added items to Table ${tbl.name}'s active order`, { icon: '🍽️' });
+        toast.success(`Merged into Table ${tbl.name}`, { id: 'pos-action', icon: '🍽️' });
       }
     } else {
       setTable(tbl.id, tbl.name);
       setOrderType('dine-in');
-      toast.success(`Table ${tbl.name} assigned`, { icon: '🪑' });
     }
   };
 
@@ -408,7 +406,6 @@ export default function MobileWaiterHandheld({
     hapticTap('success');
     setItemDetails(customizingItem.id, itemCustomForm, customizingItem.selectedModifiers);
     setCustomizingItem(null);
-    toast.success('Course & instructions updated!', { icon: '✨' });
   };
 
   const handleFireHeld = async (course = 'all') => {

@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import PosToaster from './components/shared/PosToaster';
 import { useTranslation } from 'react-i18next';
 import './i18n';
 import './index.css';
@@ -90,22 +90,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            fontFamily: 'var(--font-family)',
-            fontSize: '14px',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-lg)',
-            background: 'var(--color-bg-elevated)',
-            color: 'var(--color-label)',
-            border: '1px solid var(--color-separator)',
-          },
-          success: { iconTheme: { primary: 'var(--color-green)', secondary: '#fff' } },
-          error:   { iconTheme: { primary: 'var(--color-red)',   secondary: '#fff' } },
-        }}
-      />
+      <PosToaster />
       <DesktopContextMenu />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>

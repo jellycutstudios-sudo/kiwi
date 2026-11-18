@@ -186,7 +186,6 @@ export default function SplitBillModal({
     });
 
     setMovingItemContext(null);
-    toast.success(`Moved ${item.name} to check!`, { icon: '🔄', duration: 1500 });
   };
 
   // Print Guest Pre-Bill for a single check

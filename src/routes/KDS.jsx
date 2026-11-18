@@ -1127,9 +1127,6 @@ export default function KDS() {
               setSoundEnabled(nextState);
               if (nextState) {
                 playKitchenChime();
-                toast.success('Chime enabled');
-              } else {
-                toast('Muted');
               }
             }}
             title={soundEnabled ? 'Sound is ON (Tap to mute)' : 'Sound is MUTED (Tap to unmute)'}
