@@ -675,14 +675,33 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
 }
 
 /* ─────────────────────────────────────────────────────────────
-   CLASSIC MODIFIER MODE (unchanged behaviour)
+   CLASSIC MODIFIER MODE (with multi-option quantity selection
+   for single-select size/portion groups like Small + Large)
 ────────────────────────────────────────────────────────────── */
 
-function getInitialSelections(item) {
+function getMultiQtyGroup(modifierGroups) {
+  if (!modifierGroups?.length) return null;
+  const requiredSingle = modifierGroups.find(
+    g => g.required && (g.maxSelect ?? 1) === 1 && (g.options?.length ?? 0) > 1
+  );
+  if (requiredSingle) return requiredSingle;
+  if (
+    modifierGroups.length === 1 &&
+    (modifierGroups[0].maxSelect ?? 1) === 1 &&
+    (modifierGroups[0].options?.length ?? 0) > 1
+  ) {
+    return modifierGroups[0];
+  }
+  return null;
+}
+
+function getInitialSelections(item, multiQtyGroupId = null) {
   if (!item?.modifierGroups) return {};
   const initial = {};
   item.modifierGroups.forEach(group => {
-    if (group.required && group.maxSelect === 1 && group.options?.length > 0) {
+    if (group.id === multiQtyGroupId) {
+      initial[group.id] = [];
+    } else if (group.required && group.maxSelect === 1 && group.options?.length > 0) {
       initial[group.id] = [group.options[0]];
     } else {
       initial[group.id] = [];
@@ -692,23 +711,31 @@ function getInitialSelections(item) {
 }
 
 function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
+  const modifierGroups = item?.modifierGroups ?? [];
+  const multiQtyGroup = getMultiQtyGroup(modifierGroups);
+
   const [prevItem, setPrevItem] = useState(item);
-  const [selections, setSelections] = useState(() => getInitialSelections(item));
+  const [selections, setSelections] = useState(() => getInitialSelections(item, multiQtyGroup?.id));
+  // Map of optionId -> qty for multiQtyGroup (e.g. { small: 1, large: 2 })
+  const [optionQuantities, setOptionQuantities] = useState({});
   const [qty, setQty] = useState(1);
-  const [isKeypadOpen, setIsKeypadOpen] = useState(false);
+  const [keypadTarget, setKeypadTarget] = useState(null);
   const modalRef = useRef(null);
   useFocusTrap(modalRef, !!item);
 
   if (item !== prevItem) {
+    const nextMulti = getMultiQtyGroup(item?.modifierGroups);
     setPrevItem(item);
-    setSelections(getInitialSelections(item));
+    setSelections(getInitialSelections(item, nextMulti?.id));
+    setOptionQuantities({});
     setQty(1);
+    setKeypadTarget(null);
   }
 
   if (!item) return null;
 
   const effectiveQty = Math.max(1, parseInt(qty, 10) || 1);
-  const modifierGroups = item.modifierGroups ?? [];
+  const basePrice = item.price ?? 0;
 
   const handleSelect = (group, option) => {
     const groupId = group.id;
@@ -732,25 +759,55 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
     setSelections(prev => ({ ...prev, [groupId]: updated }));
   };
 
-  const basePrice = item.price ?? 0;
-  const modifierTotal = Object.values(selections).reduce((sum, opts) =>
-    sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0), 0), 0);
-  const totalUnitPrice = basePrice + modifierTotal;
-  const totalPrice = totalUnitPrice * effectiveQty;
+  // Extra modifiers from groups other than multiQtyGroup
+  const extraModifierTotal = Object.entries(selections).reduce((sum, [groupId, opts]) => {
+    if (multiQtyGroup && groupId === multiQtyGroup.id) return sum;
+    return sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0), 0);
+  }, 0);
+
+  // Active option entries in menu order for multiQtyGroup
+  const activeOptionEntries = multiQtyGroup
+    ? (multiQtyGroup.options ?? [])
+        .filter(opt => Object.prototype.hasOwnProperty.call(optionQuantities, opt.id))
+        .map(opt => {
+          const raw = optionQuantities[opt.id];
+          const numQty = Math.max(1, parseInt(raw, 10) || 1);
+          return { opt, rawQty: raw, qty: numQty };
+        })
+    : [];
+
+  const hasMultiQtySelections = multiQtyGroup && activeOptionEntries.length > 0;
+  const singleActiveOption = activeOptionEntries.length === 1 ? activeOptionEntries[0] : null;
+
+  const totalItemCount = hasMultiQtySelections
+    ? activeOptionEntries.reduce((sum, e) => sum + e.qty, 0)
+    : effectiveQty;
+
+  const totalPrice = hasMultiQtySelections
+    ? activeOptionEntries.reduce(
+        (sum, e) => sum + (basePrice + (e.opt.priceAdd ?? 0) + extraModifierTotal) * e.qty,
+        0
+      )
+    : (basePrice + extraModifierTotal) * effectiveQty;
 
   const isGroupSatisfied = (group) => {
     if (!group.required) return true;
+    if (multiQtyGroup && group.id === multiQtyGroup.id) {
+      return activeOptionEntries.length > 0;
+    }
     return (selections[group.id]?.length ?? 0) > 0;
   };
   const isValid = modifierGroups.every(isGroupSatisfied);
 
   const handleSubmit = () => {
     if (!isValid) return;
-    const flatModifiers = [];
+
+    const extraModifiers = [];
     Object.entries(selections).forEach(([groupId, opts]) => {
+      if (multiQtyGroup && groupId === multiQtyGroup.id) return;
       const group = modifierGroups.find(g => g.id === groupId);
       opts.forEach(opt => {
-        flatModifiers.push({
+        extraModifiers.push({
           modifierGroupId: groupId,
           modifierGroupName: group?.name ?? '',
           id: opt.id,
@@ -759,7 +816,43 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
         });
       });
     });
-    onConfirm(flatModifiers, null, effectiveQty);
+
+    if (multiQtyGroup && activeOptionEntries.length === 1) {
+      const { opt, qty: optQty } = activeOptionEntries[0];
+      const mods = [
+        {
+          modifierGroupId: multiQtyGroup.id,
+          modifierGroupName: multiQtyGroup.name ?? '',
+          id: opt.id,
+          name: opt.name,
+          priceAdd: opt.priceAdd ?? 0,
+        },
+        ...extraModifiers,
+      ];
+      onConfirm(mods, null, optQty);
+      return;
+    }
+
+    if (multiQtyGroup && activeOptionEntries.length > 1) {
+      const bulkItems = activeOptionEntries.map(({ opt, qty: optQty }) => ({
+        selectedModifiers: [
+          {
+            modifierGroupId: multiQtyGroup.id,
+            modifierGroupName: multiQtyGroup.name ?? '',
+            id: opt.id,
+            name: opt.name,
+            priceAdd: opt.priceAdd ?? 0,
+          },
+          ...extraModifiers,
+        ],
+        flatPrice: basePrice + (opt.priceAdd ?? 0) + extraModifierTotal,
+        qty: optQty,
+      }));
+      onConfirm(bulkItems);
+      return;
+    }
+
+    onConfirm(extraModifiers, null, effectiveQty);
   };
 
   return (
@@ -795,9 +888,11 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                 {item.name}
               </h2>
               <div style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                {basePrice > 0
-                  ? `Base Price: ${formatCurrency(basePrice, currency)}`
-                  : 'Select your portion / options'}
+                {hasMultiQtySelections && totalItemCount > 1
+                  ? `${activeOptionEntries.map(e => `${e.qty} ${e.opt.name}`).join(' + ')} — ${totalItemCount} items`
+                  : basePrice > 0
+                    ? `Base Price: ${formatCurrency(basePrice, currency)}`
+                    : 'Select your portion / options'}
               </div>
             </div>
           </div>
@@ -808,9 +903,230 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {modifierGroups.map(group => {
+            const isMultiGroup = multiQtyGroup && group.id === multiQtyGroup.id;
             const groupSelections = selections[group.id] ?? [];
             const satisfied = isGroupSatisfied(group);
             const maxSelect = group.maxSelect ?? 1;
+
+            if (isMultiGroup) {
+              return (
+                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{group.name}</span>
+                      {group.required && (
+                        <span className={`badge ${satisfied ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
+                          {satisfied ? `✓ ${totalItemCount} selected` : 'Required'}
+                        </span>
+                      )}
+                      {!group.required && activeOptionEntries.length > 0 && (
+                        <span className="badge badge-green" style={{ fontSize: 10, padding: '1px 6px' }}>
+                          ✓ {totalItemCount} selected
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-tertiary)' }}>
+                      Select one or more
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
+                    {group.options?.map(opt => {
+                      const hasOpt = Object.prototype.hasOwnProperty.call(optionQuantities, opt.id);
+                      const currentQty = hasOpt ? Math.max(1, parseInt(optionQuantities[opt.id], 10) || 1) : 0;
+                      const unitOptPrice = basePrice + (opt.priceAdd ?? 0) + extraModifierTotal;
+                      const priceLabel = opt.priceAdd > 0
+                        ? (basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`)
+                        : (basePrice === 0 ? formatCurrency(0, currency) : 'Included');
+
+                      if (hasOpt) {
+                        return (
+                          <div
+                            key={opt.id}
+                            style={{
+                              background: 'var(--color-accent-light)',
+                              border: '2px solid var(--color-accent)',
+                              borderRadius: 'var(--radius-lg)',
+                              padding: '12px 14px',
+                              minHeight: 86,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              gap: 10,
+                              transition: 'all var(--duration-fast) var(--ease-out)',
+                              boxShadow: '0 4px 12px rgba(0,122,255,0.15)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                <div style={{
+                                  width: 20, height: 20,
+                                  borderRadius: '50%',
+                                  background: 'var(--color-accent)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <Check size={12} color="#ffffff" strokeWidth={3} />
+                                </div>
+                                <span style={{
+                                  fontSize: '15px',
+                                  fontWeight: 800,
+                                  color: 'var(--color-accent)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {opt.name}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--color-accent)', flexShrink: 0 }}>
+                                {priceLabel}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-icon"
+                                onClick={() => {
+                                  hapticTap('light');
+                                  setOptionQuantities(prev => {
+                                    const next = { ...prev };
+                                    const cur = Math.max(1, parseInt(next[opt.id], 10) || 1);
+                                    if (cur <= 1) {
+                                      delete next[opt.id];
+                                    } else {
+                                      next[opt.id] = cur - 1;
+                                    }
+                                    return next;
+                                  });
+                                }}
+                                style={{ width: 34, height: 34, borderRadius: 8, padding: 0, flexShrink: 0 }}
+                                title={`Decrease ${opt.name} quantity`}
+                                aria-label={`Decrease ${opt.name} quantity`}
+                              >
+                                <Minus size={14} strokeWidth={2.5} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  hapticTap('light');
+                                  setKeypadTarget({
+                                    name: `${item.name} (${opt.name})`,
+                                    qty: currentQty,
+                                    unitPrice: unitOptPrice,
+                                    onConfirm: (newQ) => {
+                                      setOptionQuantities(prev => ({ ...prev, [opt.id]: newQ }));
+                                    }
+                                  });
+                                }}
+                                style={{
+                                  flex: 1,
+                                  minWidth: 44,
+                                  height: 34,
+                                  borderRadius: 8,
+                                  border: '1.5px solid var(--color-accent)',
+                                  background: 'var(--color-bg)',
+                                  color: 'var(--color-label)',
+                                  fontWeight: 900,
+                                  fontSize: 15,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 4,
+                                  cursor: 'pointer'
+                                }}
+                                title={`Tap to type custom ${opt.name} quantity`}
+                                aria-label={`${opt.name} quantity ${currentQty}`}
+                              >
+                                {currentQty}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-icon"
+                                onClick={() => {
+                                  hapticTap('light');
+                                  setOptionQuantities(prev => ({
+                                    ...prev,
+                                    [opt.id]: Math.min(999, (parseInt(prev[opt.id], 10) || 0) + 1)
+                                  }));
+                                }}
+                                style={{ width: 34, height: 34, borderRadius: 8, padding: 0, flexShrink: 0 }}
+                                title={`Increase ${opt.name} quantity`}
+                                aria-label={`Increase ${opt.name} quantity`}
+                              >
+                                <Plus size={14} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            hapticTap('light');
+                            setOptionQuantities(prev => ({ ...prev, [opt.id]: 1 }));
+                          }}
+                          style={{
+                            background: 'var(--color-bg-elevated)',
+                            border: '2px solid var(--color-separator-opaque)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '14px 16px',
+                            minHeight: 86,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            transition: 'all var(--duration-fast) var(--ease-out)',
+                            textAlign: 'left',
+                            fontFamily: 'var(--font-family)',
+                            touchAction: 'manipulation',
+                            boxShadow: 'var(--shadow-sm)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 24, height: 24,
+                              borderRadius: '50%',
+                              border: '1.5px solid var(--color-separator-opaque)',
+                              background: 'var(--color-bg-secondary)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: 'var(--color-label-secondary)',
+                              flexShrink: 0
+                            }}>
+                              <Plus size={13} strokeWidth={2.5} />
+                            </div>
+                            <span style={{
+                              fontSize: '15px',
+                              fontWeight: 700,
+                              color: 'var(--color-label)'
+                            }}>
+                              {opt.name}
+                            </span>
+                          </div>
+                          <span style={{
+                            fontSize: opt.priceAdd > 0 ? '14.5px' : '13px',
+                            fontWeight: opt.priceAdd > 0 ? 800 : 600,
+                            color: opt.priceAdd > 0 ? 'var(--color-label-secondary)' : 'var(--color-label-tertiary)'
+                          }}>
+                            {priceLabel}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -888,12 +1204,126 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
             );
           })}
 
-          {/* Quantity Selector */}
-          <QuantityBar
-            qty={qty}
-            setQty={setQty}
-            onOpenKeypad={() => setIsKeypadOpen(true)}
-          />
+          {/* Quantity Selector Bar — synced to single active option, or base item when not multi-option */}
+          {singleActiveOption && (
+            <QuantityBar
+              qty={singleActiveOption.rawQty}
+              setQty={(newQ) => {
+                setOptionQuantities(prev => {
+                  const current = prev[singleActiveOption.opt.id] ?? 1;
+                  const resolved = typeof newQ === 'function' ? newQ(current) : newQ;
+                  if (resolved === '') {
+                    return { ...prev, [singleActiveOption.opt.id]: '' };
+                  }
+                  const safeNum = Math.max(1, parseInt(resolved, 10) || 1);
+                  return { ...prev, [singleActiveOption.opt.id]: safeNum };
+                });
+              }}
+              onOpenKeypad={() => {
+                const unitOptPrice = basePrice + (singleActiveOption.opt.priceAdd ?? 0) + extraModifierTotal;
+                setKeypadTarget({
+                  name: `${item.name} (${singleActiveOption.opt.name})`,
+                  qty: singleActiveOption.qty,
+                  unitPrice: unitOptPrice,
+                  onConfirm: (newQ) => {
+                    setOptionQuantities(prev => ({ ...prev, [singleActiveOption.opt.id]: newQ }));
+                  }
+                });
+              }}
+            />
+          )}
+
+          {/* Multi-option breakdown bar when 2+ options are selected simultaneously */}
+          {activeOptionEntries.length > 1 && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              padding: '12px 14px',
+              background: 'var(--color-bg-secondary)',
+              borderRadius: 12,
+              border: '1px solid var(--color-separator)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                  Selected ({totalItemCount} items total)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticTap('light');
+                    setOptionQuantities({});
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {activeOptionEntries.map(({ opt, qty: optQty }) => {
+                  const unitOptPrice = basePrice + (opt.priceAdd ?? 0) + extraModifierTotal;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        hapticTap('light');
+                        setKeypadTarget({
+                          name: `${item.name} (${opt.name})`,
+                          qty: optQty,
+                          unitPrice: unitOptPrice,
+                          onConfirm: (newQ) => {
+                            setOptionQuantities(prev => ({ ...prev, [opt.id]: newQ }));
+                          }
+                        });
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '5px 10px',
+                        borderRadius: 8,
+                        background: 'var(--color-bg-elevated)',
+                        border: '1px solid var(--color-separator)',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: 'var(--color-label)',
+                        cursor: 'pointer'
+                      }}
+                      title={`Tap to edit ${opt.name} quantity`}
+                    >
+                      <span>{opt.name} × {optQty}</span>
+                      <span style={{ color: 'var(--color-accent)' }}>{formatCurrency(unitOptPrice * optQty, currency)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Classic QuantityBar when no multiQtyGroup (or optional multiQtyGroup with 0 chosen) */}
+          {(!multiQtyGroup || (!multiQtyGroup.required && activeOptionEntries.length === 0)) && (
+            <QuantityBar
+              qty={qty}
+              setQty={setQty}
+              onOpenKeypad={() => {
+                setKeypadTarget({
+                  name: item.name,
+                  qty: effectiveQty,
+                  unitPrice: basePrice + extraModifierTotal,
+                  onConfirm: (newQ) => setQty(newQ)
+                });
+              }}
+            />
+          )}
         </div>
 
         <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
@@ -910,19 +1340,21 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
             disabled={!isValid}
             style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
           >
-            Add {effectiveQty > 1 ? `${effectiveQty} ` : ''}to Cart · {formatCurrency(totalPrice, currency)}
+            {isValid
+              ? `Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
+              : `Select ${multiQtyGroup?.name ?? 'options'}`}
           </button>
         </div>
       </div>
 
       <TouchQuantityPadModal
-        isOpen={isKeypadOpen}
-        itemName={item.name}
-        initialQty={effectiveQty}
-        unitPrice={totalUnitPrice}
+        isOpen={!!keypadTarget}
+        itemName={keypadTarget?.name}
+        initialQty={keypadTarget?.qty || 1}
+        unitPrice={keypadTarget?.unitPrice}
         currency={currency}
-        onConfirm={(newQ) => setQty(newQ)}
-        onClose={() => setIsKeypadOpen(false)}
+        onConfirm={(newQ) => keypadTarget?.onConfirm?.(newQ)}
+        onClose={() => setKeypadTarget(null)}
       />
     </div>
   );
