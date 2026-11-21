@@ -1,14 +1,16 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useMenuStore } from '../stores/menuStore';
 import { useStaffStore } from '../stores/staffStore';
+import { useExpenseStore } from '../stores/expenseStore';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
 import { downloadTallyXML } from '../utils/tallyExport';
-import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, X, HeartHandshake, Receipt, FileText, FileSpreadsheet, FileCode, Bot } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, X, HeartHandshake, Receipt, FileText, FileSpreadsheet, FileCode, Bot, WalletCards } from 'lucide-react';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
 import toast from 'react-hot-toast';
@@ -54,6 +56,16 @@ export default function Reports() {
   const [loadingVoids, setLoadingVoids] = useState(false);
   const [selectedShiftForZReport, setSelectedShiftForZReport] = useState(null);
   const currency = restaurant?.currency ?? 'INR';
+
+  // Live Expenses Subscription
+  const { expenses, subscribeExpenses } = useExpenseStore();
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const unsub = subscribeExpenses(restaurant.id);
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [restaurant?.id, subscribeExpenses]);
 
   // Helper to trigger loading states when dependencies change
   useEffect(() => {
@@ -187,6 +199,33 @@ export default function Reports() {
   }, [data]);
 
   const { totalSales, totalOrders, avgOrder, avgPrepTime, byPayment, byType } = kpis;
+
+  // Filter expenses matching the active report period
+  const periodExpenses = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    return (expenses || []).filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      if (period === 'today') {
+        if (itemDate < startOfToday) return false;
+      } else if (period === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (itemDate < weekAgo) return false;
+      } else if (period === 'month') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        if (itemDate < monthAgo) return false;
+      }
+      return true;
+    });
+  }, [expenses, period]);
+
+  const totalPeriodExpenses = useMemo(() => {
+    return periodExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  }, [periodExpenses]);
+
+  const netOperatingProfit = totalSales - totalPeriodExpenses;
+  const profitMargin = totalSales > 0 ? Math.round((netOperatingProfit / totalSales) * 100) : 0;
 
   // Chart Aggregation Helper (Sales Trend)
   const trendDataInfo = useMemo(() => {
@@ -702,6 +741,93 @@ export default function Reports() {
                   <InfoTooltip text="How long it takes the kitchen to prepare an order on average" size={12} />
                 </span>
                 <span className="text-title1">{avgPrepTime > 0 ? `${avgPrepTime}m` : 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* P&L Financial Summary */}
+          <div className="card card-padded" style={{
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-separator)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  color: 'var(--color-green, #10b981)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <WalletCards size={18} />
+                </div>
+                <div>
+                  <h3 className="text-title3" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Profit & Loss Overview (Est.)
+                    <InfoTooltip text="Calculated as Total Sales minus recorded Operating Expenses and Petty Cash for this period" />
+                  </h3>
+                  <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>
+                    Sales vs Operating Costs
+                  </span>
+                </div>
+              </div>
+              <Link
+                to="/admin/expenses"
+                className="btn btn-secondary"
+                style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <span>Manage Expenses</span>
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
+              <div style={{ padding: 'var(--space-3)', background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Gross Sales</span>
+                <div className="text-title2" style={{ color: 'var(--color-label)', fontWeight: 800, marginTop: 4 }}>
+                  {formatCurrency(totalSales, currency)}
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>{totalOrders} completed orders</span>
+              </div>
+
+              <div style={{ padding: 'var(--space-3)', background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Operating Expenses</span>
+                <div className="text-title2" style={{ color: 'var(--color-orange, #f59e0b)', fontWeight: 800, marginTop: 4 }}>
+                  -{formatCurrency(totalPeriodExpenses, currency)}
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>{periodExpenses.length} vouchers logged</span>
+              </div>
+
+              <div style={{
+                padding: 'var(--space-3)',
+                background: netOperatingProfit >= 0 ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.06)',
+                borderRadius: 'var(--radius-md)',
+                border: netOperatingProfit >= 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-label-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Operating Profit</span>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '1px 6px',
+                    borderRadius: 99,
+                    background: netOperatingProfit >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    color: netOperatingProfit >= 0 ? 'var(--color-green, #10b981)' : 'var(--color-red, #ef4444)'
+                  }}>
+                    {profitMargin}% margin
+                  </span>
+                </div>
+                <div className="text-title2" style={{
+                  color: netOperatingProfit >= 0 ? 'var(--color-green, #10b981)' : 'var(--color-red, #ef4444)',
+                  fontWeight: 800,
+                  marginTop: 4
+                }}>
+                  {formatCurrency(netOperatingProfit, currency)}
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Estimated EBITDA margin</span>
               </div>
             </div>
           </div>

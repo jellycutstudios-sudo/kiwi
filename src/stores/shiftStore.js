@@ -245,7 +245,10 @@ export const useShiftStore = create((set, get) => ({
     const currentShift = get().activeShift;
     const data = currentShift || {};
     const numCounted = parseFloat(countedCash) || 0;
-    const expected = data.expectedCash ?? data.startCash ?? 0;
+    const dropsAmt = (data.cashDrops || []).reduce((sum, d) => sum + (d.amount || 0), 0);
+    const paidOutsAmt = (data.paidOuts || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+    const derivedExpected = Math.round(((Number(data.startCash) || 0) + (Number(data.cashSalesAmount) || 0) - dropsAmt - paidOutsAmt) * 100) / 100;
+    const expected = isNaN(derivedExpected) ? (data.expectedCash ?? data.startCash ?? 0) : derivedExpected;
     const variance = numCounted - expected;
     const closedAtDate = new Date();
 

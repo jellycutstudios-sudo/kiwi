@@ -35,6 +35,7 @@ const Settings       = lazyWithRetry(() => import('./routes/admin/Settings'));
 const Restaurants    = lazyWithRetry(() => import('./routes/admin/Restaurants'));
 const DeliveryHub    = lazyWithRetry(() => import('./routes/admin/DeliveryHub'));
 const Transactions   = lazyWithRetry(() => import('./routes/admin/Transactions'));
+const Expenses       = lazyWithRetry(() => import('./routes/admin/Expenses'));
 const PendingApproval= lazyWithRetry(() => import('./routes/PendingApproval'));
 const LandingPage    = lazyWithRetry(() => import('./routes/LandingPage'));
 const PosterManager  = lazyWithRetry(() => import('./routes/admin/PosterManager'));
@@ -130,6 +131,7 @@ export default function App() {
                 <Route path="/admin/reservations" element={<Reservations />} />
                 <Route path="/admin/floor"        element={<Navigate to="/tables?edit=true" replace />} />
                 <Route path="/admin/transactions" element={<Transactions />} />
+                <Route path="/admin/expenses"     element={<Expenses />} />
                 <Route path="/admin/delivery-hub" element={<DeliveryHub />} />
               </Route>
 

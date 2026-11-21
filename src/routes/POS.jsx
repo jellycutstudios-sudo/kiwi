@@ -3457,7 +3457,8 @@ export default function POS() {
         const paidOutsAmt = paidOuts.reduce((sum, p) => sum + (p.amount || 0), 0);
         const totalSalesAmt = (activeShift?.cashSalesAmount || 0) + (activeShift?.cardSalesAmount || 0) + (activeShift?.upiSalesAmount || 0);
         const totalOrdersCount = (activeShift?.cashSalesCount || 0) + (activeShift?.cardSalesCount || 0) + (activeShift?.upiSalesCount || 0);
-        const expectedCash = activeShift?.expectedCash ?? activeShift?.startCash ?? 0;
+        const derivedExpected = activeShift ? Math.round(((Number(activeShift.startCash) || 0) + (Number(activeShift.cashSalesAmount) || 0) - dropsAmt - paidOutsAmt) * 100) / 100 : 0;
+        const expectedCash = isNaN(derivedExpected) ? (activeShift?.expectedCash ?? activeShift?.startCash ?? 0) : derivedExpected;
 
         const hasCountedInput = closeCountedCash.toString().trim() !== '';
         const countedNum = hasCountedInput ? parseFloat(closeCountedCash) || 0 : null;

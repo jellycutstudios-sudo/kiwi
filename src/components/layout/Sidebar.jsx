@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Utensils, Armchair,
   ChefHat, BarChart3, Users, UtensilsCrossed,
   Settings, Building2, ChevronLeft, ChevronRight, LogOut,
-  Wallet, Smartphone, Bike, Package, HeartHandshake, Calendar, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
+  Wallet, WalletCards, Smartphone, Bike, Package, HeartHandshake, Calendar, X, MonitorPlay, ReceiptText, BookOpen, RefreshCw,
   ChevronDown, ChevronUp, Copy, Check, ShieldCheck, Plus,
   Eye, MapPin, Star
 } from 'lucide-react';
@@ -32,6 +32,7 @@ const NAV = [
 const ADMIN_NAV = [
   { key: 'staff',       path: '/admin/staff',       icon: Users,            label: 'staff', roles: ['admin', 'super_admin'] },
   { key: 'payroll',     path: '/admin/payroll',     icon: Wallet,           label: 'payroll', roles: ['admin', 'super_admin'], requiredMode: 'payroll' },
+  { key: 'expenses',    path: '/admin/expenses',    icon: WalletCards,      label: 'expenses', roles: ['admin', 'super_admin', 'manager'] },
   { key: 'menu',        path: '/admin/menu',         icon: UtensilsCrossed,  label: 'menu', roles: ['admin', 'super_admin', 'manager'] },
   { key: 'inventory',   path: '/admin/inventory',    icon: Package,          label: 'inventory', roles: ['admin', 'super_admin', 'manager'], requiredMode: 'inventory' },
   { key: 'customers',   path: '/admin/customers',    icon: HeartHandshake,   label: 'customers', roles: ['admin', 'super_admin', 'manager'], requiredMode: 'customers' },
