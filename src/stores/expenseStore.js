@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import {
-  collection, addDoc, deleteDoc, doc, getDocs, serverTimestamp, onSnapshot, query, orderBy, limit
+  collection, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, query, orderBy, limit
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuthStore } from './authStore';

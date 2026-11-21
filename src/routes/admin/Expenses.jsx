@@ -5,11 +5,9 @@ import { useShiftStore } from '../../stores/shiftStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import toast from 'react-hot-toast';
 import {
-  WalletCards, Plus, Search, Download, Trash2, Calendar,
-  Tag, FileText, CheckCircle2, AlertCircle, ArrowUpRight,
-  TrendingDown, Layers, X, CreditCard, Banknote, Building2, User
+  WalletCards, Plus, Search, Download, Trash2,
+  CheckCircle2, AlertCircle, Layers, X
 } from 'lucide-react';
-import InfoTooltip from '../../components/shared/InfoTooltip';
 
 export default function Expenses() {
   const { restaurant } = useAuthStore();

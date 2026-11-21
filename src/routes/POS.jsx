@@ -37,7 +37,6 @@ import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
-import { localSyncChannel } from '../utils/localSyncChannel';
 import { getItemVisuals } from '../utils/itemVisuals';
 
 const POS_CATEGORY_THEMES = [
@@ -152,7 +151,8 @@ export default function POS() {
     loadOrderToCart,
     tokenNumber, setToken,
     activeSeat, setActiveSeat, setItemSeat, setItemDetails,
-    settleSubCheck, settledChecks
+    settleSubCheck, settledChecks,
+    billPrinted, markBillPrinted
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -1185,7 +1185,7 @@ export default function POS() {
 
     try {
       // Check if pre-bill was already printed before submitOrder clears cart
-      const wasBillAlreadyPrinted = Boolean(useOrderStore.getState().billPrinted);
+      const wasBillAlreadyPrinted = Boolean(billPrinted);
       const shouldPrintReceipt = options?.shouldPrintReceipt ?? (!wasBillAlreadyPrinted);
 
       // If QSR mode — issue token (if not already set)

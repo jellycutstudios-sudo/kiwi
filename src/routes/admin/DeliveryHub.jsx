@@ -10,8 +10,8 @@ import {
   Trash2, ChevronDown, ChevronUp, Check, X, Sliders,
   Key, Settings as SettingsIcon, Copy, Eye, EyeOff,
   Flame, Search, Play, User,
-  TrendingUp, BarChart3, Package, Zap,
-  Phone, MapPin, Radio, Power,
+  TrendingUp, BarChart3, Package,
+  Phone, MapPin, Radio,
   Info, Bike, Globe
 } from 'lucide-react';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
