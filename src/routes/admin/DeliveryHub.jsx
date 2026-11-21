@@ -12,7 +12,7 @@ import {
   Flame, Search, Play, User,
   TrendingUp, BarChart3, Package, Zap,
   Phone, MapPin, Radio, Power,
-  Info
+  Info, Bike, Globe
 } from 'lucide-react';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
 import { useOrderStore } from '../../stores/orderStore';
@@ -1225,93 +1225,65 @@ export default function DeliveryHub() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       {/* Title & Master Control Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h2 className="text-title2" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-              <Sliders size={24} style={{ color: 'var(--color-accent)' }} /> Delivery Hub
-            </h2>
+      <div className="dh-page-header">
+        <div className="dh-header-title-wrap">
+          <div className="dh-title-row">
+            <div className="dh-title-icon-badge">
+              <Bike size={22} />
+            </div>
+            <h1 className="dh-page-title">Delivery Hub</h1>
             {anyChannelPaused ? (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                background: 'rgba(255, 149, 0, 0.15)',
-                color: '#ff9500',
-                fontSize: '11px',
-                fontWeight: 700
-              }}>
-                <Flame size={13} /> Rush Mode / Paused
+              <span className="dh-status-badge rush">
+                <Flame size={12} /> Rush Mode Active
               </span>
             ) : (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                background: 'rgba(52, 199, 89, 0.15)',
-                color: 'var(--color-success)',
-                fontSize: '11px',
-                fontWeight: 700
-              }}>
-                <Zap size={13} /> {activeCount} Channels Live
+              <span className="dh-status-badge live">
+                <span className="dh-pulse-dot" /> {activeCount} Channels Live
               </span>
             )}
           </div>
-          <p className="text-secondary text-subhead" style={{ marginTop: 2, marginBottom: 0 }}>
-            Aggregator sync, rush mode throttle, 86'ing menu controls, and live delivery dispatch.
+          <p className="dh-page-subtitle">
+            Live aggregator sync, kitchen rush throttling, 86'ing menu controls, and delivery dispatch.
           </p>
         </div>
         
         {/* Global actions visible based on role */}
         {isUserAdmin && (
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+          <div className="dh-header-actions">
             {/* Rush Prep Buffer Dropdown */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-bg-secondary)', padding: '2px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+            <div className="dh-prep-pill" title="Add kitchen prep buffer delay to all aggregator tablets">
               <Clock size={13} style={{ color: prepTimeBuffer > 0 ? '#ff9500' : 'var(--color-label-secondary)' }} />
               <select
-                className="form-select"
+                className="dh-prep-select"
                 value={prepTimeBuffer}
                 onChange={e => handleSetPrepBuffer(Number(e.target.value))}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  fontSize: '12px',
-                  fontWeight: prepTimeBuffer > 0 ? 700 : 500,
-                  color: prepTimeBuffer > 0 ? '#ff9500' : 'inherit',
-                  padding: '4px 2px',
-                  cursor: 'pointer'
-                }}
-                title="Add kitchen prep buffer delay to all aggregator tablets"
               >
                 <option value="0">Normal Prep (+0m)</option>
                 <option value="15">+15m Rush Delay</option>
                 <option value="30">+30m Busy Delay</option>
                 <option value="45">+45m Heavy Rush</option>
               </select>
+              <ChevronDown size={12} className="dh-select-chevron" />
             </div>
 
             {/* Master Pause / Resume Button */}
             {anyChannelPaused ? (
               <button 
-                className="btn btn-secondary btn-sm"
+                type="button"
+                className="btn btn-secondary btn-sm dh-btn-resume"
                 onClick={handleResumeAllPlatforms}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--color-success)', borderColor: 'rgba(52, 199, 89, 0.3)' }}
                 title="Resume all delivery channels immediately"
               >
                 <Play size={14} /> Resume All
               </button>
             ) : (
               <button 
-                className="btn btn-secondary btn-sm"
+                type="button"
+                className="btn btn-secondary btn-sm dh-btn-rush"
                 onClick={() => setRushModalOpen(true)}
                 disabled={activeCount === 0}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#ff9500', borderColor: 'rgba(255, 149, 0, 0.4)', fontWeight: 600 }}
                 title="Temporarily pause all delivery channels during kitchen rush"
               >
                 <Flame size={14} /> Rush Pause All
@@ -1320,10 +1292,10 @@ export default function DeliveryHub() {
 
             {/* Menu Sync Button */}
             <button 
-              className="btn btn-secondary btn-sm" 
+              type="button"
+              className="btn btn-secondary btn-sm dh-btn-sync" 
               onClick={() => triggerSync()} 
               disabled={syncing || syncingPlatform !== null || enabledCount === 0}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               title="Push full menu catalog to all connected platforms"
             >
               <RefreshCw size={14} className={syncing ? 'spin' : ''} /> {syncing ? 'Syncing...' : 'Sync All'}
@@ -1332,8 +1304,8 @@ export default function DeliveryHub() {
         )}
       </div>
 
-      {/* 5 Streamlined Tabs with touch scroll */}
-      <div className="reports-tabs no-scrollbar touch-scroll-x">
+      {/* 5 Streamlined Segmented Tabs with touch scroll */}
+      <div className="dh-tabs-wrapper no-scrollbar touch-scroll-x">
         {[
           { key: 'partners', label: 'Live Channels', icon: Radio },
           { key: 'orders', label: 'Live Deliveries', icon: Truck, badge: activeDeliveryOrders.length, badgeAlert: pendingOrdersCount > 0 },
@@ -1351,19 +1323,12 @@ export default function DeliveryHub() {
                 setActiveTab(tab.key);
                 e.currentTarget?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
               }}
-              className={`reports-tab-btn ${isActive ? 'active' : ''}`}
+              className={`dh-tab-btn ${isActive ? 'active' : ''}`}
             >
               <Icon size={15} />
               <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
               {tab.badge > 0 && (
-                <span style={{
-                  background: tab.badgeAlert ? 'var(--color-red)' : 'var(--color-accent)',
-                  color: '#ffffff',
-                  fontSize: '10px',
-                  fontWeight: 'var(--weight-bold)',
-                  padding: '1px 6px',
-                  borderRadius: 'var(--radius-full)'
-                }}>
+                <span className={`dh-tab-badge ${tab.badgeAlert ? 'alert' : ''}`}>
                   {tab.badge}
                 </span>
               )}
@@ -1376,180 +1341,126 @@ export default function DeliveryHub() {
       <div key={activeTab} className="nav-tab-pane">
       {/* Partners Tab */}
       {activeTab === 'partners' && (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {/* Analytics Summary */}
           <div className="hub-stats-grid">
             <div className="card hub-stat-card">
-              <div className="hub-stat-icon-wrapper">
-                <ShoppingBag className="hub-stat-icon" />
-              </div>
-              <div className="hub-stat-content">
-                <div className="hub-stat-label">Today's Orders</div>
-                <div className="hub-stat-value">
-                  {todayOrders.length}
+              <div className="hub-stat-top">
+                <span className="hub-stat-label">Today's Orders</span>
+                <div className="hub-stat-icon-wrapper orders">
+                  <ShoppingBag size={17} />
                 </div>
+              </div>
+              <div className="hub-stat-value">{todayOrders.length}</div>
+              <div className="hub-stat-subtext">
+                {todayOrders.length === 0 ? 'No delivery orders yet today' : `${todayOrders.filter(o => o.status === 'delivered').length} delivered orders`}
               </div>
             </div>
 
             <div className="card hub-stat-card">
-              <div className="hub-stat-icon-wrapper success">
-                <DollarSign className="hub-stat-icon" />
-              </div>
-              <div className="hub-stat-content">
-                <div className="hub-stat-label">Today's Revenue</div>
-                <div className="hub-stat-value">
-                  {formatCurrency(todayRevenue, currency)}
+              <div className="hub-stat-top">
+                <span className="hub-stat-label">Today's Revenue</span>
+                <div className="hub-stat-icon-wrapper revenue">
+                  <DollarSign size={17} />
                 </div>
               </div>
+              <div className="hub-stat-value">{formatCurrency(todayRevenue, currency)}</div>
+              <div className="hub-stat-subtext">Gross aggregator sales</div>
             </div>
 
             <div className="card hub-stat-card">
-              <div className="hub-stat-icon-wrapper" style={{ background: todayCommission > 0 ? 'rgba(255, 149, 0, 0.12)' : 'var(--color-bg-secondary)', color: todayCommission > 0 ? '#ff9500' : 'var(--color-label-tertiary)' }}>
-                <Percent className="hub-stat-icon" />
-              </div>
-              <div className="hub-stat-content">
-                <div className="hub-stat-label">Est. Commission</div>
-                <div className="hub-stat-value">
-                  {formatCurrency(todayCommission, currency)}
+              <div className="hub-stat-top">
+                <span className="hub-stat-label">Est. Commission</span>
+                <div className="hub-stat-icon-wrapper commission">
+                  <Percent size={17} />
                 </div>
               </div>
+              <div className="hub-stat-value">{formatCurrency(todayCommission, currency)}</div>
+              <div className="hub-stat-subtext">Estimated platform fees</div>
             </div>
 
             <div className="card hub-stat-card">
-              <div className="hub-stat-icon-wrapper info">
-                <Truck className="hub-stat-icon" />
-              </div>
-              <div className="hub-stat-content">
-                <div className="hub-stat-label">Live Channels</div>
-                <div className="hub-stat-value" style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span>{activeCount}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>
-                    ({enabledCount}/{recommendedPlatformIds.length} in Region)
-                  </span>
+              <div className="hub-stat-top">
+                <span className="hub-stat-label">Live Channels</span>
+                <div className="hub-stat-icon-wrapper channels">
+                  <Truck size={17} />
                 </div>
+              </div>
+              <div className="hub-stat-value" style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span>{activeCount}</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>
+                  ({enabledCount}/{recommendedPlatformIds.length} in Region)
+                </span>
+              </div>
+              <div className="hub-stat-subtext">
+                {activeCount > 0 ? `${activeCount} online & ready` : 'No channels receiving orders'}
               </div>
             </div>
           </div>
 
           {/* Region & Status Filter Segmented Bar */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            marginBottom: 'var(--space-1)'
-          }}>
-            <div style={{
-              display: 'inline-flex',
-              background: 'var(--color-bg-secondary)',
-              padding: '3px',
-              borderRadius: '10px',
-              border: '1px solid var(--color-separator-opaque)'
-            }}>
+          <div className="dh-filter-bar">
+            <div className="dh-filter-segmented">
               <button
                 type="button"
                 onClick={() => setChannelFilter('recommended')}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '7px',
-                  border: 'none',
-                  background: channelFilter === 'recommended' ? 'var(--color-bg)' : 'transparent',
-                  color: channelFilter === 'recommended' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                  boxShadow: channelFilter === 'recommended' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
+                className={`dh-filter-btn ${channelFilter === 'recommended' ? 'active' : ''}`}
               >
-                <span>📍</span>
+                <MapPin size={13} />
                 <span>For Your Region ({recommendedPlatformIds.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setChannelFilter('connected')}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '7px',
-                  border: 'none',
-                  background: channelFilter === 'connected' ? 'var(--color-bg)' : 'transparent',
-                  color: channelFilter === 'connected' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                  boxShadow: channelFilter === 'connected' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
+                className={`dh-filter-btn ${channelFilter === 'connected' ? 'active' : ''}`}
               >
-                <span>✅</span>
+                <CheckCircle2 size={13} />
                 <span>Connected ({enabledCount})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setChannelFilter('all')}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '7px',
-                  border: 'none',
-                  background: channelFilter === 'all' ? 'var(--color-bg)' : 'transparent',
-                  color: channelFilter === 'all' ? 'var(--color-label)' : 'var(--color-label-secondary)',
-                  boxShadow: channelFilter === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
+                className={`dh-filter-btn ${channelFilter === 'all' ? 'active' : ''}`}
               >
-                <span>🌐</span>
+                <Globe size={13} />
                 <span>All Directory ({ALL_PLATFORMS.length})</span>
               </button>
             </div>
 
-            <div style={{ fontSize: '12px', color: 'var(--color-label-tertiary)' }}>
+            <div className="dh-filter-region-tag">
+              <MapPin size={11} />
               {channelFilter === 'recommended' && (
                 <span>Auto-filtered for {restaurant?.country || (currency === 'QAR' ? 'Qatar' : currency === 'INR' ? 'India' : currency === 'AED' ? 'UAE' : currency === 'SAR' ? 'Saudi Arabia' : currency)}</span>
               )}
               {channelFilter === 'connected' && (
-                <span>Showing {enabledCount} active integration{enabledCount !== 1 ? 's' : ''}</span>
+                <span>{enabledCount} active integration{enabledCount !== 1 ? 's' : ''}</span>
               )}
               {channelFilter === 'all' && (
-                <span>Viewing complete international aggregator catalog</span>
+                <span>Complete international aggregator catalog</span>
               )}
             </div>
           </div>
 
           {/* Integration Platform Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-4)' }}>
+          <div className="dh-cards-grid">
             {displayedPlatformIds.length === 0 ? (
-              <div style={{
-                gridColumn: '1 / -1',
-                padding: 'var(--space-8)',
-                textAlign: 'center',
-                background: 'var(--color-bg-secondary)',
-                borderRadius: 'var(--radius-lg)',
-                border: '1.5px dashed var(--color-separator-opaque)'
-              }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔌</div>
-                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--color-label)' }}>No Connected Delivery Partners Yet</div>
-                <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', marginTop: '4px', maxWidth: 440, margin: '4px auto 16px' }}>
-                  Switch to &quot;For Your Region&quot; to configure delivery aggregators operating in your area.
+              <div className="dh-empty-card">
+                <div className="dh-empty-icon-wrap">
+                  <Radio size={28} />
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-label)' }}>
+                  No Connected Delivery Channels
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--color-label-secondary)', maxWidth: 420 }}>
+                  Switch to &quot;For Your Region&quot; to configure and activate delivery aggregators operating in your area.
                 </div>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => setChannelFilter('recommended')}
+                  style={{ marginTop: 4, fontWeight: 600 }}
                 >
                   Browse Regional Partners
                 </button>
@@ -1568,98 +1479,55 @@ export default function DeliveryHub() {
               const channelOrders = todayOrders.filter(o => o.source === id);
               const channelRev = channelOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
+              let statusVariant = 'offline';
               let statusText = 'Offline';
-              let pillColor = 'var(--color-label-tertiary)';
-              let dotBg = 'var(--color-label-tertiary)';
 
               if (isEnabled) {
                 if (paused) {
-                  statusText = countdown ? `Paused (${countdown})` : 'Paused Indefinitely';
-                  pillColor = '#ff9500';
-                  dotBg = '#ff9500';
+                  statusVariant = 'paused';
+                  statusText = countdown ? `Paused (${countdown})` : 'Paused';
                 } else {
+                  statusVariant = 'live';
                   statusText = 'Live';
-                  pillColor = 'var(--color-success)';
-                  dotBg = 'var(--color-success)';
                 }
               }
 
               return (
                 <div 
                   key={id} 
-                  className="card" 
-                  style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: 'var(--space-3)', 
-                    border: isEnabled 
-                      ? (paused ? '1px solid rgba(255, 149, 0, 0.35)' : '1px solid rgba(52, 199, 89, 0.35)') 
-                      : '1px solid var(--color-separator-opaque)',
-                    background: 'var(--color-bg-elevated)',
-                    borderRadius: 'var(--radius-lg, 16px)',
-                    padding: 'var(--space-4)',
-                    boxShadow: isEnabled 
-                      ? (paused ? '0 4px 20px rgba(255, 149, 0, 0.05)' : '0 4px 20px rgba(52, 199, 89, 0.06)') 
-                      : 'none',
-                    transition: 'border-color var(--duration-fast), box-shadow var(--duration-fast)',
-                    position: 'relative'
-                  }}
+                  className={`dh-channel-card ${statusVariant}`}
                 >
                   {/* Card Header: Brand Logo + Details + Header Controls */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', minWidth: 0 }}>
-                      <PlatformBrandLogo id={id} size={42} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <h4 style={{ fontWeight: 700, fontSize: '15px', margin: 0, letterSpacing: '-0.2px' }}>
+                  <div className="dh-card-header">
+                    <div className="dh-card-brand">
+                      <PlatformBrandLogo id={id} size={44} />
+                      <div className="dh-brand-meta">
+                        <div className="dh-brand-title-row">
+                          <h3 className="dh-brand-title">
                             {meta.name}
-                          </h4>
+                          </h3>
                           {meta.region && (
-                            <span style={{
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              padding: '1px 6px',
-                              borderRadius: 'var(--radius-full)',
-                              background: 'rgba(255, 255, 255, 0.06)',
-                              color: 'var(--color-label-secondary)',
-                              whiteSpace: 'nowrap'
-                            }}>
+                            <span className="dh-region-badge">
                               {meta.region}
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                          <span style={{
-                            width: 7, height: 7, borderRadius: '50%',
-                            background: dotBg,
-                            boxShadow: isEnabled && !paused ? '0 0 6px var(--color-success)' : 'none',
-                            flexShrink: 0
-                          }} />
-                          <span style={{ 
-                            fontSize: '11px', 
-                            fontWeight: 600,
-                            color: pillColor
-                          }}>
-                            {statusText}
-                          </span>
+                        <div className={`dh-card-status-pill ${statusVariant}`}>
+                          {statusVariant === 'live' && <span className="dh-pulse-dot" />}
+                          {statusVariant === 'paused' && <Clock size={11} />}
+                          {statusVariant === 'offline' && <span className="dh-dot-muted" />}
+                          <span>{statusText}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Header Controls: Config Gear + Squircle Toggle Switch */}
+                    {/* Header Controls */}
                     {isUserAdmin && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <div className="dh-card-controls">
                         <button 
                           type="button"
-                          className="btn btn-ghost btn-sm"
+                          className="dh-card-icon-btn"
                           onClick={() => openConfigModal(id)}
-                          style={{ 
-                            width: 32, height: 32, padding: 0,
-                            borderRadius: 'var(--radius-md)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: 'var(--color-label-secondary)',
-                            background: 'rgba(255, 255, 255, 0.04)'
-                          }}
                           title={`Configure ${meta.name} API & Credentials`}
                         >
                           <SettingsIcon size={14} />
@@ -1675,12 +1543,12 @@ export default function DeliveryHub() {
                     )}
                   </div>
 
-                  {/* Pause Info / reason if active */}
+                  {/* Pause Info / reason banner if active */}
                   {isEnabled && paused && (
                     <div style={{
                       background: 'rgba(255, 149, 0, 0.08)',
                       padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
+                      borderRadius: '10px',
                       fontSize: '11px',
                       color: '#ff9500',
                       border: '1px solid rgba(255, 149, 0, 0.25)',
@@ -1696,6 +1564,7 @@ export default function DeliveryHub() {
                         </span>
                       </div>
                       <button 
+                        type="button"
                         className="btn btn-secondary btn-sm"
                         style={{ padding: '2px 8px', minHeight: 24, fontSize: '11px', fontWeight: 600, color: 'var(--color-success)', flexShrink: 0 }}
                         onClick={() => handleResumePlatform(id)}
@@ -1707,47 +1576,33 @@ export default function DeliveryHub() {
 
                   {/* Content Body: Active Metrics vs Inactive Channel Specifications */}
                   {isEnabled ? (
-                    <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {/* Metrics 2-column box */}
-                      <div style={{ 
-                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, 
-                        background: 'var(--color-bg-secondary)', 
-                        padding: '10px 12px', 
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-separator)'
-                      }}>
+                      <div className="dh-active-metrics">
                         <div>
-                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
-                            Orders Today
-                          </div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, marginTop: 2, color: 'var(--color-label-primary)' }}>
-                            {channelOrders.length}
-                          </div>
+                          <div className="dh-metric-item-label">Orders Today</div>
+                          <div className="dh-metric-item-val">{channelOrders.length}</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-label-secondary)', fontWeight: 600 }}>
-                            Revenue
-                          </div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, marginTop: 2, color: 'var(--color-label-primary)' }}>
-                            {formatCurrency(channelRev, currency)}
-                          </div>
+                          <div className="dh-metric-item-label">Revenue</div>
+                          <div className="dh-metric-item-val">{formatCurrency(channelRev, currency)}</div>
                         </div>
                       </div>
 
                       {/* Control buttons */}
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div className="dh-card-actions">
                         {paused ? (
                           <button 
-                            className="btn btn-secondary btn-sm" 
-                            style={{ flex: 1, minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600 }}
+                            type="button"
+                            className="btn btn-secondary btn-sm dh-card-btn" 
                             onClick={() => handleResumePlatform(id)}
                           >
                             <Play size={13} style={{ color: 'var(--color-success)' }} /> Resume Channel
                           </button>
                         ) : (
                           <button 
-                            className="btn btn-secondary btn-sm" 
-                            style={{ flex: 1, minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 600 }}
+                            type="button"
+                            className="btn btn-secondary btn-sm dh-card-btn" 
                             onClick={() => openPauseModal(id)}
                           >
                             <Clock size={13} style={{ color: '#ff9500' }} /> Pause
@@ -1755,14 +1610,14 @@ export default function DeliveryHub() {
                         )}
 
                         <button 
-                          className="btn btn-secondary btn-sm"
+                          type="button"
+                          className="btn btn-secondary btn-sm dh-card-btn"
                           onClick={() => triggerSync(id)}
                           disabled={syncing || syncingPlatform !== null}
-                          style={{ minHeight: 34, padding: '0 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: '12px' }}
                           title="Trigger catalog sync"
                         >
                           <RefreshCw size={13} className={isSyncingThis ? 'spin' : ''} />
-                          <span>Sync</span>
+                          <span>Sync Menu</span>
                         </button>
                       </div>
 
@@ -1791,51 +1646,33 @@ export default function DeliveryHub() {
                           </>
                         )}
                       </div>
-                    </>
+                    </div>
                   ) : (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 10,
-                      padding: '12px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px dashed var(--color-separator)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-label-secondary)' }}>
-                        <span>Est. Commission</span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-label-primary)' }}>
+                    <div className="dh-offline-specs">
+                      <div className="dh-spec-row">
+                        <span className="dh-spec-label">Est. Commission</span>
+                        <span className="dh-spec-val">
                           {commissions[id] ? `${commissions[id]}%` : '20%'}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-label-secondary)' }}>
-                        <span>Integration</span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-label-primary)' }}>Direct API & Webhook</span>
+                      <div className="dh-spec-row">
+                        <span className="dh-spec-label">Integration</span>
+                        <span className="dh-spec-val">Direct API & Webhook</span>
+                      </div>
+                      <div className="dh-features-pills">
+                        <span className="dh-feature-chip">Auto-Inject</span>
+                        <span className="dh-feature-chip">Live Menu Sync</span>
+                        <span className="dh-feature-chip">86'ing</span>
                       </div>
 
                       {isUserAdmin && (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <div style={{ marginTop: 2 }}>
                           <button
                             type="button"
-                            className="btn btn-secondary btn-sm"
+                            className="btn btn-primary btn-sm dh-btn-connect"
                             onClick={() => openConfigModal(id)}
-                            style={{ 
-                              flex: 1, minHeight: 34, fontSize: '12px', fontWeight: 600,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                            }}
                           >
-                            <Key size={13} /> Configure API
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleTogglePlatform(id, true)}
-                            style={{ 
-                              minHeight: 34, padding: '0 14px', fontSize: '12px', fontWeight: 600,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
-                            }}
-                          >
-                            <Power size={13} /> Enable
+                            <Key size={13} /> Connect {meta.name}
                           </button>
                         </div>
                       )}
@@ -1845,7 +1682,7 @@ export default function DeliveryHub() {
               );
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* Live Deliveries Tab */}
@@ -2977,12 +2814,13 @@ export default function DeliveryHub() {
                 </div>
               </div>
               <button 
-                className="btn btn-ghost" 
-                style={{ width: 36, height: 36, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
+                type="button"
+                className="modal-close-touch" 
                 onClick={() => setRushModalOpen(false)}
                 title="Close modal"
+                aria-label="Close modal"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={2.4} />
               </button>
             </div>
 
@@ -3067,12 +2905,13 @@ export default function DeliveryHub() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="text-title3" style={{ margin: 0, fontWeight: 'var(--weight-bold)' }}>⏸️ Pause {PLATFORM_META[pauseModal.platformId]?.name}</h3>
               <button 
-                className="btn btn-ghost" 
-                style={{ width: 36, height: 36, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
+                type="button"
+                className="modal-close-touch" 
                 onClick={() => setPauseModal(prev => ({ ...prev, isOpen: false }))}
                 title="Close modal"
+                aria-label="Close modal"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={2.4} />
               </button>
             </div>
             
@@ -3174,12 +3013,13 @@ export default function DeliveryHub() {
                 </div>
               </div>
               <button 
-                className="btn btn-ghost" 
-                style={{ width: 36, height: 36, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
+                type="button"
+                className="modal-close-touch" 
                 onClick={() => setConfigModal(prev => ({ ...prev, isOpen: false }))}
                 title="Close modal"
+                aria-label="Close modal"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={2.4} />
               </button>
             </div>
 
