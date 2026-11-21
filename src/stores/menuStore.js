@@ -1,12 +1,22 @@
 import { create } from 'zustand';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
+
+export function sortCategories(cats) {
+  if (!Array.isArray(cats)) return [];
+  return [...cats].sort((a, b) => {
+    const orderA = typeof a?.order === 'number' ? a.order : 999;
+    const orderB = typeof b?.order === 'number' ? b.order : 999;
+    if (orderA !== orderB) return orderA - orderB;
+    return (a?.name || '').localeCompare(b?.name || '');
+  });
+}
 
 const getInitialCategories = (restaurantId = null) => {
   if (typeof localStorage === 'undefined') return [];
   try {
     const raw = localStorage.getItem(restaurantId ? `dineos_cached_menu_${restaurantId}` : 'dineos_cached_menu');
-    return raw ? JSON.parse(raw) : [];
+    return raw ? sortCategories(JSON.parse(raw)) : [];
   } catch {
     return [];
   }
@@ -93,7 +103,8 @@ export const useMenuStore = create((set, get) => {
     },
 
     setCategories: (cats) => {
-      const hasImages = checkHasMenuImages(cats);
+      const sortedCats = sortCategories(cats);
+      const hasImages = checkHasMenuImages(sortedCats);
       const isManual = typeof localStorage !== 'undefined' && localStorage.getItem('kiwi_pos_density_manual') === 'true';
       const prevHadImages = get().hasImages ?? checkHasMenuImages(get().categories);
       const imagePresenceChanged = get().hasImages !== undefined && prevHadImages !== hasImages;
@@ -106,7 +117,7 @@ export const useMenuStore = create((set, get) => {
       if (!isManual || imagePresenceChanged) {
         if (hasImages) {
           nextDensity = 'visual'; // Switch to Cards view
-        } else if (cats.length > 0) {
+        } else if (sortedCats.length > 0) {
           nextDensity = 'dense';  // Switch to Fast Keys view
         }
 
@@ -121,11 +132,42 @@ export const useMenuStore = create((set, get) => {
       }
 
       set({
-        categories: cats,
+        categories: sortedCats,
         loading: false,
         hasImages,
         menuDensity: nextDensity,
       });
+    },
+
+    reorderCategories: async (newCategories, restaurantId) => {
+      if (!Array.isArray(newCategories)) return;
+      const reindexed = newCategories.map((c, idx) => ({ ...c, order: idx }));
+      get().setCategories(reindexed);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('dineos_cached_menu', JSON.stringify(reindexed));
+          if (restaurantId) {
+            localStorage.setItem(`dineos_cached_menu_${restaurantId}`, JSON.stringify(reindexed));
+          }
+        }
+      } catch (e) {
+        console.debug('[useMenuStore] LocalStorage cache write skipped:', e);
+      }
+
+      if (restaurantId && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const batch = writeBatch(db);
+          reindexed.forEach(cat => {
+            if (cat.id) {
+              const docRef = doc(db, 'restaurants', restaurantId, 'menu', cat.id);
+              batch.update(docRef, { order: cat.order });
+            }
+          });
+          await batch.commit();
+        } catch (e) {
+          console.warn('[useMenuStore] Batch reorder cloud sync deferred:', e?.message);
+        }
+      }
     },
 
     isFocusMode: typeof localStorage !== 'undefined' ? localStorage.getItem('kiwi_pos_focus') === 'true' : false,
@@ -180,7 +222,7 @@ export const useMenuStore = create((set, get) => {
       const unsub = onSnapshot(
         q,
         (snap) => {
-          const cats = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const cats = sortCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
           try {
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('dineos_cached_menu', JSON.stringify(cats));
