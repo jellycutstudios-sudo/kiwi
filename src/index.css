@@ -6751,6 +6751,50 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   transform: scale(0.97);
 }
 
+.pos-empty-till-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-separator);
+  background: var(--color-bg-secondary);
+  color: var(--color-label);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 6px;
+}
+
+.pos-empty-till-btn:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.pos-empty-till-btn:active {
+  transform: scale(0.97);
+}
+
+.pos-empty-till-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .pos-empty-till-btn {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+[data-theme="dark"] .pos-empty-till-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+}
+
 [data-theme="light"] .pos-empty-search-box {
   background: #ffffff;
   border-color: #0284c7;

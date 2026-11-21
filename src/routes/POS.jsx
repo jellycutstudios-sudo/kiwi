@@ -83,7 +83,7 @@ const getDisplayPrice = (item, currency) => {
   return { isFrom: false, text: formatCurrency(item?.price || 0, currency) };
 };
 
-function EmptyCartState({ onAddCustomItem }) {
+function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift }) {
   return (
     <div className="pos-empty-cart-minimal">
       <div className="pos-empty-cart-icon-wrap">
@@ -91,21 +91,41 @@ function EmptyCartState({ onAddCustomItem }) {
       </div>
       <div className="pos-empty-cart-title">Your cart is empty</div>
       <div className="pos-empty-cart-subtitle">Select items from the menu to start order</div>
-      {onAddCustomItem && (
-        <button
-          type="button"
-          className="pos-empty-custom-item-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            hapticTap('light');
-            onAddCustomItem();
-          }}
-          title="Add a custom or off-menu item"
-        >
-          <Plus size={13} strokeWidth={2.5} />
-          <span>Add Custom Item</span>
-        </button>
-      )}
+      <div className="pos-empty-cart-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {onAddCustomItem && (
+          <button
+            type="button"
+            className="pos-empty-custom-item-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              hapticTap('light');
+              onAddCustomItem();
+            }}
+            title="Add a custom or off-menu item"
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            <span>Add Custom Item</span>
+          </button>
+        )}
+        {onOpenTill && (
+          <button
+            type="button"
+            className="pos-empty-till-btn"
+            id="empty-cart-till-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              hapticTap('light');
+              onOpenTill();
+            }}
+            disabled={!activeShift}
+            title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
+          >
+            <Banknote size={14} strokeWidth={2.2} />
+            <span>Till Drawer</span>
+            {activeShift && <span className="pos-cart-till-dot" />}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -179,14 +199,17 @@ export default function POS() {
   );
 
   const {
-    activeShift, openShift, closeShift, recordCashTransaction, subscribeActiveShift
+    activeShift, openShift, closeShift, recordCashTransaction, subscribeActiveShift,
+    showTillModal, setShowTillModal
   } = useShiftStore(
     useShallow((state) => ({
       activeShift: state.activeShift,
       openShift: state.openShift,
       closeShift: state.closeShift,
       recordCashTransaction: state.recordCashTransaction,
-      subscribeActiveShift: state.subscribeActiveShift
+      subscribeActiveShift: state.subscribeActiveShift,
+      showTillModal: state.showTillModal,
+      setShowTillModal: state.setShowTillModal
     }))
   );
   const { issueToken } = useTokenStore();
@@ -411,7 +434,6 @@ export default function POS() {
   const [closingShift, setClosingShift] = useState(false);
 
   // Till drawer modal states
-  const [showTillModal, setShowTillModal] = useState(false);
   const [tillModalTab, setTillModalTab] = useState('summary'); // 'summary' | 'movement' | 'close'
   const [tillTxType, setTillTxType] = useState('drop'); // 'drop' | 'paidout'
   const [tillTxAmount, setTillTxAmount] = useState('');
@@ -2090,70 +2112,19 @@ export default function POS() {
           onClick={() => setMobileCartOpen(false)}
           title="Tap to close cart"
           aria-label="Close cart"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px' }}
         >
+          <div style={{ width: 24 }} />
           <div className="cart-mobile-grab-bar" />
-        </div>
-
-        {/* Cart Header */}
-        <div className="cart-header">
-          <div className="cart-title-wrap">
-            <div className="cart-icon-box">
-              <ShoppingBag size={15} strokeWidth={2.4} />
-            </div>
-            <span className="cart-title-text">{t('cart')}</span>
-            {items.length > 0 && (
-              <span 
-                className="cart-count-pill" 
-                title={`${items.reduce((s, i) => s + i.qty, 0)} ${items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}`}
-              >
-                {items.reduce((s, i) => s + i.qty, 0)}
-              </span>
-            )}
-          </div>
-          <div className="cart-header-actions">
-            <button 
-              type="button"
-              className="pos-cart-till-btn desktop-only" 
-              onClick={() => setShowTillModal(true)} 
-              id="till-drawer-btn"
-              disabled={!activeShift}
-              title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
-            >
-              <Banknote size={13} strokeWidth={2.2} />
-              <span className="pos-cart-btn-label">Till</span>
-              {activeShift && <span className="pos-cart-till-dot" title="Shift active" />}
-            </button>
-            {items.length > 0 && (
-              <button 
-                type="button"
-                className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
-                onClick={() => {
-                  if (!confirmClearCart) {
-                    setConfirmClearCart(true);
-                    setTimeout(() => setConfirmClearCart(false), 3000);
-                  } else {
-                    hapticTap('medium');
-                    clearCart();
-                    setConfirmClearCart(false);
-                  }
-                }} 
-                id="clear-cart-btn"
-                title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
-              >
-                <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon mobile-only"
-              onClick={() => setMobileCartOpen(false)}
-              style={{ width: '28px', height: '28px', padding: 0 }}
-              title="Close cart"
-            >
-              <X size={15} />
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={(e) => { e.stopPropagation(); setMobileCartOpen(false); }}
+            style={{ width: '24px', height: '24px', padding: 0 }}
+            title="Close cart"
+          >
+            <X size={15} />
+          </button>
         </div>
 
         {editingOrderId && (
@@ -2297,23 +2268,48 @@ export default function POS() {
               )}
             </div>
 
-            <button
-              type="button"
-              className="cart-header-edit-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsHeaderCollapsed(false);
-              }}
-              title="Expand full order details"
-              aria-label="Expand full order details"
-            >
-              <ChevronDown size={14} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
+                {items.reduce((s, i) => s + i.qty, 0)}
+              </span>
+              <button 
+                type="button"
+                className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!confirmClearCart) {
+                    setConfirmClearCart(true);
+                    setTimeout(() => setConfirmClearCart(false), 3000);
+                  } else {
+                    hapticTap('medium');
+                    clearCart();
+                    setConfirmClearCart(false);
+                  }
+                }} 
+                id="clear-cart-btn"
+                title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
+              >
+                <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
+              </button>
+              <button
+                type="button"
+                className="cart-header-edit-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsHeaderCollapsed(false);
+                }}
+                title="Expand full order details"
+                aria-label="Expand full order details"
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="cart-header-expanded-wrap">
             {items.length > 0 && (
-              <div className="cart-header-collapse-bar">
+              <div className="cart-header-collapse-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px' }}>
                 <button
                   type="button"
                   onClick={() => setIsHeaderCollapsed(true)}
@@ -2323,6 +2319,30 @@ export default function POS() {
                   <span>Hide Details</span>
                   <ChevronUp size={11} />
                 </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
+                    {items.reduce((s, i) => s + i.qty, 0)} items
+                  </span>
+                  <button 
+                    type="button"
+                    className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
+                    onClick={() => {
+                      if (!confirmClearCart) {
+                        setConfirmClearCart(true);
+                        setTimeout(() => setConfirmClearCart(false), 3000);
+                      } else {
+                        hapticTap('medium');
+                        clearCart();
+                        setConfirmClearCart(false);
+                      }
+                    }} 
+                    id="clear-cart-btn-expanded"
+                    title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
+                  >
+                    <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                    <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2589,6 +2609,8 @@ export default function POS() {
           {items.length === 0 ? (
             <EmptyCartState
               onAddCustomItem={() => setShowOpenItemModal(true)}
+              onOpenTill={() => setShowTillModal(true)}
+              activeShift={activeShift}
             />
           ) : (
             (() => {

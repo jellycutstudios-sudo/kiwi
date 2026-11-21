@@ -11,7 +11,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
 import { 
   Bell, Menu, Search, X, Download, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap
+  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap, Banknote
 } from 'lucide-react';
 import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
@@ -22,6 +22,7 @@ import { useUpdateStore } from '../../stores/updateStore';
 import ThemeToggle from '../shared/ThemeToggle';
 import { triggerMorningCheer } from '../../utils/morningCheer';
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
+import { useShiftStore } from '../../stores/shiftStore';
 import OfflineSyncModal from '../pos/OfflineSyncModal';
 import PwaInstallModal from '../shared/PwaInstallModal';
 
@@ -89,6 +90,7 @@ export default function AppShell() {
   const { isCategoryFirst } = usePosTemplate();
   const subscribeStaff = useStaffStore(s => s.subscribeStaff);
   const subscribeTables = useTableStore(s => s.subscribe);
+  const activeShift = useShiftStore(s => s.activeShift);
   const isOnline = useOfflineQueueStore(s => s.isOnline);
   const offlineQueue = useOfflineQueueStore(s => s.queue);
   const isSyncingQueue = useOfflineQueueStore(s => s.isSyncing);
@@ -472,6 +474,51 @@ export default function AppShell() {
           )}
 
           <div className="top-bar-actions">
+            {/* Till Drawer Button on POS */}
+            {isPOS && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm pos-topbar-till-btn"
+                id="till-drawer-btn"
+                onClick={() => useShiftStore.getState().setShowTillModal(true)}
+                disabled={!activeShift}
+                title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
+                style={{
+                  height: '34px',
+                  padding: '0 11px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: activeShift ? 'pointer' : 'not-allowed',
+                  opacity: activeShift ? 1 : 0.6,
+                  border: '1px solid var(--color-separator)',
+                  background: 'var(--color-bg-secondary)',
+                  color: 'var(--color-label)',
+                  flexShrink: 0
+                }}
+              >
+                <Banknote size={15} strokeWidth={2.2} />
+                <span>Till</span>
+                {activeShift && (
+                  <span
+                    className="pos-cart-till-dot"
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: '#10b981',
+                      boxShadow: '0 0 6px #10b981',
+                      display: 'inline-block'
+                    }}
+                    title="Shift active"
+                  />
+                )}
+              </button>
+            )}
+
             {/* Direct 1-Click Update Button for Devices */}
             {hasUpdate && (
               <button

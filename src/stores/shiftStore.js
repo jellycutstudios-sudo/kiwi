@@ -29,6 +29,8 @@ const saveShiftLocally = (shift) => {
 
 export const useShiftStore = create((set, get) => ({
   activeShift: getInitialShift(),
+  showTillModal: false,
+  setShowTillModal: (showTillModal) => set({ showTillModal }),
 
   subscribeActiveShift: (restaurantId, shiftMode, staffId, onReady) => {
     const rest = useAuthStore.getState().restaurant;
