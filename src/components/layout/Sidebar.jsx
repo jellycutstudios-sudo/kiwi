@@ -69,12 +69,16 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const [availableOutlets, setAvailableOutlets] = useState([]);
   const [outletMenuOpen, setOutletMenuOpen] = useState(false);
   const outletDropdownRef = useRef(null);
+  const outletTriggerRef = useRef(null);
 
   // Close outlet switcher on click outside
   useEffect(() => {
     if (!outletMenuOpen) return;
     const handleOutside = (e) => {
-      if (outletDropdownRef.current && !outletDropdownRef.current.contains(e.target)) {
+      if (
+        outletDropdownRef.current && !outletDropdownRef.current.contains(e.target) &&
+        outletTriggerRef.current && !outletTriggerRef.current.contains(e.target)
+      ) {
         setOutletMenuOpen(false);
       }
     };
@@ -92,8 +96,12 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     let q = null;
     if (role === 'super_admin') {
       q = collection(db, 'restaurants');
-    } else if (role === 'admin' && !staffDoc?.isPinLogin && user?.uid) {
-      q = query(collection(db, 'restaurants'), where('ownerUid', '==', user.uid));
+    } else if (role === 'admin' && !staffDoc?.isPinLogin) {
+      if (restaurant?.brandId) {
+        q = query(collection(db, 'restaurants'), where('brandId', '==', restaurant.brandId));
+      } else if (user?.uid) {
+        q = query(collection(db, 'restaurants'), where('ownerUid', '==', user.uid));
+      }
     }
 
     if (!q) {
@@ -105,7 +113,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const filtered = role === 'super_admin'
         ? list
-        : list.filter(r => r.ownerUid === user?.uid && (r.id === restaurant?.id || r.status === 'approved'));
+        : list.filter(r => {
+            const isMatch = (restaurant?.brandId && r.brandId === restaurant.brandId) || (user?.uid && r.ownerUid === user.uid);
+            return isMatch && (r.id === restaurant?.id || r.status === 'approved');
+          });
       setAvailableOutlets(filtered.length > 0 ? filtered : (restaurant ? [restaurant] : []));
     }, (err) => {
       console.warn('Sidebar availableOutlets listener:', err);
@@ -240,6 +251,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     if (n.superAdmin && !isSuperAdmin) return false;
     if (n.roles && !n.roles.includes(role)) return false;
     if (isBillOnly && (n.key === 'reservations' || n.key === 'payroll')) return false;
+    // Smart auto-hide for Outlets & Branches (Option A):
+    // Only display if the user has more than 1 branch, or is a platform super_admin
+    if (n.key === 'restaurants' && !isSuperAdmin && availableOutlets.length <= 1) {
+      return false;
+    }
     if (n.requiredMode && (!isSuperAdmin || restaurant)) {
       return hasMode(n.requiredMode);
     }
@@ -398,6 +414,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
+              ref={outletTriggerRef}
               style={{
                 display: 'flex',
                 alignItems: 'center',

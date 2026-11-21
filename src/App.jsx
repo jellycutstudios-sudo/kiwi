@@ -141,11 +141,7 @@ export default function App() {
                 <Route path="/admin/payroll"      element={<Payroll />} />
                 <Route path="/admin/settings"     element={<Settings />} />
                 <Route path="/admin/posters"      element={<PosterManager />} />
-              </Route>
-
-              {/* Super-admin only platform management */}
-              <Route element={<ProtectedRoute isAuth={isAuth} isApproved={isApproved} requiredRole={['super_admin']} userRole={userRole} />}>
-                <Route path="/admin/restaurants" element={<Restaurants />} />
+                <Route path="/admin/restaurants"  element={<Restaurants />} />
               </Route>
             </Route>
           </Route>
