@@ -974,61 +974,67 @@ export default function MenuEditor() {
                     className="cat-drag-handle"
                     title="Drag to reorder category"
                     onClick={(e) => e.stopPropagation()}
+                    style={{ marginTop: 2 }}
                   >
                     <GripVertical size={14} />
                   </span>
                   <div className="cat-item-icon-box">
                     <span>{c.emoji || '🍽️'}</span>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="cat-item-name">
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {/* Line 1: Full-width Category Name */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                      <span className="cat-item-name" style={{ flex: 1, minWidth: 0, fontSize: '13.5px', fontWeight: 650 }} title={c.name}>
                         {c.name}
                       </span>
                       {isSelected && (
-                        <span className="badge badge-accent mobile-only" style={{ fontSize: '9.5px', padding: '1px 6px' }}>Active</span>
+                        <span className="badge badge-accent mobile-only" style={{ fontSize: '9.5px', padding: '1px 6px', flexShrink: 0 }}>Active</span>
                       )}
                     </div>
-                    <span className="cat-item-count">
-                      {c.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
-                    </span>
-                  </div>
-                  <div className="cat-item-actions" onClick={e => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => moveCategory(index, -1)}
-                      disabled={index === 0}
-                      className="cat-touch-action-btn reorder-btn"
-                      title="Move category up"
-                    >
-                      <ChevronUp size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveCategory(index, 1)}
-                      disabled={index === categories.length - 1}
-                      className="cat-touch-action-btn reorder-btn"
-                      title="Move category down"
-                    >
-                      <ChevronDown size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEditCategory(c)}
-                      className="cat-touch-action-btn edit"
-                      title="Edit category"
-                      id={`edit-cat-${c.id}`}
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteCategory(c.id)}
-                      className="cat-touch-action-btn delete"
-                      title="Delete category"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+
+                    {/* Line 2: Count metadata on left & Quick actions on right */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginTop: '2px' }}>
+                      <span className="cat-item-count" style={{ whiteSpace: 'nowrap' }}>
+                        {c.items?.length ?? 0} {terms.items?.toLowerCase() || 'items'}
+                      </span>
+                      <div className="cat-item-actions" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => moveCategory(index, -1)}
+                          disabled={index === 0}
+                          className="cat-touch-action-btn reorder-btn"
+                          title="Move category up"
+                        >
+                          <ChevronUp size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveCategory(index, 1)}
+                          disabled={index === categories.length - 1}
+                          className="cat-touch-action-btn reorder-btn"
+                          title="Move category down"
+                        >
+                          <ChevronDown size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditCategory(c)}
+                          className="cat-touch-action-btn edit"
+                          title="Edit category"
+                          id={`edit-cat-${c.id}`}
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteCategory(c.id)}
+                          className="cat-touch-action-btn delete"
+                          title="Delete category"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <ChevronRight size={18} className="cat-item-chevron mobile-only" />
                 </div>
