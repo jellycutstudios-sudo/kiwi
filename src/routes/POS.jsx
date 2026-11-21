@@ -1900,7 +1900,7 @@ export default function POS() {
                   {qty > 0 && (
                     <div className="menu-item-qty-badge">{qty}</div>
                   )}
-                  <div className="menu-item-img-wrap">
+                  <div className={`menu-item-img-wrap ${!(item.imageUrl || item.image) ? 'has-placeholder' : ''}`}>
                     {item.imageUrl || item.image ? (
                       <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
                     ) : (() => {
@@ -1908,6 +1908,7 @@ export default function POS() {
                       return (
                         <div
                           className="menu-item-img-placeholder"
+                          data-palette={visuals.palette}
                           style={{
                             background: visuals.bg,
                             borderBottom: `1px solid ${visuals.border}`

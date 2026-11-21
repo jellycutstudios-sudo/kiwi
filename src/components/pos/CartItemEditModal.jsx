@@ -159,6 +159,8 @@ export default function CartItemEditModal({
         <div className="modal-header" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
             <div
+              className="dish-monogram-badge"
+              data-palette={visuals.palette}
               style={{
                 width: 44,
                 height: 44,
@@ -172,7 +174,7 @@ export default function CartItemEditModal({
                 boxShadow: `0 4px 12px ${visuals.glow}`,
               }}
             >
-              <span style={{ color: visuals.color, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
+              <span className="dish-monogram-text" style={{ color: visuals.color, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
                 {visuals.monogram}
               </span>
             </div>

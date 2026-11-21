@@ -1876,6 +1876,8 @@ export default function OnlineOrderPage() {
                               const visuals = getItemVisuals(item);
                               return (
                                 <div
+                                  className="dish-monogram-badge"
+                                  data-palette={visuals.palette}
                                   style={{
                                     width: 118,
                                     height: 96,
@@ -1889,6 +1891,7 @@ export default function OnlineOrderPage() {
                                   }}
                                 >
                                   <span
+                                    className="dish-monogram-text"
                                     style={{
                                       color: visuals.color,
                                       fontSize: 26,

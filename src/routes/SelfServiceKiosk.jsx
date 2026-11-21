@@ -950,6 +950,7 @@ export default function SelfServiceKiosk({ initialRestaurant = null, initialCate
                       return (
                         <div
                           className="kiosk-dish-plate-circle"
+                          data-palette={visuals.palette}
                           style={{
                             background: visuals.bg,
                             border: `1.5px solid ${visuals.border}`,

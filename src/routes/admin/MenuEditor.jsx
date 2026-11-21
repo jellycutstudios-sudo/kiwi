@@ -1133,6 +1133,7 @@ export default function MenuEditor() {
                           return (
                             <div
                               className="menu-editor-card-emoji-placeholder"
+                              data-palette={visuals.palette}
                               style={{
                                 background: visuals.bg,
                                 display: 'flex',
@@ -1141,6 +1142,7 @@ export default function MenuEditor() {
                               }}
                             >
                               <span
+                                className="dish-monogram-text"
                                 style={{
                                   color: visuals.color,
                                   fontSize: 28,
@@ -1296,6 +1298,8 @@ export default function MenuEditor() {
                         const visuals = getItemVisuals(item);
                         return (
                           <div
+                            className="dish-monogram-badge"
+                            data-palette={visuals.palette}
                             style={{
                               width: 44,
                               height: 44,
@@ -1309,7 +1313,7 @@ export default function MenuEditor() {
                               flexShrink: 0
                             }}
                           >
-                            <span style={{ color: visuals.color, fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                            <span className="dish-monogram-text" style={{ color: visuals.color, fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>
                               {visuals.monogram}
                             </span>
                           </div>

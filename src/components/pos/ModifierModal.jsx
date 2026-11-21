@@ -360,6 +360,8 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
               const visuals = getItemVisuals(item);
               return (
                 <div
+                  className="dish-monogram-badge"
+                  data-palette={visuals.palette}
                   style={{
                     width: 44,
                     height: 44,
@@ -936,6 +938,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
               const visuals = getItemVisuals(item);
               return (
                 <div
+                  className="dish-monogram-badge"
+                  data-palette={visuals.palette}
                   style={{
                     width: 44,
                     height: 44,
