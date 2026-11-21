@@ -680,8 +680,15 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               </div>
             </div>
           </div>
-          <button className="btn btn-secondary btn-icon" onClick={onClose} id="payment-modal-close" style={{ width: 30, height: 30, borderRadius: '50%' }}>
-            <X size={16} />
+          <button
+            type="button"
+            className="modal-close-touch"
+            onClick={onClose}
+            id="payment-modal-close"
+            title="Close payment modal"
+            aria-label="Close payment modal"
+          >
+            <X size={20} strokeWidth={2.4} />
           </button>
         </div>
 

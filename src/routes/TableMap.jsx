@@ -1953,12 +1953,13 @@ export default function TableMap() {
                 </div>
 
                 <button
-                  className="btn btn-secondary btn-icon btn-sm"
+                  type="button"
+                  className="modal-close-touch"
                   onClick={() => setSelected(null)}
-                  style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }}
-                  title="Close"
+                  title="Close table details"
+                  aria-label="Close table details"
                 >
-                  <X size={15} />
+                  <X size={20} strokeWidth={2.4} />
                 </button>
               </div>
 
@@ -2569,11 +2570,12 @@ export default function TableMap() {
                   )}
                   <button
                     type="button"
-                    className="btn btn-ghost btn-xs"
+                    className="modal-close-touch"
                     onClick={() => setSelectedEditTableId(null)}
-                    style={{ width: 28, height: 28, padding: 0, borderRadius: '50%' }}
+                    title="Close table settings"
+                    aria-label="Close table settings"
                   >
-                    <X size={15} />
+                    <X size={20} strokeWidth={2.4} />
                   </button>
                 </div>
               </div>
@@ -2852,7 +2854,15 @@ export default function TableMap() {
               <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <ArrowRightLeft size={16} /> Move Table
               </h3>
-              <button className="btn btn-secondary btn-icon" onClick={() => setShowTransfer(false)}><X size={16} /></button>
+              <button
+                type="button"
+                className="modal-close-touch"
+                onClick={() => setShowTransfer(false)}
+                title="Close move table"
+                aria-label="Close move table"
+              >
+                <X size={20} strokeWidth={2.4} />
+              </button>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginBottom: 4 }}>Move order from <strong>{selectedTable.name}</strong> to:</p>
@@ -2895,7 +2905,15 @@ export default function TableMap() {
               <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <GitMerge size={16} /> Merge Bills
               </h3>
-              <button className="btn btn-secondary btn-icon" onClick={() => setShowMerge(false)}><X size={16} /></button>
+              <button
+                type="button"
+                className="modal-close-touch"
+                onClick={() => setShowMerge(false)}
+                title="Close merge bills"
+                aria-label="Close merge bills"
+              >
+                <X size={20} strokeWidth={2.4} />
+              </button>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginBottom: 4 }}>Merge <strong>{selectedTable.name}</strong> into:</p>
@@ -2953,7 +2971,15 @@ export default function TableMap() {
                   <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>{upiOrderToSettle.tableName} · Scan &amp; confirm when paid</span>
                 </div>
               </div>
-              <button className="btn btn-ghost btn-xs" onClick={clearUpiSettle} style={{ width: 28, height: 28, padding: 0, borderRadius: '50%' }}><X size={14} /></button>
+              <button
+                type="button"
+                className="modal-close-touch"
+                onClick={clearUpiSettle}
+                title="Close UPI payment"
+                aria-label="Close UPI payment"
+              >
+                <X size={20} strokeWidth={2.4} />
+              </button>
             </div>
 
             {/* Body */}
@@ -3099,11 +3125,12 @@ export default function TableMap() {
               </div>
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="modal-close-touch"
                 onClick={() => setShowAddFloorModal(false)}
-                style={{ width: 28, height: 28, padding: 0, borderRadius: '50%' }}
+                title="Close add floor"
+                aria-label="Close add floor"
               >
-                <X size={15} />
+                <X size={20} strokeWidth={2.4} />
               </button>
             </div>
 
@@ -3246,11 +3273,12 @@ export default function TableMap() {
               </div>
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="modal-close-touch"
                 onClick={() => setShowBulkModal(false)}
-                style={{ width: 30, height: 30, padding: 0, borderRadius: '50%' }}
+                title="Close bulk generator"
+                aria-label="Close bulk generator"
               >
-                <X size={15} />
+                <X size={20} strokeWidth={2.4} />
               </button>
             </div>
 

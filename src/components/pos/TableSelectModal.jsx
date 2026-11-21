@@ -127,14 +127,13 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
 
             <button
               type="button"
-              className="btn btn-secondary btn-icon table-select-close-btn"
+              className="modal-close-touch table-select-close-btn"
               onClick={onClose}
               id="table-modal-close"
-              title="Close modal"
-              aria-label="Close"
-              style={{ flexShrink: 0 }}
+              title="Close table selection"
+              aria-label="Close table selection"
             >
-              <X size={18} />
+              <X size={20} strokeWidth={2.4} />
             </button>
           </div>
         </div>

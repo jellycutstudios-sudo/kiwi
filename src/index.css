@@ -1717,6 +1717,82 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
 }
 
+/* Touch-friendly modal close button (WCAG 2.5.5 / Apple HIG touch target standard: 42px desktop/tablet, 44px mobile) */
+.modal-close-touch,
+.modal-header > .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  color: var(--color-label-secondary);
+  transition: all var(--duration-fast, 150ms) cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.modal-close-touch:hover,
+.modal-header > .btn-icon:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-separator-opaque, rgba(0, 0, 0, 0.2));
+  color: var(--color-label);
+  transform: scale(1.05);
+}
+
+.modal-close-touch:active,
+.modal-header > .btn-icon:active {
+  background: var(--color-bg-tertiary);
+  transform: scale(0.92);
+  box-shadow: none;
+}
+
+.modal-close-touch:focus-visible,
+.modal-header > .btn-icon:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .modal-close-touch,
+[data-theme="dark"] .modal-header > .btn-icon {
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .modal-close-touch:hover,
+[data-theme="dark"] .modal-header > .btn-icon:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.32);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .modal-close-touch:active,
+[data-theme="dark"] .modal-header > .btn-icon:active {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(0.92);
+}
+
+@media (max-width: 640px) {
+  .modal-close-touch,
+  .modal-header > .btn-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .modal-title {
   font-size: var(--text-title3);
   font-weight: var(--weight-semibold);
@@ -16682,10 +16758,11 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .table-select-close-btn {
-  width: 36px !important;
-  height: 36px !important;
-  min-height: 36px !important;
-  border-radius: 10px !important;
+  width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  min-width: 42px !important;
+  border-radius: 50% !important;
   display: flex !important;
   align-items: center;
   justify-content: center;
