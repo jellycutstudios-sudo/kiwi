@@ -177,4 +177,113 @@ describe('MenuEditor Enhancements: All Items, Global Search, and Category Reorde
     expect(categorySelect.options[0].textContent).toContain('Pasta & Mains');
     expect(categorySelect.options[1].textContent).toContain('Burgers');
   });
+
+  it('toggles item reorder mode and displays position badges and quick sort toolbar', async () => {
+    await act(async () => {
+      render(<MenuEditor />);
+    });
+
+    // Switch to Burgers category (which has 2 items: Cheeseburger Deluxe, Bacon Burger)
+    const burgersCatBtn = screen.getAllByText('Burgers')[0];
+    await act(async () => {
+      fireEvent.click(burgersCatBtn);
+    });
+
+    const reorderBtn = document.getElementById('reorder-items-btn');
+    expect(reorderBtn).toBeTruthy();
+    expect(reorderBtn.textContent).toContain('Reorder');
+
+    // Click Reorder
+    await act(async () => {
+      fireEvent.click(reorderBtn);
+    });
+
+    // Should show Reorder toolbar with quick sort buttons and position badges
+    expect(screen.getByText(/Arranging Burgers/i)).toBeTruthy();
+    expect(document.getElementById('sort-alpha-btn')).toBeTruthy();
+    expect(document.getElementById('sort-bestseller-btn')).toBeTruthy();
+    expect(document.getElementById('sort-price-asc-btn')).toBeTruthy();
+    expect(document.getElementById('sort-price-desc-btn')).toBeTruthy();
+    expect(screen.getByText('#1')).toBeTruthy();
+    expect(screen.getByText('#2')).toBeTruthy();
+  });
+
+  it('supports moving items earlier/later with shift arrow buttons', async () => {
+    const reorderItemsSpy = vi.fn();
+    useMenuStore.setState({ reorderItems: reorderItemsSpy });
+
+    await act(async () => {
+      render(<MenuEditor />);
+    });
+
+    // Switch to Burgers category
+    const burgersCatBtn = screen.getAllByText('Burgers')[0];
+    await act(async () => {
+      fireEvent.click(burgersCatBtn);
+    });
+
+    // Enter reorder mode
+    const reorderBtn = document.getElementById('reorder-items-btn');
+    await act(async () => {
+      fireEvent.click(reorderBtn);
+    });
+
+    // Find shift buttons
+    const moveRightBtns = screen.getAllByTitle('Move item right / later');
+    expect(moveRightBtns.length).toBeGreaterThan(0);
+
+    // Shift first item (Cheeseburger Deluxe) to the right
+    await act(async () => {
+      fireEvent.click(moveRightBtns[0]);
+    });
+
+    expect(reorderItemsSpy).toHaveBeenCalledTimes(1);
+    const [catId, reorderedItems] = reorderItemsSpy.mock.calls[0];
+    expect(catId).toBe('cat-2');
+    expect(reorderedItems[0].name).toBe('Bacon Burger');
+    expect(reorderedItems[1].name).toBe('Cheeseburger Deluxe');
+  });
+
+  it('applies quick sort presets (alphabetical and price) to category items', async () => {
+    const reorderItemsSpy = vi.fn();
+    useMenuStore.setState({ reorderItems: reorderItemsSpy });
+
+    await act(async () => {
+      render(<MenuEditor />);
+    });
+
+    // Switch to Burgers category
+    const burgersCatBtn = screen.getAllByText('Burgers')[0];
+    await act(async () => {
+      fireEvent.click(burgersCatBtn);
+    });
+
+    // Enter reorder mode
+    const reorderBtn = document.getElementById('reorder-items-btn');
+    await act(async () => {
+      fireEvent.click(reorderBtn);
+    });
+
+    // Click A -> Z sort preset
+    const sortAlphaBtn = document.getElementById('sort-alpha-btn');
+    await act(async () => {
+      fireEvent.click(sortAlphaBtn);
+    });
+
+    expect(reorderItemsSpy).toHaveBeenCalled();
+    const sortedAlpha = reorderItemsSpy.mock.calls[0][1];
+    expect(sortedAlpha[0].name).toBe('Bacon Burger');
+    expect(sortedAlpha[1].name).toBe('Cheeseburger Deluxe');
+
+    // Click Price: High -> Low
+    const sortPriceDescBtn = document.getElementById('sort-price-desc-btn');
+    await act(async () => {
+      fireEvent.click(sortPriceDescBtn);
+    });
+
+    const sortedPrice = reorderItemsSpy.mock.calls[1][1];
+    // Bacon Burger is 14, Cheeseburger is 12
+    expect(sortedPrice[0].name).toBe('Bacon Burger');
+    expect(sortedPrice[1].name).toBe('Cheeseburger Deluxe');
+  });
 });

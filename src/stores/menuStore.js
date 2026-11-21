@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { collection, onSnapshot, doc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export function sortCategories(cats) {
@@ -166,6 +166,32 @@ export const useMenuStore = create((set, get) => {
           await batch.commit();
         } catch (e) {
           console.warn('[useMenuStore] Batch reorder cloud sync deferred:', e?.message);
+        }
+      }
+    },
+
+    reorderItems: async (categoryId, newItems, restaurantId) => {
+      if (!categoryId || !Array.isArray(newItems)) return;
+      const currentCats = get().categories;
+      const updatedCats = currentCats.map(c => c.id === categoryId ? { ...c, items: newItems } : c);
+      get().setCategories(updatedCats);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+          if (restaurantId) {
+            localStorage.setItem(`dineos_cached_menu_${restaurantId}`, JSON.stringify(updatedCats));
+          }
+        }
+      } catch (e) {
+        console.debug('[useMenuStore] LocalStorage item cache write skipped:', e);
+      }
+
+      if (restaurantId && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const docRef = doc(db, 'restaurants', restaurantId, 'menu', categoryId);
+          await updateDoc(docRef, { items: newItems });
+        } catch (e) {
+          console.warn('[useMenuStore] Item reorder cloud sync deferred:', e?.message);
         }
       }
     },

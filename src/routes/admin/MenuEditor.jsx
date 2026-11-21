@@ -4,7 +4,7 @@ import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight, FileSpreadsheet, Languages, Sparkles, GripVertical, ArrowRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight, FileSpreadsheet, Languages, Sparkles, GripVertical, ArrowRight, ArrowUpDown, Check, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getKitchenStations } from '../../utils/stations';
@@ -58,7 +58,7 @@ export const isVegetarianItem = (item) => {
 
 export default function MenuEditor() {
   const { restaurant } = useAuthStore();
-  const { categories, reorderCategories } = useMenuStore();
+  const { categories, reorderCategories, reorderItems } = useMenuStore();
   const { terms } = useBusinessConfig();
   const [activeCat, setActiveCat] = useState('all');
   const [mobileViewTab, setMobileViewTab] = useState('items'); // 'items' | 'categories'
@@ -83,6 +83,9 @@ export default function MenuEditor() {
   const [newCustomStation, setNewCustomStation] = useState('');
   const [draggedCatIndex, setDraggedCatIndex] = useState(null);
   const [dragOverCatIndex, setDragOverCatIndex] = useState(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+  const [dragOverItemIndex, setDragOverItemIndex] = useState(null);
 
   const availableStations = useMemo(() => {
     const configured = getKitchenStations(restaurant);
@@ -243,6 +246,105 @@ export default function MenuEditor() {
       useMenuStore.getState().setCategories(newCats);
     }
     toast.success(`Category "${moved.name}" moved! Order synced.`);
+  };
+
+  const reorderCategoryItems = async (catId, newItems) => {
+    if (typeof reorderItems === 'function') {
+      await reorderItems(catId, newItems, restaurant?.id);
+    } else {
+      const updatedCats = categories.map(c => c.id === catId ? { ...c, items: newItems } : c);
+      useMenuStore.getState().setCategories(updatedCats);
+      try {
+        localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+        if (restaurant?.id) {
+          localStorage.setItem(`dineos_cached_menu_${restaurant.id}`, JSON.stringify(updatedCats));
+        }
+      } catch (e) {
+        console.debug('[MenuEditor] LocalStorage write deferred:', e);
+      }
+      if (restaurant?.id && !restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', catId), { items: newItems });
+        } catch (e) {
+          console.warn('[MenuEditor] Item order cloud sync deferred:', e?.message);
+        }
+      }
+    }
+  };
+
+  const moveItem = async (index, direction) => {
+    if (!activeCatData) return;
+    const toIndex = index + direction;
+    const items = [...(activeCatData.items || [])];
+    if (toIndex < 0 || toIndex >= items.length) return;
+    const [moved] = items.splice(index, 1);
+    items.splice(toIndex, 0, moved);
+    await reorderCategoryItems(activeCatData.id, items);
+    toast.success(`Moved "${moved.name}" to position #${toIndex + 1}`);
+  };
+
+  const handleItemDragStart = (e, index) => {
+    setDraggedItemIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleItemDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverItemIndex !== index) {
+      setDragOverItemIndex(index);
+    }
+  };
+
+  const handleItemDragEnd = () => {
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
+  };
+
+  const handleItemDrop = async (e, toIndex) => {
+    e.preventDefault();
+    if (!activeCatData || draggedItemIndex === null || draggedItemIndex === toIndex) {
+      setDraggedItemIndex(null);
+      setDragOverItemIndex(null);
+      return;
+    }
+    const items = [...(activeCatData.items || [])];
+    const [moved] = items.splice(draggedItemIndex, 1);
+    items.splice(toIndex, 0, moved);
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
+    await reorderCategoryItems(activeCatData.id, items);
+    toast.success(`Moved "${moved.name}" to position #${toIndex + 1}`);
+  };
+
+  const applyQuickSort = async (type) => {
+    if (!activeCatData) return;
+    const items = [...(activeCatData.items || [])];
+    if (items.length <= 1) {
+      toast('Category has fewer than 2 items to sort', { icon: 'ℹ️' });
+      return;
+    }
+    if (type === 'alpha') {
+      items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      toast.success('Sorted items alphabetically (A-Z)');
+    } else if (type === 'bestseller') {
+      items.sort((a, b) => {
+        const aBest = Boolean(a.isBestseller || a.bestseller);
+        const bBest = Boolean(b.isBestseller || b.bestseller);
+        if (aBest && !bBest) return -1;
+        if (!aBest && bBest) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      toast.success('Sorted: Bestsellers placed first 🔥');
+    } else if (type === 'price-asc') {
+      items.sort((a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0));
+      toast.success('Sorted by price (Low to High)');
+    } else if (type === 'price-desc') {
+      items.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
+      toast.success('Sorted by price (High to Low)');
+    }
+    await reorderCategoryItems(activeCatData.id, items);
   };
 
   const handleAiTranslateItem = async () => {
@@ -834,6 +936,8 @@ export default function MenuEditor() {
     return allDishes.filter(item => item.categoryId !== activeCatId && matchesQuery(item, searchQuery));
   }, [isAllItems, searchQuery, allDishes, activeCatId]);
 
+  const displayItems = isReorderMode ? currentCategoryItems : filteredItems;
+
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
@@ -933,7 +1037,7 @@ export default function MenuEditor() {
             <div
               id="cat-sidebar-all"
               className={`menu-editor-cat-item ${isAllItems ? 'active' : ''}`}
-              onClick={() => { setActiveCat('all'); setMobileViewTab('items'); }}
+              onClick={() => { setActiveCat('all'); setIsReorderMode(false); setMobileViewTab('items'); }}
               style={{ borderBottom: '1px solid var(--color-separator-opaque)' }}
             >
               <div className="cat-item-icon-box" style={{ background: isAllItems ? 'var(--color-accent)' : 'var(--color-fill)', color: isAllItems ? '#ffffff' : 'inherit' }}>
@@ -1140,6 +1244,55 @@ export default function MenuEditor() {
                 </button>
               )}
 
+              {categories.length > 0 && !isAllItems && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${isReorderMode ? 'btn-primary' : 'btn-secondary'}`}
+                  id="reorder-items-btn"
+                  onClick={() => setIsReorderMode(!isReorderMode)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    height: 28,
+                    fontWeight: isReorderMode ? 700 : 500
+                  }}
+                  title={isReorderMode ? "Finish arranging items" : "Rearrange item display order for POS terminal"}
+                >
+                  {isReorderMode ? (
+                    <>
+                      <Check size={13} />
+                      <span>✓ Done</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUpDown size={13} />
+                      <span>⇄ Reorder</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {categories.length > 0 && isAllItems && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  id="reorder-items-btn"
+                  onClick={() => {
+                    if (categories[0]?.id) {
+                      setActiveCat(categories[0].id);
+                      setIsReorderMode(true);
+                      toast.success(`Arranging items for "${categories[0].name}"`);
+                    }
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: 28 }}
+                  title="Rearrange item display order for POS terminal"
+                >
+                  <ArrowUpDown size={13} />
+                  <span>⇄ Reorder</span>
+                </button>
+              )}
+
               {categories.length > 0 && (
                 <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => openAddItemModal(isAllItems ? null : activeCatId)}>
                   <Plus size={14}/> Add {terms.item || 'Item'}
@@ -1161,7 +1314,7 @@ export default function MenuEditor() {
             <button
               type="button"
               id="cat-mobile-strip-all"
-              onClick={() => { setActiveCat('all'); setMobileViewTab('items'); }}
+              onClick={() => { setActiveCat('all'); setIsReorderMode(false); setMobileViewTab('items'); }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1284,6 +1437,33 @@ export default function MenuEditor() {
                 {categories.length > 0 && (
                   <button
                     type="button"
+                    className={`btn btn-sm ${isReorderMode ? 'btn-primary' : 'btn-secondary'}`}
+                    id="mobile-toolbar-reorder-btn"
+                    onClick={() => {
+                      if (!isReorderMode && isAllItems && categories[0]?.id) {
+                        setActiveCat(categories[0].id);
+                        toast.success(`Arranging items for "${categories[0].name}"`);
+                      }
+                      setIsReorderMode(!isReorderMode);
+                    }}
+                    style={{
+                      height: 30,
+                      padding: '0 10px',
+                      fontSize: '11.5px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontWeight: isReorderMode ? 700 : 500
+                    }}
+                    title={isReorderMode ? "Finish arranging items" : "Rearrange item display order for POS terminal"}
+                  >
+                    {isReorderMode ? <Check size={12} /> : <ArrowUpDown size={12} />}
+                    <span>{isReorderMode ? 'Done' : 'Reorder'}</span>
+                  </button>
+                )}
+                {categories.length > 0 && (
+                  <button
+                    type="button"
                     className="btn btn-primary btn-sm"
                     id="mobile-toolbar-add-item-btn"
                     onClick={() => openAddItemModal(isAllItems ? null : activeCatId)}
@@ -1388,6 +1568,80 @@ export default function MenuEditor() {
               </div>
             )}
 
+            {/* Reorder Mode Banner & Quick Sort Presets */}
+            {isReorderMode && activeCatData && (
+              <div className="item-reorder-toolbar">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 16 }}>⇄</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-label)' }}>
+                        Arranging {activeCatData?.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>
+                        Order sets terminal button layout (Position #1 is top-left key)
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="item-reorder-presets">
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Quick Sort:
+                    </span>
+                    <button
+                      type="button"
+                      id="sort-alpha-btn"
+                      className="item-reorder-preset-btn"
+                      onClick={() => applyQuickSort('alpha')}
+                      title="Sort alphabetically A to Z"
+                    >
+                      <span>🔤 A → Z</span>
+                    </button>
+                    <button
+                      type="button"
+                      id="sort-bestseller-btn"
+                      className="item-reorder-preset-btn"
+                      onClick={() => applyQuickSort('bestseller')}
+                      title="Place Bestsellers at the top"
+                    >
+                      <span>🔥 Bestsellers First</span>
+                    </button>
+                    <button
+                      type="button"
+                      id="sort-price-asc-btn"
+                      className="item-reorder-preset-btn"
+                      onClick={() => applyQuickSort('price-asc')}
+                      title="Sort price low to high"
+                    >
+                      <span>💰 Price: Low → High</span>
+                    </button>
+                    <button
+                      type="button"
+                      id="sort-price-desc-btn"
+                      className="item-reorder-preset-btn"
+                      onClick={() => applyQuickSort('price-desc')}
+                      title="Sort price high to low"
+                    >
+                      <span>💎 Price: High → Low</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  id="done-reorder-btn"
+                  onClick={() => {
+                    setIsReorderMode(false);
+                    toast.success('Arrangement saved!');
+                  }}
+                  style={{ height: 30, padding: '0 14px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Check size={14} /> Done Arranging
+                </button>
+              </div>
+            )}
+
             {currentCategoryItems.length === 0 ? (
               <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
                 <div style={{fontSize:32}}>🍽️</div>
@@ -1413,301 +1667,387 @@ export default function MenuEditor() {
               </div>
             ) : viewMode === 'grid' ? (
               <div className="menu-editor-grid">
-                {filteredItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`menu-editor-card ${item.available === false ? 'unavailable' : ''}`}
-                    onClick={() => openEditItemModal(item)}
-                  >
-                    {/* Media container */}
-                    <div className="menu-editor-card-media">
+                {displayItems.map((item, index) => {
+                  const isDragging = draggedItemIndex === index;
+                  const isOver = dragOverItemIndex === index;
+                  return (
+                    <div
+                      key={item.id}
+                      draggable={isReorderMode}
+                      onDragStart={isReorderMode ? (e) => handleItemDragStart(e, index) : undefined}
+                      onDragOver={isReorderMode ? (e) => handleItemDragOver(e, index) : undefined}
+                      onDragEnd={isReorderMode ? handleItemDragEnd : undefined}
+                      onDrop={isReorderMode ? (e) => handleItemDrop(e, index) : undefined}
+                      className={`menu-editor-card ${item.available === false ? 'unavailable' : ''} ${isReorderMode ? 'is-reordering' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver ? 'drag-over' : ''}`}
+                      onClick={() => {
+                        if (isReorderMode) return;
+                        openEditItemModal(item);
+                      }}
+                    >
+                      {/* Reorder Top Control Bar */}
+                      {isReorderMode && (
+                        <div className="item-reorder-card-bar" onClick={(e) => e.stopPropagation()}>
+                          <span className="item-pos-badge" title="Terminal button slot position">
+                            #{index + 1}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-label-tertiary)', fontSize: '11px', fontWeight: 600 }}>
+                            <GripVertical size={13} />
+                            <span>Drag</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <button
+                              type="button"
+                              className="item-shift-btn"
+                              onClick={() => moveItem(index, -1)}
+                              disabled={index === 0}
+                              title="Move item left / earlier"
+                            >
+                              <ChevronLeft size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="item-shift-btn"
+                              onClick={() => moveItem(index, 1)}
+                              disabled={index === displayItems.length - 1}
+                              title="Move item right / later"
+                            >
+                              <ChevronRight size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Media container */}
+                      <div className="menu-editor-card-media">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="menu-editor-card-img" />
+                        ) : (() => {
+                          const visuals = getItemVisuals(item);
+                          return (
+                            <div
+                              className="menu-editor-card-emoji-placeholder"
+                              data-palette={visuals.palette}
+                              style={{
+                                background: visuals.bg,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <span
+                                className="dish-monogram-text"
+                                style={{
+                                  color: visuals.color,
+                                  fontSize: 28,
+                                  fontWeight: 800,
+                                  letterSpacing: '-0.02em',
+                                  lineHeight: 1
+                                }}
+                              >
+                                {visuals.monogram}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Top floating badges */}
+                        <div className="menu-editor-card-top-badges">
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {item.highMargin && (
+                              <span className="menu-editor-pill-badge star" title="High Margin">⭐ Margin</span>
+                            )}
+                            {(item.isBestseller || item.bestseller) && (
+                              <span className="menu-editor-pill-badge" style={{ background: 'rgba(239, 68, 68, 0.14)', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.35)' }} title="Bestseller">🔥 Bestseller</span>
+                            )}
+                            {item.barcode && (
+                              <span className="menu-editor-pill-badge">🏷️ {item.barcode}</span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
+                            style={{
+                              cursor: 'pointer',
+                              border: 'none',
+                              backdropFilter: 'blur(6px)',
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleAvailable(item.categoryId || activeCatId, item);
+                            }}
+                            title="Tap to toggle availability"
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.available !== false ? '#10b981' : '#94a3b8' }} />
+                            {item.available !== false ? 'Available' : 'Out of stock'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
+                            style={{
+                              cursor: 'pointer',
+                              border: 'none',
+                              backdropFilter: 'blur(6px)',
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleBestseller(item.categoryId || activeCatId, item);
+                            }}
+                            title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
+                          >
+                            <span>🔥</span>
+                            <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="menu-editor-card-body">
+                        {isAllItems && item.categoryName && (
+                          <div style={{ marginBottom: 4 }}>
+                            <button
+                              type="button"
+                              className="menu-editor-cat-badge"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveCat(item.categoryId);
+                              }}
+                              title={`Filter by ${item.categoryName}`}
+                            >
+                              <span>{item.categoryEmoji || '🍽️'}</span>
+                              <span>{item.categoryName}</span>
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="menu-editor-card-title-row" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span
+                            className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
+                            title={isVegetarianItem(item) ? "Vegetarian" : "Non-Vegetarian"}
+                            style={{ flexShrink: 0 }}
+                          />
+                          <h4 className="menu-editor-card-title">{item.name}</h4>
+                        </div>
+
+                        {item.description && (
+                          <p className="menu-editor-card-desc">{item.description}</p>
+                        )}
+
+                        {item.modifierGroups?.length > 0 && (
+                          <div className="menu-editor-card-modifiers">
+                            <span>⚡ {item.modifierGroups.length} {item.modifierGroups.length === 1 ? 'Portion' : 'Portions'}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer: Price & Actions */}
+                      <div className="menu-editor-card-footer" onClick={(e) => e.stopPropagation()}>
+                        <div className="menu-editor-card-price">
+                          {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
+                            (() => {
+                              const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                              const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                              return `From ${formatCurrency(minPrice, restaurant?.currency ?? 'INR')}`;
+                            })()
+                          ) : (
+                            formatCurrency(item.price, restaurant?.currency ?? 'INR')
+                          )}
+                          {item.unit && item.unit !== 'pcs' && (
+                            <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>
+                          )}
+                        </div>
+
+                        <div className="menu-editor-card-actions">
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-icon btn-sm menu-editor-action-btn"
+                            onClick={() => openEditItemModal(item)}
+                            id={`edit-item-${item.id}`}
+                            title="Edit item"
+                          >
+                            <Edit2 size={13}/>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-icon btn-sm menu-editor-action-btn delete"
+                            onClick={() => deleteItem(item.categoryId || activeCatId, item.id)}
+                            id={`delete-item-${item.id}`}
+                            title="Delete item"
+                          >
+                            <Trash2 size={13}/>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div>
+                {displayItems.map((item, index) => {
+                  const isDragging = draggedItemIndex === index;
+                  const isOver = dragOverItemIndex === index;
+                  return (
+                    <div
+                      key={item.id}
+                      draggable={isReorderMode}
+                      onDragStart={isReorderMode ? (e) => handleItemDragStart(e, index) : undefined}
+                      onDragOver={isReorderMode ? (e) => handleItemDragOver(e, index) : undefined}
+                      onDragEnd={isReorderMode ? handleItemDragEnd : undefined}
+                      onDrop={isReorderMode ? (e) => handleItemDrop(e, index) : undefined}
+                      className={`menu-item-row ${isReorderMode ? 'is-reordering' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver ? 'drag-over' : ''}`}
+                      style={{ opacity: item.available === false ? 0.5 : 1 }}
+                    >
+                      {isReorderMode && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginRight: 6 }} onClick={e => e.stopPropagation()}>
+                          <GripVertical size={15} style={{ color: 'var(--color-label-tertiary)', cursor: 'grab' }} />
+                          <span className="item-pos-badge" style={{ fontSize: '10.5px', padding: '1px 6px' }}>#{index + 1}</span>
+                        </div>
+                      )}
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="menu-editor-card-img" />
+                        <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--color-separator)', flexShrink: 0 }}>
+                          <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
                       ) : (() => {
                         const visuals = getItemVisuals(item);
                         return (
                           <div
-                            className="menu-editor-card-emoji-placeholder"
+                            className="dish-monogram-badge"
                             data-palette={visuals.palette}
                             style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 'var(--radius-md)',
+                              overflow: 'hidden',
+                              border: `1.5px solid ${visuals.border}`,
                               background: visuals.bg,
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'center',
+                              flexShrink: 0
                             }}
                           >
-                            <span
-                              className="dish-monogram-text"
-                              style={{
-                                color: visuals.color,
-                                fontSize: 28,
-                                fontWeight: 800,
-                                letterSpacing: '-0.02em',
-                                lineHeight: 1
-                              }}
-                            >
+                            <span className="dish-monogram-text" style={{ color: visuals.color, fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>
                               {visuals.monogram}
                             </span>
                           </div>
                         );
                       })()}
-
-                      {/* Top floating badges */}
-                      <div className="menu-editor-card-top-badges">
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {item.highMargin && (
-                            <span className="menu-editor-pill-badge star" title="High Margin">⭐ Margin</span>
+                      <div style={{ flex: 1, minWidth: 150 }}>
+                        <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span
+                            className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
+                            title={isVegetarianItem(item) ? "Vegetarian" : "Non-Vegetarian"}
+                            style={{ flexShrink: 0 }}
+                          />
+                          <span>{item.name}</span>
+                          {isAllItems && item.categoryName && (
+                            <button
+                              type="button"
+                              className="menu-editor-cat-badge"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveCat(item.categoryId);
+                              }}
+                              title={`Filter by ${item.categoryName}`}
+                              style={{ margin: 0 }}
+                            >
+                              <span>{item.categoryEmoji || '🍽️'}</span>
+                              <span>{item.categoryName}</span>
+                            </button>
                           )}
-                          {(item.isBestseller || item.bestseller) && (
-                            <span className="menu-editor-pill-badge" style={{ background: 'rgba(239, 68, 68, 0.14)', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.35)' }} title="Bestseller">🔥 Bestseller</span>
-                          )}
-                          {item.barcode && (
-                            <span className="menu-editor-pill-badge">🏷️ {item.barcode}</span>
+                          {item.highMargin && <span title="High Margin">⭐</span>}
+                          {(item.isBestseller || item.bestseller) && <span title="Bestseller">🔥</span>}
+                          {item.barcode && <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px' }}>🏷️ {item.barcode}</span>}
+                          {item.modifierGroups?.length > 0 && (
+                            <span style={{ fontSize: '10.5px', color: 'var(--color-accent)', background: 'var(--color-accent-light, rgba(0,122,255,0.08))', border: '1px solid var(--color-accent)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                              ⚡ {item.modifierGroups.length} {item.modifierGroups.length === 1 ? 'Portion/Size' : 'Portions/Modifiers'}
+                            </span>
                           )}
                         </div>
-
-                        <button
-                          type="button"
-                          className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
-                          style={{
-                            cursor: 'pointer',
-                            border: 'none',
-                            backdropFilter: 'blur(6px)',
-                            padding: '3px 8px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleAvailable(item.categoryId || activeCatId, item);
-                          }}
-                          title="Tap to toggle availability"
-                        >
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.available !== false ? '#10b981' : '#94a3b8' }} />
-                          {item.available !== false ? 'Available' : 'Out of stock'}
-                        </button>
-
-                        <button
-                          type="button"
-                          className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
-                          style={{
-                            cursor: 'pointer',
-                            border: 'none',
-                            backdropFilter: 'blur(6px)',
-                            padding: '3px 8px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleBestseller(item.categoryId || activeCatId, item);
-                          }}
-                          title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
-                        >
-                          <span>🔥</span>
-                          <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
-                        </button>
+                        {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
                       </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="menu-editor-card-body">
-                      {isAllItems && item.categoryName && (
-                        <div style={{ marginBottom: 4 }}>
+                      
+                      <div className="menu-item-meta-actions">
+                        <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', minWidth: 80, textAlign: 'right', fontSize: 'var(--text-subhead)' }}>
+                          {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
+                            (() => {
+                              const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                              const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                              return `From ${formatCurrency(minPrice, restaurant?.currency ?? 'INR')}`;
+                            })()
+                          ) : (
+                            formatCurrency(item.price, restaurant?.currency ?? 'INR')
+                          )}
+                          {item.unit && item.unit !== 'pcs' && <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>}
+                        </div>
+                        <div className="menu-item-actions">
+                          {isReorderMode && (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 4 }} onClick={e => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="cat-touch-action-btn reorder-btn"
+                                onClick={() => moveItem(index, -1)}
+                                disabled={index === 0}
+                                title="Move item up"
+                              >
+                                <ChevronUp size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                className="cat-touch-action-btn reorder-btn"
+                                onClick={() => moveItem(index, 1)}
+                                disabled={index === displayItems.length - 1}
+                                title="Move item down"
+                              >
+                                <ChevronDown size={12} />
+                              </button>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => toggleAvailable(item.categoryId || activeCatId, item)}
+                            className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
+                            style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font-family)' }}
+                            title="Toggle availability"
+                          >
+                            {item.available !== false ? 'Available' : 'Unavailable'}
+                          </button>
                           <button
                             type="button"
-                            className="menu-editor-cat-badge"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveCat(item.categoryId);
-                            }}
-                            title={`Filter by ${item.categoryName}`}
+                            onClick={() => toggleBestseller(item.categoryId || activeCatId, item)}
+                            className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
+                            style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font-family)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                            title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
                           >
-                            <span>{item.categoryEmoji || '🍽️'}</span>
-                            <span>{item.categoryName}</span>
+                            <span>🔥</span>
+                            <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
+                          </button>
+                          <button className="btn btn-secondary btn-icon btn-sm" onClick={() => openEditItemModal(item)} id={`edit-item-${item.id}`}>
+                            <Edit2 size={12}/>
+                          </button>
+                          <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteItem(item.categoryId || activeCatId, item.id)} id={`delete-item-${item.id}`}>
+                            <Trash2 size={12}/>
                           </button>
                         </div>
-                      )}
-
-                      <div className="menu-editor-card-title-row" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span
-                          className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
-                          title={isVegetarianItem(item) ? "Vegetarian" : "Non-Vegetarian"}
-                          style={{ flexShrink: 0 }}
-                        />
-                        <h4 className="menu-editor-card-title">{item.name}</h4>
-                      </div>
-
-                      {item.description && (
-                        <p className="menu-editor-card-desc">{item.description}</p>
-                      )}
-
-                      {item.modifierGroups?.length > 0 && (
-                        <div className="menu-editor-card-modifiers">
-                          <span>⚡ {item.modifierGroups.length} {item.modifierGroups.length === 1 ? 'Portion' : 'Portions'}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footer: Price & Actions */}
-                    <div className="menu-editor-card-footer" onClick={(e) => e.stopPropagation()}>
-                      <div className="menu-editor-card-price">
-                        {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
-                          (() => {
-                            const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                            return `From ${formatCurrency(minPrice, restaurant?.currency ?? 'INR')}`;
-                          })()
-                        ) : (
-                          formatCurrency(item.price, restaurant?.currency ?? 'INR')
-                        )}
-                        {item.unit && item.unit !== 'pcs' && (
-                          <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>
-                        )}
-                      </div>
-
-                      <div className="menu-editor-card-actions">
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-icon btn-sm menu-editor-action-btn"
-                          onClick={() => openEditItemModal(item)}
-                          id={`edit-item-${item.id}`}
-                          title="Edit item"
-                        >
-                          <Edit2 size={13}/>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-icon btn-sm menu-editor-action-btn delete"
-                          onClick={() => deleteItem(item.categoryId || activeCatId, item.id)}
-                          id={`delete-item-${item.id}`}
-                          title="Delete item"
-                        >
-                          <Trash2 size={13}/>
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div>
-                {filteredItems.map((item) => (
-                  <div key={item.id} className="menu-item-row" style={{ opacity: item.available === false ? 0.5 : 1 }}>
-                    {item.imageUrl ? (
-                      <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--color-separator)', flexShrink: 0 }}>
-                        <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
-                    ) : (() => {
-                      const visuals = getItemVisuals(item);
-                      return (
-                        <div
-                          className="dish-monogram-badge"
-                          data-palette={visuals.palette}
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 'var(--radius-md)',
-                            overflow: 'hidden',
-                            border: `1.5px solid ${visuals.border}`,
-                            background: visuals.bg,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                          }}
-                        >
-                          <span className="dish-monogram-text" style={{ color: visuals.color, fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>
-                            {visuals.monogram}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    <div style={{ flex: 1, minWidth: 150 }}>
-                      <div style={{ fontWeight: 'var(--weight-semibold)', fontSize: 'var(--text-subhead)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span
-                          className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
-                          title={isVegetarianItem(item) ? "Vegetarian" : "Non-Vegetarian"}
-                          style={{ flexShrink: 0 }}
-                        />
-                        <span>{item.name}</span>
-                        {isAllItems && item.categoryName && (
-                          <button
-                            type="button"
-                            className="menu-editor-cat-badge"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveCat(item.categoryId);
-                            }}
-                            title={`Filter by ${item.categoryName}`}
-                            style={{ margin: 0 }}
-                          >
-                            <span>{item.categoryEmoji || '🍽️'}</span>
-                            <span>{item.categoryName}</span>
-                          </button>
-                        )}
-                        {item.highMargin && <span title="High Margin">⭐</span>}
-                        {(item.isBestseller || item.bestseller) && <span title="Bestseller">🔥</span>}
-                        {item.barcode && <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', background: 'var(--color-bg-secondary)', padding: '1px 5px', borderRadius: '4px' }}>🏷️ {item.barcode}</span>}
-                        {item.modifierGroups?.length > 0 && (
-                          <span style={{ fontSize: '10.5px', color: 'var(--color-accent)', background: 'var(--color-accent-light, rgba(0,122,255,0.08))', border: '1px solid var(--color-accent)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                            ⚡ {item.modifierGroups.length} {item.modifierGroups.length === 1 ? 'Portion/Size' : 'Portions/Modifiers'}
-                          </span>
-                        )}
-                      </div>
-                      {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
-                    </div>
-                    
-                    <div className="menu-item-meta-actions">
-                      <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', minWidth: 80, textAlign: 'right', fontSize: 'var(--text-subhead)' }}>
-                        {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
-                          (() => {
-                            const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                            return `From ${formatCurrency(minPrice, restaurant?.currency ?? 'INR')}`;
-                          })()
-                        ) : (
-                          formatCurrency(item.price, restaurant?.currency ?? 'INR')
-                        )}
-                        {item.unit && item.unit !== 'pcs' && <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>}
-                      </div>
-                      <div className="menu-item-actions">
-                        <button
-                          onClick={() => toggleAvailable(item.categoryId || activeCatId, item)}
-                          className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
-                          style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font-family)' }}
-                          title="Toggle availability"
-                        >
-                          {item.available !== false ? 'Available' : 'Unavailable'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleBestseller(item.categoryId || activeCatId, item)}
-                          className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
-                          style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font-family)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-                          title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
-                        >
-                          <span>🔥</span>
-                          <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
-                        </button>
-                        <button className="btn btn-secondary btn-icon btn-sm" onClick={() => openEditItemModal(item)} id={`edit-item-${item.id}`}>
-                          <Edit2 size={12}/>
-                        </button>
-                        <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteItem(item.categoryId || activeCatId, item.id)} id={`delete-item-${item.id}`}>
-                          <Trash2 size={12}/>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
