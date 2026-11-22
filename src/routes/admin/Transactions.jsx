@@ -4,10 +4,11 @@ import { useStaffStore } from '../../stores/staffStore';
 import { collection, query, where, getDocs, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { Search, Download, ChevronDown, ChevronUp, Receipt, Clock, Tag, User, Flag, Printer, X } from 'lucide-react';
+import { Search, Download, ChevronDown, ChevronUp, Receipt, Clock, Tag, User, Flag, Printer, X, MessageSquare } from 'lucide-react';
 import InfoTooltip from '../../components/shared/InfoTooltip';
 import toast from 'react-hot-toast';
 import { printReceipt } from '../../utils/print';
+import { sendWhatsAppReceipt } from '../../services/whatsappService';
 import { useOrderStore } from '../../stores/orderStore';
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { getOrderTimestampMs } from '../../utils/timezoneUtils';
@@ -187,6 +188,36 @@ export default function Transactions() {
     } catch (err) {
       console.error('Reprint error:', err);
       toast.error('Failed to reprint: ' + err.message);
+    }
+  };
+
+  const handleSendWhatsAppReceipt = async (e, order) => {
+    e.stopPropagation();
+    let phone = order.customerPhone || order.customer?.phone;
+    if (!phone) {
+      phone = window.prompt('Enter customer mobile number (e.g. 9876543210):');
+      if (!phone) return;
+    }
+    const toastId = toast.loading('Sending receipt via WhatsApp...');
+    try {
+      const res = await sendWhatsAppReceipt({
+        restaurant,
+        orderId: order.id,
+        customerName: order.customerName || order.customer?.name || '',
+        customerPhone: phone,
+        items: order.items || [],
+        total: order.total,
+        currency,
+        paymentMethod: order.paymentMethod,
+        token: order.token || null
+      });
+      if (res.ok) {
+        toast.success(`WhatsApp receipt sent to +${res.phone}!`, { id: toastId, icon: '📲' });
+      } else {
+        toast.error(res.error || 'Failed to send WhatsApp message', { id: toastId });
+      }
+    } catch (err) {
+      toast.error('Network error: ' + err.message, { id: toastId });
     }
   };
 
@@ -522,6 +553,16 @@ export default function Transactions() {
                                     >
                                       <Printer size={13} /> Reprint
                                     </button>
+                                    {restaurant?.settings?.whatsapp?.enabled && (
+                                      <button 
+                                        className="btn btn-sm btn-secondary"
+                                        onClick={(e) => handleSendWhatsAppReceipt(e, order)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center', color: '#16a34a' }}
+                                        title="Send digital receipt to customer on WhatsApp"
+                                      >
+                                        <MessageSquare size={13} color="#25D366" /> WhatsApp
+                                      </button>
+                                    )}
                                     <button 
                                       className={`btn btn-sm ${order.flagged ? 'btn-danger' : 'btn-secondary'}`}
                                       onClick={(e) => handleFlag(e, order.id, order.flagged)} 

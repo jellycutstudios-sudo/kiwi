@@ -28,6 +28,7 @@ import TableSelectModal from '../components/pos/TableSelectModal';
 import ModifierModal from '../components/pos/ModifierModal';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
+import { sendWhatsAppReceipt } from '../services/whatsappService';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
 import CategoryGridModal from '../components/pos/CategoryGridModal';
@@ -1224,6 +1225,27 @@ export default function POS() {
         toast.success(modes.includes('token') && (res.token || token) ? `Payment buffered offline (#${res.token || token})! Tickets printing...` : `Payment buffered offline! Tickets printing...`, { id: toastId, duration: 4500 });
       } else {
         toast.success('Payment completed & order placed!', { id: toastId });
+      }
+
+      // Automated WhatsApp Digital Receipt (Meta Cloud API)
+      if (snapCustomerPhone && restaurant?.settings?.whatsapp?.enabled) {
+        sendWhatsAppReceipt({
+          restaurant,
+          orderId: res.orderId,
+          customerName: snapCustomerName,
+          customerPhone: snapCustomerPhone,
+          items: snapItems,
+          total: snapTotal,
+          currency,
+          paymentMethod: snapPaymentMethod,
+          token: modes.includes('token') ? (res.token || token) : null,
+        }).then(waRes => {
+          if (waRes.ok) {
+            toast.success(`WhatsApp receipt sent to +${waRes.phone}`, { icon: '📲', duration: 3000 });
+          } else {
+            console.warn('[POS] Auto WhatsApp receipt failed:', waRes.error);
+          }
+        }).catch(err => console.warn('[POS] WhatsApp send error:', err));
       }
 
       const printOrder = {

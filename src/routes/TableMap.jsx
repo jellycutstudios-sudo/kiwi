@@ -7,6 +7,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch, array
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt } from '../utils/print';
+import { sendWhatsAppReceipt } from '../services/whatsappService';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 import {
@@ -884,6 +885,28 @@ export default function TableMap() {
       await freeTable(restaurant.id, selected);
       setSelected(null);
       toast.success(`Settled via ${method.toUpperCase()} ✓ Table freed`);
+
+      // WhatsApp Cloud auto-receipt dispatch
+      const custPhone = orderSnapshot.customerPhone || orderSnapshot.customer?.phone;
+      if (custPhone && restaurant?.settings?.whatsapp?.enabled) {
+        sendWhatsAppReceipt({
+          restaurant,
+          orderId: orderSnapshot.id,
+          customerName: orderSnapshot.customerName || orderSnapshot.customer?.name || '',
+          customerPhone: custPhone,
+          items: orderSnapshot.items || [],
+          total: orderSnapshot.total,
+          currency: restaurant?.currency || 'INR',
+          paymentMethod: method,
+          token: orderSnapshot.token || null
+        }).then(waRes => {
+          if (waRes.ok) {
+            toast.success(`WhatsApp receipt sent to +${waRes.phone}`, { icon: '📲', duration: 3000 });
+          } else {
+            console.warn('[TableMap] WhatsApp send skipped/failed:', waRes.error);
+          }
+        }).catch(err => console.warn('[TableMap] WhatsApp send error:', err));
+      }
 
       // Print final settled receipt automatically upon payment collection ONLY if bill wasn't already printed
       if (!selectedOrder.billPrinted) {

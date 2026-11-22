@@ -32,7 +32,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     getPointsDiscountAmount, tipAmount, setTip,
     tableName, tokenNumber, upiRef, setUpiRef,
     setTerminalTx, getSettledTotal, getRemainingTotal,
-    billPrinted
+    billPrinted, customerPhone
   } = useOrderStore();
 
   const [shouldPrintReceipt, setShouldPrintReceipt] = useState(() => !billPrinted);
@@ -1825,6 +1825,33 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
             />
           </div>
+
+          {/* WhatsApp E-Receipt Status Indicator */}
+          {restaurant?.settings?.whatsapp?.enabled && (
+            <div style={{
+              marginTop: 8,
+              padding: '8px 12px',
+              borderRadius: 10,
+              background: 'rgba(37, 211, 102, 0.08)',
+              border: '1px solid rgba(37, 211, 102, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 12
+            }}>
+              <span style={{ fontSize: 15 }}>📲</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontWeight: 700, color: '#16a34a', display: 'block' }}>
+                  Meta WhatsApp E-Receipt
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {(customerPhone || customer?.phone)
+                    ? `Auto-sends to customer: ${customerPhone || customer?.phone}`
+                    : 'Customer mobile not set (add phone in cart to auto-send)'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="modal-footer" style={{

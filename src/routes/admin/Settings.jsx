@@ -8,7 +8,7 @@ import { CURRENCY_OPTIONS } from '../../utils/formatCurrency';
 import { 
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, ArrowRight, Tv, ExternalLink,
-  Download, ShieldCheck, Bot, Zap, Lock, Mail,
+  Download, ShieldCheck, Bot, Zap, Lock, Mail, MessageSquare, Send,
   Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown, Monitor
 } from 'lucide-react';
 import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
@@ -26,6 +26,7 @@ import { useUpdateStore } from '../../stores/updateStore';
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { saveLocalGroqApiKey } from '../../services/groqService';
 import { TERMINAL_PROVIDERS, getTerminalAdapter } from '../../services/terminal';
+import { sendWhatsAppTestMessage } from '../../services/whatsappService';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
 import { getEffectivePosTemplate, POS_TEMPLATES } from '../../utils/posTemplate';
 
@@ -878,6 +879,40 @@ export default function Settings() {
   };
 
   const [sendingTestReport, setSendingTestReport] = useState(false);
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
+  const [testWhatsAppPhone, setTestWhatsAppPhone] = useState('');
+
+  const handleSendTestWhatsApp = async () => {
+    const waConfig = settings.whatsapp || restaurant?.settings?.whatsapp || {};
+    if (!waConfig.phoneNumberId || !waConfig.accessToken) {
+      toast.error('Please enter your WhatsApp Phone Number ID and Access Token first.');
+      return;
+    }
+    if (!testWhatsAppPhone.trim()) {
+      toast.error('Enter a mobile number to receive the test receipt.');
+      return;
+    }
+    setTestingWhatsApp(true);
+    try {
+      const res = await sendWhatsAppTestMessage({
+        phoneNumberId: waConfig.phoneNumberId.trim(),
+        accessToken: waConfig.accessToken.trim(),
+        testPhone: testWhatsAppPhone.trim(),
+        defaultCountryCode: waConfig.defaultCountryCode || '91',
+        restaurantName: restaurant?.name || 'Kiwi POS'
+      });
+      if (res.ok) {
+        toast.success('Test WhatsApp message delivered successfully!', { icon: '💬', duration: 5000 });
+      } else {
+        toast.error(`WhatsApp delivery error: ${res.error || 'Failed to send'}`);
+      }
+    } catch (err) {
+      toast.error('Test failed: ' + err.message);
+    } finally {
+      setTestingWhatsApp(false);
+    }
+  };
+
   const handleSendTestReport = async () => {
     const targetEmail = settings.adminNotificationEmail || restaurant?.adminNotificationEmail;
     if (!targetEmail) {
@@ -4414,6 +4449,170 @@ export default function Settings() {
                         {sendingTestReport ? 'Sending...' : "Send Today's Report (Test Email)"}
                       </button>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* WhatsApp Business & Meta Cloud API Receipts */}
+              <div className="card card-padded" style={{ marginTop: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 'var(--space-3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      background: 'rgba(37, 211, 102, 0.15)',
+                      color: '#25D366',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-title3" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>Meta WhatsApp Cloud Receipts</span>
+                        <span className="badge badge-green" style={{ fontSize: 10, fontWeight: 700 }}>Official Meta API</span>
+                      </h3>
+                      <p className="text-secondary text-footnote" style={{ margin: 0, marginTop: 2 }}>
+                        Automatically deliver digital e-bills and retention offers directly to customer WhatsApp upon checkout without QR scanning.
+                      </p>
+                    </div>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>
+                      {settings.whatsapp?.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.whatsapp?.enabled ?? false}
+                      onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), enabled: e.target.checked })}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  {/* Meta Credentials Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>WhatsApp Phone Number ID</span>
+                        <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>From Meta App Dashboard</span>
+                      </label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="e.g. 104829572918472"
+                        value={settings.whatsapp?.phoneNumberId ?? ''}
+                        onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), phoneNumberId: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Default Country Dial Code</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="91 (India), 1 (US), 971 (UAE)"
+                        value={settings.whatsapp?.defaultCountryCode ?? '91'}
+                        onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), defaultCountryCode: e.target.value.replace(/\D/g, '') })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Permanent Access Token (System User Token)</span>
+                      <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>Bearer Token from Meta Business Manager</span>
+                    </label>
+                    <input
+                      className="form-input"
+                      type="password"
+                      placeholder="EAAG..."
+                      value={settings.whatsapp?.accessToken ?? ''}
+                      onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), accessToken: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Mode & Promo Text */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">Sending Mode</label>
+                      <select
+                        className="form-input"
+                        value={settings.whatsapp?.mode ?? 'text'}
+                        onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), mode: e.target.value })}
+                      >
+                        <option value="text">Direct Text Receipt (Fastest / Universal)</option>
+                        <option value="template">Official Meta Template</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Promotional / Retention Footer</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="e.g. Show this receipt on your next visit for 10% off!"
+                        value={settings.whatsapp?.promoText ?? ''}
+                        onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), promoText: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Setup Helper Guide Box */}
+                  <div style={{
+                    background: 'var(--color-bg-secondary)',
+                    padding: '12px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '12px',
+                    color: 'var(--color-label-secondary)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4
+                  }}>
+                    <strong style={{ color: 'var(--color-label)' }}>Quick 3-Step Setup with Meta Cloud API:</strong>
+                    <div>1. Go to <em>developers.facebook.com</em> &rarr; Create App &rarr; Select <strong>WhatsApp</strong>.</div>
+                    <div>2. Under API Setup, copy your <strong>Phone Number ID</strong> and <strong>Permanent/System Token</strong>.</div>
+                    <div>3. Paste both above, enter your phone number below, and click <strong>Test WhatsApp</strong>. Meta provides <strong>1,000 free conversations every month</strong>!</div>
+                  </div>
+
+                  {/* Test WhatsApp Connection */}
+                  <div style={{
+                    borderTop: '1px solid var(--color-separator-opaque)',
+                    paddingTop: 'var(--space-3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 10
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 260px', maxWidth: 440 }}>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="Enter mobile to test (e.g. 9876543210)"
+                        value={testWhatsAppPhone}
+                        onChange={e => setTestWhatsAppPhone(e.target.value)}
+                        style={{ height: 38 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleSendTestWhatsApp}
+                        disabled={testingWhatsApp}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, whiteSpace: 'nowrap' }}
+                      >
+                        <Send size={14} />
+                        <span>{testingWhatsApp ? 'Sending...' : 'Test WhatsApp'}</span>
+                      </button>
+                    </div>
+
+                    <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                      Zero friction for cashiers · Automatic background dispatch
+                    </span>
                   </div>
                 </div>
               </div>

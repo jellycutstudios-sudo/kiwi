@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useOrderStore } from '../../stores/orderStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { printReceipt } from '../../utils/print';
+import { sendWhatsAppReceipt } from '../../services/whatsappService';
 import { getOrderElapsedSeconds } from '../../utils/timezoneUtils';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
@@ -116,6 +117,28 @@ export default function ActiveOrdersModal({
     setSettlingId(order.id);
     try {
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
+      // Auto-dispatch WhatsApp digital receipt if enabled and customer phone is present
+      const custPhone = order.customerPhone || order.customer?.phone;
+      if (custPhone && restaurant?.settings?.whatsapp?.enabled) {
+        sendWhatsAppReceipt({
+          restaurant,
+          orderId: order.id,
+          customerName: order.customerName || order.customer?.name || '',
+          customerPhone: custPhone,
+          items: order.items || [],
+          total: order.total,
+          currency: restaurant?.currency || 'INR',
+          paymentMethod: 'cash',
+          token: order.token || null
+        }).then(waRes => {
+          if (waRes.ok) {
+            toast.success(`WhatsApp receipt sent to +${waRes.phone}`, { icon: '📲', duration: 3000 });
+          } else {
+            console.warn('[ActiveOrders] WhatsApp send skipped/failed:', waRes.error);
+          }
+        }).catch(err => console.warn('[ActiveOrders] WhatsApp send error:', err));
+      }
+
       if (shouldPrint) {
         toast.success(`Paid via Cash ✓ Printing receipt`, { id: 'pos-action' });
         // Background print paid receipt
