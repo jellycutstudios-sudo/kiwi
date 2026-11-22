@@ -68,7 +68,8 @@ export default function MenuEditor() {
   const [editingCat, setEditingCat] = useState(null);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '' });
+  const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '', subCategories: [] });
+  const [newSubCatInput, setNewSubCatInput] = useState('');
   const [itemForm, setItemForm] = useState({ name: '', categoryId: '', subCategory: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
   const [isAiTranslating, setIsAiTranslating] = useState(false);
   const [isBatchTranslating, setIsBatchTranslating] = useState(false);
@@ -541,14 +542,52 @@ export default function MenuEditor() {
 
   const openAddCategory = () => {
     setEditingCat(null);
-    setCatForm({ name: '', emoji: '', taxRate: '' });
+    setNewSubCatInput('');
+    setCatForm({ name: '', emoji: '', taxRate: '', subCategories: [] });
     setShowCatForm(true);
   };
 
   const openEditCategory = (cat) => {
     setEditingCat(cat);
-    setCatForm({ name: cat.name || '', emoji: cat.emoji || '🍽️', taxRate: cat.taxRate != null ? String(cat.taxRate) : '' });
+    setNewSubCatInput('');
+    const existingSubs = new Set(Array.isArray(cat.subCategories) ? cat.subCategories : []);
+    if (Array.isArray(cat.items)) {
+      cat.items.forEach(i => {
+        if (i.subCategory && typeof i.subCategory === 'string' && i.subCategory.trim()) {
+          existingSubs.add(i.subCategory.trim());
+        }
+      });
+    }
+    setCatForm({
+      name: cat.name || '',
+      emoji: cat.emoji || '🍽️',
+      taxRate: cat.taxRate != null ? String(cat.taxRate) : '',
+      subCategories: Array.from(existingSubs)
+    });
     setShowCatForm(true);
+  };
+
+  const handleAddSubCategoryToCat = () => {
+    const raw = newSubCatInput.trim();
+    if (!raw) return;
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    setCatForm(f => {
+      const current = Array.isArray(f.subCategories) ? [...f.subCategories] : [];
+      parts.forEach(p => {
+        if (!current.some(c => c.toLowerCase() === p.toLowerCase())) {
+          current.push(p);
+        }
+      });
+      return { ...f, subCategories: current };
+    });
+    setNewSubCatInput('');
+  };
+
+  const handleRemoveSubCategoryFromCat = (indexToRemove) => {
+    setCatForm(f => ({
+      ...f,
+      subCategories: (f.subCategories || []).filter((_, idx) => idx !== indexToRemove)
+    }));
   };
 
   const saveCategory = async () => {
@@ -575,11 +614,16 @@ export default function MenuEditor() {
       ? parseFloat(catForm.taxRate)
       : null;
 
+    const cleanSubCategories = (catForm.subCategories || [])
+      .map(s => (typeof s === 'string' ? s.trim() : ''))
+      .filter(Boolean);
+
     if (editingCat) {
       const updatedCats = categories.map(c => c.id === editingCat.id ? {
         ...c,
         name: cleanName,
         emoji: catForm.emoji.trim() || '🍽️',
+        subCategories: cleanSubCategories,
         ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : { taxRate: undefined })
       } : c);
       useMenuStore.getState().setCategories(updatedCats);
@@ -592,6 +636,7 @@ export default function MenuEditor() {
           const updatePayload = {
             name: catForm.name.trim(),
             emoji: catForm.emoji.trim() || '🍽️',
+            subCategories: cleanSubCategories,
           };
           if (parsedTaxRate !== null) {
             updatePayload.taxRate = parsedTaxRate;
@@ -610,6 +655,7 @@ export default function MenuEditor() {
         id: newCatId,
         name: catForm.name.trim(),
         emoji: catForm.emoji.trim() || '🍽️',
+        subCategories: cleanSubCategories,
         ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {}),
         items: [],
       };
@@ -624,6 +670,7 @@ export default function MenuEditor() {
           const docPayload = {
             name: catForm.name.trim(),
             emoji: catForm.emoji.trim() || '🍽️',
+            subCategories: cleanSubCategories,
             items: [],
           };
           if (parsedTaxRate !== null) {
@@ -639,7 +686,8 @@ export default function MenuEditor() {
       }
       toast.success('Category added!');
     }
-    setCatForm({ name: '', emoji: '', taxRate: '' });
+    setCatForm({ name: '', emoji: '', taxRate: '', subCategories: [] });
+    setNewSubCatInput('');
     setEditingCat(null);
     setShowCatForm(false);
   };
@@ -944,13 +992,22 @@ export default function MenuEditor() {
   const existingSubCategories = useMemo(() => {
     const targetCatId = itemForm.categoryId || (activeCat && activeCat !== 'all' ? activeCat : categories[0]?.id);
     const cat = categories.find(c => c.id === targetCatId);
-    if (!cat || !Array.isArray(cat.items)) return [];
+    if (!cat) return [];
     const set = new Set();
-    cat.items.forEach(i => {
-      if (i.subCategory && typeof i.subCategory === 'string' && i.subCategory.trim()) {
-        set.add(i.subCategory.trim());
-      }
-    });
+    if (Array.isArray(cat.subCategories)) {
+      cat.subCategories.forEach(s => {
+        if (s && typeof s === 'string' && s.trim()) {
+          set.add(s.trim());
+        }
+      });
+    }
+    if (Array.isArray(cat.items)) {
+      cat.items.forEach(i => {
+        if (i.subCategory && typeof i.subCategory === 'string' && i.subCategory.trim()) {
+          set.add(i.subCategory.trim());
+        }
+      });
+    }
     return Array.from(set);
   }, [categories, itemForm.categoryId, activeCat]);
 
@@ -2127,6 +2184,75 @@ export default function MenuEditor() {
                   Leave empty to inherit restaurant tax rate. Enter 0 for zero-rated / tax-exempt items in this category.
                 </span>
               </div>
+              <div className="form-group">
+                <label className="form-label">Sub-Categories (Optional)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    id="cat-subcat-input"
+                    className="form-input"
+                    placeholder="e.g. Mocktails, Cocktails (Press Enter)"
+                    value={newSubCatInput}
+                    onChange={e => setNewSubCatInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        handleAddSubCategoryToCat();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleAddSubCategoryToCat}
+                    style={{ whiteSpace: 'nowrap', padding: '0 12px' }}
+                  >
+                    + Add
+                  </button>
+                </div>
+                {catForm.subCategories?.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                    {catForm.subCategories.map((sub, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '3px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          background: 'var(--color-bg-secondary, rgba(255,255,255,0.06))',
+                          border: '1px solid var(--color-separator, rgba(255,255,255,0.1))',
+                          color: 'var(--color-label-primary)'
+                        }}
+                      >
+                        {sub}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSubCategoryFromCat(idx)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-label-tertiary)',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            lineHeight: 1
+                          }}
+                          title={`Remove ${sub}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', marginTop: '4px', display: 'block' }}>
+                  Predefine subcategories like &quot;Mocktails&quot;, &quot;Cocktails&quot; for 1-tap dish tagging.
+                </span>
+              </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowCatForm(false)}>Cancel</button>
@@ -2239,26 +2365,31 @@ export default function MenuEditor() {
                         <option key={sIdx} value={sub} />
                       ))}
                     </datalist>
-                    {existingSubCategories.length > 0 && !itemForm.subCategory && (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                        {existingSubCategories.slice(0, 4).map((sub, sIdx) => (
-                          <button
-                            key={sIdx}
-                            type="button"
-                            onClick={() => setItemForm(f => ({ ...f, subCategory: sub }))}
-                            style={{
-                              border: '1px solid var(--color-separator)',
-                              background: 'var(--color-bg-secondary)',
-                              color: 'var(--color-label-secondary)',
-                              fontSize: '10.5px',
-                              borderRadius: '4px',
-                              padding: '1px 6px',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            + {sub}
-                          </button>
-                        ))}
+                    {existingSubCategories.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                        {existingSubCategories.map((sub, sIdx) => {
+                          const isSelected = (itemForm.subCategory || '').trim().toLowerCase() === sub.trim().toLowerCase();
+                          return (
+                            <button
+                              key={sIdx}
+                              type="button"
+                              onClick={() => setItemForm(f => ({ ...f, subCategory: isSelected ? '' : sub }))}
+                              style={{
+                                border: isSelected ? '1px solid var(--color-primary, #10b981)' : '1px solid var(--color-separator)',
+                                background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'var(--color-bg-secondary)',
+                                color: isSelected ? 'var(--color-primary, #10b981)' : 'var(--color-label-secondary)',
+                                fontWeight: isSelected ? 600 : 400,
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                padding: '2px 8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {isSelected ? '✓ ' : '+ '}{sub}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
