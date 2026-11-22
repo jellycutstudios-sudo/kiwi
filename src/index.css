@@ -2386,10 +2386,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .pos-category-bar {
-  background: #10121b;
-  border-right: none !important;
+  background: #0d0f18;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-bottom: none;
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .category-chip {
@@ -18265,7 +18265,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 /* Sidebar & Navigation */
 [data-theme="dark"] .sidebar {
   background: var(--sidebar-bg, #090a10);
-  border-right: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.45);
 }
 
@@ -18348,7 +18348,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 /* Top Bar */
 [data-theme="dark"] .top-bar {
   background: var(--topbar-bg, #090a10);
-  border-bottom: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
@@ -18359,71 +18359,72 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] #lang-select {
   background: #141724;
   color: #ffffff;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] #menu-search-input {
-  background: #141724;
+  background: #131623;
   color: #ffffff;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] #menu-search-input:focus {
-  border: none !important;
+  border-color: #10b981 !important;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
-  background: #191d2c;
+  background: #181d2d;
 }
 
 [data-theme="dark"] #menu-search-input::placeholder {
   color: #94a3b8;
 }
 
-/* POS Terminal Layout — True Obsidian Contrast Canvas */
+/* POS Terminal Layout — Understandable Architectural Columns */
 [data-theme="dark"] .pos-layout {
   background: #08090e;
 }
 
 [data-theme="dark"] .pos-cart-panel {
-  background: #10121b !important;
-  border-left: none !important;
+  background: #0e111a !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: -8px 0 28px rgba(0, 0, 0, 0.55) !important;
 }
 
 [data-theme="dark"] [dir="rtl"] .pos-cart-panel {
-  border-right: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 8px 0 28px rgba(0, 0, 0, 0.55) !important;
 }
 
-/* POS Category Bar — Borderless Tonal Separation */
+/* POS Category Bar — Clear Column Boundary & Tactile Chips */
 [data-theme="dark"] .pos-category-bar {
-  background: #10121b;
-  border-bottom: none !important;
+  background: #0d0f18;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: none;
   min-height: 62px;
 }
 
 [data-theme="dark"] .category-chip {
-  background: #161926;
-  color: #e2e8f0;
-  border: none !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #171b2a;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   min-height: 46px;
   height: 46px;
 }
 
 [data-theme="dark"] .category-chip:hover {
-  background: #22273a;
+  background: #21263c;
   color: #ffffff;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .category-chip.active {
   background: #10b981 !important;
   color: #ffffff !important;
-  border: none !important;
+  border: 1px solid rgba(16, 185, 129, 0.5) !important;
   font-weight: 750 !important;
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
 }
@@ -18431,49 +18432,51 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .category-chip.active:hover {
   background: #059669 !important;
   color: #ffffff !important;
-  border: none !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
 }
 
 [data-theme="dark"] .category-chip-count {
-  background: rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
-  font-weight: 700;
+  background: #24293e;
+  color: #cbd5e1;
+  font-weight: 750;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 [data-theme="dark"] .category-chip.active .category-chip-count {
-  background: rgba(0, 0, 0, 0.25) !important;
+  background: rgba(0, 0, 0, 0.28) !important;
   color: #ffffff !important;
   font-weight: 800;
+  border: none !important;
 }
 
-/* Dual-Tier Subcategory Pill Bar — Borderless Glare-Free Styling */
+/* Dual-Tier Subcategory Pill Bar — Crisp Definition */
 [data-theme="dark"] .pos-subcategory-bar {
   background: #0a0c14;
-  border-bottom: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
 }
 
 [data-theme="dark"] .pos-subcat-pill {
-  background: #151824;
-  border: none !important;
-  color: #94a3b8;
+  background: #161a29;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #cbd5e1;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="dark"] .pos-subcat-pill:hover {
-  background: #202538;
-  border: none !important;
+  background: #22273c;
+  border-color: rgba(255, 255, 255, 0.16) !important;
   color: #ffffff;
 }
 
 [data-theme="dark"] .pos-subcat-pill.active {
   background: #10b981;
   color: #ffffff;
-  border: none !important;
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
   box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
 }
 
 [data-theme="dark"] .pos-subcat-pill--popular {
-  border: none !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.12);
 }
@@ -18481,33 +18484,33 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .pos-subcat-pill--popular.active {
   background: #f59e0b;
   color: #ffffff;
-  border: none !important;
+  border: 1px solid rgba(245, 158, 11, 0.5) !important;
   box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
 }
 
-/* Dietary Quick Filters Bar — Borderless Modern Styling */
+/* Dietary Quick Filters Bar — Crisp Structured Pills */
 [data-theme="dark"] .menu-dietary-bar {
   background: #10121b;
-  border-bottom: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
 }
 
 [data-theme="dark"] .dietary-chip {
-  background: #151824;
+  background: #141724;
   color: #e2e8f0;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="dark"] .dietary-chip:hover {
   background: #202538;
   color: #ffffff;
-  border: none !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 [data-theme="dark"] .dietary-chip--all.active {
   background: #24293c !important;
   color: #ffffff !important;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
   font-weight: 750 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
 }
@@ -18515,7 +18518,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .dietary-chip--veg.active {
   background: rgba(34, 197, 94, 0.22) !important;
   color: #4ade80 !important;
-  border: none !important;
+  border: 1px solid rgba(34, 197, 94, 0.4) !important;
   font-weight: 700 !important;
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.25) !important;
 }
@@ -18523,7 +18526,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .dietary-chip--nonveg.active {
   background: rgba(239, 68, 68, 0.22) !important;
   color: #f87171 !important;
-  border: none !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
   font-weight: 700 !important;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.25) !important;
 }
@@ -18531,7 +18534,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .dietary-chip--bestseller.active {
   background: rgba(245, 158, 11, 0.22) !important;
   color: #fbbf24 !important;
-  border: none !important;
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
   font-weight: 700 !important;
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
 }
@@ -18593,14 +18596,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .menu-key-card {
-  background: #161926 !important;
-  border: none !important;
+  background: #161928 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4) !important;
 }
 
 [data-theme="dark"] .menu-key-card:hover {
-  background: #202538 !important;
-  border: none !important;
+  background: #20253c !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55) !important;
 }
 
@@ -18622,36 +18625,36 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .menu-key-footer {
-  border-top: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 [data-theme="dark"] .menu-key-pill-special {
   background: rgba(245, 158, 11, 0.16);
   color: #fcd34d;
-  border: none !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
 }
 
 [data-theme="dark"] .menu-key-pill-mod {
   background: rgba(99, 102, 241, 0.16);
   color: #a5b4fc;
-  border: none !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
 }
 
 [data-theme="dark"] .menu-key-action-btn {
   background: #202436;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   color: #cbd5e1;
 }
 
 [data-theme="dark"] .menu-key-card:hover .menu-key-action-btn {
   background: #10b981;
-  border: none !important;
+  border-color: #10b981 !important;
   color: #ffffff;
 }
 
 [data-theme="dark"] .menu-key-action-btn.added {
   background: #10b981;
-  border: none !important;
+  border-color: #10b981 !important;
   color: #ffffff;
 }
 
@@ -18662,42 +18665,42 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 8px rgba(16, 185, 129, 0.3) !important;
 }
 
-/* Visual Cards Mode — 100% Borderless Surface Design */
+/* Visual Cards Mode — Understandable Elevated Surfaces */
 [data-theme="dark"] .menu-item-card {
-  background: #161926 !important;
-  border: none !important;
+  background: #151826 !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: var(--clay-radius-card);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-theme="dark"] .menu-item-card:hover {
-  background: #202538 !important;
-  border: none !important;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.65) !important;
+  background: #1e2338 !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-theme="dark"] .menu-item-card.in-cart,
 [data-theme="dark"] .menu-key-card.in-cart {
   background: linear-gradient(165deg, #132820 0%, #0d1c16 100%) !important;
-  border: none !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.45) !important;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(16, 185, 129, 0.3) !important;
 }
 
 [data-theme="dark"] .menu-item-card.in-cart:hover,
 [data-theme="dark"] .menu-key-card.in-cart:hover {
-  border: none !important;
+  border-color: #10b981 !important;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.4) !important;
 }
 
 [data-theme="dark"] .menu-item-body {
-  background: #131622 !important;
-  border-top: none !important;
+  background: #141724 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
   padding: 8px 10px !important;
   justify-content: center !important;
 }
 
 [data-theme="dark"] .menu-item-card:hover .menu-item-body {
-  background: #181d2c !important;
+  background: #191e2e !important;
 }
 
 [data-theme="dark"] .menu-item-info {
@@ -18742,10 +18745,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 }
 
-/* Cart Header & Type Tabs — Borderless Glare-Free Segmented Control */
+/* Cart Header & Type Tabs — Structured Clear Container */
 [data-theme="dark"] .cart-header {
   background: #0e111a;
-  border-bottom: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -19040,17 +19043,17 @@ html.dark .cart-takeaway-input:focus {
   background: rgba(16, 185, 129, 0.12);
 }
 
-/* Cart Item Cards — Borderless Elevated Surface */
+/* Cart Item Cards — Elevated Surface with Hairline Definition */
 [data-theme="dark"] .cart-item-card {
   background: #171b29;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .cart-item-card:hover {
   background: #1f2538;
-  border: none !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
@@ -19077,7 +19080,7 @@ html.dark .cart-takeaway-input:focus {
 
 [data-theme="dark"] .cart-stepper {
   background: #0e111a;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 9px;
   padding: 2px;
   gap: 2px;
