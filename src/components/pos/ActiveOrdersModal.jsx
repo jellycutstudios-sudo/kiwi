@@ -120,7 +120,8 @@ export default function ActiveOrdersModal({
       // Auto-dispatch WhatsApp digital receipt if enabled and customer phone is present
       const custPhone = order.customerPhone || order.customer?.phone;
       const waConfig = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
-      if (custPhone && waConfig?.enabled) {
+      const isWaActive = waConfig?.enabled === true || (waConfig?.enabled !== false && Boolean(waConfig?.phoneNumberId && waConfig?.accessToken));
+      if (custPhone && isWaActive) {
         sendWhatsAppReceipt({
           restaurant,
           orderId: order.id,

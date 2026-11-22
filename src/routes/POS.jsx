@@ -1229,7 +1229,8 @@ export default function POS() {
 
       // Automated WhatsApp Digital Receipt (Meta Cloud API)
       const waConfig = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
-      if (snapCustomerPhone && waConfig?.enabled) {
+      const isWaActive = waConfig?.enabled === true || (waConfig?.enabled !== false && Boolean(waConfig?.phoneNumberId && waConfig?.accessToken));
+      if (snapCustomerPhone && isWaActive) {
         sendWhatsAppReceipt({
           restaurant,
           orderId: res.orderId,

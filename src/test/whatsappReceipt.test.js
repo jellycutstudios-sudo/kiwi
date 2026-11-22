@@ -303,6 +303,52 @@ describe('WhatsApp Receipt Service (Meta Cloud API)', () => {
       expect(res.error).toContain('developers.facebook.com');
     });
 
+    it('automatically falls back to direct formatted text if template is unapproved / pending', async () => {
+      const restaurant = {
+        whatsapp: {
+          enabled: true,
+          phoneNumberId: 'phone_id_999',
+          accessToken: 'valid_token',
+          mode: 'template',
+          templateName: 'digital_receipt'
+        }
+      };
+
+      // First call (template) fails with 132001 (template does not exist / pending)
+      // Second call (fallback text) succeeds with 200 OK
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: async () => ({
+            error: {
+              message: '(#132001) Template name does not exist in en_US',
+              code: 132001
+            }
+          })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            messages: [{ id: 'wamid.FALLBACK_TEXT' }]
+          })
+        });
+
+      const res = await sendWhatsAppReceipt({
+        restaurant,
+        orderId: 'order_fallback_123',
+        customerPhone: '9400018008',
+        total: 150
+      });
+
+      expect(res.ok).toBe(true);
+      expect(res.messageId).toBe('wamid.FALLBACK_TEXT');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      const secondCallBody = JSON.parse(global.fetch.mock.calls[1][1].body);
+      expect(secondCallBody.type).toBe('text');
+    });
+
     it('sends test verification message via sendWhatsAppTestMessage', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,

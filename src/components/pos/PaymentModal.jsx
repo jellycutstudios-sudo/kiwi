@@ -1827,7 +1827,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
           </div>
 
           {/* WhatsApp E-Receipt Status Indicator */}
-          {(restaurant?.whatsapp?.enabled || restaurant?.settings?.whatsapp?.enabled) && (
+          {Boolean((restaurant?.whatsapp?.phoneNumberId || restaurant?.settings?.whatsapp?.phoneNumberId) && (restaurant?.whatsapp?.enabled !== false && restaurant?.settings?.whatsapp?.enabled !== false)) && (
             <div style={{
               marginTop: 8,
               padding: '8px 12px',

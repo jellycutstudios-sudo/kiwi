@@ -123,7 +123,8 @@ export async function sendWhatsAppReceipt({
   token = null
 }) {
   const config = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
-  if (!config || !config.enabled) {
+  const isEnabled = config?.enabled === true || (config?.enabled !== false && Boolean(config?.phoneNumberId && config?.accessToken));
+  if (!config || !isEnabled) {
     return { ok: false, error: 'WhatsApp integration is not enabled in settings.' };
   }
 
@@ -212,6 +213,30 @@ export async function sendWhatsAppReceipt({
     const data = await response.json();
 
     if (!response.ok) {
+      const errCode = data?.error?.code;
+      const rawMsg = data?.error?.message || '';
+
+      // If template mode failed because template is still PENDING or not found, auto-fallback to direct formatted text
+      if (mode === 'template' && (errCode === 132001 || rawMsg.includes('does not exist') || rawMsg.includes('PENDING'))) {
+        console.warn('[WhatsApp Cloud API] Template pending/unapproved; attempting direct formatted receipt fallback...');
+        const fallbackConfig = { ...config, mode: 'text' };
+        return sendWhatsAppReceipt({
+          restaurant: {
+            ...restaurant,
+            whatsapp: fallbackConfig,
+            settings: { ...(restaurant.settings || {}), whatsapp: fallbackConfig }
+          },
+          orderId,
+          customerName,
+          customerPhone,
+          items,
+          total,
+          currency,
+          paymentMethod,
+          token
+        });
+      }
+
       const errMsg = normalizeMetaError(data, response.status);
       console.warn('[WhatsApp Cloud API] Delivery failed:', errMsg);
       return { ok: false, error: errMsg };

@@ -833,6 +833,9 @@ export default function Settings() {
       }
 
       if (settingsToSave.whatsapp) {
+        if (settingsToSave.whatsapp.phoneNumberId && settingsToSave.whatsapp.accessToken && settingsToSave.whatsapp.enabled === undefined) {
+          settingsToSave.whatsapp.enabled = true;
+        }
         settingsToSave.settings = {
           ...(settingsToSave.settings || {}),
           whatsapp: settingsToSave.whatsapp
@@ -4492,14 +4495,14 @@ export default function Settings() {
                   </div>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label)' }}>
-                      {settings.whatsapp?.enabled ? 'Active' : 'Disabled'}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: (settings.whatsapp?.enabled ?? (Boolean(settings.whatsapp?.phoneNumberId && settings.whatsapp?.accessToken))) ? 'var(--color-green, #16a34a)' : 'var(--color-label)' }}>
+                      {(settings.whatsapp?.enabled ?? (Boolean(settings.whatsapp?.phoneNumberId && settings.whatsapp?.accessToken))) ? 'Active' : 'Disabled'}
                     </span>
                     <input
                       type="checkbox"
-                      checked={settings.whatsapp?.enabled ?? false}
+                      checked={settings.whatsapp?.enabled ?? (Boolean(settings.whatsapp?.phoneNumberId && settings.whatsapp?.accessToken))}
                       onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), enabled: e.target.checked })}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                      style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#10b981' }}
                     />
                   </label>
                 </div>
