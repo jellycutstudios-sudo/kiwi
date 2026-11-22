@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Plus, Trash2, Edit2, Copy, Check, X, Tag, Sparkles, RotateCcw, 
-  Search, Layers, ShoppingBag, Globe, Flame, CheckSquare, Square
+  Search, Layers, ShoppingBag, Globe, Flame, CheckSquare, Square, PauseCircle
 } from 'lucide-react';
 import { useMenuStore } from '../../stores/menuStore';
 import { DEFAULT_OFFERS } from '../../utils/promoEngine';
@@ -114,6 +114,27 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [isMasterEnabled, setIsMasterEnabled] = useState(() => {
+    return restaurant?.offersEnabled !== false;
+  });
+
+  const handleToggleMasterOffers = async () => {
+    if (!restaurant?.id) return;
+    const nextState = !isMasterEnabled;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'restaurants', restaurant.id), {
+        offersEnabled: nextState
+      });
+      setIsMasterEnabled(nextState);
+      toast.success(nextState ? 'Promotions engine activated!' : 'Promotions engine paused across restaurant!');
+    } catch (err) {
+      console.error('Failed to toggle promotions engine:', err);
+      toast.error('Failed to update: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Lock body scroll and listen for Escape key when modal is open
   useEffect(() => {
@@ -364,13 +385,40 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Global Master Switch */}
+          <label style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: isMasterEnabled ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            border: isMasterEnabled ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            userSelect: 'none',
+            height: '34px',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="checkbox"
+              checked={isMasterEnabled}
+              onChange={handleToggleMasterOffers}
+              disabled={saving}
+              style={{ width: 15, height: 15, accentColor: '#10b981', cursor: 'pointer', margin: 0 }}
+            />
+            <span style={{ fontSize: '12px', fontWeight: 700, color: isMasterEnabled ? '#10b981' : '#ef4444' }}>
+              {isMasterEnabled ? 'System Active' : 'System Paused'}
+            </span>
+          </label>
+
           <button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={handleResetDefaults}
             disabled={saving}
             title="Reset to Kiwi standard default promotions"
+            style={{ height: '34px' }}
           >
             <RotateCcw size={14} /> Defaults
           </button>
@@ -379,12 +427,34 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
             className="btn btn-primary btn-sm"
             onClick={handleOpenAddModal}
             disabled={saving}
-            style={{ background: '#ef4444', borderColor: '#ef4444' }}
+            style={{ background: '#ef4444', borderColor: '#ef4444', height: '34px' }}
           >
             <Plus size={14} /> Create Offer
           </button>
         </div>
       </div>
+
+      {/* Global Paused Alert Banner */}
+      {!isMasterEnabled && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          borderRadius: 'var(--radius-md)',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          color: '#f59e0b'
+        }}>
+          <PauseCircle size={20} style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 800 }}>Promotions are currently paused restaurant-wide</div>
+            <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
+              No BOGO deals, spend threshold coupons, or automatic discounts will apply on POS or Online orders. Toggle "System Active" above to resume.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary KPI Chips */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>

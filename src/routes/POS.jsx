@@ -534,10 +534,11 @@ export default function POS() {
   }, [settledChecks]);
   const remainingTotal = settledTotal > 0 ? Math.max(0, Math.round((total - settledTotal) * 100) / 100) : total;
 
-  // Active Offers configured or fallback
+  // Active Offers configured or fallback (respects restaurant-wide Master Switch)
   const activeOffers = useMemo(() => {
+    if (restaurant?.offersEnabled === false) return [];
     return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
-  }, [restaurant?.offers]);
+  }, [restaurant?.offers, restaurant?.offersEnabled]);
 
   // Real-time BOGO & Upsell Evaluation
   const bogoEvaluation = useMemo(() => {

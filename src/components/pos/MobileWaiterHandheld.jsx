@@ -81,8 +81,9 @@ export default function MobileWaiterHandheld({
   const [showOffersModal, setShowOffersModal] = useState(false);
 
   const activeOffers = useMemo(() => {
+    if (restaurant?.offersEnabled === false) return [];
     return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
-  }, [restaurant?.offers]);
+  }, [restaurant?.offers, restaurant?.offersEnabled]);
 
   const bogoEvaluation = useMemo(() => {
     const activeBogo = activeOffers.find(o => o.type === 'bogo');
