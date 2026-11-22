@@ -2386,9 +2386,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .pos-category-bar {
-  background: #11131c;
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  background: #10121b;
+  border-right: none !important;
   border-bottom: none;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .category-chip {
@@ -2970,14 +2971,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 /* Card 1: Tables (Violet/Purple) */
 [data-theme="dark"] .pos-op-card--tables {
-  background: rgba(168, 85, 247, 0.12) !important;
-  border: 1px solid rgba(168, 85, 247, 0.28) !important;
+  background: rgba(168, 85, 247, 0.16) !important;
+  border: none !important;
   color: #e9d5ff !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 [data-theme="dark"] .pos-op-card--tables:hover {
-  background: rgba(168, 85, 247, 0.20) !important;
-  border-color: rgba(192, 132, 252, 0.5) !important;
+  background: rgba(168, 85, 247, 0.26) !important;
+  border: none !important;
   color: #ffffff !important;
 }
 [data-theme="light"] .pos-op-card--tables,
@@ -2999,18 +3000,18 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 /* Card 2: Running Orders (Cyan/Sky) */
 [data-theme="dark"] .pos-op-card--orders {
   background: rgba(56, 189, 248, 0.15) !important;
-  border: 1px solid rgba(56, 189, 248, 0.50) !important;
+  border: none !important;
   color: #bae6fd !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 [data-theme="dark"] .pos-op-card--orders:hover {
   background: rgba(56, 189, 248, 0.25) !important;
-  border-color: #38bdf8 !important;
+  border: none !important;
   color: #ffffff !important;
 }
 [data-theme="dark"] .pos-op-card--orders.pos-op-card--orders-ready {
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
-  border: 1px solid #38bdf8 !important;
+  border: none !important;
   color: #ffffff !important;
 }
 [data-theme="light"] .pos-op-card--orders,
@@ -4522,7 +4523,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 [data-theme="dark"] .menu-item-card {
   background: var(--color-bg-elevated, #1c1f2e);
-  border-color: rgba(255, 255, 255, 0.08);
+  border: none !important;
   box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
 }
 
@@ -4535,7 +4536,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 [data-theme="dark"] .menu-item-card:hover {
   background: var(--color-bg-elevated, #1c1f2e);
-  border-color: rgba(255, 255, 255, 0.18);
+  border: none !important;
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.65);
 }
 
@@ -18352,21 +18353,23 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] #lang-select {
-  background: #151824;
+  background: #141724;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] #menu-search-input {
-  background: #151824;
+  background: #141724;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] #menu-search-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
-  background: #1a1e2d;
+  border: none !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
+  background: #191d2c;
 }
 
 [data-theme="dark"] #menu-search-input::placeholder {
@@ -18375,24 +18378,24 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 /* POS Terminal Layout — True Obsidian Contrast Canvas */
 [data-theme="dark"] .pos-layout {
-  background: #090a0f;
+  background: #08090e;
 }
 
 [data-theme="dark"] .pos-cart-panel {
-  background: #11141e !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.07) !important;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.45) !important;
+  background: #10121b !important;
+  border-left: none !important;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.55) !important;
 }
 
 [data-theme="dark"] [dir="rtl"] .pos-cart-panel {
-  border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.45) !important;
+  border-right: none !important;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.55) !important;
 }
 
-/* POS Category Bar — Obsidian Luxe Tonal Separation */
+/* POS Category Bar — Borderless Tonal Separation */
 [data-theme="dark"] .pos-category-bar {
-  background: #11131c;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: #10121b;
+  border-bottom: none !important;
   box-shadow: none;
   min-height: 62px;
 }
@@ -18400,160 +18403,165 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .category-chip {
   background: #161926;
   color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   min-height: 46px;
   height: 46px;
 }
 
 [data-theme="dark"] .category-chip:hover {
-  background: #202436;
+  background: #22273a;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="dark"] .category-chip.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  background: #10b981 !important;
   color: #ffffff !important;
-  border: 1px solid rgba(52, 211, 153, 0.6) !important;
+  border: none !important;
   font-weight: 750 !important;
-  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
 }
 
 [data-theme="dark"] .category-chip.active:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  background: #059669 !important;
   color: #ffffff !important;
-  border-color: #6ee7b7 !important;
+  border: none !important;
 }
 
 [data-theme="dark"] .category-chip-count {
-  background: rgba(255, 255, 255, 0.10);
-  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
   font-weight: 700;
 }
 
 [data-theme="dark"] .category-chip.active .category-chip-count {
-  background: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
   color: #ffffff !important;
   font-weight: 800;
 }
 
-/* Dual-Tier Subcategory Pill Bar — Glare-Free Tonal Styling */
+/* Dual-Tier Subcategory Pill Bar — Borderless Glare-Free Styling */
 [data-theme="dark"] .pos-subcategory-bar {
-  background: #0d0f17;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0a0c14;
+  border-bottom: none !important;
 }
 
 [data-theme="dark"] .pos-subcat-pill {
-  background: #141724;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #151824;
+  border: none !important;
   color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="dark"] .pos-subcat-pill:hover {
-  background: #1c2132;
-  border-color: rgba(255, 255, 255, 0.16);
+  background: #202538;
+  border: none !important;
   color: #ffffff;
 }
 
 [data-theme="dark"] .pos-subcat-pill.active {
   background: #10b981;
   color: #ffffff;
-  border-color: #10b981;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
 }
 
 [data-theme="dark"] .pos-subcat-pill--popular {
-  border-color: rgba(245, 158, 11, 0.25);
+  border: none !important;
   color: #fbbf24;
-  background: rgba(245, 158, 11, 0.08);
+  background: rgba(245, 158, 11, 0.12);
 }
 
 [data-theme="dark"] .pos-subcat-pill--popular.active {
   background: #f59e0b;
   color: #ffffff;
-  border-color: #f59e0b;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
 }
 
-/* Dietary Quick Filters Bar — Refined Obsidian Styling */
+/* Dietary Quick Filters Bar — Borderless Modern Styling */
 [data-theme="dark"] .menu-dietary-bar {
-  background: #131520;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: #10121b;
+  border-bottom: none !important;
 }
 
 [data-theme="dark"] .dietary-chip {
-  background: #161926;
+  background: #151824;
   color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="dark"] .dietary-chip:hover {
-  background: #202436;
+  background: #202538;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.18);
+  border: none !important;
 }
 
 [data-theme="dark"] .dietary-chip--all.active {
   background: #24293c !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border: none !important;
   font-weight: 750 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
 }
 
 [data-theme="dark"] .dietary-chip--veg.active {
-  background: rgba(34, 197, 94, 0.18) !important;
+  background: rgba(34, 197, 94, 0.22) !important;
   color: #4ade80 !important;
-  border: 1px solid rgba(34, 197, 94, 0.6) !important;
+  border: none !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.2) !important;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.25) !important;
 }
 
 [data-theme="dark"] .dietary-chip--nonveg.active {
-  background: rgba(239, 68, 68, 0.18) !important;
+  background: rgba(239, 68, 68, 0.22) !important;
   color: #f87171 !important;
-  border: 1px solid rgba(239, 68, 68, 0.6) !important;
+  border: none !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.25) !important;
 }
 
 [data-theme="dark"] .dietary-chip--bestseller.active {
-  background: rgba(245, 158, 11, 0.18) !important;
+  background: rgba(245, 158, 11, 0.22) !important;
   color: #fbbf24 !important;
-  border: 1px solid rgba(245, 158, 11, 0.6) !important;
+  border: none !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2) !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
 }
 
 [data-theme="dark"] .density-toggle {
   background: #141724;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] .density-btn {
   color: #94a3b8;
+  border: none !important;
 }
 
 [data-theme="dark"] .density-btn.active {
-  background: #22273a !important;
+  background: #24293c !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border: none !important;
   font-weight: 800 !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
 }
 
 [data-theme="dark"] .density-expand-btn {
   background: #141724 !important;
   color: #cbd5e1 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
 }
 
 [data-theme="dark"] .density-expand-btn:hover {
-  background: #1c2132 !important;
+  background: #1e2234 !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  border: none !important;
 }
 
 [data-theme="dark"] .food-badge-veg {
@@ -18577,19 +18585,19 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 /* Menu Grid & Item Cards — High Contrast Deep Obsidian vs Elevated Luminous Slate */
 [data-theme="dark"] .menu-grid,
 [data-theme="dark"] .menu-grid.dense {
-  background: #090a0f;
+  background: #08090e;
 }
 
 [data-theme="dark"] .menu-key-card {
   background: #161926 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  border: none !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4) !important;
 }
 
 [data-theme="dark"] .menu-key-card:hover {
-  background: #1e2234 !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  background: #202538 !important;
+  border: none !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55) !important;
 }
 
 [data-theme="dark"] .menu-key-name {
@@ -18616,77 +18624,76 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .menu-key-pill-special {
   background: rgba(245, 158, 11, 0.16);
   color: #fcd34d;
-  border-color: rgba(245, 158, 11, 0.3);
+  border: none !important;
 }
 
 [data-theme="dark"] .menu-key-pill-mod {
   background: rgba(99, 102, 241, 0.16);
   color: #a5b4fc;
-  border-color: rgba(99, 102, 241, 0.3);
+  border: none !important;
 }
 
 [data-theme="dark"] .menu-key-action-btn {
   background: #202436;
-  border-color: rgba(255, 255, 255, 0.1);
+  border: none !important;
   color: #cbd5e1;
 }
 
 [data-theme="dark"] .menu-key-card:hover .menu-key-action-btn {
   background: #10b981;
-  border-color: #10b981;
+  border: none !important;
   color: #ffffff;
 }
 
 [data-theme="dark"] .menu-key-action-btn.added {
   background: #10b981;
-  border-color: #10b981;
+  border: none !important;
   color: #ffffff;
 }
 
 [data-theme="dark"] .menu-key-qty-pill {
   background: #10b981 !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 8px rgba(16, 185, 129, 0.3) !important;
 }
 
-/* Visual Cards Mode — Obsidian Luxe Refined Definition */
+/* Visual Cards Mode — 100% Borderless Surface Design */
 [data-theme="dark"] .menu-item-card {
-  background: linear-gradient(165deg, #1c2030 0%, #121522 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: #161926 !important;
+  border: none !important;
   border-radius: var(--clay-radius-card);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45) !important;
 }
 
 [data-theme="dark"] .menu-item-card:hover {
-  background: linear-gradient(165deg, #242a3e 0%, #171b2a 100%) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  background: #202538 !important;
+  border: none !important;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.65) !important;
 }
 
 [data-theme="dark"] .menu-item-card.in-cart,
 [data-theme="dark"] .menu-key-card.in-cart {
-  background: linear-gradient(165deg, #13241e 0%, #0d1915 100%) !important;
-  border-color: #10b981 !important;
-  border-width: 1.5px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+  background: linear-gradient(165deg, #132820 0%, #0d1c16 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(16, 185, 129, 0.3) !important;
 }
 
 [data-theme="dark"] .menu-item-card.in-cart:hover,
 [data-theme="dark"] .menu-key-card.in-cart:hover {
-  border-color: #34d399 !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(16, 185, 129, 0.35) !important;
+  border: none !important;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.4) !important;
 }
 
 [data-theme="dark"] .menu-item-body {
-  background: #141724 !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: #131622 !important;
+  border-top: none !important;
   padding: 8px 10px !important;
   justify-content: center !important;
 }
 
 [data-theme="dark"] .menu-item-card:hover .menu-item-body {
-  background: #191d2c !important;
+  background: #181d2c !important;
 }
 
 [data-theme="dark"] .menu-item-info {
@@ -18731,18 +18738,17 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 }
 
-/* Cart Header & Type Tabs — Glare-Free Segmented Control */
+/* Cart Header & Type Tabs — Borderless Glare-Free Segmented Control */
 [data-theme="dark"] .cart-header {
-  background: #10131d;
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  background: #0e111a;
+  border-bottom: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] .cart-icon-box {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: rgba(16, 185, 129, 0.40);
+  background: rgba(16, 185, 129, 0.16);
+  border: none !important;
   color: #34d399;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.20);
 }
 
 [data-theme="dark"] .cart-title-text {
@@ -18750,23 +18756,51 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .cart-count-pill {
-  background: rgba(16, 185, 129, 0.20);
+  background: rgba(16, 185, 129, 0.18);
   color: #6ee7b7;
-  border-color: rgba(16, 185, 129, 0.45);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+  border: none !important;
 }
 
 [data-theme="dark"] .pos-cart-till-btn {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: none !important;
   color: #cbd5e1;
 }
 
 [data-theme="dark"] .pos-cart-till-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.24);
+  border: none !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* POS Topbar Brand Button & Filters in Dark Theme */
+[data-theme="dark"] .pos-topbar-brand-btn {
+  border: none !important;
+  background: #141724 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .pos-topbar-brand-btn:hover {
+  background: #1e2234 !important;
+}
+[data-theme="dark"] .pos-dietary-pill {
+  border: none !important;
+  background: #141724;
+}
+[data-theme="dark"] .pos-dietary-pill.active {
+  border: none !important;
+}
+[data-theme="dark"] .pos-dietary-pill.veg.active {
+  background: rgba(34, 197, 94, 0.22) !important;
+  color: #4ade80 !important;
+}
+[data-theme="dark"] .pos-dietary-pill.nonveg.active {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #f87171 !important;
+}
+[data-theme="dark"] .pos-dietary-pill.popular.active {
+  background: rgba(245, 158, 11, 0.22) !important;
+  color: #fbbf24 !important;
 }
 
 [data-theme="dark"] .pos-cart-clear-btn {
@@ -19002,18 +19036,18 @@ html.dark .cart-takeaway-input:focus {
   background: rgba(16, 185, 129, 0.12);
 }
 
-/* Cart Item Cards — High Contrast Raised Surface */
+/* Cart Item Cards — Borderless Elevated Surface */
 [data-theme="dark"] .cart-item-card {
-  background: linear-gradient(145deg, #1c2236 0%, #131726 100%);
-  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: #171b29;
+  border: none !important;
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .cart-item-card:hover {
-  background: linear-gradient(145deg, #242c44 0%, #171c2e 100%);
-  border-color: rgba(56, 189, 248, 0.45);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: #1f2538;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .cart-item-card-name {
@@ -19024,31 +19058,32 @@ html.dark .cart-takeaway-input:focus {
 }
 
 [data-theme="dark"] .cart-item-card-price {
-  color: #38bdf8;
+  color: #f8fafc;
   font-size: 14px;
   font-weight: 800;
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+  text-shadow: none !important;
+  letter-spacing: -0.2px;
 }
 
 [data-theme="dark"] .cart-item-card-unit-price {
-  color: #cbd5e1;
+  color: #94a3b8;
   font-weight: 600;
   font-size: 11.5px;
 }
 
 [data-theme="dark"] .cart-stepper {
-  background: #0f121d;
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  background: #0e111a;
+  border: none !important;
   border-radius: 9px;
   padding: 2px;
   gap: 2px;
   height: 31px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="dark"] .cart-stepper-btn {
-  background: #23293f;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: #20263a;
+  border: none !important;
   color: #ffffff;
   border-radius: 7px;
   width: 32px;
@@ -19057,9 +19092,8 @@ html.dark .cart-takeaway-input:focus {
 }
 
 [data-theme="dark"] .cart-stepper-btn:hover {
-  background: #364063;
-  border-color: rgba(255, 255, 255, 0.45);
-  color: #38bdf8;
+  background: #2c3550;
+  color: #ffffff;
   transform: scale(1.04);
 }
 
@@ -19068,8 +19102,8 @@ html.dark .cart-takeaway-input:focus {
 }
 
 [data-theme="dark"] .cart-stepper-count {
-  background: #171c2c;
-  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: #151927;
+  border: none !important;
   color: #ffffff;
   font-weight: 900;
   font-size: 13.5px;
@@ -19082,9 +19116,8 @@ html.dark .cart-takeaway-input:focus {
 }
 
 [data-theme="dark"] .cart-stepper-count:hover {
-  border-color: var(--color-accent, #38bdf8);
-  background: rgba(56, 189, 248, 0.20);
-  color: var(--color-accent, #38bdf8);
+  background: rgba(16, 185, 129, 0.20);
+  color: #34d399;
 }
 
 [data-theme="dark"] .cart-stepper-count:active {
@@ -19094,25 +19127,25 @@ html.dark .cart-takeaway-input:focus {
 [data-theme="dark"] .cart-status-badge.fired {
   background: rgba(16, 185, 129, 0.22);
   color: #6ee7b7;
-  border: 1px solid rgba(16, 185, 129, 0.45);
+  border: none !important;
 }
 
 [data-theme="dark"] .cart-course-btn {
   background: rgba(255, 255, 255, 0.08);
   color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: none !important;
 }
 
 [data-theme="dark"] .cart-course-btn:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.25);
+  border: none !important;
 }
 
 [data-theme="dark"] .cart-item-card-remove {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.20);
-  border: 1.5px solid rgba(239, 68, 68, 0.45);
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.16);
+  border: none !important;
   border-radius: 8px;
   width: 26px;
   height: 26px;
@@ -19121,8 +19154,8 @@ html.dark .cart-takeaway-input:focus {
 [data-theme="dark"] .cart-item-card-remove:hover {
   color: #ffffff;
   background: #ef4444;
-  border-color: #f87171;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
+  border: none !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
 /* Course Popover in Dark */
