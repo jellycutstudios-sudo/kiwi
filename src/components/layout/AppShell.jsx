@@ -331,16 +331,21 @@ export default function AppShell() {
               className="pos-topbar-brand-btn"
               onClick={() => setMobileSidebarOpen(prev => !prev)}
               id="pos-topbar-brand-btn"
-              title={`${restaurant?.name || 'DineOS'} — Tap to open navigation`}
+              title={`${restaurant?.name || 'Rupos'} — Tap to open navigation`}
               aria-label="Open navigation menu"
             >
               <img
                 src={restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo || '/ricon.svg'}
-                alt={restaurant?.name || 'DineOS'}
+                alt={restaurant?.name || 'Rupos'}
                 className="pos-topbar-brand-logo"
+                onError={(e) => {
+                  if (!e.target.src.endsWith('/ricon.svg')) {
+                    e.target.src = '/ricon.svg';
+                  }
+                }}
               />
               <span className="pos-topbar-brand-name">
-                {restaurant?.name || 'DineOS'}
+                {restaurant?.name || 'Rupos'}
               </span>
             </button>
           )}

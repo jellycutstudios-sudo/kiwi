@@ -75,6 +75,35 @@ describe('POS Topbar Brand Logo & Clean Status Touch Optimization', () => {
     expect(brandBtn).toBeTruthy();
   });
 
+  it('falls back to Rupos logo and branding if restaurant has no custom logo configured', async () => {
+    useAuthStore.setState({
+      restaurant: {
+        id: 'rest-2',
+        name: null,
+        businessType: 'restaurant',
+        receiptConfig: null,
+        logo: null
+      }
+    });
+
+    window.history.pushState({}, '', '/pos');
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      );
+    });
+
+    const brandBtn = document.getElementById('pos-topbar-brand-btn');
+    expect(brandBtn).toBeTruthy();
+    expect(brandBtn.textContent).toContain('Rupos');
+
+    const brandImg = brandBtn.querySelector('img');
+    expect(brandImg).toBeTruthy();
+    expect(brandImg.getAttribute('src')).toBe('/ricon.svg');
+  });
+
   it('hides wide "Private Sales" text on POS topbar during normal clean online state to save space', async () => {
     window.history.pushState({}, '', '/pos');
     await act(async () => {
