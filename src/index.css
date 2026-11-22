@@ -327,8 +327,8 @@ html.dark {
   --item-visual-teal-glow:     rgba(20, 184, 166, 0.25);
 
   /* SIDEBAR & TOPBAR */
-  --sidebar-bg:            #0f1118;
-  --topbar-bg:             #0f1118;
+  --sidebar-bg:            #090a10;
+  --topbar-bg:             #090a10;
 
   /* ELEVATION & SPECULAR HIGHLIGHTS */
   --shadow-xs:   0 1px 0 rgba(255, 255, 255, 0.08);
@@ -1105,20 +1105,20 @@ ul, ol { list-style: none; }
 
 /* Dark mode overrides for compact sidebar footer */
 [data-theme="dark"] .sidebar-collapsed-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: #171a28 !important;
+  border: none !important;
   color: #ffffff;
 }
 
 [data-theme="dark"] .sidebar-actions-collapsed .sidebar-collapse-btn:hover {
-  background: rgba(16, 185, 129, 0.16) !important;
-  border-color: rgba(16, 185, 129, 0.4) !important;
+  background: rgba(16, 185, 129, 0.20) !important;
+  border: none !important;
   color: #34d399 !important;
 }
 
 [data-theme="dark"] .sidebar-collapsed-logout-btn:hover {
-  background: rgba(239, 68, 68, 0.18) !important;
-  border-color: rgba(239, 68, 68, 0.38) !important;
+  background: rgba(239, 68, 68, 0.22) !important;
+  border: none !important;
   color: #f87171 !important;
 }
 
@@ -18264,12 +18264,13 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 /* Sidebar & Navigation */
 [data-theme="dark"] .sidebar {
-  background: var(--sidebar-bg);
-  border-color: var(--color-separator);
+  background: var(--sidebar-bg, #090a10);
+  border-right: none !important;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .sidebar-header {
-  border-color: var(--color-separator);
+  border-bottom: none !important;
 }
 
 [data-theme="dark"] .sidebar-brand {
@@ -18285,15 +18286,16 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .nav-item:hover {
-  background: #181924;
+  background: #151824;
+  border: none !important;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Collapsed Sidebar in Dark Mode - Eliminate stark white background & glare */
+/* Collapsed Sidebar in Dark Mode - True Obsidian Elevated Surface */
 [data-theme="dark"] .sidebar.collapsed .nav-item {
   background: transparent;
-  border: 1px solid transparent;
+  border: none !important;
   box-shadow: none;
   color: #94a3b8;
 }
@@ -18304,10 +18306,10 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .sidebar.collapsed .nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: #161926;
+  border: none !important;
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   transform: translateY(-2px);
 }
 
@@ -18322,16 +18324,16 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 [data-theme="dark"] .sidebar.collapsed .nav-item.active,
 [data-theme="dark"] .nav-item.active {
-  background: rgba(255, 255, 255, 0.14) !important;
-  color: #ffffff !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.32) !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, #121624 100%) !important;
+  color: #34d399 !important;
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 16px rgba(16, 185, 129, 0.20) !important;
   font-weight: 700;
 }
 
 [data-theme="dark"] .sidebar.collapsed .nav-item.active .nav-item-icon svg,
 [data-theme="dark"] .nav-item.active .nav-item-icon svg {
-  stroke: #ffffff !important;
+  stroke: #34d399 !important;
 }
 
 [data-theme="dark"] .sidebar-header img {
@@ -18339,13 +18341,15 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .sidebar-footer {
-  border-color: var(--color-separator);
+  border-top: none !important;
+  background: var(--sidebar-bg, #090a10);
 }
 
 /* Top Bar */
 [data-theme="dark"] .top-bar {
-  background: var(--topbar-bg);
-  border-color: var(--color-separator);
+  background: var(--topbar-bg, #090a10);
+  border-bottom: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .top-bar-title {
