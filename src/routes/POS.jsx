@@ -2713,272 +2713,202 @@ export default function POS() {
                 </div>
               )}
 
-              {/* Service Details: Unified container with smooth animated crossfade */}
-              <div className={`cart-service-details ${orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
-                <div key={orderType} className="cart-service-content-animated">
-                  {orderType === 'dine-in' && !isBillOnly ? (
-                    <>
-                      {(restaurant?.features?.table || modes.includes('table')) && (
-                        <div className="cart-service-row cart-service-table-row">
+              {/* Option A: Compact 1-Row Meta Bar (34px height) — Table & Customer in 1 row */}
+              <div className="cart-meta-bar">
+                {orderType === 'dine-in' && !isBillOnly ? (
+                  <>
+                    {(restaurant?.features?.table || modes.includes('table')) && (
+                      <div className={`cart-meta-chip cart-meta-chip--table ${tableId ? 'is-assigned' : ''}`}>
+                        <button
+                          type="button"
+                          id="select-table-dropdown"
+                          className="cart-meta-chip-btn"
+                          onClick={() => {
+                            setTableSelAction('select');
+                            setShowTableSel(true);
+                          }}
+                          title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                        >
+                          <Armchair size={13} className="cart-meta-icon" />
+                          <span className="cart-meta-label">
+                            {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                          </span>
+                          {!tableId && <span className="cart-meta-badge">Map ▾</span>}
+                        </button>
+                        {tableId && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setTableSelAction('select');
-                              setShowTableSel(true);
+                            className="cart-meta-clear-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTable(null, null);
                             }}
-                            className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
-                            id="select-table-dropdown"
-                            title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                            title="Clear table assignment"
+                            aria-label="Clear table"
                           >
-                            <span className="cart-table-select-content">
-                              <Armchair size={13} className="cart-table-icon" style={{ marginRight: 4 }} />
-                              <span className="cart-table-label">
-                                {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
-                              </span>
-                            </span>
-                            <span className="cart-table-chevron-wrap">
-                              {tableId ? (
-                                <span className="cart-table-badge-active">Assigned</span>
-                              ) : (
-                                <span className="cart-table-badge-choose">Floor Map ▾</span>
-                              )}
-                            </span>
+                            <X size={12} />
                           </button>
-                          {tableId && (
-                            <button
-                              type="button"
-                              className="cart-table-unassign-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTable(null, null);
-                              }}
-                              title="Clear table assignment"
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Customer / Loyalty Info row */}
-                      <div className="cart-service-row cart-service-customer-row">
-                        {customer ? (
-                          <div
-                            className="cart-customer-vip-card"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => {
-                              setModalInitialPhone(customer.phone || customerPhone || '');
-                              setShowCustomerModal(true);
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                👤 {customer.name || customerName || 'Customer'}
-                              </span>
-                              <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                                {customer.phone || customerPhone}
-                              </span>
-                              {Boolean(customer.points) && (
-                                <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                                  {customer.points} pts
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-xs"
-                                style={{ padding: '1px 5px', fontSize: 10, color: '#047857', fontWeight: 600, border: 'none', background: 'none' }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setModalInitialPhone(customer.phone || customerPhone || '');
-                                  setShowCustomerModal(true);
-                                }}
-                                title="Edit customer details"
-                              >
-                                Edit ✎
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCustomerProfile(null);
-                                  setCustomer('', '');
-                                  setRedeemingPoints(false);
-                                  setCustSearch('');
-                                }}
-                                style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                                title="Remove customer"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ width: '100%' }}>
-                            <div className="cart-customer-search-wrap">
-                              <Search size={13} className="cart-customer-search-icon" />
-                              <input
-                                className="cart-customer-search-input"
-                                placeholder="Customer phone or loyalty #..."
-                                value={custSearch}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setCustSearch(val);
-                                  const digits = val.replace(/\D/g, '');
-                                  if (digits.length >= 10) {
-                                    handleCustomerLookup(val, true);
-                                  } else if (digits.length >= 8) {
-                                    handleCustomerLookup(val, false);
-                                  }
-                                }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    const digits = custSearch.replace(/\D/g, '');
-                                    if (digits.length >= 8) {
-                                      handleCustomerLookup(custSearch, true);
-                                    } else {
-                                      setModalInitialPhone(custSearch);
-                                      setShowCustomerModal(true);
-                                    }
-                                  }
-                                }}
-                              />
-                              {custSearch ? (
-                                <button
-                                  type="button"
-                                  className="cart-customer-search-clear"
-                                  onClick={() => setCustSearch('')}
-                                  title="Clear search"
-                                >
-                                  <X size={12} />
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setModalInitialPhone('');
-                                    setShowCustomerModal(true);
-                                  }}
-                                  style={{
-                                    position: 'absolute',
-                                    right: 4,
-                                    background: 'rgba(59, 130, 246, 0.12)',
-                                    border: '1px solid rgba(59, 130, 246, 0.25)',
-                                    color: 'var(--color-primary, #3b82f6)',
-                                    fontSize: 10.5,
-                                    fontWeight: 700,
-                                    padding: '2px 8px',
-                                    borderRadius: 5,
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  + Customer
-                                </button>
-                              )}
-                            </div>
-                            {custSearch.replace(/\D/g, '').length >= 8 && (
-                              <button
-                                type="button"
-                                onClick={() => handleCustomerLookup(custSearch, true)}
-                                style={{
-                                  width: '100%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '4px 8px',
-                                  background: 'rgba(59, 130, 246, 0.1)',
-                                  border: 'none',
-                                  borderTop: '1px solid rgba(59, 130, 246, 0.2)',
-                                  cursor: 'pointer',
-                                  fontSize: '11px',
-                                  color: 'var(--color-primary, #3b82f6)',
-                                  fontWeight: 600,
-                                  textAlign: 'left'
-                                }}
-                              >
-                                <span>+ Add customer: {custSearch.replace(/\D/g, '')}</span>
-                                <span style={{ fontSize: '10px', opacity: 0.75 }}>Press Enter ↵</span>
-                              </button>
-                            )}
-                          </div>
                         )}
                       </div>
-                    </>
-                  ) : (
-                    /* Takeaway / Counter: Sleek unified row inside cart-service-details */
-                    <div className="cart-service-row cart-service-takeaway-row">
-                      {customer ? (
-                        <div className="cart-customer-vip-card" style={{ width: '100%', cursor: 'pointer' }} onClick={() => { setModalInitialPhone(customer.phone || customerPhone || ''); setShowCustomerModal(true); }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              👤 {customer.name || customerName || 'Customer'}
-                            </span>
-                            <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                              {customer.phone || customerPhone}
-                            </span>
-                            {Boolean(customer.points) && (
-                              <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                                {customer.points} pts
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-xs"
-                              style={{ padding: '1px 5px', fontSize: 10, color: '#047857', fontWeight: 600, border: 'none', background: 'none' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setModalInitialPhone(customer.phone || customerPhone || '');
-                                setShowCustomerModal(true);
-                              }}
-                              title="Edit customer details"
-                            >
-                              Edit ✎
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCustomerProfile(null);
-                                setCustomer('', '');
-                                setRedeemingPoints(false);
-                              }}
-                              style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
-                              title="Clear customer"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="cart-takeaway-inputs-wrap">
-                          <input
-                            className="cart-takeaway-input"
-                            placeholder="Customer name (optional)"
-                            value={customerName}
-                            onChange={e => setCustomer(e.target.value, customerPhone)}
-                            id="customer-name-input"
-                          />
-                          <input
-                            className="cart-takeaway-input cart-takeaway-phone-input"
-                            placeholder="Phone # (optional)"
-                            value={customerPhone}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setCustomer(customerName, val);
-                              if (val.replace(/\D/g, '').length >= 8) {
-                                handleCustomerLookup(val, false);
-                              }
-                            }}
-                            id="customer-phone-input"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                    )}
+
+                    {/* Customer Chip (Inline beside Table) */}
+                    {customer ? (
+                      <div
+                        className="cart-meta-chip cart-meta-chip--customer is-assigned"
+                        onClick={() => {
+                          setModalInitialPhone(customer.phone || customerPhone || '');
+                          setShowCustomerModal(true);
+                        }}
+                        title="Edit customer details"
+                      >
+                        <button type="button" className="cart-meta-chip-btn">
+                          <User size={13} className="cart-meta-icon" />
+                          <span className="cart-meta-label">
+                            {customer.name || customerName || 'Customer'}
+                          </span>
+                          {Boolean(customer.points) && (
+                            <span className="cart-meta-points-chip">{customer.points}p</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="cart-meta-clear-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCustomerProfile(null);
+                            setCustomer('', '');
+                            setRedeemingPoints(false);
+                            setCustSearch('');
+                          }}
+                          title="Remove customer"
+                          aria-label="Remove customer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (customerName || customerPhone) ? (
+                      <div
+                        className="cart-meta-chip cart-meta-chip--customer is-assigned"
+                        onClick={() => {
+                          setModalInitialPhone(customerPhone || '');
+                          setShowCustomerModal(true);
+                        }}
+                        title="Edit customer details"
+                      >
+                        <button type="button" className="cart-meta-chip-btn">
+                          <User size={13} className="cart-meta-icon" />
+                          <span className="cart-meta-label">
+                            {customerName || customerPhone}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="cart-meta-clear-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCustomerProfile(null);
+                            setCustomer('', '');
+                            setRedeemingPoints(false);
+                            setCustSearch('');
+                          }}
+                          title="Remove customer"
+                          aria-label="Remove customer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="cart-meta-chip cart-meta-chip--customer is-empty"
+                        onClick={() => {
+                          setModalInitialPhone('');
+                          setShowCustomerModal(true);
+                        }}
+                        title="Attach customer for loyalty / WhatsApp receipt"
+                      >
+                        <User size={13} className="cart-meta-icon" />
+                        <span className="cart-meta-label">+ Customer</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  /* Takeaway Row */
+                  <div className="cart-takeaway-compact-wrap">
+                    {customer ? (
+                      <div
+                        className="cart-meta-chip cart-meta-chip--customer is-assigned"
+                        style={{ width: '100%' }}
+                        onClick={() => {
+                          setModalInitialPhone(customer.phone || customerPhone || '');
+                          setShowCustomerModal(true);
+                        }}
+                        title="Edit customer details"
+                      >
+                        <button type="button" className="cart-meta-chip-btn">
+                          <User size={13} className="cart-meta-icon" />
+                          <span className="cart-meta-label">
+                            👤 {customer.name || customerName || 'Customer'} · {customer.phone || customerPhone}
+                          </span>
+                          {Boolean(customer.points) && (
+                            <span className="cart-meta-points-chip">{customer.points}p</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="cart-meta-clear-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCustomerProfile(null);
+                            setCustomer('', '');
+                            setRedeemingPoints(false);
+                            setCustSearch('');
+                          }}
+                          title="Remove customer"
+                          aria-label="Remove customer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          className="cart-takeaway-compact-input"
+                          placeholder="Customer name (optional)"
+                          value={customerName}
+                          onChange={e => setCustomer(e.target.value, customerPhone)}
+                          id="customer-name-input"
+                        />
+                        <input
+                          className="cart-takeaway-compact-input"
+                          placeholder="Phone # (optional)"
+                          value={customerPhone}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setCustomer(customerName, val);
+                            if (val.replace(/\D/g, '').length >= 8) {
+                              handleCustomerLookup(val, false);
+                            }
+                          }}
+                          id="customer-phone-input"
+                        />
+                        <button
+                          type="button"
+                          className="cart-takeaway-loyalty-btn"
+                          onClick={() => {
+                            setModalInitialPhone(customerPhone || '');
+                            setShowCustomerModal(true);
+                          }}
+                          title="Search or register loyalty customer"
+                        >
+                          <User size={12} />
+                          <span>Loyalty</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
