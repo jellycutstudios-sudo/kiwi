@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTableStore } from '../../stores/tableStore';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -12,6 +12,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
   const [selectedZone, setSelectedZone] = useState('all');
   // Default to compact mode (optimal for POS and touchscreens)
   const [viewMode, setViewMode] = useState('compact');
+  const modalBodyRef = useRef(null);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -84,6 +85,139 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
   }, [tables, filterStatus, selectedZone, search, getEffectiveStatus]);
+
+  // Section-grouped continuous scroll (Petpooja style: AC, Garden, Non-AC in continuous scroll)
+  const groupedSections = useMemo(() => {
+    if (zones.length < 2 || selectedZone !== 'all') return null;
+
+    const groups = new Map();
+    zones.forEach(z => {
+      groups.set(z.id, { id: z.id, label: z.label, tables: [] });
+    });
+
+    const unassigned = [];
+    filteredTables.forEach(t => {
+      const prefix = t.name ? t.name.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() : null;
+      const zoneKey = t.section || prefix || t.floor;
+      if (zoneKey && groups.has(zoneKey)) {
+        groups.get(zoneKey).tables.push(t);
+      } else {
+        unassigned.push(t);
+      }
+    });
+
+    const list = Array.from(groups.values()).filter(g => g.tables.length > 0);
+    if (unassigned.length > 0) {
+      list.push({ id: 'other', label: 'Other Tables', tables: unassigned });
+    }
+    return list;
+  }, [zones, selectedZone, filteredTables]);
+
+  const handleZoneClick = useCallback((zoneId) => {
+    if (zoneId === 'all') {
+      setSelectedZone('all');
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    if (selectedZone === 'all') {
+      const el = document.getElementById(`table-zone-section-${zoneId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    setSelectedZone(zoneId);
+  }, [selectedZone]);
+
+  const renderCompactCard = useCallback((table) => {
+    const activeOrder = tableOrders[table.id];
+    const baseStatus = getEffectiveStatus(table);
+    const isFoodReady = activeOrder?.status === 'ready';
+    const status = isFoodReady ? 'ready' : baseStatus;
+
+    return (
+      <button
+        key={table.id}
+        id={`table-select-${table.id}`}
+        type="button"
+        className={`table-compact-card ${status}`}
+        onClick={() => onSelect(table.id, table.name, activeOrder, table)}
+        title={`${table.name} · ${table.capacity || 4} seats · ${isFoodReady ? 'Food Ready' : status}`}
+      >
+        <div className="table-compact-card-top">
+          <span className="table-compact-name">{table.name}</span>
+          <span className="table-compact-capacity">
+            {table.capacity || 4}p
+          </span>
+        </div>
+
+        <div className="table-compact-bottom">
+          <span className="table-compact-status-badge">
+            <span className={`table-compact-status-dot ${status}`} />
+            <span className={`table-compact-status-text ${status}`}>
+              {isFoodReady ? 'Ready' : status}
+            </span>
+          </span>
+
+          {activeOrder?.total ? (
+            <span className="table-compact-order-total">
+              {formatCurrency(activeOrder.total, currency)}
+            </span>
+          ) : null}
+        </div>
+      </button>
+    );
+  }, [getEffectiveStatus, tableOrders, onSelect, currency]);
+
+  const renderVisualCard = useCallback((table) => {
+    const isRound = table.shape === 'round';
+    const activeOrder = tableOrders[table.id];
+    const status = getEffectiveStatus(table);
+
+    return (
+      <div key={table.id} className="table-3d-item-wrapper">
+        {/* Surrounding 3D Chair Cushions */}
+        <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''}`} />
+        <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''}`} />
+        <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''}`} />
+        <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''}`} />
+
+        {/* 3D Realistic Tabletop Keycap */}
+        <button
+          id={`table-select-${table.id}`}
+          type="button"
+          className={`table-3d-card ${isRound ? 'round' : ''} ${status}`}
+          onClick={() => onSelect(table.id, table.name, activeOrder, table)}
+          title={`${table.name} · ${table.capacity} seats · ${status}`}
+        >
+          {/* Status Pill Badge */}
+          <span className={`table-3d-status-pill ${status}`}>
+            {status === 'free' && 'Free'}
+            {status === 'occupied' && 'Occupied'}
+            {status === 'reserved' && 'Reserved'}
+          </span>
+
+          {/* Bold Table Code */}
+          <span className="table-3d-name">{table.name}</span>
+
+          {/* Capacity */}
+          <span className="table-3d-capacity">
+            {table.capacity} seats
+          </span>
+
+          {/* Live Active Order Total if Occupied */}
+          {table.status === 'occupied' && activeOrder?.total && (
+            <span className="table-3d-order-total">
+              {formatCurrency(activeOrder.total, currency)}
+            </span>
+          )}
+        </button>
+      </div>
+    );
+  }, [getEffectiveStatus, tableOrders, onSelect, currency]);
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -203,22 +337,22 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
           </div>
         </div>
 
-        {/* Optional Zone Chips Strip (Only if multiple zones exist) */}
+        {/* Zone Chips Strip (Quick Jump Bar in Continuous Scroll) */}
         {zones.length > 0 && (
           <div className="table-select-zones-strip">
             <button
               type="button"
               className={`table-zone-chip ${selectedZone === 'all' ? 'active' : ''}`}
-              onClick={() => setSelectedZone('all')}
+              onClick={() => handleZoneClick('all')}
             >
-              All Zones
+              All Sections ({tables.length})
             </button>
             {zones.map(z => (
               <button
                 key={z.id}
                 type="button"
                 className={`table-zone-chip ${selectedZone === z.id ? 'active' : ''}`}
-                onClick={() => setSelectedZone(z.id)}
+                onClick={() => handleZoneClick(z.id)}
               >
                 {z.label} ({z.count})
               </button>
@@ -227,112 +361,66 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
         )}
 
         {/* Modal Body: Tables Rendering */}
-        <div className="modal-body table-select-body">
+        <div ref={modalBodyRef} className="modal-body table-select-body">
           <div key={`${selectedZone}_${filterStatus}_${viewMode}`} className="table-select-grid-animated">
-          {viewMode === 'compact' ? (
-            /* High-Density Compact Grid (Optimized for 20+ Tables) */
-            <div className="table-compact-grid">
-              {filteredTables.map(table => {
-                const activeOrder = tableOrders[table.id];
-                const baseStatus = getEffectiveStatus(table);
-                const isFoodReady = activeOrder?.status === 'ready';
-                const status = isFoodReady ? 'ready' : baseStatus;
+            {groupedSections && groupedSections.length > 0 ? (
+              <div className="table-select-sections-container">
+                {groupedSections.map(sec => {
+                  const secFree = sec.tables.filter(t => getEffectiveStatus(t) === 'free').length;
+                  const secOccupied = sec.tables.filter(t => getEffectiveStatus(t) === 'occupied').length;
+                  const secReserved = sec.tables.filter(t => getEffectiveStatus(t) === 'reserved').length;
 
-                return (
-                  <button
-                    key={table.id}
-                    id={`table-select-${table.id}`}
-                    type="button"
-                    className={`table-compact-card ${status}`}
-                    onClick={() => onSelect(table.id, table.name, activeOrder, table)}
-                    title={`${table.name} · ${table.capacity || 4} seats · ${isFoodReady ? 'Food Ready' : status}`}
-                  >
-                    <div className="table-compact-card-top">
-                      <span className="table-compact-name">{table.name}</span>
-                      <span className="table-compact-capacity">
-                        {table.capacity || 4}p
-                      </span>
-                    </div>
+                  return (
+                    <div key={sec.id} className="table-select-section-group" id={`table-zone-section-${sec.id}`}>
+                      <div className="table-select-section-header">
+                        <div className="table-select-section-title-wrap">
+                          <span className="table-select-section-dot" />
+                          <span className="table-select-section-name">{sec.label}</span>
+                        </div>
+                        <div className="table-select-section-metrics">
+                          <span className="table-select-sec-stat free">{secFree} Free</span>
+                          <span className="table-select-sec-stat occupied">{secOccupied} Seated</span>
+                          {secReserved > 0 && (
+                            <span className="table-select-sec-stat reserved">{secReserved} Reserved</span>
+                          )}
+                          <span className="table-select-sec-stat total">{sec.tables.length} Total</span>
+                        </div>
+                      </div>
 
-                    <div className="table-compact-bottom">
-                      <span className="table-compact-status-badge">
-                        <span className={`table-compact-status-dot ${status}`} />
-                        <span className={`table-compact-status-text ${status}`}>
-                          {isFoodReady ? 'Ready' : status}
-                        </span>
-                      </span>
-
-                      {activeOrder?.total ? (
-                        <span className="table-compact-order-total">
-                          {formatCurrency(activeOrder.total, currency)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            /* Visual 3D Furniture Mode (Traditional Card View) */
-            <div className="table-3d-grid">
-              {filteredTables.map(table => {
-                const isRound = table.shape === 'round';
-                const activeOrder = tableOrders[table.id];
-                const status = getEffectiveStatus(table);
-
-                return (
-                  <div key={table.id} className="table-3d-item-wrapper">
-                    {/* Surrounding 3D Chair Cushions */}
-                    <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''}`} />
-                    <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''}`} />
-                    <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''}`} />
-                    <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''}`} />
-
-                    {/* 3D Realistic Tabletop Keycap */}
-                    <button
-                      id={`table-select-${table.id}`}
-                      type="button"
-                      className={`table-3d-card ${isRound ? 'round' : ''} ${status}`}
-                      onClick={() => onSelect(table.id, table.name, activeOrder, table)}
-                      title={`${table.name} · ${table.capacity} seats · ${status}`}
-                    >
-                      {/* Status Pill Badge */}
-                      <span className={`table-3d-status-pill ${status}`}>
-                        {status === 'free' && 'Free'}
-                        {status === 'occupied' && 'Occupied'}
-                        {status === 'reserved' && 'Reserved'}
-                      </span>
-
-                      {/* Bold Table Code */}
-                      <span className="table-3d-name">{table.name}</span>
-
-                      {/* Capacity */}
-                      <span className="table-3d-capacity">
-                        {table.capacity} seats
-                      </span>
-
-                      {/* Live Active Order Total if Occupied */}
-                      {table.status === 'occupied' && activeOrder?.total && (
-                        <span className="table-3d-order-total">
-                          {formatCurrency(activeOrder.total, currency)}
-                        </span>
+                      {viewMode === 'compact' ? (
+                        <div className="table-compact-grid">
+                          {sec.tables.map(renderCompactCard)}
+                        </div>
+                      ) : (
+                        <div className="table-3d-grid">
+                          {sec.tables.map(renderVisualCard)}
+                        </div>
                       )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {filteredTables.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--color-label-tertiary)', padding: '40px 20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-                <Armchair size={32} color="var(--color-label-tertiary)" />
+                    </div>
+                  );
+                })}
               </div>
-              <div style={{ fontWeight: 600 }}>No tables matching your criteria</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Try clearing search, changing zone, or adjusting party size.</div>
-            </div>
-          )}
+            ) : (
+              viewMode === 'compact' ? (
+                <div className="table-compact-grid">
+                  {filteredTables.map(renderCompactCard)}
+                </div>
+              ) : (
+                <div className="table-3d-grid">
+                  {filteredTables.map(renderVisualCard)}
+                </div>
+              )
+            )}
+
+            {filteredTables.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--color-label-tertiary)', padding: '40px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                  <Armchair size={32} color="var(--color-label-tertiary)" />
+                </div>
+                <div style={{ fontWeight: 600 }}>No tables matching your criteria</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>Try clearing search, changing zone, or adjusting party size.</div>
+              </div>
+            )}
           </div>
         </div>
 

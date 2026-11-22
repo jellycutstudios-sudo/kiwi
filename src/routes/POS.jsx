@@ -15,9 +15,9 @@ import { httpsCallable } from 'firebase/functions';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printKitchenVoidTicket, printInvoiceA4 } from '../utils/print';
 import toast from 'react-hot-toast';
-import { 
-  ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X, 
-  ChevronDown, ChevronUp, Tag, Banknote, Search, 
+import {
+  ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X,
+  ChevronDown, ChevronUp, Tag, Banknote, Search,
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles, PauseCircle, Gift
@@ -290,7 +290,7 @@ export default function POS() {
   const trimmedSearch = typeof search === 'string' ? search.trim() : '';
   const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !trimmedSearch;
   const [adminBypassShift, setAdminBypassShift] = useState(false);
-  const [activeCat,  setActiveCat]  = useState('all');
+  const [activeCat, setActiveCat] = useState('all');
   const [activeSubCat, setActiveSubCat] = useState('all');
 
   // Reset subcategory filter whenever main category changes
@@ -352,7 +352,7 @@ export default function POS() {
     setHandheldMode(enable);
     try {
       localStorage.setItem('kiwi_handheld_mode', enable ? 'true' : 'false');
-    } catch {}
+    } catch { }
   };
 
   const handleCloseHandheld = () => {
@@ -445,7 +445,7 @@ export default function POS() {
       setHistoricalSalesMap(counts);
       try {
         localStorage.setItem(`kiwi_sales_counts_${restaurant.id}`, JSON.stringify(counts));
-      } catch {}
+      } catch { }
     }).catch(err => {
       console.warn('Could not fetch historical sales for bestsellers:', err);
     });
@@ -502,7 +502,7 @@ export default function POS() {
   const [managerPin, setManagerPin] = useState('');
   const [confirmClearCart, setConfirmClearCart] = useState(false);
 
-  const currency  = restaurant?.currency ?? 'INR';
+  const currency = restaurant?.currency ?? 'INR';
   const { isRetail, isBillOnly, isService, enableBarcode, modes, hasMode } = useBusinessConfig();
   const kitchenConfig = restaurant?.kitchenConfig;
   const hasKdsMode = hasMode('kds');
@@ -525,10 +525,10 @@ export default function POS() {
     ? effectiveKitchenMode
     : 'disabled';
 
-  const subtotal  = getSubtotal();
+  const subtotal = getSubtotal();
   const discountAmount = getDiscountAmount();
-  const taxInfo   = getTaxInfo(restaurant);
-  const total     = getTotal(restaurant);
+  const taxInfo = getTaxInfo(restaurant);
+  const total = getTotal(restaurant);
   const settledTotal = useMemo(() => {
     return (settledChecks || []).reduce((sum, c) => sum + (Number(c.total) || 0), 0);
   }, [settledChecks]);
@@ -615,7 +615,7 @@ export default function POS() {
           e.preventDefault();
           const scannedCode = barcodeBuffer.trim().toLowerCase();
           const allItems = categories.flatMap(c => c.items || []);
-          const match = allItems.find(it => 
+          const match = allItems.find(it =>
             (it.barcode && it.barcode.toLowerCase() === scannedCode) ||
             (it.sku && it.sku.toLowerCase() === scannedCode) ||
             it.id.toLowerCase() === scannedCode
@@ -773,7 +773,7 @@ export default function POS() {
       oi.id === item.id &&
       JSON.stringify(oi.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? [])
     );
-      
+
     if (hasMode('audit_shield') && originalItem && (item.qty - 1) < originalItem.qty) {
       setVoidAction({
         type: 'decrement',
@@ -866,7 +866,7 @@ export default function POS() {
       toast.error('Please enter manager PIN.');
       return;
     }
-    
+
     try {
       // Verify manager PIN via single-key lookup (no collection listing/scraping)
       let managerDocId = null;
@@ -982,7 +982,7 @@ export default function POS() {
       await ensureAnonymousAuth();
       const docRef = doc(db, 'restaurants', restaurant.id, 'customers', cleanPhone);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         const profile = { id: docSnap.id, ...docSnap.data() };
         setCustomerProfile(profile);
@@ -1078,7 +1078,7 @@ export default function POS() {
       }
 
       if (query) {
-        filtered = filtered.filter(i => 
+        filtered = filtered.filter(i =>
           i.name?.toLowerCase().includes(query) ||
           i.code?.toLowerCase().includes(query) ||
           i.sku?.toLowerCase().includes(query) ||
@@ -1145,9 +1145,9 @@ export default function POS() {
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in',  label: t('dineIn') || 'Dine In',   Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly },
+    { key: 'dine-in', label: t('dineIn') || 'Dine In', Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly },
     { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (isBillOnly ? 'Counter' : (t('takeaway') || 'Takeaway'))), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
-    { key: 'online',   label: t('online') || 'Online',     Icon: ShoppingCart,   enabled: false }, // online handled separately
+    { key: 'online', label: t('online') || 'Online', Icon: ShoppingCart, enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
   const activeOrderTypeIndex = Math.max(0, orderTypes.findIndex(ot => ot.key === orderType));
@@ -1216,9 +1216,9 @@ export default function POS() {
 
     setPaymentMethod('unpaid');
     const res = await submitOrder(restaurant, staffDoc?.id);
-    if (!res.ok) { 
-      toast.error(res.error || (isKitchenActive ? 'Failed to send to kitchen' : 'Failed to save order')); 
-      return { error: res.error }; 
+    if (!res.ok) {
+      toast.error(res.error || (isKitchenActive ? 'Failed to send to kitchen' : 'Failed to save order'));
+      return { error: res.error };
     }
 
     if (res.isOffline) {
@@ -1228,7 +1228,7 @@ export default function POS() {
     } else {
       toast.success(isEdit ? 'Order updated in kitchen' : 'Order sent to kitchen', { id: 'pos-action' });
     }
-    
+
     // Print kitchen tickets (KOT) only when not in display-only (KDS paperless) mode
     const shouldPrintKot = snapOrderType === 'dine-in'
       ? (kitchenConfig?.autoPrintOnDineIn !== false)
@@ -1300,14 +1300,14 @@ export default function POS() {
         <span style={{ fontWeight: 600, fontSize: '13px' }}>Release Table {targetTableName}?</span>
         <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>This will mark the table as free and clear your cart.</span>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
-          <button 
+          <button
             type="button"
-            className="btn btn-secondary btn-xs" 
+            className="btn btn-secondary btn-xs"
             onClick={() => toast.dismiss(toastItem.id)}
           >
             Cancel
           </button>
-          <button 
+          <button
             type="button"
             className="btn btn-danger btn-xs"
             onClick={async () => {
@@ -1470,7 +1470,7 @@ export default function POS() {
 
   if (checkingShift) {
     return (
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', flexDirection:'column', gap:'12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px' }}>
         <div className="skeleton" style={{ width: 48, height: 48, borderRadius: '50%' }} />
         <div style={{ color: 'var(--color-label-secondary)' }}>Verifying cash till status...</div>
       </div>
@@ -1508,7 +1508,7 @@ export default function POS() {
           <p style={{ color: 'var(--color-label-secondary)', fontSize: 'var(--text-footnote)', marginBottom: 'var(--space-4)' }}>
             To begin processing orders, checkouts, and payments, you must open a new till shift and declare the starting cash float.
           </p>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
             <div>
               <label style={{ display: 'block', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', color: 'var(--color-label-secondary)', marginBottom: 'var(--space-1)' }}>
@@ -1518,7 +1518,7 @@ export default function POS() {
                 {staffDoc?.name || 'Cashier'} ({staffDoc?.role || 'Staff'})
               </div>
             </div>
-            
+
             <div>
               <label style={{ display: 'block', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-bold)', color: 'var(--color-label-secondary)', marginBottom: 'var(--space-1)' }}>
                 Starting Float ({currency})
@@ -1535,7 +1535,7 @@ export default function POS() {
               />
             </div>
           </div>
-          
+
           {openShiftError && (
             <div style={{
               background: 'var(--color-red-light)',
@@ -1558,7 +1558,7 @@ export default function POS() {
               </div>
             </div>
           )}
-          
+
           <button
             className="btn btn-primary"
             onClick={handleOpenShiftSubmit}
@@ -1650,343 +1650,311 @@ export default function POS() {
         {/* ── Menu Panel ─────────────────────────────── */}
         <div className={`pos-menu-panel ${isBistro ? 'categories-left' : ''}`}>
 
-        {/* ── Category Chips Bar (Hidden on Category Cards Overview) ─────────── */}
-        {!isShowingCategoryCards && (
-          <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
-            {/* Pinned Quick Operations (Floor Map, Active Orders & All Categories Launcher) */}
-            <div className="pos-category-bar-pinned">
-              {/* Floor Map / Tables Pill */}
-              {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
-                <button
-                  type="button"
-                  className="pos-op-card pos-op-card--tables"
-                  id="pos-pinned-tables-btn"
-                  onClick={() => navigate('/tables')}
-                  title="Go to Table Map & Floor Plan"
-                >
-                  <Armchair size={15} className="pos-op-pill-icon" />
-                  <span className="pos-op-pill-title">
-                    {tableName ? `Table ${tableName}` : 'Floor Map'}
-                  </span>
-                </button>
-              )}
-
-              {/* Active Orders Pill */}
-              {runningOrders.length > 0 && (
-                <button
-                  type="button"
-                  className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
-                  id="pos-pinned-active-orders-btn"
-                  onClick={() => {
-                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                    else setActiveOrdersFilter('all');
-                    setShowActiveOrdersModal(true);
-                  }}
-                  title="View active kitchen tickets, takeaway & settlement pass"
-                >
-                  {readyOrdersCount > 0 ? (
-                    <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
-                  ) : (
-                    <FileText size={15} className="pos-op-pill-icon" />
-                  )}
-                  <span className="pos-op-pill-title">
-                    {readyOrdersCount > 0 
-                      ? `${readyOrdersCount} Ready` 
-                      : pendingOnlineOrdersCount > 0 
-                      ? `${pendingOnlineOrdersCount} Online` 
-                      : `${runningOrders.length} Running`}
-                  </span>
-                  {readyOrdersCount > 0 && (
-                    <span className="pos-op-pulse-dot" />
-                  )}
-                </button>
-              )}
-
-              {/* Pinned Category Grid Launcher (Option A: Instant Big Categories Popup - Template 1 Only) */}
-              {!isBistro && (
-                <button
-                  type="button"
-                  className="pos-op-card pos-op-card--categories"
-                  id="pos-pinned-categories-btn"
-                  onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
-                  title="Browse all categories in full grid (Instant Access)"
-                >
-                  <LayoutGrid size={15} className="pos-op-pill-icon" />
-                  <span className="pos-op-pill-title">Categories</span>
-                  <span className="pos-op-cat-count">{categories.length}</span>
-                  <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
-                </button>
-              )}
-            </div>
-            {!isBistro && <div className="pos-bar-divider" />}
-
-            {/* Template 1 vs Template 2 Category Display */}
-            {isBistro ? (
-              /* Template 2: Vertical Left Sidebar - Direct Full Category List (No Popup) */
-              <div className="pos-category-scroll">
-                {/* All Items Quick Toggle */}
-                <button
-                  id="cat-all"
-                  type="button"
-                  role="tab"
-                  aria-selected={activeCat === 'all'}
-                  className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-                  onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                  title="View All Menu Items"
-                >
-                  <span className="category-chip-name">All Items</span>
-                  <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
-                </button>
-
-                {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
-                {activeOffers.length > 0 && (
+          {/* ── Category Chips Bar (Hidden on Category Cards Overview) ─────────── */}
+          {!isShowingCategoryCards && (
+            <div className="pos-category-bar" role="tablist" aria-label="Menu Categories">
+              {/* Pinned Quick Operations (Floor Map, Active Orders & All Categories Launcher) */}
+              <div className="pos-category-bar-pinned">
+                {/* Floor Map / Tables Pill */}
+                {(restaurant?.features?.table || modes.includes('table')) && !isBillOnly && (
                   <button
-                    id="cat-deals-rail"
                     type="button"
-                    role="tab"
-                    aria-selected={activeCat === 'deals'}
-                    className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
-                    title="View All Promotional Deals & BOGO Items"
-                    style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                    className="pos-op-card pos-op-card--tables"
+                    id="pos-pinned-tables-btn"
+                    onClick={() => navigate('/tables')}
+                    title="Go to Table Map & Floor Plan"
                   >
-                    <span className="category-chip-name">⚡ Offers</span>
+                    <Armchair size={15} className="pos-op-pill-icon" />
+                    <span className="pos-op-pill-title">
+                      {tableName ? `Table ${tableName}` : 'Floor Map'}
+                    </span>
                   </button>
                 )}
 
-                {/* All Category Chips in Left Rail */}
-                {categories.map(c => (
+                {/* Active Orders Pill */}
+                {runningOrders.length > 0 && (
                   <button
-                    key={c.id}
-                    id={`cat-${c.id}`}
                     type="button"
-                    role="tab"
-                    aria-selected={activeCat === c.id}
-                    className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
-                    title={c.name}
+                    className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
+                    id="pos-pinned-active-orders-btn"
+                    onClick={() => {
+                      if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                      else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                      else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                      else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                      else setActiveOrdersFilter('all');
+                      setShowActiveOrdersModal(true);
+                    }}
+                    title="View active kitchen tickets, takeaway & settlement pass"
                   >
-                    <span className="category-chip-name">{c.name}</span>
-                    {c.items?.length > 0 && (
-                      <span className="category-chip-count">{c.items.length}</span>
+                    {readyOrdersCount > 0 ? (
+                      <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                    ) : (
+                      <FileText size={15} className="pos-op-pill-icon" />
+                    )}
+                    <span className="pos-op-pill-title">
+                      {readyOrdersCount > 0
+                        ? `${readyOrdersCount} Ready`
+                        : pendingOnlineOrdersCount > 0
+                          ? `${pendingOnlineOrdersCount} Online`
+                          : `${runningOrders.length} Running`}
+                    </span>
+                    {readyOrdersCount > 0 && (
+                      <span className="pos-op-pulse-dot" />
                     )}
                   </button>
-                ))}
-
-                {/* Custom Item Chip */}
-                <button
-                  type="button"
-                  id="add-custom-item-chip"
-                  className="category-chip category-chip--custom"
-                  onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
-                  title="Add off-menu daily special or custom priced item"
-                >
-                  <span className="category-chip-name">+ Custom Item</span>
-                </button>
-              </div>
-            ) : (
-              /* Template 1: Horizontal Top Bar - Category Actions with Popup Launcher */
-              <div className="pos-category-actions">
-                {/* All Items Quick Toggle */}
-                <button
-                  id="cat-all"
-                  type="button"
-                  role="tab"
-                  aria-selected={activeCat === 'all'}
-                  className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-                  onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                  title="View All Menu Items"
-                >
-                  <span className="category-chip-name">All Items</span>
-                  <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
-                </button>
-
-                {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
-                {activeOffers.length > 0 && (
-                  <button
-                    id="cat-deals-rail"
-                    type="button"
-                    role="tab"
-                    aria-selected={activeCat === 'deals'}
-                    className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
-                    title="View All Promotional Deals & BOGO Items"
-                    style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
-                  >
-                    <span className="category-chip-name">⚡ Offers</span>
-                  </button>
                 )}
 
-                {/* Active Category Chip with 1-click Clear */}
-                {activeCat !== 'all' && activeCat !== 'deals' && (() => {
-                  const currentCat = categories.find(c => c.id === activeCat);
-                  if (!currentCat) return null;
-                  return (
+                {/* Pinned Category Grid Launcher (Option A: Instant Big Categories Popup - Template 1 Only) */}
+                {!isBistro && (
+                  <button
+                    type="button"
+                    className="pos-op-card pos-op-card--categories"
+                    id="pos-pinned-categories-btn"
+                    onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                    title="Browse all categories in full grid (Instant Access)"
+                  >
+                    <LayoutGrid size={15} className="pos-op-pill-icon" />
+                    <span className="pos-op-pill-title">Categories</span>
+                    <span className="pos-op-cat-count">{categories.length}</span>
+                    <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
+                  </button>
+                )}
+              </div>
+              {!isBistro && <div className="pos-bar-divider" />}
+
+              {/* Template 1 vs Template 2 Category Display */}
+              {isBistro ? (
+                /* Template 2: Vertical Left Sidebar - Direct Full Category List (No Popup) */
+                <div className="pos-category-scroll">
+                  {/* All Items Quick Toggle */}
+                  <button
+                    id="cat-all"
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCat === 'all'}
+                    className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                    title="View All Menu Items"
+                  >
+                    <span className="category-chip-name">All Items</span>
+                    <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
+                  </button>
+
+                  {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
+                  {activeOffers.length > 0 && (
                     <button
-                      key={currentCat.id}
-                      id={`cat-${currentCat.id}`}
+                      id="cat-deals-rail"
                       type="button"
                       role="tab"
-                      aria-selected={true}
-                      className="category-chip active pos-active-cat-chip"
-                      onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
-                      title={`Active: ${currentCat.name} (click to switch category)`}
+                      aria-selected={activeCat === 'deals'}
+                      className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
+                      onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                      title="View All Promotional Deals & BOGO Items"
+                      style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
                     >
-                      <span className="category-chip-name">{currentCat.name}</span>
-                      <span className="category-chip-count">{currentCat.items?.length || 0}</span>
-                      <span
-                        className="pos-active-cat-close"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          hapticTap('light');
-                          setActiveCat('all');
-                        }}
-                        title="Clear filter & show all items"
+                      <span className="category-chip-name">⚡ Offers</span>
+                    </button>
+                  )}
+
+                  {/* All Category Chips in Left Rail */}
+                  {categories.map(c => (
+                    <button
+                      key={c.id}
+                      id={`cat-${c.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeCat === c.id}
+                      className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
+                      onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                    >
+                      <span className="category-chip-name">{c.name}</span>
+                      {c.items?.length > 0 && (
+                        <span className="category-chip-count">{c.items.length}</span>
+                      )}
+                    </button>
+                  ))}
+
+                  {/* Custom Item Chip */}
+                  <button
+                    type="button"
+                    id="add-custom-item-chip"
+                    className="category-chip category-chip--custom"
+                    onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
+                    title="Add off-menu daily special or custom priced item"
+                  >
+                    <span className="category-chip-name">+ Custom Item</span>
+                  </button>
+                </div>
+              ) : (
+                /* Template 1: Horizontal Top Bar - Category Actions with Popup Launcher */
+                <div className="pos-category-actions">
+                  {/* All Items Quick Toggle */}
+                  <button
+                    id="cat-all"
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCat === 'all'}
+                    className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                    title="View All Menu Items"
+                  >
+                    <span className="category-chip-name">All Items</span>
+                    <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
+                  </button>
+
+                  {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
+                  {activeOffers.length > 0 && (
+                    <button
+                      id="cat-deals-rail"
+                      type="button"
+                      role="tab"
+                      aria-selected={activeCat === 'deals'}
+                      className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
+                      onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                      title="View All Promotional Deals & BOGO Items"
+                      style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                    >
+                      <span className="category-chip-name">⚡ Offers</span>
+                    </button>
+                  )}
+
+                  {/* Active Category Chip with 1-click Clear */}
+                  {activeCat !== 'all' && activeCat !== 'deals' && (() => {
+                    const currentCat = categories.find(c => c.id === activeCat);
+                    if (!currentCat) return null;
+                    return (
+                      <button
+                        key={currentCat.id}
+                        id={`cat-${currentCat.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={true}
+                        className="category-chip active pos-active-cat-chip"
+                        onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                        title={`Active: ${currentCat.name} (click to switch category)`}
                       >
-                        ×
+                        <span className="category-chip-name">{currentCat.name}</span>
+                        <span className="category-chip-count">{currentCat.items?.length || 0}</span>
+                        <span
+                          className="pos-active-cat-close"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            hapticTap('light');
+                            setActiveCat('all');
+                          }}
+                          title="Clear filter & show all items"
+                        >
+                          ×
+                        </span>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Custom Item Chip */}
+                  <button
+                    type="button"
+                    id="add-custom-item-chip"
+                    className="category-chip category-chip--custom"
+                    onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
+                    title="Add off-menu daily special or custom priced item"
+                  >
+                    <span className="category-chip-name">+ Custom Item</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Menu Content Area */}
+          <div className="pos-menu-content-area">
+            {isShowingCategoryCards ? (
+              <div className="pos-category-cards-container">
+                {/* Quick Operations & Utility Pill Bar (Option A: Slim, Touch-Friendly, Never Truncates) */}
+                <div className={`pos-operations-strip ${runningOrders.length === 0 ? 'has-two-cards' : ''}`}>
+                  {/* 1. Floor Map / Tables Pill */}
+                  {((restaurant?.features?.table || modes.includes('table')) && !isBillOnly) && (
+                    <button
+                      type="button"
+                      className="pos-op-card pos-op-card--tables"
+                      id="cat-card-tables"
+                      onClick={() => navigate('/tables')}
+                      title="Go to Table Map & Floor Plan"
+                    >
+                      <Armchair size={15} className="pos-op-pill-icon" />
+                      <span className="pos-op-pill-title">
+                        {tableName ? `Table ${tableName}` : 'Floor Map'}
                       </span>
                     </button>
-                  );
-                })()}
-
-                {/* Custom Item Chip */}
-                <button
-                  type="button"
-                  id="add-custom-item-chip"
-                  className="category-chip category-chip--custom"
-                  onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
-                  title="Add off-menu daily special or custom priced item"
-                >
-                  <span className="category-chip-name">+ Custom Item</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Menu Content Area */}
-        <div className="pos-menu-content-area">
-        {isShowingCategoryCards ? (
-          <div className="pos-category-cards-container">
-            {/* Quick Operations & Utility Pill Bar (Option A: Slim, Touch-Friendly, Never Truncates) */}
-            <div className={`pos-operations-strip ${runningOrders.length === 0 ? 'has-two-cards' : ''}`}>
-              {/* 1. Floor Map / Tables Pill */}
-              {((restaurant?.features?.table || modes.includes('table')) && !isBillOnly) && (
-                <button
-                  type="button"
-                  className="pos-op-card pos-op-card--tables"
-                  id="cat-card-tables"
-                  onClick={() => navigate('/tables')}
-                  title="Go to Table Map & Floor Plan"
-                >
-                  <Armchair size={15} className="pos-op-pill-icon" />
-                  <span className="pos-op-pill-title">
-                    {tableName ? `Table ${tableName}` : 'Floor Map'}
-                  </span>
-                </button>
-              )}
-
-              {/* 2. Active Orders Pill */}
-              {runningOrders.length > 0 && (
-                <button
-                  type="button"
-                  className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
-                  id="cat-card-active-orders"
-                  onClick={() => {
-                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                    else setActiveOrdersFilter('all');
-                    setShowActiveOrdersModal(true);
-                  }}
-                  title="View active kitchen tickets, takeaway & settlement pass"
-                >
-                  {readyOrdersCount > 0 ? (
-                    <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
-                  ) : (
-                    <FileText size={15} className="pos-op-pill-icon" />
                   )}
-                  <span className="pos-op-pill-title">
-                    {readyOrdersCount > 0 
-                      ? `${readyOrdersCount} Ready` 
-                      : pendingOnlineOrdersCount > 0 
-                      ? `${pendingOnlineOrdersCount} Online` 
-                      : `${runningOrders.length} Running`}
-                  </span>
-                  {readyOrdersCount > 0 && (
-                    <span className="pos-op-pulse-dot" />
+
+                  {/* 2. Active Orders Pill */}
+                  {runningOrders.length > 0 && (
+                    <button
+                      type="button"
+                      className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
+                      id="cat-card-active-orders"
+                      onClick={() => {
+                        if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                        else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                        else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                        else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                        else setActiveOrdersFilter('all');
+                        setShowActiveOrdersModal(true);
+                      }}
+                      title="View active kitchen tickets, takeaway & settlement pass"
+                    >
+                      {readyOrdersCount > 0 ? (
+                        <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                      ) : (
+                        <FileText size={15} className="pos-op-pill-icon" />
+                      )}
+                      <span className="pos-op-pill-title">
+                        {readyOrdersCount > 0
+                          ? `${readyOrdersCount} Ready`
+                          : pendingOnlineOrdersCount > 0
+                            ? `${pendingOnlineOrdersCount} Online`
+                            : `${runningOrders.length} Running`}
+                      </span>
+                      {readyOrdersCount > 0 && (
+                        <span className="pos-op-pulse-dot" />
+                      )}
+                    </button>
                   )}
-                </button>
-              )}
 
-              {/* 3. Custom Item Pill */}
-              <button
-                type="button"
-                className="pos-op-card pos-op-card--custom"
-                id="cat-card-custom"
-                onClick={() => setShowOpenItemModal(true)}
-                title="Add off-menu daily special or custom priced item"
-              >
-                <Plus size={15} strokeWidth={2.4} className="pos-op-pill-icon" />
-                <span className="pos-op-pill-title">Custom Item</span>
-              </button>
-            </div>
-
-            {/* Pure Food & Beverage Menu Categories */}
-            <div className="pos-category-cards-header">
-              <div>
-                <h2 className="pos-category-cards-title">Menu Categories</h2>
-                <p className="pos-category-cards-subtitle">
-                  Select a category to view items · Quick switching remains persistent on top
-                </p>
-              </div>
-            </div>
-
-            <div className="pos-category-cards-grid">
-              {/* All Items Card */}
-              <div
-                className="pos-category-card pos-cat-theme-emerald"
-                id="cat-card-all"
-                onClick={() => { setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveCat('all');
-                    setCatFirstOverview(false);
-                    setSearch('');
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="pos-cat-card-body">
-                  <div className="pos-cat-card-name">All Items</div>
+                  {/* 3. Custom Item Pill */}
+                  <button
+                    type="button"
+                    className="pos-op-card pos-op-card--custom"
+                    id="cat-card-custom"
+                    onClick={() => setShowOpenItemModal(true)}
+                    title="Add off-menu daily special or custom priced item"
+                  >
+                    <Plus size={15} strokeWidth={2.4} className="pos-op-pill-icon" />
+                    <span className="pos-op-pill-title">Custom Item</span>
+                  </button>
                 </div>
-                <div className="pos-cat-card-footer">
-                  <span className="pos-cat-card-count">
-                    {categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)} items
-                  </span>
-                  <span className="pos-cat-card-arrow">→</span>
-                </div>
-              </div>
 
-              {/* Each Category Card */}
-              {categories.map((c, idx) => {
-                const themeClass = POS_CATEGORY_THEMES[idx % POS_CATEGORY_THEMES.length];
-                return (
+                {/* Pure Food & Beverage Menu Categories */}
+                <div className="pos-category-cards-header">
+                  <div>
+                    <h2 className="pos-category-cards-title">Menu Categories</h2>
+                    <p className="pos-category-cards-subtitle">
+                      Select a category to view items · Quick switching remains persistent on top
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pos-category-cards-grid">
+                  {/* All Items Card */}
                   <div
-                    key={c.id}
-                    id={`cat-card-${c.id}`}
-                    className={`pos-category-card ${themeClass}`}
-                    onClick={() => { setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                    className="pos-category-card pos-cat-theme-emerald"
+                    id="cat-card-all"
+                    onClick={() => { setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setActiveCat(c.id);
+                        setActiveCat('all');
                         setCatFirstOverview(false);
                         setSearch('');
                       }
@@ -1995,802 +1963,972 @@ export default function POS() {
                     tabIndex={0}
                   >
                     <div className="pos-cat-card-body">
-                      <div className="pos-cat-card-name">{c.name}</div>
+                      <div className="pos-cat-card-name">All Items</div>
                     </div>
                     <div className="pos-cat-card-footer">
                       <span className="pos-cat-card-count">
-                        {c.items?.length || 0} items
+                        {categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)} items
                       </span>
                       <span className="pos-cat-card-arrow">→</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <>
-            {loadingMenu ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 'var(--space-3)', padding: 'var(--space-4)' }}>
-            {Array.from({length:12}).map((_,i) => (
-              <div key={i} className="skeleton" style={{ aspectRatio: '3/4', borderRadius: 'var(--radius-lg)' }} />
-            ))}
-          </div>
-        ) : displayItems.length === 0 ? (
-          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-label-tertiary)', flexDirection:'column', gap:'var(--space-3)' }}>
-            <UtensilsCrossed size={40} color="var(--color-label-tertiary)" />
-            <div>No items found</div>
-          </div>
-        ) : (
-          <>
-            {/* Dual-Tier Subcategory Pill Bar (Toast POS Standard) */}
-            {availableSubCategories.length > 0 && (
-              <div className="pos-subcategory-bar" role="tablist" aria-label="Sub-Categories">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeSubCat === 'all'}
-                  className={`pos-subcat-pill ${activeSubCat === 'all' ? 'active' : ''}`}
-                  onClick={() => { hapticTap('light'); setActiveSubCat('all'); }}
-                >
-                  <span>All</span>
-                  <span className="pos-subcat-count">
-                    {activeCat === 'all' 
-                      ? categories.reduce((sum, c) => sum + (c.items?.length || 0), 0)
-                      : (categories.find(c => c.id === activeCat)?.items?.length || 0)}
-                  </span>
-                </button>
 
-                {popularSubCatCount > 0 && (
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeSubCat === 'popular'}
-                    className={`pos-subcat-pill pos-subcat-pill--popular ${activeSubCat === 'popular' ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveSubCat('popular'); }}
-                  >
-                    <span>⭐ Popular</span>
-                    <span className="pos-subcat-count">{popularSubCatCount}</span>
-                  </button>
-                )}
-
-                {availableSubCategories.map(sub => (
-                  <button
-                    key={sub.name}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeSubCat.toLowerCase() === sub.name.toLowerCase()}
-                    className={`pos-subcat-pill ${activeSubCat.toLowerCase() === sub.name.toLowerCase() ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveSubCat(sub.name); }}
-                  >
-                    <span>{sub.name}</span>
-                    <span className="pos-subcat-count">{sub.count}</span>
-                  </button>
-                ))}
+                  {/* Each Category Card */}
+                  {categories.map((c, idx) => {
+                    const themeClass = POS_CATEGORY_THEMES[idx % POS_CATEGORY_THEMES.length];
+                    return (
+                      <div
+                        key={c.id}
+                        id={`cat-card-${c.id}`}
+                        className={`pos-category-card ${themeClass}`}
+                        onClick={() => { setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setActiveCat(c.id);
+                            setCatFirstOverview(false);
+                            setSearch('');
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="pos-cat-card-body">
+                          <div className="pos-cat-card-name">{c.name}</div>
+                        </div>
+                        <div className="pos-cat-card-footer">
+                          <span className="pos-cat-card-count">
+                            {c.items?.length || 0} items
+                          </span>
+                          <span className="pos-cat-card-arrow">→</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-
-            <div className={`menu-grid ${menuDensity === 'dense' ? 'dense' : ''}`}>
-            {displayItems.map(item => {
-              const qty = getItemQty(item);
-              const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
-              const isVegItem = checkIsVegItem(item);
-              
-              if (menuDensity === 'dense') {
-                const formattedPrice = getDisplayPrice(item, currency);
-
-                return (
-                  <div
-                    key={item.id}
-                    id={`menu-item-${item.id}`}
-                    role="button"
-                    tabIndex={0}
-                    className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
-                    onClick={() => {
-                      if (item.available === false) return;
-                      if (hasModifiers) setActiveModifierItem(item);
-                      else handleAddItem(item);
-                    }}
-                    onKeyDown={e => {
-                      if (item.available === false) return;
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        if (hasModifiers) setActiveModifierItem(item);
-                        else handleAddItem(item);
-                      }
-                    }}
-                  >
-                    {/* Header Row: Dietary Icon + Title on left, Status Badge on right */}
-                    <div className="menu-key-header">
-                      <div className="menu-key-title-wrap">
-                        <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-                        <span className="menu-key-name" title={item.name}>{item.name}</span>
-                        {item.subCategory && (
-                          <span className="item-subcat-badge">{item.subCategory}</span>
-                        )}
-                      </div>
-                      <div className="menu-key-badges-right">
-                        {qty > 0 ? (
-                          <span className="menu-key-qty-pill">
-                            <Check size={10} strokeWidth={3} /> {qty}
-                          </span>
-                        ) : hasModifiers ? (
-                          <span className="menu-key-pill menu-key-pill-mod">
-                            Options
-                          </span>
-                        ) : (item.isBestseller || item.bestseller || item.popular) ? (
-                          <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
-                            <Flame size={10} color="var(--color-orange)" />
-                          </span>
-                        ) : item.highMargin ? (
-                          <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
-                            Special
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Price display & Subtle Tactile Action Button */}
-                    <div className="menu-key-footer">
-                      <div className="menu-key-price-wrap">
-                        {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
-                        <span className="menu-key-price">{formattedPrice.text}</span>
-                      </div>
-                      <span className={`menu-key-action-btn ${qty > 0 ? 'added' : ''}`} title={qty > 0 ? `${qty} in cart` : "Add to cart"}>
-                        {qty > 0 ? (
-                          <Check size={12} strokeWidth={2.8} />
-                        ) : (
-                          <Plus size={13} strokeWidth={2.5} />
-                        )}
-                      </span>
-                    </div>
+            ) : (
+              <>
+                {loadingMenu ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 'var(--space-3)', padding: 'var(--space-4)' }}>
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <div key={i} className="skeleton" style={{ aspectRatio: '3/4', borderRadius: 'var(--radius-lg)' }} />
+                    ))}
                   </div>
-                );
-              }
-
-              return (
-                <div
-                  key={item.id}
-                  id={`menu-item-${item.id}`}
-                  role="button"
-                  tabIndex={0}
-                  className={`menu-item-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
-                  onClick={() => {
-                    if (item.available === false) return;
-                    if (hasModifiers) {
-                      setActiveModifierItem(item);
-                    } else {
-                      handleAddItem(item);
-                    }
-                  }}
-                  onKeyDown={e => {
-                    if (item.available === false) return;
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (hasModifiers) {
-                        setActiveModifierItem(item);
-                      } else {
-                        handleAddItem(item);
-                      }
-                    }
-                  }}
-                >
-                  {/* Veg / Non-Veg Indicator Badge */}
-                  <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 'var(--z-raised)' }}>
-                    <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                ) : displayItems.length === 0 ? (
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-label-tertiary)', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <UtensilsCrossed size={40} color="var(--color-label-tertiary)" />
+                    <div>No items found</div>
                   </div>
-
-                  {qty > 0 && (
-                    <div className="menu-item-qty-badge">{qty}</div>
-                  )}
-
-                  {/* Promotional Offer / BOGO Badge */}
-                  {(() => {
-                    if (item.isBogo || (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) || item.name?.toLowerCase().includes('bogo')) {
-                      return (
-                        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <span>🔥</span><span>BOGO</span>
-                        </div>
-                      );
-                    }
-                    const matchedOffer = activeOffers.find(off => {
-                      const cat = (item.categoryName || item.categoryId || '').toLowerCase();
-                      if (off.type === 'bogo') {
-                        return (off.categoryFilter || []).some(f => cat.includes(f.toLowerCase()));
-                      }
-                      if (off.type === 'percent_category') {
-                        return off.targetCategory && cat.includes(off.targetCategory.toLowerCase());
-                      }
-                      return false;
-                    });
-                    if (matchedOffer) {
-                      const isBogo = matchedOffer.type === 'bogo';
-                      const tag = isBogo ? (matchedOffer.tag || 'BOGO') : `${matchedOffer.discountPercent}% OFF`;
-                      const color = matchedOffer.badgeColor || (isBogo ? '#ef4444' : '#f59e0b');
-                      const icon = matchedOffer.icon || (isBogo ? '🔥' : '🍹');
-                      return (
-                        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: color, color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <span>{icon}</span><span>{tag}</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                  <div className={`menu-item-img-wrap ${!(item.imageUrl || item.image) ? 'has-placeholder' : ''}`}>
-                    {item.imageUrl || item.image ? (
-                      <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
-                    ) : (() => {
-                      const visuals = getItemVisuals(item);
-                      return (
-                        <div
-                          className="menu-item-img-placeholder"
-                          data-palette={visuals.palette}
-                          style={{
-                            background: visuals.bg,
-                            borderBottom: `1px solid ${visuals.border}`
-                          }}
-                        >
-                          <span
-                            className="menu-item-monogram"
-                            style={{
-                              color: visuals.color,
-                              textShadow: `0 0 18px ${visuals.glow}`
-                            }}
-                          >
-                            {visuals.monogram}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  <div className="menu-item-body">
-                    <div className="menu-item-name" title={item.name}>
-                      <span className="menu-item-name-text">{item.name}</span>
-                      {item.subCategory && (
-                        <span className="item-subcat-badge">{item.subCategory}</span>
-                      )}
-                      {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
-                      {(item.isBestseller || item.bestseller || item.popular) && (
-                        <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
-                      )}
-                    </div>
-                    <div className="menu-item-price">
-                      <span className="menu-item-price-val">
-                        {hasModifiers && parseFloat(item.price) === 0 ? (
-                          (() => {
-                            const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                            return (
-                              <>
-                                <span className="menu-item-from-prefix">From</span>
-                                <span>{formatCurrency(minPrice, currency)}</span>
-                              </>
-                            );
-                          })()
-                        ) : (
-                          formatCurrency(item.price, currency)
-                        )}
-                      </span>
-                      {hasModifiers && (
-                        <span className="menu-item-sizes-badge">Sizes</span>
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-
-              );
-            })}
-          </div>
-          </>
-        )}
-          </>
-        )}
-        </div>
-
-        {/* Mobile POS Bottom Action Dock: View Switcher, Dietary Filters & Cart (Thumb-optimized) */}
-        <div className="pos-mobile-bottom-dock" role="region" aria-label="Quick operations dock">
-          <div className="pos-mobile-dock-left">
-            {/* View Mode Switcher: Cards vs Fast Keys */}
-            <button
-              type="button"
-              className={`pos-mobile-dock-view-btn pos-mobile-view-toggle ${menuDensity === 'dense' ? 'is-keys' : 'is-cards'}`}
-              onClick={() => {
-                hapticTap('light');
-                setMenuDensity(menuDensity === 'visual' ? 'dense' : 'visual', true);
-              }}
-              title={menuDensity === 'visual' ? 'Switch to Fast Keys view' : 'Switch to Photo Cards view'}
-              aria-label={menuDensity === 'visual' ? 'Switch to Fast Keys' : 'Switch to Cards'}
-            >
-              {menuDensity === 'visual' ? (
-                <>
-                  <Zap size={18} className="dock-icon-bolt" />
-                  <span className="dock-btn-label">Keys</span>
-                </>
-              ) : (
-                <>
-                  <LayoutGrid size={18} className="dock-icon-grid" />
-                  <span className="dock-btn-label">Cards</span>
-                </>
-              )}
-            </button>
-
-            {/* Dietary Filter Segmented Pills - Icon-Only for Maximum Tap Ergonomics */}
-            <div className="pos-mobile-dietary-group" role="toolbar" aria-label="Dietary filters">
-              <button
-                type="button"
-                className={`pos-mobile-dietary-btn veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-                onClick={() => {
-                  hapticTap('light');
-                  setDietaryFilter(f => f === 'veg' ? 'all' : 'veg');
-                }}
-                title="Filter Vegetarian dishes"
-                aria-label="Vegetarian filter"
-                aria-pressed={dietaryFilter === 'veg'}
-              >
-                <span className="food-badge-veg" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
-              </button>
-
-              <button
-                type="button"
-                className={`pos-mobile-dietary-btn nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-                onClick={() => {
-                  hapticTap('light');
-                  setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg');
-                }}
-                title="Filter Non-Vegetarian dishes"
-                aria-label="Non-Vegetarian filter"
-                aria-pressed={dietaryFilter === 'non-veg'}
-              >
-                <span className="food-badge-nonveg" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
-              </button>
-
-              <button
-                type="button"
-                className={`pos-mobile-dietary-btn popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-                onClick={() => {
-                  hapticTap('light');
-                  setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller');
-                }}
-                title="Filter Popular & Bestseller dishes"
-                aria-label="Popular filter"
-                aria-pressed={dietaryFilter === 'bestseller'}
-              >
-                <Flame size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div className="pos-mobile-dock-right">
-            {/* Tactile Cart Action Button */}
-            <button
-              type="button"
-              className={`pos-mobile-dock-cart-btn mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`} 
-              onClick={() => {
-                hapticTap('medium');
-                setMobileCartOpen(true);
-              }}
-              title={t('cart')}
-              aria-label={`Open Cart (${items.reduce((sum, i) => sum + i.qty, 0)} items)`}
-            >
-              {items.length > 0 ? (
-                <>
-                  <div className="mobile-cart-badge-wrap">
-                    <ShoppingCart size={20} strokeWidth={2.4} />
-                    <span className="mobile-cart-count-badge">
-                      {items.reduce((sum, i) => sum + i.qty, 0)}
-                    </span>
-                  </div>
-                  <div className="mobile-cart-total-wrap">
-                    <span className="mobile-cart-total-amount">{formatCurrency(total, currency)}</span>
-                    <span className="mobile-cart-caret">▲</span>
-                  </div>
-                </>
-              ) : (
-                <div className="mobile-cart-empty-inner">
-                  <ShoppingCart size={18} strokeWidth={2.2} />
-                  <span className="mobile-cart-empty-label">Cart</span>
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Cart Overlay */}
-      {mobileCartOpen && (
-        <div className="mobile-cart-overlay" onClick={() => setMobileCartOpen(false)} />
-      )}
-
-      {/* ── Cart Panel ─────────────────────────────── */}
-      <div className={`pos-cart-panel ${mobileCartOpen ? 'open' : ''}`}>
-        {/* Mobile Pull-to-Dismiss Grab Handle */}
-        <div 
-          className="cart-mobile-grab-handle mobile-only" 
-          onClick={() => setMobileCartOpen(false)}
-          title="Tap to close cart"
-          aria-label="Close cart"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px' }}
-        >
-          <div style={{ width: 24 }} />
-          <div className="cart-mobile-grab-bar" />
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon"
-            onClick={(e) => { e.stopPropagation(); setMobileCartOpen(false); }}
-            style={{ width: '24px', height: '24px', padding: 0 }}
-            title="Close cart"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        {editingOrderId && (
-          <div style={{
-            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-            color: '#1e40af',
-            padding: '6px 12px',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #bfdbfe',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span>{tableName ? `Table ${tableName}` : 'Active Order'}</span>
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <button 
-                type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={handlePrintPreBill}
-                title="Print Guest Bill / Pre-Bill Check"
-                style={{ color: '#1e40af', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(255,255,255,0.7)', borderRadius: 6, border: '1px solid rgba(30,64,175,0.2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              >
-                <Printer size={12} />
-                <span>Bill</span>
-              </button>
-              <button 
-                type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
-                title="Split Guest Checks by Seat or Item"
-                style={{ color: '#047857', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(209,250,229,0.85)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-              >
-                <Split size={11} /> Split
-              </button>
-              {tableId && (
-                <button 
-                  type="button"
-                  className="btn btn-ghost btn-xs"
-                  onClick={handleReleaseTable}
-                  title="Release / Free Table"
-                  style={{ color: '#991b1b', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(254,226,226,0.7)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}
-                >
-                  Free
-                </button>
-              )}
-              <button 
-                type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={clearCart}
-                title="Close active order view"
-                style={{ color: '#64748b', padding: '2px 5px', fontSize: 11, height: 22 }}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Collapsible Order & Table Header: Compact, organized & touch-optimized */}
-        {items.length > 0 && isHeaderCollapsed ? (
-          <div
-            className="cart-header-summary-strip"
-            onClick={() => setIsHeaderCollapsed(false)}
-            title="Click bar to expand full order details"
-            role="region"
-            aria-label="Order summary bar"
-          >
-            <div className="cart-header-summary-left">
-              {/* Order Type Chip with Direct 1-Tap Toggle */}
-              <button
-                type="button"
-                className="cart-header-summary-chip type-chip"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (orderTypes.length > 1) {
-                    const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
-                    handleOrderTypeChange(orderTypes[nextIdx].key);
-                  } else {
-                    setIsHeaderCollapsed(false);
-                  }
-                }}
-                title={orderTypes.length > 1 ? `Order mode: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode` : 'Order mode'}
-              >
-                {orderType === 'dine-in' ? (
-                  <UtensilsCrossed size={12} className="summary-chip-icon" />
                 ) : (
-                  <ShoppingBag size={12} className="summary-chip-icon" />
-                )}
-                <span className="summary-chip-label">
-                  {isRetail ? 'Purchase' : (isService ? 'Service' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway'))}
-                </span>
-                {orderTypes.length > 1 && <ChevronDown size={10} className="summary-chip-caret" />}
-              </button>
-
-              {/* Table Selector Chip (Dine-In) with Direct 1-Tap Floor Map Modal */}
-              {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
-                <div className="cart-header-summary-table-group">
-                  <button
-                    type="button"
-                    className={`cart-header-summary-chip table-chip ${tableId ? 'has-table' : 'needs-table'}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTableSelAction('select');
-                      setShowTableSel(true);
-                    }}
-                    title={tableId ? `Table ${tableName} assigned - Tap to switch` : 'Tap to select table from floor map'}
-                  >
-                    <Armchair size={13} className="summary-chip-icon" />
-                    <span className="summary-chip-label">
-                      {tableId ? `Table ${tableName}` : 'Table'}
-                    </span>
-                  </button>
-                  {tableId && (
-                    <button
-                      type="button"
-                      className="cart-header-summary-unassign-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTable(null, null);
-                      }}
-                      title="Clear table assignment"
-                    >
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Customer Chip */}
-              {(customer || customerName) && (
-                <span className="cart-header-summary-chip cust-chip" title="Assigned customer">
-                  <User size={13} className="summary-chip-icon" />
-                  <span className="summary-chip-label">
-                    {customer ? customer.name : customerName}
-                  </span>
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              {heldOrders?.length > 0 && (
-                <button
-                  type="button"
-                  className="cart-held-pill"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowHeldOrdersModal(true);
-                  }}
-                  title="View held/parked orders"
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.18)',
-                    border: '1px solid rgba(245, 158, 11, 0.45)',
-                    color: '#f59e0b',
-                    borderRadius: '8px',
-                    padding: '0 8px',
-                    height: '30px',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <PauseCircle size={12} />
-                  <span>Held ({heldOrders.length})</span>
-                </button>
-              )}
-              <button 
-                type="button"
-                className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!confirmClearCart) {
-                    setConfirmClearCart(true);
-                    setTimeout(() => setConfirmClearCart(false), 3000);
-                  } else {
-                    hapticTap('medium');
-                    clearCart();
-                    setConfirmClearCart(false);
-                  }
-                }} 
-                id="clear-cart-btn"
-                title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
-              >
-                <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
-              </button>
-              <button
-                type="button"
-                className="cart-header-edit-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsHeaderCollapsed(false);
-                }}
-                title="Expand full order details"
-                aria-label="Expand full order details"
-              >
-                <span>{items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}</span>
-                <ChevronDown size={12} style={{ flexShrink: 0 }} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="cart-header-expanded-wrap">
-            {items.length > 0 && (
-              <div className="cart-header-collapse-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsHeaderCollapsed(true)}
-                  className="cart-header-collapse-trigger"
-                  title="Collapse order details to view more cart items"
-                >
-                  <span>Hide Details</span>
-                  <ChevronUp size={11} />
-                </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                  {heldOrders?.length > 0 && (
-                    <button
-                      type="button"
-                      className="cart-held-pill"
-                      onClick={() => setShowHeldOrdersModal(true)}
-                      title="View held/parked orders"
-                      style={{
-                        background: 'rgba(245, 158, 11, 0.18)',
-                        border: '1px solid rgba(245, 158, 11, 0.45)',
-                        color: '#f59e0b',
-                        borderRadius: '6px',
-                        padding: '2px 7px',
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <PauseCircle size={12} />
-                      <span>Held ({heldOrders.length})</span>
-                    </button>
-                  )}
-                  <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
-                    {items.reduce((s, i) => s + i.qty, 0)} items
-                  </span>
-                  <button 
-                    type="button"
-                    className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
-                    onClick={() => {
-                      if (!confirmClearCart) {
-                        setConfirmClearCart(true);
-                        setTimeout(() => setConfirmClearCart(false), 3000);
-                      } else {
-                        hapticTap('medium');
-                        clearCart();
-                        setConfirmClearCart(false);
-                      }
-                    }} 
-                    id="clear-cart-btn-expanded"
-                    title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
-                  >
-                    <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                    <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Modern Segmented Order Type Control — with smooth spring gliding pill */}
-            {orderTypes.length > 1 && (
-              <div className="cart-type-tabs">
-                <div
-                  className="cart-type-glider"
-                  style={{
-                    width: `calc((100% - ${(orderTypes.length - 1) * 4}px) / ${orderTypes.length})`,
-                    transform: `translate3d(calc(${activeOrderTypeIndex} * (100% + 4px)), 0, 0)`,
-                  }}
-                  aria-hidden="true"
-                />
-                {orderTypes.map(ot => {
-                  const Icon = ot.Icon;
-                  const isActive = orderType === ot.key;
-                  return (
-                    <button
-                      key={ot.key}
-                      id={`order-type-${ot.key}`}
-                      type="button"
-                      className={`cart-type-tab ${isActive ? 'active' : ''}`}
-                      onClick={() => handleOrderTypeChange(ot.key)}
-                    >
-                      {Icon && <Icon size={14} className="cart-type-tab-icon" />}
-                      <span>{ot.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Service Details: Unified container with smooth animated crossfade */}
-            <div className={`cart-service-details ${orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
-              <div key={orderType} className="cart-service-content-animated">
-                {orderType === 'dine-in' && !isBillOnly ? (
                   <>
-                    {(restaurant?.features?.table || modes.includes('table')) && (
-                      <div className="cart-service-row cart-service-table-row">
+                    {/* Dual-Tier Subcategory Pill Bar (Toast POS Standard) */}
+                    {availableSubCategories.length > 0 && (
+                      <div className="pos-subcategory-bar" role="tablist" aria-label="Sub-Categories">
                         <button
                           type="button"
-                          onClick={() => {
-                            setTableSelAction('select');
-                            setShowTableSel(true);
-                          }}
-                          className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
-                          id="select-table-dropdown"
-                          title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                          role="tab"
+                          aria-selected={activeSubCat === 'all'}
+                          className={`pos-subcat-pill ${activeSubCat === 'all' ? 'active' : ''}`}
+                          onClick={() => { hapticTap('light'); setActiveSubCat('all'); }}
                         >
-                          <span className="cart-table-select-content">
-                            <Armchair size={13} className="cart-table-icon" style={{ marginRight: 4 }} />
-                            <span className="cart-table-label">
-                              {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
-                            </span>
-                          </span>
-                          <span className="cart-table-chevron-wrap">
-                            {tableId ? (
-                              <span className="cart-table-badge-active">Assigned</span>
-                            ) : (
-                              <span className="cart-table-badge-choose">Floor Map ▾</span>
-                            )}
+                          <span>All</span>
+                          <span className="pos-subcat-count">
+                            {activeCat === 'all'
+                              ? categories.reduce((sum, c) => sum + (c.items?.length || 0), 0)
+                              : (categories.find(c => c.id === activeCat)?.items?.length || 0)}
                           </span>
                         </button>
-                        {tableId && (
+
+                        {popularSubCatCount > 0 && (
                           <button
                             type="button"
-                            className="cart-table-unassign-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTable(null, null);
-                            }}
-                            title="Clear table assignment"
+                            role="tab"
+                            aria-selected={activeSubCat === 'popular'}
+                            className={`pos-subcat-pill pos-subcat-pill--popular ${activeSubCat === 'popular' ? 'active' : ''}`}
+                            onClick={() => { hapticTap('light'); setActiveSubCat('popular'); }}
                           >
-                            <X size={12} />
+                            <span>⭐ Popular</span>
+                            <span className="pos-subcat-count">{popularSubCatCount}</span>
                           </button>
                         )}
+
+                        {availableSubCategories.map(sub => (
+                          <button
+                            key={sub.name}
+                            type="button"
+                            role="tab"
+                            aria-selected={activeSubCat.toLowerCase() === sub.name.toLowerCase()}
+                            className={`pos-subcat-pill ${activeSubCat.toLowerCase() === sub.name.toLowerCase() ? 'active' : ''}`}
+                            onClick={() => { hapticTap('light'); setActiveSubCat(sub.name); }}
+                          >
+                            <span>{sub.name}</span>
+                            <span className="pos-subcat-count">{sub.count}</span>
+                          </button>
+                        ))}
                       </div>
                     )}
 
-                    {/* Customer / Loyalty Info row */}
-                    <div className="cart-service-row cart-service-customer-row">
+                    <div className={`menu-grid ${menuDensity === 'dense' ? 'dense' : ''}`}>
+                      {displayItems.map(item => {
+                        const qty = getItemQty(item);
+                        const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
+                        const isVegItem = checkIsVegItem(item);
+
+                        if (menuDensity === 'dense') {
+                          const formattedPrice = getDisplayPrice(item, currency);
+
+                          return (
+                            <div
+                              key={item.id}
+                              id={`menu-item-${item.id}`}
+                              role="button"
+                              tabIndex={0}
+                              className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                              onClick={() => {
+                                if (item.available === false) return;
+                                if (hasModifiers) setActiveModifierItem(item);
+                                else handleAddItem(item);
+                              }}
+                              onKeyDown={e => {
+                                if (item.available === false) return;
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  if (hasModifiers) setActiveModifierItem(item);
+                                  else handleAddItem(item);
+                                }
+                              }}
+                            >
+                              {/* Header Row: Dietary Icon + Title on left, Status Badge on right */}
+                              <div className="menu-key-header">
+                                <div className="menu-key-title-wrap">
+                                  <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                                  <span className="menu-key-name" title={item.name}>{item.name}</span>
+                                  {item.subCategory && (
+                                    <span className="item-subcat-badge">{item.subCategory}</span>
+                                  )}
+                                </div>
+                                <div className="menu-key-badges-right">
+                                  {qty > 0 ? (
+                                    <span className="menu-key-qty-pill">
+                                      <Check size={10} strokeWidth={3} /> {qty}
+                                    </span>
+                                  ) : hasModifiers ? (
+                                    <span className="menu-key-pill menu-key-pill-mod">
+                                      Options
+                                    </span>
+                                  ) : (item.isBestseller || item.bestseller || item.popular) ? (
+                                    <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
+                                      <Flame size={10} color="var(--color-orange)" />
+                                    </span>
+                                  ) : item.highMargin ? (
+                                    <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
+                                      Special
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {/* Bottom Row: Price display & Subtle Tactile Action Button */}
+                              <div className="menu-key-footer">
+                                <div className="menu-key-price-wrap">
+                                  {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
+                                  <span className="menu-key-price">{formattedPrice.text}</span>
+                                </div>
+                                <span className={`menu-key-action-btn ${qty > 0 ? 'added' : ''}`} title={qty > 0 ? `${qty} in cart` : "Add to cart"}>
+                                  {qty > 0 ? (
+                                    <Check size={12} strokeWidth={2.8} />
+                                  ) : (
+                                    <Plus size={13} strokeWidth={2.5} />
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={item.id}
+                            id={`menu-item-${item.id}`}
+                            role="button"
+                            tabIndex={0}
+                            className={`menu-item-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                            onClick={() => {
+                              if (item.available === false) return;
+                              if (hasModifiers) {
+                                setActiveModifierItem(item);
+                              } else {
+                                handleAddItem(item);
+                              }
+                            }}
+                            onKeyDown={e => {
+                              if (item.available === false) return;
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                if (hasModifiers) {
+                                  setActiveModifierItem(item);
+                                } else {
+                                  handleAddItem(item);
+                                }
+                              }
+                            }}
+                          >
+                            {/* Veg / Non-Veg Indicator Badge */}
+                            <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 'var(--z-raised)' }}>
+                              <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                            </div>
+
+                            {qty > 0 && (
+                              <div className="menu-item-qty-badge">{qty}</div>
+                            )}
+
+                            {/* Promotional Offer / BOGO Badge */}
+                            {(() => {
+                              if (item.isBogo || (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) || item.name?.toLowerCase().includes('bogo')) {
+                                return (
+                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <span>🔥</span><span>BOGO</span>
+                                  </div>
+                                );
+                              }
+                              const matchedOffer = activeOffers.find(off => {
+                                const cat = (item.categoryName || item.categoryId || '').toLowerCase();
+                                if (off.type === 'bogo') {
+                                  return (off.categoryFilter || []).some(f => cat.includes(f.toLowerCase()));
+                                }
+                                if (off.type === 'percent_category') {
+                                  return off.targetCategory && cat.includes(off.targetCategory.toLowerCase());
+                                }
+                                return false;
+                              });
+                              if (matchedOffer) {
+                                const isBogo = matchedOffer.type === 'bogo';
+                                const tag = isBogo ? (matchedOffer.tag || 'BOGO') : `${matchedOffer.discountPercent}% OFF`;
+                                const color = matchedOffer.badgeColor || (isBogo ? '#ef4444' : '#f59e0b');
+                                const icon = matchedOffer.icon || (isBogo ? '🔥' : '🍹');
+                                return (
+                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: color, color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <span>{icon}</span><span>{tag}</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                            <div className={`menu-item-img-wrap ${!(item.imageUrl || item.image) ? 'has-placeholder' : ''}`}>
+                              {item.imageUrl || item.image ? (
+                                <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
+                              ) : (() => {
+                                const visuals = getItemVisuals(item);
+                                return (
+                                  <div
+                                    className="menu-item-img-placeholder"
+                                    data-palette={visuals.palette}
+                                    style={{
+                                      background: visuals.bg,
+                                      borderBottom: `1px solid ${visuals.border}`
+                                    }}
+                                  >
+                                    <span
+                                      className="menu-item-monogram"
+                                      style={{
+                                        color: visuals.color,
+                                        textShadow: `0 0 18px ${visuals.glow}`
+                                      }}
+                                    >
+                                      {visuals.monogram}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="menu-item-body">
+                              <div className="menu-item-name" title={item.name}>
+                                <span className="menu-item-name-text">{item.name}</span>
+                                {item.subCategory && (
+                                  <span className="item-subcat-badge">{item.subCategory}</span>
+                                )}
+                                {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
+                                {(item.isBestseller || item.bestseller || item.popular) && (
+                                  <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
+                                )}
+                              </div>
+                              <div className="menu-item-price">
+                                <span className="menu-item-price-val">
+                                  {hasModifiers && parseFloat(item.price) === 0 ? (
+                                    (() => {
+                                      const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
+                                      const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+                                      return (
+                                        <>
+                                          <span className="menu-item-from-prefix">From</span>
+                                          <span>{formatCurrency(minPrice, currency)}</span>
+                                        </>
+                                      );
+                                    })()
+                                  ) : (
+                                    formatCurrency(item.price, currency)
+                                  )}
+                                </span>
+                                {hasModifiers && (
+                                  <span className="menu-item-sizes-badge">Sizes</span>
+                                )}
+                              </div>
+                            </div>
+
+                          </div>
+
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Mobile POS Bottom Action Dock: View Switcher, Dietary Filters & Cart (Thumb-optimized) */}
+          <div className="pos-mobile-bottom-dock" role="region" aria-label="Quick operations dock">
+            <div className="pos-mobile-dock-left">
+              {/* View Mode Switcher: Cards vs Fast Keys */}
+              <button
+                type="button"
+                className={`pos-mobile-dock-view-btn pos-mobile-view-toggle ${menuDensity === 'dense' ? 'is-keys' : 'is-cards'}`}
+                onClick={() => {
+                  hapticTap('light');
+                  setMenuDensity(menuDensity === 'visual' ? 'dense' : 'visual', true);
+                }}
+                title={menuDensity === 'visual' ? 'Switch to Fast Keys view' : 'Switch to Photo Cards view'}
+                aria-label={menuDensity === 'visual' ? 'Switch to Fast Keys' : 'Switch to Cards'}
+              >
+                {menuDensity === 'visual' ? (
+                  <>
+                    <Zap size={18} className="dock-icon-bolt" />
+                    <span className="dock-btn-label">Keys</span>
+                  </>
+                ) : (
+                  <>
+                    <LayoutGrid size={18} className="dock-icon-grid" />
+                    <span className="dock-btn-label">Cards</span>
+                  </>
+                )}
+              </button>
+
+              {/* Dietary Filter Segmented Pills - Icon-Only for Maximum Tap Ergonomics */}
+              <div className="pos-mobile-dietary-group" role="toolbar" aria-label="Dietary filters">
+                <button
+                  type="button"
+                  className={`pos-mobile-dietary-btn veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
+                  onClick={() => {
+                    hapticTap('light');
+                    setDietaryFilter(f => f === 'veg' ? 'all' : 'veg');
+                  }}
+                  title="Filter Vegetarian dishes"
+                  aria-label="Vegetarian filter"
+                  aria-pressed={dietaryFilter === 'veg'}
+                >
+                  <span className="food-badge-veg" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
+                </button>
+
+                <button
+                  type="button"
+                  className={`pos-mobile-dietary-btn nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+                  onClick={() => {
+                    hapticTap('light');
+                    setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg');
+                  }}
+                  title="Filter Non-Vegetarian dishes"
+                  aria-label="Non-Vegetarian filter"
+                  aria-pressed={dietaryFilter === 'non-veg'}
+                >
+                  <span className="food-badge-nonveg" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
+                </button>
+
+                <button
+                  type="button"
+                  className={`pos-mobile-dietary-btn popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+                  onClick={() => {
+                    hapticTap('light');
+                    setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller');
+                  }}
+                  title="Filter Popular & Bestseller dishes"
+                  aria-label="Popular filter"
+                  aria-pressed={dietaryFilter === 'bestseller'}
+                >
+                  <Flame size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="pos-mobile-dock-right">
+              {/* Tactile Cart Action Button */}
+              <button
+                type="button"
+                className={`pos-mobile-dock-cart-btn mobile-cart-toggle-bar ${items.length === 0 ? 'empty' : ''}`}
+                onClick={() => {
+                  hapticTap('medium');
+                  setMobileCartOpen(true);
+                }}
+                title={t('cart')}
+                aria-label={`Open Cart (${items.reduce((sum, i) => sum + i.qty, 0)} items)`}
+              >
+                {items.length > 0 ? (
+                  <>
+                    <div className="mobile-cart-badge-wrap">
+                      <ShoppingCart size={20} strokeWidth={2.4} />
+                      <span className="mobile-cart-count-badge">
+                        {items.reduce((sum, i) => sum + i.qty, 0)}
+                      </span>
+                    </div>
+                    <div className="mobile-cart-total-wrap">
+                      <span className="mobile-cart-total-amount">{formatCurrency(total, currency)}</span>
+                      <span className="mobile-cart-caret">▲</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mobile-cart-empty-inner">
+                    <ShoppingCart size={18} strokeWidth={2.2} />
+                    <span className="mobile-cart-empty-label">Cart</span>
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Cart Overlay */}
+        {mobileCartOpen && (
+          <div className="mobile-cart-overlay" onClick={() => setMobileCartOpen(false)} />
+        )}
+
+        {/* ── Cart Panel ─────────────────────────────── */}
+        <div className={`pos-cart-panel ${mobileCartOpen ? 'open' : ''}`}>
+          {/* Mobile Pull-to-Dismiss Grab Handle */}
+          <div
+            className="cart-mobile-grab-handle mobile-only"
+            onClick={() => setMobileCartOpen(false)}
+            title="Tap to close cart"
+            aria-label="Close cart"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px' }}
+          >
+            <div style={{ width: 24 }} />
+            <div className="cart-mobile-grab-bar" />
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              onClick={(e) => { e.stopPropagation(); setMobileCartOpen(false); }}
+              style={{ width: '24px', height: '24px', padding: 0 }}
+              title="Close cart"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {editingOrderId && (
+            <div style={{
+              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+              color: '#1e40af',
+              padding: '6px 12px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid #bfdbfe',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span>{tableName ? `Table ${tableName}` : 'Active Order'}</span>
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={handlePrintPreBill}
+                  title="Print Guest Bill / Pre-Bill Check"
+                  style={{ color: '#1e40af', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(255,255,255,0.7)', borderRadius: 6, border: '1px solid rgba(30,64,175,0.2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  <Printer size={12} />
+                  <span>Bill</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
+                  title="Split Guest Checks by Seat or Item"
+                  style={{ color: '#047857', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(209,250,229,0.85)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                >
+                  <Split size={11} /> Split
+                </button>
+                {tableId && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={handleReleaseTable}
+                    title="Release / Free Table"
+                    style={{ color: '#991b1b', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(254,226,226,0.7)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}
+                  >
+                    Free
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={clearCart}
+                  title="Close active order view"
+                  style={{ color: '#64748b', padding: '2px 5px', fontSize: 11, height: 22 }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Collapsible Order & Table Header: Compact, organized & touch-optimized */}
+          {items.length > 0 && isHeaderCollapsed ? (
+            <div
+              className="cart-header-summary-strip"
+              onClick={() => setIsHeaderCollapsed(false)}
+              title="Click bar to expand full order details"
+              role="region"
+              aria-label="Order summary bar"
+            >
+              <div className="cart-header-summary-left">
+                {/* Order Type Chip with Direct 1-Tap Toggle */}
+                <button
+                  type="button"
+                  className="cart-header-summary-chip type-chip"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (orderTypes.length > 1) {
+                      const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
+                      handleOrderTypeChange(orderTypes[nextIdx].key);
+                    } else {
+                      setIsHeaderCollapsed(false);
+                    }
+                  }}
+                  title={orderTypes.length > 1 ? `Order mode: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode` : 'Order mode'}
+                >
+                  {orderType === 'dine-in' ? (
+                    <UtensilsCrossed size={12} className="summary-chip-icon" />
+                  ) : (
+                    <ShoppingBag size={12} className="summary-chip-icon" />
+                  )}
+                  <span className="summary-chip-label">
+                    {isRetail ? 'Purchase' : (isService ? 'Service' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway'))}
+                  </span>
+                  {orderTypes.length > 1 && <ChevronDown size={10} className="summary-chip-caret" />}
+                </button>
+
+                {/* Table Selector Chip (Dine-In) with Direct 1-Tap Floor Map Modal */}
+                {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
+                  <div className="cart-header-summary-table-group">
+                    <button
+                      type="button"
+                      className={`cart-header-summary-chip table-chip ${tableId ? 'has-table' : 'needs-table'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTableSelAction('select');
+                        setShowTableSel(true);
+                      }}
+                      title={tableId ? `Table ${tableName} assigned - Tap to switch` : 'Tap to select table from floor map'}
+                    >
+                      <Armchair size={13} className="summary-chip-icon" />
+                      <span className="summary-chip-label">
+                        {tableId ? `Table ${tableName}` : 'Table'}
+                      </span>
+                    </button>
+                    {tableId && (
+                      <button
+                        type="button"
+                        className="cart-header-summary-unassign-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTable(null, null);
+                        }}
+                        title="Clear table assignment"
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer Chip */}
+                {(customer || customerName) && (
+                  <span className="cart-header-summary-chip cust-chip" title="Assigned customer">
+                    <User size={13} className="summary-chip-icon" />
+                    <span className="summary-chip-label">
+                      {customer ? customer.name : customerName}
+                    </span>
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {heldOrders?.length > 0 && (
+                  <button
+                    type="button"
+                    className="cart-held-pill"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowHeldOrdersModal(true);
+                    }}
+                    title="View held/parked orders"
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.18)',
+                      border: '1px solid rgba(245, 158, 11, 0.45)',
+                      color: '#f59e0b',
+                      borderRadius: '8px',
+                      padding: '0 8px',
+                      height: '30px',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <PauseCircle size={12} />
+                    <span>Held ({heldOrders.length})</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!confirmClearCart) {
+                      setConfirmClearCart(true);
+                      setTimeout(() => setConfirmClearCart(false), 3000);
+                    } else {
+                      hapticTap('medium');
+                      clearCart();
+                      setConfirmClearCart(false);
+                    }
+                  }}
+                  id="clear-cart-btn"
+                  title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
+                >
+                  <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                  <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="cart-header-edit-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsHeaderCollapsed(false);
+                  }}
+                  title="Expand full order details"
+                  aria-label="Expand full order details"
+                >
+                  <span>{items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}</span>
+                  <ChevronDown size={12} style={{ flexShrink: 0 }} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="cart-header-expanded-wrap">
+              {items.length > 0 && (
+                <div className="cart-header-collapse-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsHeaderCollapsed(true)}
+                    className="cart-header-collapse-trigger"
+                    title="Collapse order details to view more cart items"
+                  >
+                    <span>Hide Details</span>
+                    <ChevronUp size={11} />
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    {heldOrders?.length > 0 && (
+                      <button
+                        type="button"
+                        className="cart-held-pill"
+                        onClick={() => setShowHeldOrdersModal(true)}
+                        title="View held/parked orders"
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.18)',
+                          border: '1px solid rgba(245, 158, 11, 0.45)',
+                          color: '#f59e0b',
+                          borderRadius: '6px',
+                          padding: '2px 7px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <PauseCircle size={12} />
+                        <span>Held ({heldOrders.length})</span>
+                      </button>
+                    )}
+                    <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
+                      {items.reduce((s, i) => s + i.qty, 0)} items
+                    </span>
+                    <button
+                      type="button"
+                      className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`}
+                      onClick={() => {
+                        if (!confirmClearCart) {
+                          setConfirmClearCart(true);
+                          setTimeout(() => setConfirmClearCart(false), 3000);
+                        } else {
+                          hapticTap('medium');
+                          clearCart();
+                          setConfirmClearCart(false);
+                        }
+                      }}
+                      id="clear-cart-btn-expanded"
+                      title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
+                    >
+                      <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                      <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Modern Segmented Order Type Control — with smooth spring gliding pill */}
+              {orderTypes.length > 1 && (
+                <div className="cart-type-tabs">
+                  <div
+                    className="cart-type-glider"
+                    style={{
+                      width: `calc((100% - ${(orderTypes.length - 1) * 4}px) / ${orderTypes.length})`,
+                      transform: `translate3d(calc(${activeOrderTypeIndex} * (100% + 4px)), 0, 0)`,
+                    }}
+                    aria-hidden="true"
+                  />
+                  {orderTypes.map(ot => {
+                    const Icon = ot.Icon;
+                    const isActive = orderType === ot.key;
+                    return (
+                      <button
+                        key={ot.key}
+                        id={`order-type-${ot.key}`}
+                        type="button"
+                        className={`cart-type-tab ${isActive ? 'active' : ''}`}
+                        onClick={() => handleOrderTypeChange(ot.key)}
+                      >
+                        {Icon && <Icon size={14} className="cart-type-tab-icon" />}
+                        <span>{ot.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Service Details: Unified container with smooth animated crossfade */}
+              <div className={`cart-service-details ${orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) ? 'has-table-row' : ''}`}>
+                <div key={orderType} className="cart-service-content-animated">
+                  {orderType === 'dine-in' && !isBillOnly ? (
+                    <>
+                      {(restaurant?.features?.table || modes.includes('table')) && (
+                        <div className="cart-service-row cart-service-table-row">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTableSelAction('select');
+                              setShowTableSel(true);
+                            }}
+                            className={`cart-table-select-trigger ${tableId ? 'has-table' : ''}`}
+                            id="select-table-dropdown"
+                            title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
+                          >
+                            <span className="cart-table-select-content">
+                              <Armchair size={13} className="cart-table-icon" style={{ marginRight: 4 }} />
+                              <span className="cart-table-label">
+                                {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
+                              </span>
+                            </span>
+                            <span className="cart-table-chevron-wrap">
+                              {tableId ? (
+                                <span className="cart-table-badge-active">Assigned</span>
+                              ) : (
+                                <span className="cart-table-badge-choose">Floor Map ▾</span>
+                              )}
+                            </span>
+                          </button>
+                          {tableId && (
+                            <button
+                              type="button"
+                              className="cart-table-unassign-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTable(null, null);
+                              }}
+                              title="Clear table assignment"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Customer / Loyalty Info row */}
+                      <div className="cart-service-row cart-service-customer-row">
+                        {customer ? (
+                          <div
+                            className="cart-customer-vip-card"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => {
+                              setModalInitialPhone(customer.phone || customerPhone || '');
+                              setShowCustomerModal(true);
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                👤 {customer.name || customerName || 'Customer'}
+                              </span>
+                              <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                {customer.phone || customerPhone}
+                              </span>
+                              {Boolean(customer.points) && (
+                                <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                  {customer.points} pts
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-xs"
+                                style={{ padding: '1px 5px', fontSize: 10, color: '#047857', fontWeight: 600, border: 'none', background: 'none' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModalInitialPhone(customer.phone || customerPhone || '');
+                                  setShowCustomerModal(true);
+                                }}
+                                title="Edit customer details"
+                              >
+                                Edit ✎
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCustomerProfile(null);
+                                  setCustomer('', '');
+                                  setRedeemingPoints(false);
+                                  setCustSearch('');
+                                }}
+                                style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                                title="Remove customer"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ width: '100%' }}>
+                            <div className="cart-customer-search-wrap">
+                              <Search size={13} className="cart-customer-search-icon" />
+                              <input
+                                className="cart-customer-search-input"
+                                placeholder="Customer phone or loyalty #..."
+                                value={custSearch}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setCustSearch(val);
+                                  const digits = val.replace(/\D/g, '');
+                                  if (digits.length >= 10) {
+                                    handleCustomerLookup(val, true);
+                                  } else if (digits.length >= 8) {
+                                    handleCustomerLookup(val, false);
+                                  }
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    const digits = custSearch.replace(/\D/g, '');
+                                    if (digits.length >= 8) {
+                                      handleCustomerLookup(custSearch, true);
+                                    } else {
+                                      setModalInitialPhone(custSearch);
+                                      setShowCustomerModal(true);
+                                    }
+                                  }
+                                }}
+                              />
+                              {custSearch ? (
+                                <button
+                                  type="button"
+                                  className="cart-customer-search-clear"
+                                  onClick={() => setCustSearch('')}
+                                  title="Clear search"
+                                >
+                                  <X size={12} />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalInitialPhone('');
+                                    setShowCustomerModal(true);
+                                  }}
+                                  style={{
+                                    position: 'absolute',
+                                    right: 4,
+                                    background: 'rgba(59, 130, 246, 0.12)',
+                                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                                    color: 'var(--color-primary, #3b82f6)',
+                                    fontSize: 10.5,
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: 5,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  + Customer
+                                </button>
+                              )}
+                            </div>
+                            {custSearch.replace(/\D/g, '').length >= 8 && (
+                              <button
+                                type="button"
+                                onClick={() => handleCustomerLookup(custSearch, true)}
+                                style={{
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '4px 8px',
+                                  background: 'rgba(59, 130, 246, 0.1)',
+                                  border: 'none',
+                                  borderTop: '1px solid rgba(59, 130, 246, 0.2)',
+                                  cursor: 'pointer',
+                                  fontSize: '11px',
+                                  color: 'var(--color-primary, #3b82f6)',
+                                  fontWeight: 600,
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <span>+ Add customer: {custSearch.replace(/\D/g, '')}</span>
+                                <span style={{ fontSize: '10px', opacity: 0.75 }}>Press Enter ↵</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    /* Takeaway / Counter: Sleek unified row inside cart-service-details */
+                    <div className="cart-service-row cart-service-takeaway-row">
                       {customer ? (
-                        <div
-                          className="cart-customer-vip-card"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setModalInitialPhone(customer.phone || customerPhone || '');
-                            setShowCustomerModal(true);
-                          }}
-                        >
+                        <div className="cart-customer-vip-card" style={{ width: '100%', cursor: 'pointer' }} onClick={() => { setModalInitialPhone(customer.phone || customerPhone || ''); setShowCustomerModal(true); }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                             <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               👤 {customer.name || customerName || 'Customer'}
                             </span>
-                            <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
                               {customer.phone || customerPhone}
                             </span>
                             {Boolean(customer.points) && (
-                              <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
                                 {customer.points} pts
                               </span>
                             )}
@@ -2816,773 +2954,666 @@ export default function POS() {
                                 setCustomerProfile(null);
                                 setCustomer('', '');
                                 setRedeemingPoints(false);
-                                setCustSearch('');
                               }}
-                              style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                              title="Remove customer"
+                              style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                              title="Clear customer"
                             >
                               <X size={12} />
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div style={{ width: '100%' }}>
-                          <div className="cart-customer-search-wrap">
-                            <Search size={13} className="cart-customer-search-icon" />
-                            <input
-                              className="cart-customer-search-input"
-                              placeholder="Customer phone or loyalty #..."
-                              value={custSearch}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setCustSearch(val);
-                                const digits = val.replace(/\D/g, '');
-                                if (digits.length >= 10) {
-                                  handleCustomerLookup(val, true);
-                                } else if (digits.length >= 8) {
-                                  handleCustomerLookup(val, false);
-                                }
-                              }}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  const digits = custSearch.replace(/\D/g, '');
-                                  if (digits.length >= 8) {
-                                    handleCustomerLookup(custSearch, true);
-                                  } else {
-                                    setModalInitialPhone(custSearch);
-                                    setShowCustomerModal(true);
-                                  }
-                                }
-                              }}
-                            />
-                            {custSearch ? (
-                              <button
-                                type="button"
-                                className="cart-customer-search-clear"
-                                onClick={() => setCustSearch('')}
-                                title="Clear search"
-                              >
-                                <X size={12} />
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setModalInitialPhone('');
-                                  setShowCustomerModal(true);
-                                }}
-                                style={{
-                                  position: 'absolute',
-                                  right: 4,
-                                  background: 'rgba(59, 130, 246, 0.12)',
-                                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                                  color: 'var(--color-primary, #3b82f6)',
-                                  fontSize: 10.5,
-                                  fontWeight: 700,
-                                  padding: '2px 8px',
-                                  borderRadius: 5,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                + Customer
-                              </button>
-                            )}
-                          </div>
-                          {custSearch.replace(/\D/g, '').length >= 8 && (
+                        <div className="cart-takeaway-inputs-wrap">
+                          <input
+                            className="cart-takeaway-input"
+                            placeholder="Customer name (optional)"
+                            value={customerName}
+                            onChange={e => setCustomer(e.target.value, customerPhone)}
+                            id="customer-name-input"
+                          />
+                          <input
+                            className="cart-takeaway-input cart-takeaway-phone-input"
+                            placeholder="Phone # (optional)"
+                            value={customerPhone}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setCustomer(customerName, val);
+                              if (val.replace(/\D/g, '').length >= 8) {
+                                handleCustomerLookup(val, false);
+                              }
+                            }}
+                            id="customer-phone-input"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Seats Bar for Dine-In (only when seats are actively being tagged) */}
+          {orderType === 'dine-in' && items.length > 0 && (items.some(i => i.seatNumber) || activeSeat !== null) && (
+            <div className="cart-seats-bar">
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <Armchair size={12} /> Seat:
+              </span>
+              <button
+                type="button"
+                className={`cart-seat-chip ${activeSeat === null ? 'active' : ''}`}
+                onClick={() => { hapticTap('light'); setActiveSeat(null); }}
+                title="Items added will be assigned to Shared Table"
+              >
+                All / Table
+              </button>
+              {Array.from(new Set([1, 2, ...(items.map(i => i.seatNumber).filter(Boolean))])).sort((a, b) => a - b).map(seatNum => (
+                <button
+                  key={seatNum}
+                  type="button"
+                  className={`cart-seat-chip ${activeSeat === seatNum ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setActiveSeat(seatNum); }}
+                  title={`Items added will be tagged for Seat ${seatNum}`}
+                >
+                  Seat {seatNum}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="cart-seat-chip add-seat"
+                onClick={() => {
+                  hapticTap('light');
+                  const maxSeat = Math.max(0, ...(items.map(i => i.seatNumber).filter(Boolean)));
+                  setActiveSeat(maxSeat + 1);
+                }}
+                title="Add next seat"
+              >
+                + Seat
+              </button>
+            </div>
+          )}
+
+          {/* Cart Items */}
+          <div className="cart-items">
+            {items.length === 0 ? (
+              <EmptyCartState
+                onAddCustomItem={() => setShowOpenItemModal(true)}
+                onOpenTill={() => setShowTillModal(true)}
+                activeShift={activeShift}
+                heldCount={heldOrders?.length || 0}
+                onOpenHeldOrders={() => setShowHeldOrdersModal(true)}
+              />
+            ) : (
+              (() => {
+                const COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
+                const courseColors = {
+                  Appetizers: '#10b981',
+                  Mains: '#3b82f6',
+                  Desserts: '#8b5cf6',
+                  Beverages: '#f59e0b',
+                };
+                const activeCoursesWithItems = COURSES.filter(c => items.some(i => (i.course ?? 'Mains') === c));
+                const showCourseHeaders = activeCoursesWithItems.length > 1;
+
+                return COURSES.map(courseName => {
+                  const courseItems = items.filter(i => (i.course ?? 'Mains') === courseName);
+                  if (courseItems.length === 0) return null;
+                  return (
+                    <div key={courseName} className="cart-course-section">
+                      {/* Course Header — only displayed when multiple courses are in cart */}
+                      {showCourseHeaders && (
+                        <div className="cart-course-header">
+                          <span className="cart-course-pill">
+                            <span className="cart-course-dot" style={{ background: courseColors[courseName] || 'var(--color-accent)' }} />
+                            {courseName}
+                          </span>
+                          <span className="cart-course-count">({courseItems.length})</span>
+                          <div className="cart-course-header-line" />
+                          {editingOrderId && courseItems.some(i => i.prepState === 'hold') && (
                             <button
                               type="button"
-                              onClick={() => handleCustomerLookup(custSearch, true)}
-                              style={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '4px 8px',
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                border: 'none',
-                                borderTop: '1px solid rgba(59, 130, 246, 0.2)',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                color: 'var(--color-primary, #3b82f6)',
-                                fontWeight: 600,
-                                textAlign: 'left'
+                              className="btn btn-primary btn-xs"
+                              onClick={async () => {
+                                const res = await useOrderStore.getState().fireCourse(restaurant.id, editingOrderId, courseName);
+                                if (res.ok) toast.success(`Fired ${courseName}!`);
+                                else toast.error(`Fire failed: ${res.error}`);
                               }}
+                              style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}
                             >
-                              <span>+ Add customer: {custSearch.replace(/\D/g, '')}</span>
-                              <span style={{ fontSize: '10px', opacity: 0.75 }}>Press Enter ↵</span>
+                              <Flame size={10} /> Fire
                             </button>
                           )}
                         </div>
                       )}
-                    </div>
-                  </>
-                ) : (
-                  /* Takeaway / Counter: Sleek unified row inside cart-service-details */
-                  <div className="cart-service-row cart-service-takeaway-row">
-                    {customer ? (
-                      <div className="cart-customer-vip-card" style={{ width: '100%', cursor: 'pointer' }} onClick={() => { setModalInitialPhone(customer.phone || customerPhone || ''); setShowCustomerModal(true); }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            👤 {customer.name || customerName || 'Customer'}
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                            {customer.phone || customerPhone}
-                          </span>
-                          {Boolean(customer.points) && (
-                            <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                              {customer.points} pts
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs"
-                            style={{ padding: '1px 5px', fontSize: 10, color: '#047857', fontWeight: 600, border: 'none', background: 'none' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setModalInitialPhone(customer.phone || customerPhone || '');
-                              setShowCustomerModal(true);
+
+                      {/* Course Items */}
+                      <div className="cart-course-cards">
+                        {courseItems.map(i => (
+                          <div
+                            key={i.id}
+                            className="cart-item-card"
+                            role="button"
+                            tabIndex={0}
+                            title="Tap card to customize quantity, note, or kitchen prep"
+                            onClick={() => {
+                              hapticTap('light');
+                              setEditingCartItem(i);
                             }}
-                            title="Edit customer details"
-                          >
-                            Edit ✎
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCustomerProfile(null);
-                              setCustomer('', '');
-                              setRedeemingPoints(false);
+                            onKeyDown={(e) => {
+                              if (e.target !== e.currentTarget) return;
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                hapticTap('light');
+                                setEditingCartItem(i);
+                              }
                             }}
-                            style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
-                            title="Clear customer"
                           >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="cart-takeaway-inputs-wrap">
-                        <input
-                          className="cart-takeaway-input"
-                          placeholder="Customer name (optional)"
-                          value={customerName}
-                          onChange={e => setCustomer(e.target.value, customerPhone)}
-                          id="customer-name-input"
-                        />
-                        <input
-                          className="cart-takeaway-input cart-takeaway-phone-input"
-                          placeholder="Phone # (optional)"
-                          value={customerPhone}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setCustomer(customerName, val);
-                            if (val.replace(/\D/g, '').length >= 8) {
-                              handleCustomerLookup(val, false);
-                            }
-                          }}
-                          id="customer-phone-input"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+                            {/* Row 1: Item Name & Modifiers (left) + Remove [X] (top-right) */}
+                            <div className="cart-item-card-top">
+                              <div className="cart-item-card-title-wrap">
+                                <span className="cart-item-card-name" title={i.name}>
+                                  {i.name}
+                                </span>
+                                {i.selectedModifiers?.length > 0 && (
+                                  <div className="cart-item-modifiers-inline">
+                                    {i.selectedModifiers.map((m, idx) => (
+                                      <span key={idx} className="cart-modifier-chip">
+                                        +{m.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                className="cart-item-card-remove"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCartRemove(i);
+                                }}
+                                title="Remove item"
+                                aria-label={`Remove ${i.name}`}
+                              >
+                                <X size={13} strokeWidth={2.2} />
+                              </button>
+                            </div>
 
-        {/* Active Seats Bar for Dine-In (only when seats are actively being tagged) */}
-        {orderType === 'dine-in' && items.length > 0 && (items.some(i => i.seatNumber) || activeSeat !== null) && (
-          <div className="cart-seats-bar">
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <Armchair size={12} /> Seat:
-            </span>
-            <button
-              type="button"
-              className={`cart-seat-chip ${activeSeat === null ? 'active' : ''}`}
-              onClick={() => { hapticTap('light'); setActiveSeat(null); }}
-              title="Items added will be assigned to Shared Table"
-            >
-              All / Table
-            </button>
-            {Array.from(new Set([1, 2, ...(items.map(i => i.seatNumber).filter(Boolean))])).sort((a,b)=>a-b).map(seatNum => (
-              <button
-                key={seatNum}
-                type="button"
-                className={`cart-seat-chip ${activeSeat === seatNum ? 'active' : ''}`}
-                onClick={() => { hapticTap('light'); setActiveSeat(seatNum); }}
-                title={`Items added will be tagged for Seat ${seatNum}`}
-              >
-                Seat {seatNum}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="cart-seat-chip add-seat"
-              onClick={() => {
-                hapticTap('light');
-                const maxSeat = Math.max(0, ...(items.map(i => i.seatNumber).filter(Boolean)));
-                setActiveSeat(maxSeat + 1);
-              }}
-              title="Add next seat"
-            >
-              + Seat
-            </button>
-          </div>
-        )}
-
-        {/* Cart Items */}
-        <div className="cart-items">
-          {items.length === 0 ? (
-            <EmptyCartState
-              onAddCustomItem={() => setShowOpenItemModal(true)}
-              onOpenTill={() => setShowTillModal(true)}
-              activeShift={activeShift}
-              heldCount={heldOrders?.length || 0}
-              onOpenHeldOrders={() => setShowHeldOrdersModal(true)}
-            />
-          ) : (
-            (() => {
-              const COURSES = ['Appetizers', 'Mains', 'Desserts', 'Beverages'];
-              const courseColors = {
-                Appetizers: '#10b981',
-                Mains: '#3b82f6',
-                Desserts: '#8b5cf6',
-                Beverages: '#f59e0b',
-              };
-              const activeCoursesWithItems = COURSES.filter(c => items.some(i => (i.course ?? 'Mains') === c));
-              const showCourseHeaders = activeCoursesWithItems.length > 1;
-
-              return COURSES.map(courseName => {
-                const courseItems = items.filter(i => (i.course ?? 'Mains') === courseName);
-                if (courseItems.length === 0) return null;
-                return (
-                  <div key={courseName} className="cart-course-section">
-                    {/* Course Header — only displayed when multiple courses are in cart */}
-                    {showCourseHeaders && (
-                      <div className="cart-course-header">
-                        <span className="cart-course-pill">
-                          <span className="cart-course-dot" style={{ background: courseColors[courseName] || 'var(--color-accent)' }} />
-                          {courseName}
-                        </span>
-                        <span className="cart-course-count">({courseItems.length})</span>
-                        <div className="cart-course-header-line" />
-                        {editingOrderId && courseItems.some(i => i.prepState === 'hold') && (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-xs"
-                            onClick={async () => {
-                              const res = await useOrderStore.getState().fireCourse(restaurant.id, editingOrderId, courseName);
-                              if (res.ok) toast.success(`Fired ${courseName}!`);
-                              else toast.error(`Fire failed: ${res.error}`);
-                            }}
-                            style={{ padding: '2px 8px', fontSize: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}
-                          >
-                            <Flame size={10} /> Fire
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Course Items */}
-                    <div className="cart-course-cards">
-                    {courseItems.map(i => (
-                      <div
-                        key={i.id}
-                        className="cart-item-card"
-                        role="button"
-                        tabIndex={0}
-                        title="Tap card to customize quantity, note, or kitchen prep"
-                        onClick={() => {
-                          hapticTap('light');
-                          setEditingCartItem(i);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.target !== e.currentTarget) return;
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            hapticTap('light');
-                            setEditingCartItem(i);
-                          }
-                        }}
-                      >
-                        {/* Row 1: Item Name & Modifiers (left) + Remove [X] (top-right) */}
-                        <div className="cart-item-card-top">
-                          <div className="cart-item-card-title-wrap">
-                            <span className="cart-item-card-name" title={i.name}>
-                              {i.name}
-                            </span>
-                            {i.selectedModifiers?.length > 0 && (
-                              <div className="cart-item-modifiers-inline">
-                                {i.selectedModifiers.map((m, idx) => (
-                                  <span key={idx} className="cart-modifier-chip">
-                                    +{m.name}
-                                  </span>
-                                ))}
+                            {/* Optional Kitchen Note Preview — only shown when a note is set */}
+                            {(i.itemNote || i.notes) && (
+                              <div className="cart-item-note-preview" title={i.itemNote || i.notes}>
+                                {i.itemNote || i.notes}
                               </div>
                             )}
+
+                            {/* Row 2: Price & Badges (bottom-left) + Stepper (bottom-right) */}
+                            <div className="cart-item-card-bottom">
+                              <div className="cart-item-card-left-meta">
+                                <span className="cart-item-card-price">
+                                  {formatCurrency(i.price * i.qty, currency)}
+                                </span>
+                                {i.qty > 1 && (
+                                  <span className="cart-item-card-unit-price">
+                                    {formatCurrency(i.price, currency)} ea
+                                  </span>
+                                )}
+
+                                {/* Item-level Promo Offer Badge */}
+                                {appliedOffer?.itemDiscounts?.[i.id] > 0 && (
+                                  <span
+                                    style={{
+                                      fontSize: '9.5px',
+                                      fontWeight: '700',
+                                      color: '#ef4444',
+                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                                      padding: '1px 5px',
+                                      borderRadius: '3px',
+                                      letterSpacing: '0.02em'
+                                    }}
+                                  >
+                                    {appliedOffer.tag || 'PROMO'} -{formatCurrency(appliedOffer.itemDiscounts[i.id], currency)}
+                                  </span>
+                                )}
+
+                                {/* Hold Badge — only visible if explicitly on hold */}
+                                {i.prepState === 'hold' && (
+                                  <button
+                                    type="button"
+                                    className="cart-status-badge hold"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      useOrderStore.getState().toggleItemHold(i.id);
+                                    }}
+                                    title="On hold - click to fire"
+                                  >
+                                    <Clock size={10} /> Hold
+                                  </button>
+                                )}
+
+                                {/* Seat Badge — only visible if item is specifically tagged to a seat */}
+                                {orderType === 'dine-in' && i.seatNumber && (
+                                  <button
+                                    type="button"
+                                    className="cart-item-seat-badge"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      hapticTap('light');
+                                      const nextSeat = i.seatNumber >= 4 ? null : i.seatNumber + 1;
+                                      setItemSeat(i.id, nextSeat, i.selectedModifiers);
+                                    }}
+                                    title={`Seat ${i.seatNumber} - click to change`}
+                                  >
+                                    Seat {i.seatNumber}
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Tactile Stepper on bottom right (Enhanced touch target & direct keypad) */}
+                              <div className="cart-stepper" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  className="cart-stepper-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCartDecrement(i);
+                                  }}
+                                  title="Decrease quantity"
+                                  aria-label={`Decrease ${i.name} quantity`}
+                                >
+                                  <Minus size={13} strokeWidth={2.8} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="cart-stepper-count"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    hapticTap('light');
+                                    setTouchKeypadTarget({
+                                      name: i.name,
+                                      qty: i.qty,
+                                      unitPrice: i.price,
+                                      onConfirm: (newQ) => {
+                                        if (newQ === 0) {
+                                          handleCartRemove(i);
+                                        } else {
+                                          updateQty(i.id, newQ, i.selectedModifiers);
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  title="Tap to type custom quantity"
+                                  aria-label={`Current quantity ${i.qty}. Tap to enter custom quantity`}
+                                >
+                                  {i.qty}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="cart-stepper-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    hapticTap('light');
+                                    updateQty(i.id, i.qty + 1, i.selectedModifiers);
+                                  }}
+                                  title="Increase quantity"
+                                  aria-label={`Increase ${i.name} quantity`}
+                                >
+                                  <Plus size={13} strokeWidth={2.8} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="cart-item-card-remove"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCartRemove(i);
-                            }}
-                            title="Remove item"
-                            aria-label={`Remove ${i.name}`}
-                          >
-                            <X size={13} strokeWidth={2.2} />
-                          </button>
-                        </div>
-
-                        {/* Optional Kitchen Note Preview — only shown when a note is set */}
-                        {(i.itemNote || i.notes) && (
-                          <div className="cart-item-note-preview" title={i.itemNote || i.notes}>
-                            {i.itemNote || i.notes}
-                          </div>
-                        )}
-
-                        {/* Row 2: Price & Badges (bottom-left) + Stepper (bottom-right) */}
-                        <div className="cart-item-card-bottom">
-                          <div className="cart-item-card-left-meta">
-                            <span className="cart-item-card-price">
-                              {formatCurrency(i.price * i.qty, currency)}
-                            </span>
-                            {i.qty > 1 && (
-                              <span className="cart-item-card-unit-price">
-                                {formatCurrency(i.price, currency)} ea
-                              </span>
-                            )}
-
-                            {/* Item-level Promo Offer Badge */}
-                            {appliedOffer?.itemDiscounts?.[i.id] > 0 && (
-                              <span 
-                                style={{
-                                  fontSize: '9.5px',
-                                  fontWeight: '700',
-                                  color: '#ef4444',
-                                  background: 'rgba(239, 68, 68, 0.1)',
-                                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  letterSpacing: '0.02em'
-                                }}
-                              >
-                                {appliedOffer.tag || 'PROMO'} -{formatCurrency(appliedOffer.itemDiscounts[i.id], currency)}
-                              </span>
-                            )}
-
-                            {/* Hold Badge — only visible if explicitly on hold */}
-                            {i.prepState === 'hold' && (
-                              <button
-                                type="button"
-                                className="cart-status-badge hold"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  useOrderStore.getState().toggleItemHold(i.id);
-                                }}
-                                title="On hold - click to fire"
-                              >
-                                <Clock size={10} /> Hold
-                              </button>
-                            )}
-
-                            {/* Seat Badge — only visible if item is specifically tagged to a seat */}
-                            {orderType === 'dine-in' && i.seatNumber && (
-                              <button
-                                type="button"
-                                className="cart-item-seat-badge"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  hapticTap('light');
-                                  const nextSeat = i.seatNumber >= 4 ? null : i.seatNumber + 1;
-                                  setItemSeat(i.id, nextSeat, i.selectedModifiers);
-                                }}
-                                title={`Seat ${i.seatNumber} - click to change`}
-                              >
-                                Seat {i.seatNumber}
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Tactile Stepper on bottom right (Enhanced touch target & direct keypad) */}
-                          <div className="cart-stepper" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className="cart-stepper-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCartDecrement(i);
-                              }}
-                              title="Decrease quantity"
-                              aria-label={`Decrease ${i.name} quantity`}
-                            >
-                              <Minus size={13} strokeWidth={2.8} />
-                            </button>
-                            <button 
-                              type="button"
-                              className="cart-stepper-count"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                hapticTap('light');
-                                setTouchKeypadTarget({
-                                  name: i.name,
-                                  qty: i.qty,
-                                  unitPrice: i.price,
-                                  onConfirm: (newQ) => {
-                                    if (newQ === 0) {
-                                      handleCartRemove(i);
-                                    } else {
-                                      updateQty(i.id, newQ, i.selectedModifiers);
-                                    }
-                                  }
-                                });
-                              }}
-                              title="Tap to type custom quantity"
-                              aria-label={`Current quantity ${i.qty}. Tap to enter custom quantity`}
-                            >
-                              {i.qty}
-                            </button>
-                            <button
-                              type="button"
-                              className="cart-stepper-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                hapticTap('light');
-                                updateQty(i.id, i.qty + 1, i.selectedModifiers);
-                              }}
-                              title="Increase quantity"
-                              aria-label={`Increase ${i.name} quantity`}
-                            >
-                              <Plus size={13} strokeWidth={2.8} />
-                            </button>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
                     </div>
-                  </div>
-                );
-              });
-            })()
-          )}
-        </div>
+                  );
+                });
+              })()
+            )}
+          </div>
 
-        {/* Real-time BOGO Upsell Nudge Banner */}
-        {bogoEvaluation.nudge && !appliedOffer && (
-          <div 
-            className="cart-bogo-nudge-banner"
-            style={{
-              margin: '0 8px 6px 8px',
-              padding: '6px 10px',
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08))',
-              border: '1px dashed rgba(239, 68, 68, 0.4)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '6px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--color-label-primary)' }}>
-              <span style={{ fontSize: '13px' }}>🔥</span>
-              <span>
-                Add 1 more <strong>{bogoEvaluation.nudge.itemName}</strong> for <strong>FREE</strong>!
-              </span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-xs"
-              onClick={() => {
-                const targetItem = items.find(i => i.id === bogoEvaluation.nudge.itemId);
-                if (targetItem) {
-                  addItem(targetItem);
-                  const activeBogo = activeOffers.find(o => o.type === 'bogo');
-                  setAppliedOffer({
-                    id: activeBogo?.id || 'bogo_pizza',
-                    name: activeBogo?.name || 'BOGO - Buy 1 Get 1 Free',
-                    tag: activeBogo?.tag || 'BOGO',
-                    type: 'bogo',
-                    discountAmount: bogoEvaluation.nudge.potentialSavings,
-                    itemDiscounts: { [targetItem.id]: bogoEvaluation.nudge.potentialSavings }
-                  });
-                  toast.success(`BOGO applied! 1 Free ${targetItem.name}`, { icon: '🎁' });
-                }
-              }}
+          {/* Real-time BOGO Upsell Nudge Banner */}
+          {bogoEvaluation.nudge && !appliedOffer && (
+            <div
+              className="cart-bogo-nudge-banner"
               style={{
-                background: '#ef4444',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '5px',
-                fontSize: '10.5px',
-                fontWeight: '700',
-                padding: '3px 8px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                margin: '0 8px 6px 8px',
+                padding: '6px 10px',
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08))',
+                border: '1px dashed rgba(239, 68, 68, 0.4)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '6px'
               }}
             >
-              + Add Free 1
-            </button>
-          </div>
-        )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--color-label-primary)' }}>
+                <span style={{ fontSize: '13px' }}>🔥</span>
+                <span>
+                  Add 1 more <strong>{bogoEvaluation.nudge.itemName}</strong> for <strong>FREE</strong>!
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-xs"
+                onClick={() => {
+                  const targetItem = items.find(i => i.id === bogoEvaluation.nudge.itemId);
+                  if (targetItem) {
+                    addItem(targetItem);
+                    const activeBogo = activeOffers.find(o => o.type === 'bogo');
+                    setAppliedOffer({
+                      id: activeBogo?.id || 'bogo_pizza',
+                      name: activeBogo?.name || 'BOGO - Buy 1 Get 1 Free',
+                      tag: activeBogo?.tag || 'BOGO',
+                      type: 'bogo',
+                      discountAmount: bogoEvaluation.nudge.potentialSavings,
+                      itemDiscounts: { [targetItem.id]: bogoEvaluation.nudge.potentialSavings }
+                    });
+                    toast.success(`BOGO applied! 1 Free ${targetItem.name}`, { icon: '🎁' });
+                  }
+                }}
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '10.5px',
+                  fontWeight: '700',
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                + Add Free 1
+              </button>
+            </div>
+          )}
 
-        {/* Compact Totals & Inlined Actions Card */}
-        {items.length > 0 && (
-          <div className="cart-totals">
-            {/* Inline Addon Expandable Drawers */}
-            {activeAddon === 'discount' && (
-              <div className="cart-addon-drawer">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Tag size={12} /> Add Order Discount
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveAddon(null)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 0 }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: '4px', border: '1px solid var(--color-separator)', padding: '1px' }}>
+          {/* Compact Totals & Inlined Actions Card */}
+          {items.length > 0 && (
+            <div className="cart-totals">
+              {/* Inline Addon Expandable Drawers */}
+              {activeAddon === 'discount' && (
+                <div className="cart-addon-drawer">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Tag size={12} /> Add Order Discount
+                    </span>
                     <button
                       type="button"
-                      onClick={() => setDiscount(discount, 'percent')}
-                      style={{
-                        border: 'none',
-                        background: discountType === 'percent' ? 'var(--color-label)' : 'transparent',
-                        color: discountType === 'percent' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
-                        fontSize: '9.5px',
-                        fontWeight: '700',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        cursor: 'pointer'
-                      }}
+                      onClick={() => setActiveAddon(null)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 0 }}
                     >
-                      %
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDiscount(discount, 'fixed')}
-                      style={{
-                        border: 'none',
-                        background: discountType === 'fixed' ? 'var(--color-label)' : 'transparent',
-                        color: discountType === 'fixed' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
-                        fontSize: '9.5px',
-                        fontWeight: '700',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {currency}
+                      <X size={14} />
                     </button>
                   </div>
-                  <input
-                    type="number"
-                    className="form-input"
-                    min={0}
-                    value={discount === 0 ? '' : discount}
-                    onChange={e => setDiscount(parseFloat(e.target.value) || 0, discountType)}
-                    placeholder="Enter value"
-                    autoFocus
-                    style={{ flex: 1, height: 26, padding: '2px 8px', fontSize: 11, textAlign: 'right', borderRadius: '4px', border: '1px solid var(--color-separator)' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {[5, 10, 15, 20].map(pct => (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: '4px', border: '1px solid var(--color-separator)', padding: '1px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setDiscount(discount, 'percent')}
+                        style={{
+                          border: 'none',
+                          background: discountType === 'percent' ? 'var(--color-label)' : 'transparent',
+                          color: discountType === 'percent' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
+                          fontSize: '9.5px',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiscount(discount, 'fixed')}
+                        style={{
+                          border: 'none',
+                          background: discountType === 'fixed' ? 'var(--color-label)' : 'transparent',
+                          color: discountType === 'fixed' ? 'var(--color-bg)' : 'var(--color-label-secondary)',
+                          fontSize: '9.5px',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {currency}
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min={0}
+                      value={discount === 0 ? '' : discount}
+                      onChange={e => setDiscount(parseFloat(e.target.value) || 0, discountType)}
+                      placeholder="Enter value"
+                      autoFocus
+                      style={{ flex: 1, height: 26, padding: '2px 8px', fontSize: 11, textAlign: 'right', borderRadius: '4px', border: '1px solid var(--color-separator)' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {[5, 10, 15, 20].map(pct => (
+                      <button
+                        key={pct}
+                        type="button"
+                        className="cart-discount-preset-btn"
+                        onClick={() => {
+                          if (isComplimentary) setComplimentary(false);
+                          setDiscount(pct, 'percent');
+                        }}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
                     <button
-                      key={pct}
                       type="button"
                       className="cart-discount-preset-btn"
                       onClick={() => {
-                        if (isComplimentary) setComplimentary(false);
-                        setDiscount(pct, 'percent');
+                        setComplimentary(!isComplimentary, 'Management Comp');
+                        setActiveAddon(null);
                       }}
-                    >
-                      {pct}%
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="cart-discount-preset-btn"
-                    onClick={() => {
-                      setComplimentary(!isComplimentary, 'Management Comp');
-                      setActiveAddon(null);
-                    }}
-                    style={{
-                      background: isComplimentary ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                      color: isComplimentary ? '#10b981' : 'var(--color-label-secondary)',
-                      borderColor: isComplimentary ? '#10b981' : 'var(--color-separator)',
-                      fontWeight: 700
-                    }}
-                    title="100% Complimentary Non-Commercial (NC) bill"
-                  >
-                    🎁 NC Comp
-                  </button>
-                  {(discount > 0 || isComplimentary) && (
-                    <button
-                      type="button"
-                      className="cart-discount-preset-btn"
-                      onClick={() => {
-                        if (isComplimentary) setComplimentary(false);
-                        setDiscount(0, discountType);
+                      style={{
+                        background: isComplimentary ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                        color: isComplimentary ? '#10b981' : 'var(--color-label-secondary)',
+                        borderColor: isComplimentary ? '#10b981' : 'var(--color-separator)',
+                        fontWeight: 700
                       }}
-                      style={{ color: 'var(--color-red)', marginLeft: 'auto' }}
+                      title="100% Complimentary Non-Commercial (NC) bill"
                     >
-                      Clear
+                      🎁 NC Comp
                     </button>
-                  )}
+                    {(discount > 0 || isComplimentary) && (
+                      <button
+                        type="button"
+                        className="cart-discount-preset-btn"
+                        onClick={() => {
+                          if (isComplimentary) setComplimentary(false);
+                          setDiscount(0, discountType);
+                        }}
+                        style={{ color: 'var(--color-red)', marginLeft: 'auto' }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeAddon === 'note' && (
-              <div className="cart-addon-drawer">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <FileText size={12} /> Kitchen Special Note
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveAddon(null)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 0 }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
-                  <input
-                    className="form-input"
-                    placeholder="e.g. less spicy, no onion..."
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    id="order-note-input"
-                    style={{ fontSize: '11.5px', height: '28px', padding: '4px 8px', flex: 1 }}
-                    autoFocus
-                  />
-                  {note && (
+              {activeAddon === 'note' && (
+                <div className="cart-addon-drawer">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <FileText size={12} /> Kitchen Special Note
+                    </span>
                     <button
                       type="button"
-                      className="btn btn-ghost btn-xs"
-                      onClick={() => setNote('')}
-                      style={{ padding: '2px', height: '28px', minWidth: '28px' }}
-                      title="Clear text"
+                      onClick={() => setActiveAddon(null)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-label-tertiary)', padding: 0 }}
                     >
-                      <X size={13} />
+                      <X size={14} />
                     </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. less spicy, no onion..."
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      id="order-note-input"
+                      style={{ fontSize: '11.5px', height: '28px', padding: '4px 8px', flex: 1 }}
+                      autoFocus
+                    />
+                    {note && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        onClick={() => setNote('')}
+                        style={{ padding: '2px', height: '28px', minWidth: '28px' }}
+                        title="Clear text"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {['Less Spicy', 'No Onion', 'Pack Sep.', 'Extra Chutney'].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className="cart-note-preset-chip"
+                        onClick={() => setNote(note ? `${note}, ${preset}` : preset)}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Collapsible Subtotal and Taxes Breakdown */}
+              {showTotalsBreakdown && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--color-separator)' }}>
+                  <div className="cart-total-row" style={{ fontSize: '11.5px' }}>
+                    <span>{t('subtotal')}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(subtotal, currency)}</span>
+                  </div>
+                  {appliedOffer?.discountAmount > 0 && (
+                    <div className="cart-total-row" style={{ fontSize: '11.5px', color: '#10b981', fontWeight: 600 }}>
+                      <span>Offer ({appliedOffer.name})</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>-{formatCurrency(appliedOffer.discountAmount, currency)}</span>
+                    </div>
                   )}
-                </div>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {['Less Spicy', 'No Onion', 'Pack Sep.', 'Extra Chutney'].map(preset => (
-                    <button
-                      key={preset}
-                      type="button"
-                      className="cart-note-preset-chip"
-                      onClick={() => setNote(note ? `${note}, ${preset}` : preset)}
-                    >
-                      {preset}
-                    </button>
+                  {discount > 0 && (
+                    <div className="cart-total-row" style={{ fontSize: '11.5px', color: '#10b981' }}>
+                      <span>{t('discount') || 'Discount'} ({discountType === 'percent' ? `${discount}%` : 'Flat'})</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>-{formatCurrency(getManualDiscountAmount ? getManualDiscountAmount() : 0, currency)}</span>
+                    </div>
+                  )}
+                  {taxInfo.lines.map(l => (
+                    <div key={l.label} className="cart-total-row" style={{ fontSize: '11.5px' }}>
+                      <span>{l.label}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.amount, currency)}</span>
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Collapsible Subtotal and Taxes Breakdown */}
-            {showTotalsBreakdown && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--color-separator)' }}>
-                <div className="cart-total-row" style={{ fontSize: '11.5px' }}>
-                  <span>{t('subtotal')}</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(subtotal, currency)}</span>
-                </div>
-                {appliedOffer?.discountAmount > 0 && (
-                  <div className="cart-total-row" style={{ fontSize: '11.5px', color: '#10b981', fontWeight: 600 }}>
-                    <span>Offer ({appliedOffer.name})</span>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>-{formatCurrency(appliedOffer.discountAmount, currency)}</span>
-                  </div>
-                )}
-                {discount > 0 && (
-                  <div className="cart-total-row" style={{ fontSize: '11.5px', color: '#10b981' }}>
-                    <span>{t('discount') || 'Discount'} ({discountType === 'percent' ? `${discount}%` : 'Flat'})</span>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>-{formatCurrency(getManualDiscountAmount ? getManualDiscountAmount() : 0, currency)}</span>
-                  </div>
-                )}
-                {taxInfo.lines.map(l => (
-                  <div key={l.label} className="cart-total-row" style={{ fontSize: '11.5px' }}>
-                    <span>{l.label}</span>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.amount, currency)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Quick Addons Micro-Bar: Offers · Discount · Note · Split · Complimentary (NC) */}
-            <div className="cart-addon-micro-bar" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '0 0 6px 0' }}>
-              {/* Offers Button or Active Offer Badge */}
-              {appliedOffer ? (
-                <div 
-                  className="cart-addon-micro-chip"
-                  style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
-                >
-                  <Sparkles size={10} color="#ef4444" />
-                  <span 
-                    onClick={() => setShowOffersDrawer(true)}
-                    style={{ cursor: 'pointer', color: '#ef4444', fontWeight: 700 }}
-                    title="Click to view or change applied offer"
+              {/* Quick Addons Micro-Bar: Offers · Discount · Note · Split · Complimentary (NC) */}
+              <div className="cart-addon-micro-bar" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '0 0 6px 0' }}>
+                {/* Offers Button or Active Offer Badge */}
+                {appliedOffer ? (
+                  <div
+                    className="cart-addon-micro-chip"
+                    style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
                   >
-                    {appliedOffer.name} (-{formatCurrency(appliedOffer.discountAmount, currency)})
-                  </span>
-                  <button
-                    type="button"
-                    className="cart-addon-remove"
-                    onClick={() => {
-                      clearAppliedOffer();
-                      toast.success('Offer removed');
-                    }}
-                    title="Remove offer"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              ) : activeOffers.length > 0 ? (
-                <button
-                  type="button"
-                  className="cart-addon-micro-btn"
-                  onClick={() => setShowOffersDrawer(true)}
-                  title="View offers, BOGO & coupons"
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    color: '#ef4444',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    fontWeight: 600
-                  }}
-                >
-                  <Sparkles size={10} /> Offers
-                </button>
-              ) : null}
-
-              {/* Discount Pill / Micro-Button (hidden when Complimentary NC is active) */}
-              {!isComplimentary && (
-                discount > 0 ? (
-                  <div className="cart-addon-micro-chip">
-                    <Tag size={10} />
-                    <span 
-                      onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                      style={{ cursor: 'pointer' }}
-                      title="Click to edit discount"
+                    <Sparkles size={10} color="#ef4444" />
+                    <span
+                      onClick={() => setShowOffersDrawer(true)}
+                      style={{ cursor: 'pointer', color: '#ef4444', fontWeight: 700 }}
+                      title="Click to view or change applied offer"
                     >
-                      {discountType === 'percent' ? `${discount}% OFF` : formatCurrency(discount, currency)}
+                      {appliedOffer.name} (-{formatCurrency(appliedOffer.discountAmount, currency)})
                     </span>
                     <button
                       type="button"
                       className="cart-addon-remove"
-                      onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
-                      title="Remove discount"
+                      onClick={() => {
+                        clearAppliedOffer();
+                        toast.success('Offer removed');
+                      }}
+                      title="Remove offer"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : activeOffers.length > 0 ? (
+                  <button
+                    type="button"
+                    className="cart-addon-micro-btn"
+                    onClick={() => setShowOffersDrawer(true)}
+                    title="View offers, BOGO & coupons"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Sparkles size={10} /> Offers
+                  </button>
+                ) : null}
+
+                {/* Discount Pill / Micro-Button (hidden when Complimentary NC is active) */}
+                {!isComplimentary && (
+                  discount > 0 ? (
+                    <div className="cart-addon-micro-chip">
+                      <Tag size={10} />
+                      <span
+                        onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to edit discount"
+                      >
+                        {discountType === 'percent' ? `${discount}% OFF` : formatCurrency(discount, currency)}
+                      </span>
+                      <button
+                        type="button"
+                        className="cart-addon-remove"
+                        onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
+                        title="Remove discount"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
+                      onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                      title="Add discount"
+                    >
+                      <Tag size={10} /> +Disc
+                    </button>
+                  )
+                )}
+
+                {/* Note Pill / Micro-Button */}
+                {note ? (
+                  <div className="cart-addon-micro-chip note-chip">
+                    <FileText size={10} />
+                    <span
+                      onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
+                      style={{ cursor: 'pointer', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={note}
+                    >
+                      "{note}"
+                    </span>
+                    <button
+                      type="button"
+                      className="cart-addon-remove"
+                      onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
+                      title="Clear note"
                     >
                       <X size={10} />
                     </button>
@@ -3590,174 +3621,248 @@ export default function POS() {
                 ) : (
                   <button
                     type="button"
-                    className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
-                    onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                    title="Add discount"
-                  >
-                    <Tag size={10} /> +Disc
-                  </button>
-                )
-              )}
-
-              {/* Note Pill / Micro-Button */}
-              {note ? (
-                <div className="cart-addon-micro-chip note-chip">
-                  <FileText size={10} />
-                  <span 
+                    className={`cart-addon-micro-btn ${activeAddon === 'note' ? 'active' : ''}`}
                     onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
-                    style={{ cursor: 'pointer', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                    title={note}
+                    title="Add note"
                   >
-                    "{note}"
-                  </span>
-                  <button
-                    type="button"
-                    className="cart-addon-remove"
-                    onClick={() => { setNote(''); if (activeAddon === 'note') setActiveAddon(null); }}
-                    title="Clear note"
-                  >
-                    <X size={10} />
+                    <FileText size={10} /> +Note
                   </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={`cart-addon-micro-btn ${activeAddon === 'note' ? 'active' : ''}`}
-                  onClick={() => setActiveAddon(activeAddon === 'note' ? null : 'note')}
-                  title="Add note"
-                >
-                  <FileText size={10} /> +Note
-                </button>
-              )}
+                )}
 
-              {/* Split Check Button (Dine-In only) */}
-              {orderType === 'dine-in' && (
-                <button
-                  type="button"
-                  id="pos-split-check-btn"
-                  className="cart-addon-micro-btn cart-addon-micro-btn--split"
-                  onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
-                  title="Split table bill by seat, fraction, or items"
-                >
-                  <Split size={10} /> Split
-                </button>
-              )}
-
-              {/* Complimentary NC Pill (Fast-toggle 1-tap, replaces awkward floating checkbox) */}
-              {isComplimentary ? (
-                <div 
-                  className="cart-addon-micro-chip cart-addon-micro-chip--nc"
-                  id="pos-nc-comp-chip"
-                >
-                  <Gift size={10} />
-                  <span>NC Comp (₹0)</span>
+                {/* Split Check Button (Dine-In only) */}
+                {orderType === 'dine-in' && (
                   <button
                     type="button"
-                    className="cart-addon-remove"
+                    id="pos-split-check-btn"
+                    className="cart-addon-micro-btn cart-addon-micro-btn--split"
+                    onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
+                    title="Split table bill by seat, fraction, or items"
+                  >
+                    <Split size={10} /> Split
+                  </button>
+                )}
+
+                {/* Complimentary NC Pill (Fast-toggle 1-tap, replaces awkward floating checkbox) */}
+                {isComplimentary ? (
+                  <div
+                    className="cart-addon-micro-chip cart-addon-micro-chip--nc"
+                    id="pos-nc-comp-chip"
+                  >
+                    <Gift size={10} />
+                    <span>NC Comp (₹0)</span>
+                    <button
+                      type="button"
+                      className="cart-addon-remove"
+                      onClick={() => {
+                        hapticTap('light');
+                        setComplimentary(false);
+                      }}
+                      title="Remove complimentary status"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    id="pos-nc-comp-btn"
+                    className="cart-addon-micro-btn cart-addon-micro-btn--nc"
                     onClick={() => {
                       hapticTap('light');
-                      setComplimentary(false);
+                      setComplimentary(true, 'Management NC');
                     }}
-                    title="Remove complimentary status"
+                    title="Mark entire order as complimentary / non-chargeable (NC)"
                   >
-                    <X size={10} />
+                    <Gift size={10} /> NC Comp
                   </button>
-                </div>
-              ) : (
+                )}
+              </div>
+
+              {/* Grand Total Line */}
+              <div className="cart-total-row grand-total" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '6px 0 2px', borderTop: '1px solid var(--color-separator)' }}>
                 <button
                   type="button"
-                  id="pos-nc-comp-btn"
-                  className="cart-addon-micro-btn cart-addon-micro-btn--nc"
-                  onClick={() => {
-                    hapticTap('light');
-                    setComplimentary(true, 'Management NC');
-                  }}
-                  title="Mark entire order as complimentary / non-chargeable (NC)"
+                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                  className="cart-breakdown-toggle-btn"
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-label-primary)', fontWeight: 700, fontSize: 13 }}
+                  title="Click to toggle tax and discount breakdown details"
                 >
-                  <Gift size={10} /> NC Comp
+                  <span>{t('total')}</span>
+                  <span className="cart-tax-indicator" style={{ fontSize: 9, opacity: 0.7 }}>
+                    {showTotalsBreakdown ? '▲' : '▼'}
+                  </span>
+                  {isComplimentary ? (
+                    <span style={{ fontSize: 9.5, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', padding: '1px 5px', borderRadius: 4, fontWeight: 750 }}>
+                      NC · ₹0
+                    </span>
+                  ) : (discount > 0 || appliedOffer) && (
+                    <span style={{ fontSize: 9.5, color: '#10b981', opacity: 0.85, fontWeight: 600 }}>
+                      (disc)
+                    </span>
+                  )}
                 </button>
-              )}
-            </div>
 
-            {/* Grand Total Line */}
-            <div className="cart-total-row grand-total" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '6px 0 2px', borderTop: '1px solid var(--color-separator)' }}>
-              <button
-                type="button"
-                onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                className="cart-breakdown-toggle-btn"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-label-primary)', fontWeight: 700, fontSize: 13 }}
-                title="Click to toggle tax and discount breakdown details"
-              >
-                <span>{t('total')}</span>
-                <span className="cart-tax-indicator" style={{ fontSize: 9, opacity: 0.7 }}>
-                  {showTotalsBreakdown ? '▲' : '▼'}
-                </span>
                 {isComplimentary ? (
-                  <span style={{ fontSize: 9.5, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', padding: '1px 5px', borderRadius: 4, fontWeight: 750 }}>
-                    NC · ₹0
-                  </span>
-                ) : (discount > 0 || appliedOffer) && (
-                  <span style={{ fontSize: 9.5, color: '#10b981', opacity: 0.85, fontWeight: 600 }}>
-                    (disc)
-                  </span>
-                )}
-              </button>
-
-              {isComplimentary ? (
-                <div 
-                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                  style={{ textAlign: 'right', cursor: 'pointer', display: 'flex', alignItems: 'baseline', gap: 6 }}
-                  title="Click to toggle breakdown"
-                >
-                  <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', textDecoration: 'line-through', opacity: 0.65 }}>
-                    {formatCurrency(subtotal, currency)}
-                  </span>
-                  <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em', color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>
-                    {formatCurrency(0, currency)}
-                  </span>
-                </div>
-              ) : settledTotal > 0 ? (
-                <div 
-                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                  style={{ cursor: 'pointer', textAlign: 'right', display: 'flex', alignItems: 'baseline', gap: 6 }}
-                  title="Click to toggle tax breakdown details"
-                >
-                  <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', textDecoration: 'line-through', opacity: 0.65 }}>
+                  <div
+                    onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                    style={{ textAlign: 'right', cursor: 'pointer', display: 'flex', alignItems: 'baseline', gap: 6 }}
+                    title="Click to toggle breakdown"
+                  >
+                    <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', textDecoration: 'line-through', opacity: 0.65 }}>
+                      {formatCurrency(subtotal, currency)}
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em', color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(0, currency)}
+                    </span>
+                  </div>
+                ) : settledTotal > 0 ? (
+                  <div
+                    onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                    style={{ cursor: 'pointer', textAlign: 'right', display: 'flex', alignItems: 'baseline', gap: 6 }}
+                    title="Click to toggle tax breakdown details"
+                  >
+                    <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', textDecoration: 'line-through', opacity: 0.65 }}>
+                      {formatCurrency(total, currency)}
+                    </span>
+                    <span className="cart-remaining-due" style={{ fontWeight: 800, fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>
+                      Due {formatCurrency(remainingTotal, currency)}
+                    </span>
+                  </div>
+                ) : (
+                  <span
+                    onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                    style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--color-label-primary)' }}
+                    title="Click to toggle tax breakdown details"
+                  >
                     {formatCurrency(total, currency)}
                   </span>
-                  <span className="cart-remaining-due" style={{ fontWeight: 800, fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>
-                    Due {formatCurrency(remainingTotal, currency)}
-                  </span>
-                </div>
-              ) : (
-                <span 
-                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                  style={{ cursor: 'pointer', fontVariantNumeric: 'tabular-nums', fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--color-label-primary)' }}
-                  title="Click to toggle tax breakdown details"
-                >
-                  {formatCurrency(total, currency)}
-                </span>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Action Buttons */}
-        {isKitchenActive ? (
-          <div 
-            className="cart-action-buttons" 
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: orderType === 'dine-in' ? '40px 40px minmax(68px, 1fr) minmax(105px, 1.35fr)' : '40px minmax(75px, 1fr) minmax(115px, 1.4fr)', 
-              gap: 6,
-              padding: '10px 10px 14px',
-              boxSizing: 'border-box',
-              width: '100%'
-            }}
-          >
-            {orderType === 'dine-in' && (
+          {/* Action Buttons */}
+          {isKitchenActive ? (
+            <div
+              className="cart-action-buttons"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: orderType === 'dine-in' ? '40px 40px minmax(68px, 1fr) minmax(105px, 1.35fr)' : '40px minmax(75px, 1fr) minmax(115px, 1.4fr)',
+                gap: 6,
+                padding: '10px 10px 14px',
+                boxSizing: 'border-box',
+                width: '100%'
+              }}
+            >
+              {orderType === 'dine-in' && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  id="print-prebill-btn"
+                  onClick={handlePrintPreBill}
+                  disabled={!items.length}
+                  type="button"
+                  style={{ width: 40, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  title="Print Customer Bill / Pre-Bill Check"
+                  aria-label="Print Customer Bill"
+                >
+                  <Printer size={18} />
+                </button>
+              )}
               <button
                 className="btn btn-secondary btn-sm"
+                id="hold-order-btn"
+                onClick={handleHoldOrder}
+                disabled={!items.length}
+                type="button"
+                style={{
+                  width: 40,
+                  height: 44,
+                  padding: 0,
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  color: '#f59e0b',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  borderColor: 'rgba(245, 158, 11, 0.3)'
+                }}
+                title="Hold / Park Order (Resume anytime)"
+                aria-label="Hold Order"
+              >
+                <PauseCircle size={18} />
+              </button>
+              <button
+                className="cart-action-btn-kitchen"
+                id="send-to-kitchen-btn"
+                onClick={handleSendToKitchen}
+                disabled={!items.length}
+                type="button"
+                style={{ minWidth: 0, height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}
+                title={
+                  !isKitchenActive
+                    ? (orderType === 'dine-in' ? 'Save order to table for cashier counter payment' : 'Hold order for pickup')
+                    : (orderType === 'takeaway' ? 'Send order to kitchen and collect payment when customer picks up' : (kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)"))
+                }
+              >
+                {!isKitchenActive ? (
+                  orderType === 'takeaway' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hold</span>
+                      <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Pickup</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Save</span>
+                      <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Counter</span>
+                    </div>
+                  )
+                ) : orderType === 'takeaway' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Kitchen</span>
+                    <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>KOT</span>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
+                )}
+              </button>
+              <button
+                className="cart-action-btn-checkout"
+                id="checkout-btn"
+                onClick={handleCheckout}
+                disabled={!items.length}
+                type="button"
+                style={{
+                  minWidth: 0,
+                  height: 44,
+                  borderRadius: 12,
+                  opacity: items.length ? 1 : 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 8px',
+                  background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
+                }}
+                title={isComplimentary ? 'Settle Complimentary / NC Order directly' : orderType === 'takeaway' ? "Collect payment immediately & fire order to kitchen (KOT)" : "Proceed to payment & checkout"}
+              >
+                <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(remainingTotal, currency)}`}
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '40px 40px 1fr',
+                gap: 6,
+                padding: '10px 10px 14px',
+                boxSizing: 'border-box',
+                width: '100%'
+              }}
+            >
+              <button
+                className="btn btn-secondary"
                 id="print-prebill-btn"
                 onClick={handlePrintPreBill}
                 disabled={!items.length}
@@ -3768,161 +3873,55 @@ export default function POS() {
               >
                 <Printer size={18} />
               </button>
-            )}
-            <button
-              className="btn btn-secondary btn-sm"
-              id="hold-order-btn"
-              onClick={handleHoldOrder}
-              disabled={!items.length}
-              type="button"
-              style={{
-                width: 40,
-                height: 44,
-                padding: 0,
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                color: '#f59e0b',
-                background: 'rgba(245, 158, 11, 0.1)',
-                borderColor: 'rgba(245, 158, 11, 0.3)'
-              }}
-              title="Hold / Park Order (Resume anytime)"
-              aria-label="Hold Order"
-            >
-              <PauseCircle size={18} />
-            </button>
-            <button
-              className="cart-action-btn-kitchen"
-              id="send-to-kitchen-btn"
-              onClick={handleSendToKitchen}
-              disabled={!items.length}
-              type="button"
-              style={{ minWidth: 0, height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}
-              title={
-                !isKitchenActive
-                  ? (orderType === 'dine-in' ? 'Save order to table for cashier counter payment' : 'Hold order for pickup')
-                  : (orderType === 'takeaway' ? 'Send order to kitchen and collect payment when customer picks up' : (kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)"))
-              }
-            >
-              {!isKitchenActive ? (
-                orderType === 'takeaway' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
-                    <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hold</span>
-                    <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Pickup</span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
-                    <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Save</span>
-                    <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Counter</span>
-                  </div>
-                )
-              ) : orderType === 'takeaway' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
-                  <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Kitchen</span>
-                  <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>KOT</span>
-                </div>
-              ) : (
-                <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
-              )}
-            </button>
-            <button
-              className="cart-action-btn-checkout"
-              id="checkout-btn"
-              onClick={handleCheckout}
-              disabled={!items.length}
-              type="button"
-              style={{
-                minWidth: 0,
-                height: 44,
-                borderRadius: 12,
-                opacity: items.length ? 1 : 0.4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0 8px',
-                background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
-              }}
-              title={isComplimentary ? 'Settle Complimentary / NC Order directly' : orderType === 'takeaway' ? "Collect payment immediately & fire order to kitchen (KOT)" : "Proceed to payment & checkout"}
-            >
-              <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(remainingTotal, currency)}`}
-              </span>
-            </button>
-          </div>
-        ) : (
-          <div 
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '40px 40px 1fr', 
-              gap: 6, 
-              padding: '10px 10px 14px',
-              boxSizing: 'border-box',
-              width: '100%'
-            }}
-          >
-            <button
-              className="btn btn-secondary"
-              id="print-prebill-btn"
-              onClick={handlePrintPreBill}
-              disabled={!items.length}
-              type="button"
-              style={{ width: 40, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-              title="Print Customer Bill / Pre-Bill Check"
-              aria-label="Print Customer Bill"
-            >
-              <Printer size={18} />
-            </button>
-            <button
-              className="btn btn-secondary"
-              id="hold-order-btn"
-              onClick={handleHoldOrder}
-              disabled={!items.length}
-              type="button"
-              style={{
-                width: 40,
-                height: 44,
-                padding: 0,
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                color: '#f59e0b',
-                background: 'rgba(245, 158, 11, 0.1)',
-                borderColor: 'rgba(245, 158, 11, 0.3)'
-              }}
-              title="Hold / Park Order (Resume anytime)"
-              aria-label="Hold Order"
-            >
-              <PauseCircle size={18} />
-            </button>
-            <button
-              className="cart-checkout-btn"
-              id="checkout-btn"
-              onClick={handleCheckout}
-              disabled={!items.length}
-              type="button"
-              style={{
-                minWidth: 0,
-                height: 44,
-                borderRadius: 12,
-                opacity: items.length ? 1 : 0.4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0 8px',
-                background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
-              }}
-            >
-              <span className="cart-checkout-title" style={{ fontSize: 13.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(total, currency)}`}
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
+              <button
+                className="btn btn-secondary"
+                id="hold-order-btn"
+                onClick={handleHoldOrder}
+                disabled={!items.length}
+                type="button"
+                style={{
+                  width: 40,
+                  height: 44,
+                  padding: 0,
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  color: '#f59e0b',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  borderColor: 'rgba(245, 158, 11, 0.3)'
+                }}
+                title="Hold / Park Order (Resume anytime)"
+                aria-label="Hold Order"
+              >
+                <PauseCircle size={18} />
+              </button>
+              <button
+                className="cart-checkout-btn"
+                id="checkout-btn"
+                onClick={handleCheckout}
+                disabled={!items.length}
+                type="button"
+                style={{
+                  minWidth: 0,
+                  height: 44,
+                  borderRadius: 12,
+                  opacity: items.length ? 1 : 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 8px',
+                  background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
+                }}
+              >
+                <span className="cart-checkout-title" style={{ fontSize: 13.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(total, currency)}`}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
@@ -3949,8 +3948,8 @@ export default function POS() {
                 const merged = [...existingItems];
 
                 currentCartItems.forEach(cartItem => {
-                  const match = merged.find(m => 
-                    m.id === cartItem.id && 
+                  const match = merged.find(m =>
+                    m.id === cartItem.id &&
                     JSON.stringify(m.selectedModifiers || []) === JSON.stringify(cartItem.selectedModifiers || [])
                   );
                   if (match) {
@@ -5011,7 +5010,7 @@ export default function POS() {
                 <X size={18} />
               </button>
             </div>
-            
+
             <div style={{
               background: 'var(--color-bg-elevated)',
               color: 'var(--color-label)',
@@ -5040,7 +5039,7 @@ export default function POS() {
                   const pad = paddingLen > 0 ? '.'.repeat(paddingLen) : ' ';
                   return `${label}${pad}${value}\n`;
                 };
-                
+
                 let report = `======================================\n`;
                 report += `          ${restaurant?.name?.toUpperCase() || 'POS RESTAURANT'}\n`;
                 report += `          Z-REPORT: SHIFT CLOSURE     \n`;
@@ -5088,7 +5087,7 @@ export default function POS() {
                     const pad = paddingLen > 0 ? '.'.repeat(paddingLen) : ' ';
                     return `${label}${pad}${value}\n`;
                   };
-                  
+
                   let report = `======================================\n`;
                   report += `          ${restaurant?.name?.toUpperCase() || 'POS RESTAURANT'}\n`;
                   report += `          Z-REPORT: SHIFT CLOSURE     \n`;

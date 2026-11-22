@@ -145,6 +145,9 @@ export default function TableMap() {
   });
 
   const handleSwitchView = (mode) => {
+    if (mode === 'map' && activeFloor === 'all') {
+      setActiveFloor(allFloors[0] || 'Ground Floor');
+    }
     setViewMode(mode);
     try {
       localStorage.setItem('kiwi_table_view_mode', mode);
@@ -181,6 +184,7 @@ export default function TableMap() {
   const canvasRef = useRef(null);
 
   const floorTables = useMemo(() => {
+    if (activeFloor === 'all') return tables;
     return tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
   }, [tables, activeFloor]);
 
@@ -1029,6 +1033,198 @@ export default function TableMap() {
     ? Math.floor(getOrderElapsedSeconds(selOrder, nowTime) / 60)
     : 0;
 
+  const handleFloorTabClick = useCallback((floor) => {
+    if (floor === 'all') {
+      setActiveFloor('all');
+      setSelected(null);
+      const container = document.querySelector('.tm-all-floors-container');
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+    if (activeFloor === 'all') {
+      const el = document.getElementById(`tm-floor-section-${floor.replace(/\s+/g, '-').toLowerCase()}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    setActiveFloor(floor);
+    setSelected(null);
+  }, [activeFloor]);
+
+  const filterTable = useCallback((t) => {
+    const order = tableOrders[t.id];
+    const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+    const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
+    const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
+
+    if (statusFilter === 'free' && effectiveStatus !== 'free') return false;
+    if (statusFilter === 'occupied' && effectiveStatus !== 'occupied') return false;
+    if (statusFilter === 'reserved' && !isReserved) return false;
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchName = t.name.toLowerCase().includes(q);
+      const matchCap = String(t.capacity).includes(q);
+      const matchWaiter = order?.assignedWaiterName?.toLowerCase().includes(q) || order?.staffName?.toLowerCase().includes(q);
+      return matchName || matchCap || matchWaiter;
+    }
+    return true;
+  }, [tableOrders, reservations, statusFilter, searchQuery]);
+
+  const renderTableCard = useCallback((t) => {
+    const order = tableOrders[t.id];
+    const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
+    const readyItems = (order?.items || []).filter(i => i.status === 'ready');
+    const isFoodReady = hasOrder && (order.status === 'ready' || readyItems.length > 0);
+    const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
+    const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
+    const resForTable = reservations.find(r => r.tableId === t.id);
+
+    let elapsedMins = 0;
+    if (hasOrder && order) {
+      elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
+    }
+
+    let passElapsedSecs = 0;
+    if (isFoodReady && order) {
+      const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
+      if (readyTs) {
+        const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
+        if (!isNaN(ms)) {
+          passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
+        }
+      }
+    }
+    const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
+    const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
+
+    return (
+      <div
+        key={t.id}
+        onClick={() => {
+          if (effectiveStatus === 'free') {
+            clearCart();
+            setTable(t.id, t.name);
+            setOrderType('dine-in');
+            toast.success(`Order started for ${t.name}`);
+            navigate('/pos');
+          } else {
+            setSelected(t.id);
+          }
+        }}
+        className={`tm-card ${
+          isFoodReady
+            ? 'tm-card--ready'
+            : effectiveStatus === 'occupied'
+            ? 'tm-card--occupied'
+            : isReserved
+            ? 'tm-card--reserved'
+            : 'tm-card--free'
+        } ${selected === t.id ? 'tm-card--selected' : ''}`}
+      >
+        {/* Top Meta Header: Capacity Pill + Status Badge */}
+        <div className="tm-card-header">
+          <span className="tm-card-cap-pill" title={`${t.capacity || 4} guests capacity`}>
+            <Users size={11} />
+            <span>{t.capacity || 4}</span>
+          </span>
+
+          {isFoodReady ? (
+            <span
+              className={`tm-badge tm-badge--ready ${isPassOverdue ? 'tm-badge--overdue' : ''}`}
+              style={isPassOverdue ? { background: '#ef4444', color: '#fff', border: '1px solid #dc2626' } : undefined}
+            >
+              <span className="tm-badge-dot" />
+              <span style={{ fontSize: 10.5 }}>{isPassOverdue ? 'PASS' : 'READY'}</span>
+              <span className="tm-badge-timer">{passTimerStr}</span>
+            </span>
+          ) : effectiveStatus === 'occupied' ? (
+            <span
+              className={`tm-badge ${elapsedMins >= 720 ? 'tm-badge--stale' : 'tm-badge--occupied'}`}
+              style={elapsedMins >= 720 ? { background: '#dc2626', color: '#fff' } : undefined}
+            >
+              <span className="tm-badge-dot" />
+              {elapsedMins >= 720
+                ? `STALE (${Math.floor(elapsedMins / 60)}h)`
+                : elapsedMins > 0
+                ? formatElapsed(elapsedMins).replace(' seated', '')
+                : (hasOrder ? 'BUSY' : 'OCCUPIED')}
+            </span>
+          ) : isReserved ? (
+            <span className="tm-badge tm-badge--reserved">
+              <span className="tm-badge-dot" style={{ background: '#f59e0b' }} />
+              <span>RESERVED</span>
+            </span>
+          ) : (
+            <span className="tm-badge tm-badge--free">
+              <span className="tm-badge-dot" style={{ background: '#10b981' }} />
+              <span>FREE</span>
+            </span>
+          )}
+        </div>
+
+        {/* Hero Table Identity & Financials */}
+        <div className="tm-card-hero">
+          <div className="tm-card-name-wrap">
+            <span className="tm-card-name" title={t.name}>{t.name}</span>
+            {order && (order.isOffline || order.id?.startsWith('offline_')) && (
+              <span title="Local offline order on device" className="tm-card-offline-tag">
+                <Zap size={11} color="#38bdf8" />
+              </span>
+            )}
+          </div>
+
+          {effectiveStatus === 'occupied' && order ? (
+            <div className="tm-card-order-meta">
+              <span className="tm-card-total">
+                {formatCurrency(order.total ?? 0, currency)}
+              </span>
+              <span className="tm-card-items-chip">
+                {(order.items ?? []).length} itm
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Footer Context / Action */}
+        <div className="tm-card-footer">
+          {effectiveStatus === 'occupied' && order ? (
+            <div className="tm-card-occupied-details">
+              {(order.assignedWaiterName || order.staffName) && (
+                <div className="tm-card-server-row">
+                  <User size={10} />
+                  <span>{order.assignedWaiterName || order.staffName}</span>
+                </div>
+              )}
+              {order.note && (
+                <div className="tm-card-note-row" title={`Table Note: ${order.note}`}>
+                  <FileText size={10} className="tm-card-note-icon" />
+                  <span className="tm-card-note-text">{order.note}</span>
+                </div>
+              )}
+            </div>
+          ) : isFoodReady ? (
+            <div className="tm-card-ready-banner">
+              <span>Ready to Serve</span>
+            </div>
+          ) : isReserved ? (
+            <div className="tm-card-reserved-info">
+              <span>{resForTable?.name || 'Reserved'}</span>
+            </div>
+          ) : (
+            <div className="tm-card-action-btn">
+              <Plus size={12} />
+              <span>Start Order</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [tableOrders, reservations, nowTime, selected, currency, clearCart, setTable, setOrderType, navigate]);
+
   return (
     <div className="tm-root">
       {/* ═══ TOUCH-FIRST CONTROLS BAR ═══ */}
@@ -1068,6 +1264,21 @@ export default function TableMap() {
 
           {/* Floor Navigation Tabs */}
           <div className="tm-floor-tabs-group" role="tablist" aria-label="Floors">
+            {allFloors.length > 1 && viewMode === 'grid' && (
+              <div className="tm-floor-tab-wrapper">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeFloor === 'all'}
+                  className={`tm-floor-tab ${activeFloor === 'all' ? 'tm-floor-tab--active tm-floor-tab--all' : ''}`}
+                  onClick={() => handleFloorTabClick('all')}
+                  title="View all sections in continuous grouped scroll"
+                >
+                  <span className="tm-floor-name">All Sections</span>
+                  <span className="tm-floor-badge">{tables.length}</span>
+                </button>
+              </div>
+            )}
             {allFloors.map(floor => {
               const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
               const isCanDelete = isEditingLayout && floor !== 'Ground Floor' && floorCount === 0;
@@ -1078,7 +1289,7 @@ export default function TableMap() {
                     role="tab"
                     aria-selected={activeFloor === floor}
                     className={`tm-floor-tab ${activeFloor === floor ? 'tm-floor-tab--active' : ''}`}
-                    onClick={() => { setActiveFloor(floor); setSelected(null); }}
+                    onClick={() => handleFloorTabClick(floor)}
                   >
                     <span className="tm-floor-name">{floor}</span>
                     <span className="tm-floor-badge">{floorCount}</span>
@@ -1394,183 +1605,66 @@ export default function TableMap() {
 
       {/* ═══ VIEW MODE: QUICK GRID (TOUCH & SMALL DEVICE OPTIMIZED) ═══ */}
       {viewMode === 'grid' ? (
-        <div className="tm-grid">
-          {sortedFloorTables
-            .filter(t => {
-              const order = tableOrders[t.id];
-              const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
-              const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
-              const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
+        activeFloor === 'all' && allFloors.length > 1 ? (
+          /* Continuous Grouped Scroll across all floors/sections (Petpooja style) */
+          <div className="tm-all-floors-container">
+            {allFloors.map(floor => {
+              const floorTablesRaw = tables.filter(t => (t.floor || 'Ground Floor') === floor);
+              const floorTablesFiltered = floorTablesRaw
+                .filter(filterTable)
+                .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true }));
 
-              if (statusFilter === 'free' && effectiveStatus !== 'free') return false;
-              if (statusFilter === 'occupied' && effectiveStatus !== 'occupied') return false;
-              if (statusFilter === 'reserved' && !isReserved) return false;
+              if (floorTablesFiltered.length === 0 && searchQuery) return null;
 
-              if (searchQuery) {
-                const q = searchQuery.toLowerCase();
-                const matchName = t.name.toLowerCase().includes(q);
-                const matchCap = String(t.capacity).includes(q);
-                const matchWaiter = order?.assignedWaiterName?.toLowerCase().includes(q) || order?.staffName?.toLowerCase().includes(q);
-                return matchName || matchCap || matchWaiter;
-              }
-              return true;
-            })
-            .map(t => {
-              const order = tableOrders[t.id];
-              const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
-              const readyItems = (order?.items || []).filter(i => i.status === 'ready');
-              const isFoodReady = hasOrder && (order.status === 'ready' || readyItems.length > 0);
-              const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
-              const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
-              const resForTable = reservations.find(r => r.tableId === t.id);
-
-              let elapsedMins = 0;
-              if (hasOrder && order) {
-                elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
-              }
-
-              let passElapsedSecs = 0;
-              if (isFoodReady && order) {
-                const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
-                if (readyTs) {
-                  const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
-                  if (!isNaN(ms)) {
-                    passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
-                  }
-                }
-              }
-              const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
-              const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
+              let fFree = 0, fOccupied = 0, fReserved = 0;
+              floorTablesRaw.forEach(t => {
+                const order = tableOrders[t.id];
+                const isOcc = (order && !['billed', 'cancelled', 'completed'].includes(order.status)) || t.status === 'occupied';
+                const isRes = !isOcc && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
+                if (isOcc) fOccupied++;
+                else if (isRes) fReserved++;
+                else fFree++;
+              });
 
               return (
-                <div
-                  key={t.id}
-                  onClick={() => {
-                    if (effectiveStatus === 'free') {
-                      clearCart();
-                      setTable(t.id, t.name);
-                      setOrderType('dine-in');
-                      toast.success(`Order started for ${t.name}`);
-                      navigate('/pos');
-                    } else {
-                      setSelected(t.id);
-                    }
-                  }}
-                  className={`tm-card ${
-                    isFoodReady
-                      ? 'tm-card--ready'
-                      : effectiveStatus === 'occupied'
-                      ? 'tm-card--occupied'
-                      : isReserved
-                      ? 'tm-card--reserved'
-                      : 'tm-card--free'
-                  } ${selected === t.id ? 'tm-card--selected' : ''}`}
-                >
-                  {/* Top Meta Header: Capacity Pill + Status Badge */}
-                  <div className="tm-card-header">
-                    <span className="tm-card-cap-pill" title={`${t.capacity || 4} guests capacity`}>
-                      <Users size={11} />
-                      <span>{t.capacity || 4}</span>
-                    </span>
-
-                    {isFoodReady ? (
-                      <span
-                        className={`tm-badge tm-badge--ready ${isPassOverdue ? 'tm-badge--overdue' : ''}`}
-                        style={isPassOverdue ? { background: '#ef4444', color: '#fff', border: '1px solid #dc2626' } : undefined}
-                      >
-                        <span className="tm-badge-dot" />
-                        <span style={{ fontSize: 10.5 }}>{isPassOverdue ? 'PASS' : 'READY'}</span>
-                        <span className="tm-badge-timer">{passTimerStr}</span>
+                <div key={floor} className="tm-all-floors-group" id={`tm-floor-section-${floor.replace(/\s+/g, '-').toLowerCase()}`}>
+                  <div className="tm-floor-section-header">
+                    <div className="tm-floor-section-title-wrap">
+                      <Building2 size={15} className="tm-floor-section-icon" />
+                      <h3 className="tm-floor-section-name">{floor}</h3>
+                      <span className="tm-floor-section-count-badge">
+                        {floorTablesRaw.length} {floorTablesRaw.length === 1 ? 'Table' : 'Tables'}
                       </span>
-                    ) : effectiveStatus === 'occupied' ? (
-                      <span
-                        className={`tm-badge ${elapsedMins >= 720 ? 'tm-badge--stale' : 'tm-badge--occupied'}`}
-                        style={elapsedMins >= 720 ? { background: '#dc2626', color: '#fff' } : undefined}
-                      >
-                        <span className="tm-badge-dot" />
-                        {elapsedMins >= 720
-                          ? `STALE (${Math.floor(elapsedMins / 60)}h)`
-                          : elapsedMins > 0
-                          ? formatElapsed(elapsedMins).replace(' seated', '')
-                          : (hasOrder ? 'BUSY' : 'OCCUPIED')}
-                      </span>
-                    ) : isReserved ? (
-                      <span className="tm-badge tm-badge--reserved">
-                        <span className="tm-badge-dot" style={{ background: '#f59e0b' }} />
-                        <span>RESERVED</span>
-                      </span>
-                    ) : (
-                      <span className="tm-badge tm-badge--free">
-                        <span className="tm-badge-dot" style={{ background: '#10b981' }} />
-                        <span>FREE</span>
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Hero Table Identity & Financials */}
-                  <div className="tm-card-hero">
-                    <div className="tm-card-name-wrap">
-                      <span className="tm-card-name" title={t.name}>{t.name}</span>
-                      {order && (order.isOffline || order.id?.startsWith('offline_')) && (
-                        <span title="Local offline order on device" className="tm-card-offline-tag">
-                          <Zap size={11} color="#38bdf8" />
-                        </span>
-                      )}
                     </div>
-
-                    {effectiveStatus === 'occupied' && order ? (
-                      <div className="tm-card-order-meta">
-                        <span className="tm-card-total">
-                          {formatCurrency(order.total ?? 0, currency)}
-                        </span>
-                        <span className="tm-card-items-chip">
-                          {(order.items ?? []).length} itm
-                        </span>
-                      </div>
-                    ) : null}
+                    <div className="tm-floor-section-stats">
+                      <span className="tm-floor-stat-pill free">{fFree} Free</span>
+                      <span className="tm-floor-stat-pill occupied">{fOccupied} Seated</span>
+                      {fReserved > 0 && <span className="tm-floor-stat-pill reserved">{fReserved} Reserved</span>}
+                    </div>
                   </div>
-
-                  {/* Footer Context / Action */}
-                  <div className="tm-card-footer">
-                    {effectiveStatus === 'occupied' && order ? (
-                      <div className="tm-card-occupied-details">
-                        {(order.assignedWaiterName || order.staffName) && (
-                          <div className="tm-card-server-row">
-                            <User size={10} />
-                            <span>{order.assignedWaiterName || order.staffName}</span>
-                          </div>
-                        )}
-                        {order.note && (
-                          <div className="tm-card-note-row" title={`Table Note: ${order.note}`}>
-                            <FileText size={10} className="tm-card-note-icon" />
-                            <span className="tm-card-note-text">{order.note}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : isFoodReady ? (
-                      <div className="tm-card-ready-banner">
-                        <span>Ready to Serve</span>
-                      </div>
-                    ) : isReserved ? (
-                      <div className="tm-card-reserved-info">
-                        <span>{resForTable?.name || 'Reserved'}</span>
-                      </div>
-                    ) : (
-                      <div className="tm-card-action-btn">
-                        <Plus size={12} />
-                        <span>Start Order</span>
-                      </div>
-                    )}
-                  </div>
+                  {floorTablesFiltered.length > 0 ? (
+                    <div className="tm-grid tm-grid--section">
+                      {floorTablesFiltered.map(renderTableCard)}
+                    </div>
+                  ) : (
+                    <div className="tm-empty-state" style={{ padding: '20px 0', fontSize: 13 }}>
+                      No matching tables in {floor}.
+                    </div>
+                  )}
                 </div>
               );
             })}
-          {sortedFloorTables.length === 0 && (
-            <div className="tm-empty-state">
-              No tables found on this floor.
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="tm-grid">
+            {sortedFloorTables.filter(filterTable).map(renderTableCard)}
+            {sortedFloorTables.filter(filterTable).length === 0 && (
+              <div className="tm-empty-state">
+                No tables found on this floor.
+              </div>
+            )}
+          </div>
+        )
       ) : (
         /* ═══ VIEW MODE: 2D FLOOR MAP CANVAS ═══ */
         <div className="tm-canvas-wrapper" ref={wrapperRef}>
