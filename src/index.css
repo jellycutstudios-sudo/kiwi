@@ -4929,6 +4929,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   min-height: 40px;
   box-sizing: border-box;
   gap: 6px;
+  overflow: hidden;
 }
 
 .cart-header-summary-strip:hover {
@@ -4947,6 +4948,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   gap: 6px;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 /* Touch-optimized summary action chips */
@@ -5024,12 +5026,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  flex-shrink: 0;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .cart-header-summary-chip.table-chip {
-  flex-shrink: 0;
-  min-width: max-content;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .cart-header-summary-unassign-btn {

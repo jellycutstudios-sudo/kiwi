@@ -2565,7 +2565,7 @@ export default function POS() {
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               {heldOrders?.length > 0 && (
                 <button
                   type="button"
@@ -2593,9 +2593,6 @@ export default function POS() {
                   <span>Held ({heldOrders.length})</span>
                 </button>
               )}
-              <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items in cart`} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '0 7px' }}>
-                {items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}
-              </span>
               <button 
                 type="button"
                 className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`} 
@@ -2625,8 +2622,24 @@ export default function POS() {
                 }}
                 title="Expand full order details"
                 aria-label="Expand full order details"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  background: 'rgba(16, 185, 129, 0.14)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#10b981',
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  height: 28,
+                  userSelect: 'none'
+                }}
               >
-                <ChevronDown size={14} />
+                <span>{items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}</span>
+                <ChevronDown size={12} />
               </button>
             </div>
           </div>
@@ -2643,7 +2656,7 @@ export default function POS() {
                   <span>Hide Details</span>
                   <ChevronUp size={11} />
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   {heldOrders?.length > 0 && (
                     <button
                       type="button"
@@ -4879,7 +4892,7 @@ export default function POS() {
                                 />
                               </div>
                             ))}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                               <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>Coins</span>
                               <input
                                 type="number"
