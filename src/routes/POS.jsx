@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles, PauseCircle
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles, PauseCircle, Gift
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -3534,8 +3534,8 @@ export default function POS() {
               </div>
             )}
 
-            {/* Quick Addons Micro-Bar: Offers · Discount · Note · Split */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '0 0 6px 0' }}>
+            {/* Quick Addons Micro-Bar: Offers · Discount · Note · Split · Complimentary (NC) */}
+            <div className="cart-addon-micro-bar" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '0 0 6px 0' }}>
               {/* Offers Button or Active Offer Badge */}
               {appliedOffer ? (
                 <div 
@@ -3575,58 +3575,41 @@ export default function POS() {
                     fontWeight: 600
                   }}
                 >
-                  🎁 Offers
+                  <Sparkles size={10} /> Offers
                 </button>
               ) : null}
-              {/* Complimentary NC Pill / Discount Pill */}
-              {isComplimentary ? (
-                <div 
-                  className="cart-addon-micro-chip"
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    borderColor: 'rgba(16, 185, 129, 0.4)',
-                    color: '#10b981'
-                  }}
-                >
-                  <Sparkles size={10} />
-                  <span style={{ fontWeight: 700 }}>🎁 NC / Comp</span>
+
+              {/* Discount Pill / Micro-Button (hidden when Complimentary NC is active) */}
+              {!isComplimentary && (
+                discount > 0 ? (
+                  <div className="cart-addon-micro-chip">
+                    <Tag size={10} />
+                    <span 
+                      onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to edit discount"
+                    >
+                      {discountType === 'percent' ? `${discount}% OFF` : formatCurrency(discount, currency)}
+                    </span>
+                    <button
+                      type="button"
+                      className="cart-addon-remove"
+                      onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
+                      title="Remove discount"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    className="cart-addon-remove"
-                    onClick={() => setComplimentary(false)}
-                    title="Remove complimentary status"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              ) : discount > 0 ? (
-                <div className="cart-addon-micro-chip">
-                  <Tag size={10} />
-                  <span 
+                    className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
                     onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                    style={{ cursor: 'pointer' }}
-                    title="Click to edit discount"
+                    title="Add discount"
                   >
-                    {discountType === 'percent' ? `${discount}% OFF` : formatCurrency(discount, currency)}
-                  </span>
-                  <button
-                    type="button"
-                    className="cart-addon-remove"
-                    onClick={() => { setDiscount(0, discountType); if (activeAddon === 'discount') setActiveAddon(null); }}
-                    title="Remove discount"
-                  >
-                    <X size={10} />
+                    <Tag size={10} /> +Disc
                   </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={`cart-addon-micro-btn ${activeAddon === 'discount' ? 'active' : ''}`}
-                  onClick={() => setActiveAddon(activeAddon === 'discount' ? null : 'discount')}
-                  title="Add discount"
-                >
-                  <Tag size={10} /> +Disc
-                </button>
+                )
               )}
 
               {/* Note Pill / Micro-Button */}
@@ -3672,37 +3655,40 @@ export default function POS() {
                   <Split size={10} /> Split
                 </button>
               )}
-            </div>
 
-            {/* Complimentary NC Fast-Toggle Row (Petpooja style 1-touch) */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0 2px' }}>
-              <label 
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  cursor: 'pointer',
-                  fontSize: 11.5,
-                  fontWeight: 650,
-                  color: isComplimentary ? '#10b981' : 'var(--color-label-secondary)',
-                  userSelect: 'none'
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={isComplimentary}
-                  onChange={(e) => {
+              {/* Complimentary NC Pill (Fast-toggle 1-tap, replaces awkward floating checkbox) */}
+              {isComplimentary ? (
+                <div 
+                  className="cart-addon-micro-chip cart-addon-micro-chip--nc"
+                  id="pos-nc-comp-chip"
+                >
+                  <Gift size={10} />
+                  <span>NC Comp (₹0)</span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => {
+                      hapticTap('light');
+                      setComplimentary(false);
+                    }}
+                    title="Remove complimentary status"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  id="pos-nc-comp-btn"
+                  className="cart-addon-micro-btn cart-addon-micro-btn--nc"
+                  onClick={() => {
                     hapticTap('light');
-                    setComplimentary(e.target.checked, 'Management NC');
+                    setComplimentary(true, 'Management NC');
                   }}
-                  style={{ accentColor: '#10b981', cursor: 'pointer', width: 14, height: 14 }}
-                />
-                <span>Complimentary (NC)</span>
-              </label>
-              {isComplimentary && (
-                <span style={{ fontSize: 10, color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-                  100% OFF · ₹0 DUE
-                </span>
+                  title="Mark entire order as complimentary / non-chargeable (NC)"
+                >
+                  <Gift size={10} /> NC Comp
+                </button>
               )}
             </div>
 
@@ -3712,36 +3698,49 @@ export default function POS() {
                 type="button"
                 onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
                 className="cart-breakdown-toggle-btn"
-                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-label-primary)', fontWeight: 700, fontSize: 13 }}
-                title="Click to toggle tax breakdown details"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-label-primary)', fontWeight: 700, fontSize: 13 }}
+                title="Click to toggle tax and discount breakdown details"
               >
                 <span>{t('total')}</span>
                 <span className="cart-tax-indicator" style={{ fontSize: 9, opacity: 0.7 }}>
                   {showTotalsBreakdown ? '▲' : '▼'}
                 </span>
+                {isComplimentary ? (
+                  <span style={{ fontSize: 9.5, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', padding: '1px 5px', borderRadius: 4, fontWeight: 750 }}>
+                    NC · ₹0
+                  </span>
+                ) : (discount > 0 || appliedOffer) && (
+                  <span style={{ fontSize: 9.5, color: '#10b981', opacity: 0.85, fontWeight: 600 }}>
+                    (disc)
+                  </span>
+                )}
               </button>
 
               {isComplimentary ? (
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', textDecoration: 'line-through' }}>
+                <div 
+                  onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
+                  style={{ textAlign: 'right', cursor: 'pointer', display: 'flex', alignItems: 'baseline', gap: 6 }}
+                  title="Click to toggle breakdown"
+                >
+                  <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', textDecoration: 'line-through', opacity: 0.65 }}>
                     {formatCurrency(subtotal, currency)}
-                  </div>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: '#10b981' }}>
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em', color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(0, currency)}
-                  </div>
+                  </span>
                 </div>
               ) : settledTotal > 0 ? (
                 <div 
                   onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
-                  style={{ cursor: 'pointer', textAlign: 'right' }}
+                  style={{ cursor: 'pointer', textAlign: 'right', display: 'flex', alignItems: 'baseline', gap: 6 }}
                   title="Click to toggle tax breakdown details"
                 >
-                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', textDecoration: 'line-through' }}>
+                  <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', textDecoration: 'line-through', opacity: 0.65 }}>
                     {formatCurrency(total, currency)}
-                  </div>
-                  <div className="cart-remaining-due" style={{ fontWeight: 800, fontSize: 17 }}>
+                  </span>
+                  <span className="cart-remaining-due" style={{ fontWeight: 800, fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>
                     Due {formatCurrency(remainingTotal, currency)}
-                  </div>
+                  </span>
                 </div>
               ) : (
                 <span 

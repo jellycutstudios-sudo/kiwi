@@ -6483,6 +6483,24 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   color: #ffffff !important;
 }
 
+.cart-addon-micro-btn--nc {
+  color: #047857 !important;
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.cart-addon-micro-btn--nc:hover {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+}
+
+.cart-addon-micro-chip--nc {
+  background: rgba(16, 185, 129, 0.16) !important;
+  border: 1px solid #10b981 !important;
+  color: #10b981 !important;
+  font-weight: 750 !important;
+}
+
 .cart-remaining-due {
   color: #047857;
 }
@@ -18778,6 +18796,27 @@ html.dark .cart-takeaway-input:focus {
   background: rgba(16, 185, 129, 0.32) !important;
   border-color: #34d399 !important;
   color: #ffffff !important;
+}
+
+[data-theme="dark"] #pos-nc-comp-btn {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #34d399 !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] #pos-nc-comp-btn:hover {
+  background: rgba(16, 185, 129, 0.26) !important;
+  border-color: #34d399 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] #pos-nc-comp-chip {
+  background: rgba(16, 185, 129, 0.24) !important;
+  border: 1.5px solid #10b981 !important;
+  color: #34d399 !important;
+  font-weight: 750 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.25) !important;
 }
 
 [data-theme="dark"] .cart-breakdown-toggle-btn {
