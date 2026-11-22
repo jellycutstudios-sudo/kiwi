@@ -540,6 +540,13 @@ export default function POS() {
     return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
   }, [restaurant?.offers, restaurant?.offersEnabled]);
 
+  // If viewing deals category but all offers were turned off or paused, cleanly reset to 'all'
+  useEffect(() => {
+    if (activeCat === 'deals' && activeOffers.length === 0) {
+      setActiveCat('all');
+    }
+  }, [activeCat, activeOffers.length]);
+
   // Real-time BOGO & Upsell Evaluation
   const bogoEvaluation = useMemo(() => {
     const activeBogo = activeOffers.find(o => o.type === 'bogo');
@@ -1734,19 +1741,21 @@ export default function POS() {
                   <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
                 </button>
 
-                {/* Deals / Offers Quick Filter */}
-                <button
-                  id="cat-deals-rail"
-                  type="button"
-                  role="tab"
-                  aria-selected={activeCat === 'deals'}
-                  className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
-                  onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
-                  title="View All Promotional Deals & BOGO Items"
-                  style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
-                >
-                  <span className="category-chip-name">⚡ Offers</span>
-                </button>
+                {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
+                {activeOffers.length > 0 && (
+                  <button
+                    id="cat-deals-rail"
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCat === 'deals'}
+                    className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                    title="View All Promotional Deals & BOGO Items"
+                    style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                  >
+                    <span className="category-chip-name">⚡ Offers</span>
+                  </button>
+                )}
 
                 {/* All Category Chips in Left Rail */}
                 {categories.map(c => (
@@ -1794,19 +1803,21 @@ export default function POS() {
                   <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
                 </button>
 
-                {/* Deals / Offers Quick Filter */}
-                <button
-                  id="cat-deals-rail"
-                  type="button"
-                  role="tab"
-                  aria-selected={activeCat === 'deals'}
-                  className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
-                  onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
-                  title="View All Promotional Deals & BOGO Items"
-                  style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
-                >
-                  <span className="category-chip-name">⚡ Offers</span>
-                </button>
+                {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
+                {activeOffers.length > 0 && (
+                  <button
+                    id="cat-deals-rail"
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCat === 'deals'}
+                    className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                    title="View All Promotional Deals & BOGO Items"
+                    style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                  >
+                    <span className="category-chip-name">⚡ Offers</span>
+                  </button>
+                )}
 
                 {/* Active Category Chip with 1-click Clear */}
                 {activeCat !== 'all' && activeCat !== 'deals' && (() => {
@@ -3538,7 +3549,7 @@ export default function POS() {
                     <X size={10} />
                   </button>
                 </div>
-              ) : (
+              ) : activeOffers.length > 0 ? (
                 <button
                   type="button"
                   className="cart-addon-micro-btn"
@@ -3553,7 +3564,7 @@ export default function POS() {
                 >
                   🎁 Offers
                 </button>
-              )}
+              ) : null}
               {/* Complimentary NC Pill / Discount Pill */}
               {isComplimentary ? (
                 <div 

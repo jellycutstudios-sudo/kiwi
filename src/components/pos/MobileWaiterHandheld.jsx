@@ -1135,7 +1135,7 @@ export default function MobileWaiterHandheld({
                         <X size={12} />
                       </button>
                     </div>
-                  ) : (
+                  ) : activeOffers.length > 0 ? (
                     <button
                       type="button"
                       onClick={() => setShowOffersModal(true)}
@@ -1157,7 +1157,7 @@ export default function MobileWaiterHandheld({
                     >
                       🎁 Apply Offer / Deals
                     </button>
-                  )}
+                  ) : null}
                 </div>
               )}
 
