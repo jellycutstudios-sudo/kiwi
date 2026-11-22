@@ -242,9 +242,16 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
 
   writeTextLine(formatTotalLine('Subtotal:', (order.subtotal ?? 0).toFixed(2)));
   
-  if (order.discountAmount && order.discountAmount > 0) {
+  const promoAmt = Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0;
+  const manualDiscAmt = Math.max(0, (Number(order.discountAmount) || 0) - promoAmt);
+
+  if (promoAmt > 0) {
+    const offerLabel = `Offer (${(order.appliedOffer?.name || 'Promo').slice(0, 16)}):`;
+    writeTextLine(formatTotalLine(offerLabel, `-${promoAmt.toFixed(2)}`));
+  }
+  if (manualDiscAmt > 0) {
     const discLabel = `Discount${order.discountType === 'percent' ? `(${order.discount}%)` : ''}:`;
-    writeTextLine(formatTotalLine(discLabel, `-${(order.discountAmount).toFixed(2)}`));
+    writeTextLine(formatTotalLine(discLabel, `-${manualDiscAmt.toFixed(2)}`));
   }
   
   (taxInfo?.lines ?? []).forEach(l => {
@@ -268,6 +275,16 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   writeBytes(BOLD_ON);
   writeTextLine(formatTotalLine(`TOTAL (${currency}):`, (order.total ?? 0).toFixed(2)));
   writeBytes(BOLD_OFF);
+
+  const escPosTotalSavings = (Number(order.discountAmount) || 0) + (Number(order.pointsDiscount) || 0);
+  if (escPosTotalSavings > 0) {
+    writeTextLine(divider);
+    writeBytes(BOLD_ON);
+    writeBytes(ALIGN_CENTER);
+    writeTextLine(`*** YOU SAVED ${currency} ${escPosTotalSavings.toFixed(2)} TODAY! ***`);
+    writeBytes(BOLD_OFF);
+    writeBytes(ALIGN_LEFT);
+  }
   
   writeTextLine(divider);
   writeBytes(ALIGN_CENTER);
@@ -1037,9 +1054,19 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
     `Online`;
 
-  const discountRow = order.discountAmount && order.discountAmount > 0
-    ? `<tr><td colspan="2">Discount${order.discountType === 'percent' ? ` (${order.discount}%)` : ''}</td><td style="text-align:right">-${order.discountAmount.toFixed(2)}</td></tr>`
-    : '';
+  const promoAmt = Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0;
+  const manualDiscAmt = Math.max(0, (Number(order.discountAmount) || 0) - promoAmt);
+  const browserTotalSavings = (Number(order.discountAmount) || 0) + (Number(order.pointsDiscount) || 0);
+
+  let discountRows = '';
+  if (promoAmt > 0) {
+    discountRows += `<tr><td colspan="2" style="color:#059669;font-weight:600">Offer: ${order.appliedOffer?.name || 'Promo'}</td><td style="text-align:right;color:#059669;font-weight:600">-${promoAmt.toFixed(2)}</td></tr>`;
+  }
+  if (manualDiscAmt > 0) {
+    discountRows += `<tr><td colspan="2">Discount${order.discountType === 'percent' ? ` (${order.discount}%)` : ''}</td><td style="text-align:right">-${manualDiscAmt.toFixed(2)}</td></tr>`;
+  }
+
+  const discountRow = discountRows;
 
   const bodyWidth = is58mm ? '52mm' : '76mm';
   const baseFontSize = is58mm ? '10.5px' : '12px';
@@ -1116,6 +1143,11 @@ ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
     <td style="text-align:right">${(order.total ?? 0).toFixed(2)}</td>
   </tr>
 </table>
+${browserTotalSavings > 0 ? `
+<div style="margin: 6px 0; padding: 4px; border: 1px dashed #059669; text-align: center; font-size: 11px; font-weight: bold; color: #059669; border-radius: 4px;">
+  🎉 You Saved ${currency} ${browserTotalSavings.toFixed(2)} today!
+</div>
+` : ''}
 <div class="divider"></div>
 <div>Payment: ${(order.paymentMethod ?? 'cash').toUpperCase()}</div>
 ${order.upiRef ? `<div style="font-size:10px">UPI Ref: ${order.upiRef}</div>` : ''}
@@ -1321,10 +1353,16 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
             <td style="padding: 4px 0; color: #4b5563;">Item Subtotal:</td>
             <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #111827;">${currency} ${(order.subtotal ?? 0).toFixed(2)}</td>
           </tr>
-          ${order.discountAmount && order.discountAmount > 0 ? `
+          ${Number(order.appliedOffer?.discountAmount || order.promoDiscount) > 0 ? `
+          <tr>
+            <td style="padding: 4px 0; color: #059669; font-weight: 600;">Offer (${order.appliedOffer?.name || 'Promo'}):</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #059669;">-${currency} ${(Number(order.appliedOffer?.discountAmount || order.promoDiscount)).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${Math.max(0, (Number(order.discountAmount) || 0) - (Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0)) > 0 ? `
           <tr>
             <td style="padding: 4px 0; color: #dc2626;">Discount${order.discountType === 'percent' ? ` (${order.discount}%)` : ''}:</td>
-            <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #dc2626;">-${currency} ${(order.discountAmount).toFixed(2)}</td>
+            <td style="text-align: right; padding: 4px 0; font-weight: 600; color: #dc2626;">-${currency} ${Math.max(0, (Number(order.discountAmount) || 0) - (Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0)).toFixed(2)}</td>
           </tr>
           ` : ''}
           ${taxRowsHtml}

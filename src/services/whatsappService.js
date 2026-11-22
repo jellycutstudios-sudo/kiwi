@@ -50,7 +50,10 @@ export function buildReceiptText({
   currency = 'INR',
   paymentMethod = 'CASH',
   receiptUrl = '',
-  promoText = ''
+  promoText = '',
+  appliedOffer = null,
+  discountAmount = 0,
+  totalSavings = 0
 }) {
   const shortId = orderId ? orderId.slice(-6).toUpperCase() : 'N/A';
   const now = new Date();
@@ -78,9 +81,23 @@ export function buildReceiptText({
     text += `\n`;
   }
 
+  const effectiveSavings = totalSavings > 0 ? totalSavings : (discountAmount || 0);
+  if (appliedOffer?.discountAmount > 0 || discountAmount > 0) {
+    if (appliedOffer?.name) {
+      text += `🎉 *Offer Applied:* ${appliedOffer.name} (-${formatCurrency(appliedOffer.discountAmount || discountAmount, currency)})\n`;
+    } else if (discountAmount > 0) {
+      text += `🏷️ *Discount:* -${formatCurrency(discountAmount, currency)}\n`;
+    }
+  }
+
   text += `━━━━━━━━━━━━━━━━━━━━\n`;
   text += `*TOTAL PAID: ${formatCurrency(total, currency)}*\n`;
-  text += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━\n`;
+
+  if (effectiveSavings > 0) {
+    text += `💰 *You Saved:* ${formatCurrency(effectiveSavings, currency)} today! 🎉\n`;
+  }
+  text += `\n`;
 
   if (receiptUrl) {
     text += `🔗 *View Full Digital Tax Invoice:*\n${receiptUrl}\n\n`;
@@ -120,7 +137,10 @@ export async function sendWhatsAppReceipt({
   total = 0,
   currency = 'INR',
   paymentMethod = 'CASH',
-  token = null
+  token = null,
+  appliedOffer = null,
+  discountAmount = 0,
+  totalSavings = 0
 }) {
   const config = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
   const isEnabled = config?.enabled === true || (config?.enabled !== false && Boolean(config?.phoneNumberId && config?.accessToken));
@@ -184,7 +204,10 @@ export async function sendWhatsAppReceipt({
         currency,
         paymentMethod,
         receiptUrl,
-        promoText
+        promoText,
+        appliedOffer,
+        discountAmount,
+        totalSavings
       });
 
       payload = {

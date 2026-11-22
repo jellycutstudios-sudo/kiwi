@@ -49,7 +49,10 @@ export default function DigitalReceiptModal({
         total,
         currency,
         paymentMethod: order?.paymentMethod || 'CASH',
-        token: order?.token || null
+        token: order?.token || null,
+        appliedOffer: order?.appliedOffer || null,
+        discountAmount: Number(order?.discountAmount) || 0,
+        totalSavings: (Number(order?.discountAmount) || 0) + (Number(order?.pointsDiscount) || 0)
       });
 
       if (res.ok) {
@@ -73,9 +76,18 @@ export default function DigitalReceiptModal({
     items.forEach(it => {
       billText += `• ${it.name} x${it.qty || 1} - ${formatCurrency((it.price || 0) * (it.qty || 1), currency)}\n`;
     });
+    const orderSavings = (Number(order?.discountAmount) || 0) + (Number(order?.pointsDiscount) || 0);
+    if (order?.appliedOffer?.name) {
+      billText += `🎉 Offer: ${order.appliedOffer.name} (-${formatCurrency(order.appliedOffer.discountAmount || order?.discountAmount, currency)})\n`;
+    } else if (order?.discountAmount > 0) {
+      billText += `🏷️ Discount: -${formatCurrency(order.discountAmount, currency)}\n`;
+    }
     billText += `-------------------------\n`;
-    billText += `*Total: ${formatCurrency(total, currency)}*\n\n`;
-    billText += `View your digital e-bill online: ${receiptUrl}\n`;
+    billText += `*Total: ${formatCurrency(total, currency)}*\n`;
+    if (orderSavings > 0) {
+      billText += `💰 *You Saved:* ${formatCurrency(orderSavings, currency)} today! 🎉\n`;
+    }
+    billText += `\nView your digital e-bill online: ${receiptUrl}\n`;
     billText += `Thank you for your visit! ✨`;
 
     const encoded = encodeURIComponent(billText);
@@ -121,6 +133,24 @@ export default function DigitalReceiptModal({
             <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '2px' }}>
               Order #{orderId.slice(-6).toUpperCase()} · {order?.paymentMethod?.toUpperCase() || 'CASH'}
             </div>
+            {((Number(order?.discountAmount) || 0) + (Number(order?.pointsDiscount) || 0)) > 0 && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                marginTop: '6px',
+                padding: '3px 10px',
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '12px',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                color: '#10b981'
+              }}>
+                🎉 You Saved {formatCurrency((Number(order?.discountAmount) || 0) + (Number(order?.pointsDiscount) || 0), currency)}!
+                {order?.appliedOffer?.name ? ` (${order.appliedOffer.name})` : ''}
+              </div>
+            )}
           </div>
 
           {/* QR Code Container */}

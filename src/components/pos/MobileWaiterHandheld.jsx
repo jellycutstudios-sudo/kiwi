@@ -14,6 +14,8 @@ import { transliterateFood, SUPPORTED_WAITER_LANGUAGES } from '../../utils/foodT
 import toast from 'react-hot-toast';
 import ModifierModal from './ModifierModal';
 import TouchQuantityPadModal from './TouchQuantityPadModal';
+import OffersDrawerModal from './OffersDrawerModal';
+import { evaluateBogo } from '../../utils/promoEngine';
 
 const COMMON_ALLERGIES = [
   { id: 'nut_free', label: '🥜 Nut Allergy' },
@@ -72,8 +74,14 @@ export default function MobileWaiterHandheld({
     items, addItem, updateQty, removeItem,
     tableId, tableName, setTable, setOrderType, orderType,
     loadOrderToCart, setItemDetails, fireHeldItems,
-    note, setNote
+    note, setNote,
+    appliedOffer, setAppliedOffer, clearAppliedOffer, getSubtotal
   } = useOrderStore();
+
+  const [showOffersModal, setShowOffersModal] = useState(false);
+  const bogoEvaluation = useMemo(() => {
+    return evaluateBogo(items, ['pizza', 'mains', 'burgers', 'bogo']);
+  }, [items]);
 
   const isKitchenActive = useMemo(() => {
     if (typeof isKitchenActiveProp === 'boolean') return isKitchenActiveProp;
@@ -986,6 +994,107 @@ export default function MobileWaiterHandheld({
                 </div>
               )}
 
+              {/* BOGO Upsell Nudge Banner */}
+              {bogoEvaluation.nudge && !appliedOffer && (
+                <div style={{
+                  marginTop: 10,
+                  padding: '8px 10px',
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08))',
+                  border: '1px dashed rgba(239, 68, 68, 0.4)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 6
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                    <span style={{ fontSize: 13 }}>🔥</span>
+                    <span>Add 1 more <strong>{bogoEvaluation.nudge.itemName}</strong> for <strong>FREE</strong>!</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = items.find(i => i.id === bogoEvaluation.nudge.itemId);
+                      if (target) {
+                        addItem(target);
+                        setAppliedOffer({
+                          id: 'bogo_pizza',
+                          name: 'BOGO - Buy 1 Get 1 Free',
+                          tag: 'BOGO',
+                          type: 'bogo',
+                          discountAmount: bogoEvaluation.nudge.potentialSavings,
+                          itemDiscounts: { [target.id]: bogoEvaluation.nudge.potentialSavings }
+                        });
+                        toast.success(`BOGO applied! 1 Free ${target.name}`, { icon: '🎁' });
+                      }
+                    }}
+                    style={{
+                      background: '#ef4444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: '4px 8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Add Free 1
+                  </button>
+                </div>
+              )}
+
+              {/* Active Offer Chip or Offers Drawer Trigger */}
+              {items.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  {appliedOffer ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 8
+                    }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        🔥 {appliedOffer.name} (-{formatCurrency(appliedOffer.discountAmount, currency)})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => clearAppliedOffer()}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2 }}
+                        title="Remove offer"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowOffersModal(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        width: '100%',
+                        padding: '7px',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: 8,
+                        color: '#ef4444',
+                        fontWeight: 700,
+                        fontSize: 11.5,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🎁 Apply Offer / Deals
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Overall Table / Kitchen Order Note */}
               {items.length > 0 && (
                 <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 10, border: '1px solid var(--color-separator)' }}>
@@ -1438,6 +1547,22 @@ export default function MobileWaiterHandheld({
         onConfirm={(newQ) => keypadItem?.onConfirm?.(newQ)}
         onClose={() => setKeypadItem(null)}
       />
+
+      {/* ── Offers & BOGO Drawer Modal ── */}
+      {showOffersModal && (
+        <OffersDrawerModal
+          isOpen={showOffersModal}
+          onClose={() => setShowOffersModal(false)}
+          items={items}
+          subtotal={getSubtotal ? getSubtotal() : 0}
+          currency={currency}
+          restaurant={restaurant}
+          appliedOffer={appliedOffer}
+          onApplyOffer={(offer) => setAppliedOffer(offer)}
+          onRemoveOffer={() => clearAppliedOffer()}
+          onQuickAddItem={(item) => addItem(item)}
+        />
+      )}
     </div>
   );
 }

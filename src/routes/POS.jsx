@@ -30,7 +30,7 @@ import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import CustomerModal from '../components/pos/CustomerModal';
 import OffersDrawerModal from '../components/pos/OffersDrawerModal';
-import { evaluateBogo } from '../utils/promoEngine';
+import { evaluateBogo, DEFAULT_OFFERS } from '../utils/promoEngine';
 import { sendWhatsAppReceipt } from '../services/whatsappService';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
@@ -911,13 +911,39 @@ export default function POS() {
     }
   };
 
+  // Active Offers configured or fallback
+  const activeOffers = useMemo(() => {
+    return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
+  }, [restaurant?.offers]);
+
   // Menu items from active category (or all categories when searching) + dietary filter
   const displayItems = useMemo(() => {
     const searchStr = typeof search === 'string' ? search.trim() : '';
-    // When searching, search across all items regardless of active category tab
-    const rawItems = (activeCat === 'all' || searchStr)
-      ? categories.flatMap(c => (c.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || c.id, categoryName: i.categoryName || c.name })))
-      : (categories.find(c => c.id === activeCat)?.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || activeCat, categoryName: i.categoryName || categories.find(c => c.id === activeCat)?.name }));
+    // When searching or viewing deals, search across all items
+    let rawItems;
+    if (activeCat === 'deals' || activeCat === 'all' || searchStr) {
+      rawItems = categories.flatMap(c => (c.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || c.id, categoryName: i.categoryName || c.name })));
+    } else {
+      rawItems = (categories.find(c => c.id === activeCat)?.items ?? []).map(i => ({ ...i, categoryId: i.categoryId || activeCat, categoryName: i.categoryName || categories.find(c => c.id === activeCat)?.name }));
+    }
+
+    if (activeCat === 'deals') {
+      rawItems = rawItems.filter(item => {
+        if (item.isBogo || (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) || item.name?.toLowerCase().includes('bogo')) return true;
+        const cat = (item.categoryName || item.categoryId || '').toLowerCase();
+        return activeOffers.some(off => {
+          if (off.type === 'bogo') {
+            const filters = off.categoryFilter || [];
+            return filters.some(f => cat.includes(f.toLowerCase()));
+          }
+          if (off.type === 'percent_category') {
+            const target = (off.targetCategory || '').toLowerCase();
+            return target && cat.includes(target);
+          }
+          return false;
+        });
+      });
+    }
 
     let filtered = rawItems;
     let effectiveDietary = dietaryFilter;
@@ -990,7 +1016,7 @@ export default function POS() {
     }
 
     return filtered;
-  }, [categories, activeCat, search, dietaryFilter, itemSalesMap]);
+  }, [categories, activeCat, search, dietaryFilter, itemSalesMap, activeOffers]);
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
@@ -1575,6 +1601,20 @@ export default function POS() {
                   <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
                 </button>
 
+                {/* Deals / Offers Quick Filter */}
+                <button
+                  id="cat-deals-rail"
+                  type="button"
+                  role="tab"
+                  aria-selected={activeCat === 'deals'}
+                  className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                  title="View All Promotional Deals & BOGO Items"
+                  style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                >
+                  <span className="category-chip-name">⚡ Offers</span>
+                </button>
+
                 {/* All Category Chips in Left Rail */}
                 {categories.map(c => (
                   <button
@@ -1621,8 +1661,22 @@ export default function POS() {
                   <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
                 </button>
 
+                {/* Deals / Offers Quick Filter */}
+                <button
+                  id="cat-deals-rail"
+                  type="button"
+                  role="tab"
+                  aria-selected={activeCat === 'deals'}
+                  className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                  title="View All Promotional Deals & BOGO Items"
+                  style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                >
+                  <span className="category-chip-name">⚡ Offers</span>
+                </button>
+
                 {/* Active Category Chip with 1-click Clear */}
-                {activeCat !== 'all' && (() => {
+                {activeCat !== 'all' && activeCat !== 'deals' && (() => {
                   const currentCat = categories.find(c => c.id === activeCat);
                   if (!currentCat) return null;
                   return (
@@ -1933,6 +1987,39 @@ export default function POS() {
                   {qty > 0 && (
                     <div className="menu-item-qty-badge">{qty}</div>
                   )}
+
+                  {/* Promotional Offer / BOGO Badge */}
+                  {(() => {
+                    if (item.isBogo || (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) || item.name?.toLowerCase().includes('bogo')) {
+                      return (
+                        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span>🔥</span><span>BOGO</span>
+                        </div>
+                      );
+                    }
+                    const matchedOffer = activeOffers.find(off => {
+                      const cat = (item.categoryName || item.categoryId || '').toLowerCase();
+                      if (off.type === 'bogo') {
+                        return (off.categoryFilter || []).some(f => cat.includes(f.toLowerCase()));
+                      }
+                      if (off.type === 'percent_category') {
+                        return off.targetCategory && cat.includes(off.targetCategory.toLowerCase());
+                      }
+                      return false;
+                    });
+                    if (matchedOffer) {
+                      const isBogo = matchedOffer.type === 'bogo';
+                      const tag = isBogo ? (matchedOffer.tag || 'BOGO') : `${matchedOffer.discountPercent}% OFF`;
+                      const color = matchedOffer.badgeColor || (isBogo ? '#ef4444' : '#f59e0b');
+                      const icon = matchedOffer.icon || (isBogo ? '🔥' : '🍹');
+                      return (
+                        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: color, color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span>{icon}</span><span>{tag}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <div className={`menu-item-img-wrap ${!(item.imageUrl || item.image) ? 'has-placeholder' : ''}`}>
                     {item.imageUrl || item.image ? (
                       <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />

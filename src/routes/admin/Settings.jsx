@@ -9,7 +9,8 @@ import {
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, ArrowRight, Tv, ExternalLink,
   Download, ShieldCheck, Bot, Zap, Lock, Mail, MessageSquare, Send,
-  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown, Monitor, HelpCircle
+  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown, Monitor, HelpCircle,
+  Tag
 } from 'lucide-react';
 import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
@@ -22,6 +23,7 @@ import ReceiptDesigner from '../../components/settings/ReceiptDesigner';
 import KitchenSettings from '../../components/settings/KitchenSettings';
 import TaxCalculatorHelper from '../../components/settings/TaxCalculatorHelper';
 import AdminSecuritySettings from '../../components/settings/AdminSecuritySettings';
+import OffersManagerSettings from '../../components/settings/OffersManagerSettings';
 import { useUpdateStore } from '../../stores/updateStore';
 import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { saveLocalGroqApiKey } from '../../services/groqService';
@@ -38,6 +40,7 @@ const MODES = [
   { key: 'table',            label: 'Table Management',       desc: 'Floor plan, visual tables & dining timers', tab: 'workflows', tabName: 'Workflows' },
   { key: 'token',            label: 'QSR Token Queue',        desc: 'Token issuance & live TV queue screen', tab: 'displays', tabName: 'Displays' },
   { key: 'barcode',          label: 'Barcode Scanner',        desc: 'USB & Bluetooth barcode gun scan-to-cart', tab: 'workflows', tabName: 'Workflows' },
+  { key: 'offers',           label: 'Offers, BOGO & Deals',    desc: 'Auto Buy-1-Get-1, happy hours & coupons', tab: 'promotions', tabName: 'Offers & Deals' },
 
   // 2. Kitchen & Fulfillment
   { key: 'kds',              label: 'Kitchen Display & KOT',   desc: 'Paperless KDS & thermal kitchen tickets', tab: 'kitchen', tabName: 'Kitchen' },
@@ -66,7 +69,7 @@ const MODES = [
 ];
 
 const MODULE_PILLARS = [
-  { id: 'core',       title: 'Core Operations & Formats', badge: 'Core POS', keys: ['pos', 'table', 'token', 'barcode'] },
+  { id: 'core',       title: 'Core Operations & Formats', badge: 'Core POS', keys: ['pos', 'table', 'token', 'barcode', 'offers'] },
   { id: 'kitchen',    title: 'Kitchen & Fulfillment',    badge: 'Kitchen',  keys: ['kds'] },
   { id: 'channels',   title: 'Sales Channels',            badge: 'Ordering', keys: ['online', 'delivery_hub', 'reservations'] },
   { id: 'displays',   title: 'Digital Displays & TV',     badge: 'Displays', keys: ['posters'] },
@@ -133,6 +136,7 @@ const TABS = [
   { id: 'kitchen',       label: 'Kitchen & KDS',           shortLabel: 'Kitchen',      icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
   { id: 'tax-pay',       label: 'Payments, Card Machines & Taxes', shortLabel: 'Payment Machines & Taxes', icon: CreditCard, keywords: ['payment machine', 'card machine', 'edc', 'terminal', 'pos machine', 'swipe machine', 'paytm', 'pinelabs', 'razorpay', 'stripe', 'tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'upi', 'tally'] },
   { id: 'receipts',      label: 'Receipt Designer',        shortLabel: 'Receipts',     icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
+  { id: 'promotions',    label: 'Offers, BOGO & Deals',    shortLabel: 'Offers & Deals', icon: Tag, keywords: ['offer', 'promo', 'bogo', 'coupon', 'happy hour', 'deal', 'discount', 'voucher'] },
   { id: 'displays',      label: 'Digital Displays & TV',   shortLabel: 'Displays',     icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url', 'kiosk', 'self service', 'touch screen'] },
   { id: 'online-del',    label: 'Online Store & Delivery', shortLabel: 'Online Store', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
   { id: 'hardware',      label: 'Peripherals & Printers',  shortLabel: 'Printers & Hardware', icon: Printer, keywords: ['printer', 'hardware', 'payment machine', 'edc', 'terminal', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
@@ -3296,6 +3300,14 @@ export default function Settings() {
           {/* Receipt Designer Tab */}
           {activeTab === 'receipts' && (
             <ReceiptDesigner settings={settings} updateField={updateField} />
+          )}
+
+          {/* Offers, BOGO & Deals Tab */}
+          {activeTab === 'promotions' && (
+            <OffersManagerSettings
+              restaurant={restaurant}
+              currency={settings.currency || 'INR'}
+            />
           )}
 
           {/* Taxes & Payments Tab */}
