@@ -900,7 +900,10 @@ export default function Settings() {
         accessToken: waConfig.accessToken.trim(),
         testPhone: testWhatsAppPhone.trim(),
         defaultCountryCode: waConfig.defaultCountryCode || '91',
-        restaurantName: restaurant?.name || 'Kiwi POS'
+        restaurantName: restaurant?.name || 'Kiwi POS',
+        mode: waConfig.mode || 'text',
+        templateName: waConfig.templateName || 'digital_receipt',
+        templateLanguage: waConfig.templateLanguage || 'en_US'
       });
       if (res.ok) {
         toast.success('Test WhatsApp message delivered successfully!', { icon: '💬', duration: 5000 });

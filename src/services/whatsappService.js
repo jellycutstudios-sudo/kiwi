@@ -157,7 +157,7 @@ export async function sendWhatsAppReceipt({
         type: 'template',
         template: {
           name: templateName,
-          language: { code: config.templateLanguage || 'en' },
+          language: { code: config.templateLanguage || 'en_US' },
           components: [
             {
               type: 'body',
@@ -235,7 +235,10 @@ export async function sendWhatsAppTestMessage({
   accessToken,
   testPhone,
   defaultCountryCode = '91',
-  restaurantName = 'Kiwi POS'
+  restaurantName = 'Kiwi POS',
+  mode = 'text',
+  templateName = 'digital_receipt',
+  templateLanguage = 'en_US'
 }) {
   if (!phoneNumberId || !accessToken) {
     return { ok: false, error: 'Enter Phone Number ID and Access Token before testing.' };
@@ -249,10 +252,47 @@ export async function sendWhatsAppTestMessage({
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  const testBody = `✅ *Meta WhatsApp Cloud API Connected!*\n\n` +
-    `Hello from *${restaurantName}*!\n\n` +
-    `Your automated WhatsApp receipt integration is working properly. Digital e-bills will now automatically deliver to your customers upon checkout.\n\n` +
-    `_Sent via Kiwi POS Meta Cloud Integration · ${new Date().toLocaleTimeString()}_`;
+  let payload;
+  if (mode === 'template' && templateName) {
+    payload = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: formattedPhone,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: templateLanguage || 'en_US' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: 'Guest' },
+              { type: 'text', text: restaurantName },
+              { type: 'text', text: '#TEST-01' },
+              { type: 'text', text: '₹100.00' },
+              { type: 'text', text: 'https://dineos.app' }
+            ]
+          }
+        ]
+      }
+    };
+  } else {
+    const testBody = `✅ *Meta WhatsApp Cloud API Connected!*\n\n` +
+      `Hello from *${restaurantName}*!\n\n` +
+      `Your automated WhatsApp receipt integration is working properly. Digital e-bills will now automatically deliver to your customers upon checkout.\n\n` +
+      `_Sent via Kiwi POS Meta Cloud Integration · ${new Date().toLocaleTimeString()}_`;
+
+    payload = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: formattedPhone,
+      type: 'text',
+      text: {
+        preview_url: false,
+        body: testBody
+      }
+    };
+  }
 
   try {
     const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
@@ -261,16 +301,7 @@ export async function sendWhatsAppTestMessage({
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: formattedPhone,
-        type: 'text',
-        text: {
-          preview_url: false,
-          body: testBody
-        }
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal
     });
 
