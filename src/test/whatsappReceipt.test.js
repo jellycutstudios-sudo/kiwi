@@ -250,7 +250,41 @@ describe('WhatsApp Receipt Service (Meta Cloud API)', () => {
       });
 
       expect(res.ok).toBe(false);
-      expect(res.error).toContain('Invalid OAuth access token');
+      expect(res.error).toContain('Invalid or expired Access Token');
+    });
+
+    it('returns helpful explanation when recipient is not in Meta sandbox allowed list', async () => {
+      const restaurant = {
+        settings: {
+          whatsapp: {
+            enabled: true,
+            phoneNumberId: 'phone_id_999',
+            accessToken: 'valid_token'
+          }
+        }
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: {
+            message: '(#131030) Recipient phone number not in allowed list',
+            type: 'OAuthException',
+            code: 131030
+          }
+        })
+      });
+
+      const res = await sendWhatsAppReceipt({
+        restaurant,
+        orderId: 'order_123',
+        customerPhone: '9400018008'
+      });
+
+      expect(res.ok).toBe(false);
+      expect(res.error).toContain('Recipient number not in allowed list');
+      expect(res.error).toContain('developers.facebook.com');
     });
 
     it('sends test verification message via sendWhatsAppTestMessage', async () => {

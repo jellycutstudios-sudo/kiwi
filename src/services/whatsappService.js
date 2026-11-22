@@ -95,6 +95,18 @@ export function buildReceiptText({
   return text;
 }
 
+function normalizeMetaError(data, status) {
+  const code = data?.error?.code;
+  const rawMsg = data?.error?.message || `Meta API Error (${status})`;
+  if (code === 131030 || rawMsg.includes('not in allowed list')) {
+    return 'Recipient number not in allowed list. In Meta sandbox mode, please whitelist this mobile number in the "Recipient" dropdown on developers.facebook.com first.';
+  }
+  if (code === 190 || rawMsg.includes('OAuth')) {
+    return 'Invalid or expired Access Token. Please refresh your token in developers.facebook.com.';
+  }
+  return rawMsg;
+}
+
 /**
  * Sends a digital receipt via Meta WhatsApp Cloud API.
  * Never throws — returns { ok: boolean, error?: string, messageId?: string }.
@@ -200,7 +212,7 @@ export async function sendWhatsAppReceipt({
     const data = await response.json();
 
     if (!response.ok) {
-      const errMsg = data?.error?.message || `Meta API Error (${response.status})`;
+      const errMsg = normalizeMetaError(data, response.status);
       console.warn('[WhatsApp Cloud API] Delivery failed:', errMsg);
       return { ok: false, error: errMsg };
     }
@@ -266,7 +278,7 @@ export async function sendWhatsAppTestMessage({
     const data = await response.json();
 
     if (!response.ok) {
-      const errMsg = data?.error?.message || `Meta API error (${response.status})`;
+      const errMsg = normalizeMetaError(data, response.status);
       return { ok: false, error: errMsg };
     }
 
