@@ -226,15 +226,15 @@
      TRANSITIONS (Apple & Linear Caliber Design Tokens)
      =================================================== */
   --ease-spring:       cubic-bezier(0.16, 1, 0.3, 1);     /* Smooth damped spring (zero wobble) */
-  --ease-spring-soft:  cubic-bezier(0.25, 1, 0.35, 1);    /* Gentle organic spring */
-  --ease-spring-pop:   cubic-bezier(0.34, 1.25, 0.64, 1); /* Playful micro-pop */
+  --ease-spring-soft:  cubic-bezier(0.2, 1, 0.3, 1);      /* Gentle organic spring */
+  --ease-spring-pop:   cubic-bezier(0.16, 1, 0.3, 1);     /* Crisp damped response (no overshoot) */
   --ease-out:          cubic-bezier(0.16, 1, 0.3, 1);     /* Smooth deceleration */
   --ease-in-out:       cubic-bezier(0.4, 0, 0.2, 1);      /* Standard smooth curve */
   --ease-tactile:      cubic-bezier(0.2, 0.8, 0.2, 1);    /* Immediate tactile response */
-  --duration-instant:  80ms;
-  --duration-fast:     140ms;
-  --duration-normal:   220ms;
-  --duration-slow:     350ms;
+  --duration-instant:  70ms;
+  --duration-fast:     110ms;
+  --duration-normal:   160ms;
+  --duration-slow:     280ms;
 
   /* ===================================================
      Z-INDEX
@@ -4309,11 +4309,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   transform: translateY(-2px);
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
 }
 
 .menu-key-card:active {
-  transform: translateY(1px) scale(0.985);
+  transform: scale(0.98);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
@@ -4505,10 +4505,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.22s var(--ease-spring-pop),
-              box-shadow 0.22s var(--ease-spring-pop),
-              border-color 0.15s ease,
-              background 0.15s ease;
+  transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.1s ease,
+              background-color 0.1s ease;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -4517,8 +4517,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  content-visibility: auto;
-  contain-intrinsic-size: 0 180px;
 }
 
 [data-theme="dark"] .menu-item-card {
@@ -4528,10 +4526,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   background: #ffffff;
   border-color: #94a3b8;
-  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.1), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 6px 18px -4px rgba(15, 23, 42, 0.1), 0 3px 8px -2px rgba(15, 23, 42, 0.05);
 }
 
 [data-theme="dark"] .menu-item-card:hover {
@@ -4541,7 +4539,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-card:active {
-  transform: translateY(3px) scale(0.97);
+  transform: scale(0.975);
   box-shadow: var(--clay-press);
 }
 
@@ -4552,14 +4550,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-card.in-cart:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   background: #ecfdf5;
   border-color: #15803d;
   box-shadow: 0 4px 16px rgba(22, 163, 74, 0.25), inset 0 0 0 1px rgba(22, 163, 74, 0.3);
 }
 
 .menu-item-card.in-cart:active {
-  transform: translateY(3px) scale(0.97);
+  transform: scale(0.975);
   box-shadow: var(--clay-press);
 }
 
@@ -4827,11 +4825,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   justify-content: center;
   box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
   z-index: var(--z-raised);
-  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: popIn 0.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes popIn {
-  0% { transform: scale(0); opacity: 0; }
+  0% { transform: scale(0.6); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
@@ -5995,7 +5993,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   cursor: pointer;
-  transition: transform 0.18s var(--ease-spring-pop), box-shadow 0.18s var(--ease-spring-pop), border-color 0.14s ease, background 0.12s ease;
+  transition: border-color 0.1s ease, background 0.1s ease, box-shadow 0.1s ease;
 }
 
 .cart-item-card:active {
@@ -6133,7 +6131,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   color: var(--color-label);
   padding: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: transform 0.12s var(--ease-spring-pop), border-color 0.1s ease, box-shadow 0.12s ease;
+  transition: transform 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -13311,16 +13309,21 @@ body,
   border: 1px solid var(--color-separator);
 }
 
-/* Page & view transitions */
+/* Page & view transitions - Fast, zero vertical canvas shift */
 .main-content, .pos-layout, .page-container {
-  animation: pageReveal var(--duration-normal) var(--ease-out);
+  animation: pageReveal 0.12s var(--ease-out);
+}
+
+@keyframes pageReveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* Hover & tactile effects for cards */
 .card {
-  transition: transform var(--duration-normal) var(--ease-out), 
-              box-shadow var(--duration-normal) var(--ease-out),
-              border-color var(--duration-normal) ease;
+  transition: transform var(--duration-fast) var(--ease-out), 
+              box-shadow var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) ease;
 }
 
 .card:hover {
@@ -13334,24 +13337,24 @@ body,
 
 /* Smooth transition for theme colors */
 body, .sidebar, .top-bar, .main-content {
-  transition: background-color var(--duration-normal) ease, 
-              border-color var(--duration-normal) ease, 
-              color var(--duration-normal) ease;
+  transition: background-color var(--duration-fast) ease, 
+              border-color var(--duration-fast) ease, 
+              color var(--duration-fast) ease;
 }
 
-/* Smooth vertical slide in for cart items */
+/* Smooth fade & micro-scale in for cart items (instant 90ms, zero vertical displacement) */
 .cart-item, .cart-item-card {
-  animation: cartItemSlideIn var(--duration-fast) var(--ease-out) forwards;
+  animation: cartItemSlideIn 0.09s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes cartItemSlideIn {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(0.98);
+    transform: scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
 }
 
@@ -13360,53 +13363,51 @@ button:active:not(:disabled),
 .interactive-chip:active,
 .btn-icon:active:not(:disabled),
 .cart-stepper-btn:active {
-  transform: scale(0.95) translateY(0.5px);
+  transform: scale(0.96);
   transition-duration: var(--duration-instant);
 }
 
-/* Modal dialog smooth entrance */
+/* Modal dialog smooth entrance - Hardware accelerated (static blur, opacity animation only) */
 .modal-overlay {
-  animation: modalBackdropFadeIn var(--duration-normal) var(--ease-out) forwards;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: modalBackdropFadeIn 0.14s var(--ease-out) forwards;
 }
 
 .modal, .modal-content {
-  animation: modalSlideUp var(--duration-normal) var(--ease-spring) forwards;
+  animation: modalSlideUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes modalBackdropFadeIn {
   from {
     opacity: 0;
-    backdrop-filter: blur(0px);
-    -webkit-backdrop-filter: blur(0px);
   }
   to {
     opacity: 1;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
   }
 }
 
 @keyframes modalSlideUp {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.97);
+    transform: scale(0.97) translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
 /* Popover & dropdown menu smooth float */
 .cart-course-popover, .dropdown-menu, .popover-panel {
-  animation: popoverFloatIn var(--duration-fast) var(--ease-out) forwards;
+  animation: popoverFloatIn 0.1s var(--ease-out) forwards;
   transform-origin: top center;
 }
 
 @keyframes popoverFloatIn {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(-4px);
+    transform: scale(0.97) translateY(-3px);
   }
   to {
     opacity: 1;
@@ -18752,15 +18753,15 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 [data-theme="dark"] .menu-item-card.in-cart,
 [data-theme="dark"] .menu-key-card.in-cart {
-  background: linear-gradient(165deg, #132820 0%, #0d1c16 100%) !important;
-  border: 1.5px solid rgba(16, 185, 129, 0.45) !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(16, 185, 129, 0.3) !important;
+  background: #11231b !important;
+  border: 1.5px solid #10b981 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 12px rgba(16, 185, 129, 0.25) !important;
 }
 
 [data-theme="dark"] .menu-item-card.in-cart:hover,
 [data-theme="dark"] .menu-key-card.in-cart:hover {
-  border-color: #10b981 !important;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.4) !important;
+  border-color: #34d399 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(16, 185, 129, 0.35) !important;
 }
 
 [data-theme="dark"] .menu-item-body {

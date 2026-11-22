@@ -301,17 +301,7 @@ export default function POS() {
   const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  const prevItemCountRef = useRef(0);
-
-  useEffect(() => {
-    // Auto-collapse order header when first item is added, auto-expand when cart is cleared
-    if (prevItemCountRef.current === 0 && items.length > 0) {
-      setIsHeaderCollapsed(true);
-    } else if (items.length === 0) {
-      setIsHeaderCollapsed(false);
-    }
-    prevItemCountRef.current = items.length;
-  }, [items.length]);
+  // Header remains stable when adding items (CLS = 0) to avoid jarring layout shifts; can still be toggled manually by cashier via Hide/Show Details
 
   const [showPayment, setShowPayment] = useState(false);
   const [showSplitBillModal, setShowSplitBillModal] = useState(false);
@@ -2187,7 +2177,7 @@ export default function POS() {
                             {(() => {
                               if (item.isBogo || (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) || item.name?.toLowerCase().includes('bogo')) {
                                 return (
-                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
                                     <span>🔥</span><span>BOGO</span>
                                   </div>
                                 );
@@ -2208,7 +2198,7 @@ export default function POS() {
                                 const color = matchedOffer.badgeColor || (isBogo ? '#ef4444' : '#f59e0b');
                                 const icon = matchedOffer.icon || (isBogo ? '🔥' : '🍹');
                                 return (
-                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: color, color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: color, color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
                                     <span>{icon}</span><span>{tag}</span>
                                   </div>
                                 );
