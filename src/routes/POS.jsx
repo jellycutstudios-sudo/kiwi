@@ -1767,6 +1767,7 @@ export default function POS() {
                     aria-selected={activeCat === c.id}
                     className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
                     onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                    title={c.name}
                   >
                     <span className="category-chip-name">{c.name}</span>
                     {c.items?.length > 0 && (
