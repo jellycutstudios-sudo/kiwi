@@ -492,6 +492,11 @@ export default function POS() {
   }, [settledChecks]);
   const remainingTotal = settledTotal > 0 ? Math.max(0, Math.round((total - settledTotal) * 100) / 100) : total;
 
+  // Active Offers configured or fallback
+  const activeOffers = useMemo(() => {
+    return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
+  }, [restaurant?.offers]);
+
   // Real-time BOGO & Upsell Evaluation
   const bogoEvaluation = useMemo(() => {
     const activeBogo = activeOffers.find(o => o.type === 'bogo');
@@ -915,11 +920,6 @@ export default function POS() {
       }
     }
   };
-
-  // Active Offers configured or fallback
-  const activeOffers = useMemo(() => {
-    return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
-  }, [restaurant?.offers]);
 
   // Menu items from active category (or all categories when searching) + dietary filter
   const displayItems = useMemo(() => {
