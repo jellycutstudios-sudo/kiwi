@@ -111,6 +111,22 @@ describe('WhatsApp Receipt Service (Meta Cloud API)', () => {
       expect(res.error).toMatch(/Missing Meta WhatsApp/i);
     });
 
+    it('reads configuration from root restaurant.whatsapp or nested restaurant.settings.whatsapp', async () => {
+      const restaurantRoot = {
+        whatsapp: { enabled: true, phoneNumberId: '123', accessToken: 'token' }
+      };
+      const restaurantNested = {
+        settings: { whatsapp: { enabled: true, phoneNumberId: '123', accessToken: 'token' } }
+      };
+
+      // Both should pass the credential check and reach phone validation
+      const res1 = await sendWhatsAppReceipt({ restaurant: restaurantRoot, customerPhone: '' });
+      const res2 = await sendWhatsAppReceipt({ restaurant: restaurantNested, customerPhone: '' });
+
+      expect(res1.error).toMatch(/Invalid customer phone/i);
+      expect(res2.error).toMatch(/Invalid customer phone/i);
+    });
+
     it('fails early if customer phone number is invalid', async () => {
       const restaurant = {
         settings: {

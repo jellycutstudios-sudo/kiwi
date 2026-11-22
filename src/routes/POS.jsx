@@ -1228,7 +1228,8 @@ export default function POS() {
       }
 
       // Automated WhatsApp Digital Receipt (Meta Cloud API)
-      if (snapCustomerPhone && restaurant?.settings?.whatsapp?.enabled) {
+      const waConfig = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
+      if (snapCustomerPhone && waConfig?.enabled) {
         sendWhatsAppReceipt({
           restaurant,
           orderId: res.orderId,
@@ -1244,8 +1245,12 @@ export default function POS() {
             toast.success(`WhatsApp receipt sent to +${waRes.phone}`, { icon: '📲', duration: 3000 });
           } else {
             console.warn('[POS] Auto WhatsApp receipt failed:', waRes.error);
+            toast.error(`WhatsApp receipt: ${waRes.error}`, { icon: '⚠️', duration: 4000 });
           }
-        }).catch(err => console.warn('[POS] WhatsApp send error:', err));
+        }).catch(err => {
+          console.warn('[POS] WhatsApp send error:', err);
+          toast.error(`WhatsApp error: ${err.message}`, { duration: 4000 });
+        });
       }
 
       const printOrder = {

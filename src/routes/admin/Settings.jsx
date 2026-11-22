@@ -832,6 +832,13 @@ export default function Settings() {
         }
       }
 
+      if (settingsToSave.whatsapp) {
+        settingsToSave.settings = {
+          ...(settingsToSave.settings || {}),
+          whatsapp: settingsToSave.whatsapp
+        };
+      }
+
       await updateDoc(doc(db, 'restaurants', restaurant.id), settingsToSave);
       setSettings(settingsToSave);
       initialSettingsRef.current = JSON.stringify(settingsToSave);

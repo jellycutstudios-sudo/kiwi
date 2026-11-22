@@ -22,7 +22,7 @@ export default function DigitalReceiptModal({
   const total = order?.total || 0;
   const items = order?.items || [];
   const restName = restaurant?.name || 'Kiwi POS';
-  const isWhatsAppConfigured = Boolean(restaurant?.settings?.whatsapp?.enabled && restaurant?.settings?.whatsapp?.phoneNumberId);
+  const isWhatsAppConfigured = Boolean((restaurant?.whatsapp?.enabled || restaurant?.settings?.whatsapp?.enabled) && (restaurant?.whatsapp?.phoneNumberId || restaurant?.settings?.whatsapp?.phoneNumberId));
 
   // Digital receipt public URL
   const receiptUrl = `${window.location.origin}/order/${restaurant?.slug || restaurant?.id}?receipt=${orderId}`;

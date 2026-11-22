@@ -119,7 +119,8 @@ export default function ActiveOrdersModal({
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
       // Auto-dispatch WhatsApp digital receipt if enabled and customer phone is present
       const custPhone = order.customerPhone || order.customer?.phone;
-      if (custPhone && restaurant?.settings?.whatsapp?.enabled) {
+      const waConfig = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
+      if (custPhone && waConfig?.enabled) {
         sendWhatsAppReceipt({
           restaurant,
           orderId: order.id,

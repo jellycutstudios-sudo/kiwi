@@ -553,7 +553,7 @@ export default function Transactions() {
                                     >
                                       <Printer size={13} /> Reprint
                                     </button>
-                                    {restaurant?.settings?.whatsapp?.enabled && (
+                                    {(restaurant?.whatsapp?.enabled || restaurant?.settings?.whatsapp?.enabled) && (
                                       <button 
                                         className="btn btn-sm btn-secondary"
                                         onClick={(e) => handleSendWhatsAppReceipt(e, order)}

@@ -888,7 +888,8 @@ export default function TableMap() {
 
       // WhatsApp Cloud auto-receipt dispatch
       const custPhone = orderSnapshot.customerPhone || orderSnapshot.customer?.phone;
-      if (custPhone && restaurant?.settings?.whatsapp?.enabled) {
+      const waConfig = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
+      if (custPhone && waConfig?.enabled) {
         sendWhatsAppReceipt({
           restaurant,
           orderId: orderSnapshot.id,

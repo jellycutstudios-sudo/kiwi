@@ -122,7 +122,7 @@ export async function sendWhatsAppReceipt({
   paymentMethod = 'CASH',
   token = null
 }) {
-  const config = restaurant?.settings?.whatsapp;
+  const config = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
   if (!config || !config.enabled) {
     return { ok: false, error: 'WhatsApp integration is not enabled in settings.' };
   }
