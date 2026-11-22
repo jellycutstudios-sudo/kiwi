@@ -1081,25 +1081,7 @@ export default function TableMap() {
     const isFoodReady = hasOrder && (order.status === 'ready' || readyItems.length > 0);
     const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
     const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
-    const resForTable = reservations.find(r => r.tableId === t.id);
-
-    let elapsedMins = 0;
-    if (hasOrder && order) {
-      elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
-    }
-
-    let passElapsedSecs = 0;
-    if (isFoodReady && order) {
-      const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
-      if (readyTs) {
-        const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
-        if (!isNaN(ms)) {
-          passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
-        }
-      }
-    }
-    const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
-    const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
+    const isBilled = order?.status === 'billed';
 
     return (
       <div
@@ -1115,115 +1097,39 @@ export default function TableMap() {
             setSelected(t.id);
           }
         }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (effectiveStatus === 'free') {
+              clearCart();
+              setTable(t.id, t.name);
+              setOrderType('dine-in');
+              toast.success(`Order started for ${t.name}`);
+              navigate('/pos');
+            } else {
+              setSelected(t.id);
+            }
+          }
+        }}
         className={`tm-card ${
           isFoodReady
             ? 'tm-card--ready'
+            : isBilled
+            ? 'tm-card--billed'
             : effectiveStatus === 'occupied'
             ? 'tm-card--occupied'
             : isReserved
             ? 'tm-card--reserved'
             : 'tm-card--free'
         } ${selected === t.id ? 'tm-card--selected' : ''}`}
+        title={`${t.name} • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
       >
-        {/* Top Meta Header: Capacity Pill + Status Badge */}
-        <div className="tm-card-header">
-          <span className="tm-card-cap-pill" title={`${t.capacity || 4} guests capacity`}>
-            <Users size={11} />
-            <span>{t.capacity || 4}</span>
-          </span>
-
-          {isFoodReady ? (
-            <span
-              className={`tm-badge tm-badge--ready ${isPassOverdue ? 'tm-badge--overdue' : ''}`}
-              style={isPassOverdue ? { background: '#ef4444', color: '#fff', border: '1px solid #dc2626' } : undefined}
-            >
-              <span className="tm-badge-dot" />
-              <span style={{ fontSize: 10.5 }}>{isPassOverdue ? 'PASS' : 'READY'}</span>
-              <span className="tm-badge-timer">{passTimerStr}</span>
-            </span>
-          ) : effectiveStatus === 'occupied' ? (
-            <span
-              className={`tm-badge ${elapsedMins >= 720 ? 'tm-badge--stale' : 'tm-badge--occupied'}`}
-              style={elapsedMins >= 720 ? { background: '#dc2626', color: '#fff' } : undefined}
-            >
-              <span className="tm-badge-dot" />
-              {elapsedMins >= 720
-                ? `STALE (${Math.floor(elapsedMins / 60)}h)`
-                : elapsedMins > 0
-                ? formatElapsed(elapsedMins).replace(' seated', '')
-                : (hasOrder ? 'BUSY' : 'OCCUPIED')}
-            </span>
-          ) : isReserved ? (
-            <span className="tm-badge tm-badge--reserved">
-              <span className="tm-badge-dot" style={{ background: '#f59e0b' }} />
-              <span>RESERVED</span>
-            </span>
-          ) : (
-            <span className="tm-badge tm-badge--free">
-              <span className="tm-badge-dot" style={{ background: '#10b981' }} />
-              <span>FREE</span>
-            </span>
-          )}
-        </div>
-
-        {/* Hero Table Identity & Financials */}
-        <div className="tm-card-hero">
-          <div className="tm-card-name-wrap">
-            <span className="tm-card-name" title={t.name}>{t.name}</span>
-            {order && (order.isOffline || order.id?.startsWith('offline_')) && (
-              <span title="Local offline order on device" className="tm-card-offline-tag">
-                <Zap size={11} color="#38bdf8" />
-              </span>
-            )}
-          </div>
-
-          {effectiveStatus === 'occupied' && order ? (
-            <div className="tm-card-order-meta">
-              <span className="tm-card-total">
-                {formatCurrency(order.total ?? 0, currency)}
-              </span>
-              <span className="tm-card-items-chip">
-                {(order.items ?? []).length} itm
-              </span>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Footer Context / Action */}
-        <div className="tm-card-footer">
-          {effectiveStatus === 'occupied' && order ? (
-            <div className="tm-card-occupied-details">
-              {(order.assignedWaiterName || order.staffName) && (
-                <div className="tm-card-server-row">
-                  <User size={10} />
-                  <span>{order.assignedWaiterName || order.staffName}</span>
-                </div>
-              )}
-              {order.note && (
-                <div className="tm-card-note-row" title={`Table Note: ${order.note}`}>
-                  <FileText size={10} className="tm-card-note-icon" />
-                  <span className="tm-card-note-text">{order.note}</span>
-                </div>
-              )}
-            </div>
-          ) : isFoodReady ? (
-            <div className="tm-card-ready-banner">
-              <span>Ready to Serve</span>
-            </div>
-          ) : isReserved ? (
-            <div className="tm-card-reserved-info">
-              <span>{resForTable?.name || 'Reserved'}</span>
-            </div>
-          ) : (
-            <div className="tm-card-action-btn">
-              <Plus size={12} />
-              <span>Start Order</span>
-            </div>
-          )}
-        </div>
+        <span className="tm-card-code">{t.name}</span>
       </div>
     );
-  }, [tableOrders, reservations, nowTime, selected, currency, clearCart, setTable, setOrderType, navigate]);
+  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate]);
 
   return (
     <div className="tm-root">

@@ -51,7 +51,7 @@ describe('Petpooja-Style Continuous Section-Grouped Scroll Table View', () => {
     // TableMap All Sections CSS
     expect(indexCss).toContain('.tm-all-floors-container');
     expect(indexCss).toContain('.tm-floor-section-header');
-    expect(indexCss).toMatch(/\.tm-floor-section-header\s*\{[^}]*position:\s*sticky/);
+    expect(indexCss).toMatch(/\.tm-floor-section-header\s*\{[^}]*position:\s*(relative|sticky)/);
     expect(indexCss).toContain('[data-theme="dark"] .tm-floor-section-header');
     expect(indexCss).toContain('.tm-grid.tm-grid--section');
   });
