@@ -4646,7 +4646,7 @@ export default function Settings() {
                         onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), mode: e.target.value })}
                       >
                         <option value="text">Direct Text Receipt (Fastest / Universal)</option>
-                        <option value="template">Official Meta Template</option>
+                        <option value="template">Official Meta Template (Production)</option>
                       </select>
                     </div>
 
@@ -4661,6 +4661,37 @@ export default function Settings() {
                       />
                     </div>
                   </div>
+
+                  {settings.whatsapp?.mode === 'template' && (
+                    <div style={{
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(56, 189, 248, 0.06)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      fontSize: 12
+                    }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Meta Approved Template Name</span>
+                          <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>Category: Utility</span>
+                        </label>
+                        <input
+                          className="form-input"
+                          type="text"
+                          placeholder="digital_receipt"
+                          value={settings.whatsapp?.templateName ?? 'digital_receipt'}
+                          onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), templateName: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                        />
+                      </div>
+                      <div style={{ color: 'var(--color-label-secondary)', lineHeight: 1.4, fontSize: 11.5 }}>
+                        💡 <strong>Required Template Variables in Meta WhatsApp Manager:</strong><br />
+                        <code>Hello {'{{1}}'}, your receipt from {'{{2}}'} for order #{'{{3}}'} totaling {'{{4}}'} is ready. View invoice: {'{{5}}'}</code>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Setup Helper Guide Box */}
                   <div style={{
