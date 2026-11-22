@@ -1,7 +1,7 @@
 // Order Store — cart state, order type, table assignment
 import { create } from 'zustand';
 import {
-  collection, updateDoc, doc, getDoc, serverTimestamp, onSnapshot, query, where, limit, increment, writeBatch
+  collection, updateDoc, setDoc, doc, getDoc, serverTimestamp, onSnapshot, query, where, limit, increment, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { computeTax } from '../utils/taxUtils';
@@ -1080,18 +1080,27 @@ export const useOrderStore = create((set, get) => ({
           }
         }
 
-        // Update customer profile with loyalty points, visit counts, and lifetime spends if paying now and wasn't paid before
-        if (customer && isPaid) {
+        // Update or create customer profile with loyalty points, visit counts, and lifetime spends
+        const activeCustPhone = (customer?.phone || customerPhone || '').replace(/\D/g, '');
+        if (activeCustPhone && activeCustPhone.length >= 8 && isPaid) {
           const oldWasPaid = oldOrderSnap.exists() && (oldOrderSnap.data().paid === true || (oldOrderSnap.data().paymentMethod && oldOrderSnap.data().paymentMethod !== 'unpaid'));
           if (!oldWasPaid) {
-            const pointsEarned = orderData.loyaltyEarned ?? 0;
+            const pointsEarned = orderData.loyaltyEarned ?? Math.floor(total / 10);
             const pointsRedeemed = orderData.loyaltyRedeemed ?? 0;
-            const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', customer.phone);
-            batch.update(custDocRef, {
+            const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', activeCustPhone);
+            const custName = (customerName || customer?.name || '').trim();
+            const custPayload = {
+              phone: activeCustPhone,
               visitCount: increment(1),
               lifetimeSpend: increment(total),
-              points: increment(pointsEarned - pointsRedeemed)
-            });
+              points: increment(pointsEarned - pointsRedeemed),
+              lastVisit: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            };
+            if (custName) {
+              custPayload.name = custName;
+            }
+            batch.set(custDocRef, custPayload, { merge: true });
           }
         }
 
@@ -1137,16 +1146,25 @@ export const useOrderStore = create((set, get) => ({
           }
         }
 
-        // Update customer profile with loyalty points, visit counts, and lifetime spends ONLY if paid immediately
-        if (customer && isPaid) {
-          const pointsEarned = orderData.loyaltyEarned ?? 0;
+        // Update or create customer profile with loyalty points, visit counts, and lifetime spends ONLY if paid immediately
+        const activeCustPhone = (customer?.phone || customerPhone || '').replace(/\D/g, '');
+        if (activeCustPhone && activeCustPhone.length >= 8 && isPaid) {
+          const pointsEarned = orderData.loyaltyEarned ?? Math.floor(total / 10);
           const pointsRedeemed = orderData.loyaltyRedeemed ?? 0;
-          const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', customer.phone);
-          batch.update(custDocRef, {
+          const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', activeCustPhone);
+          const custName = (customerName || customer?.name || '').trim();
+          const custPayload = {
+            phone: activeCustPhone,
             visitCount: increment(1),
             lifetimeSpend: increment(total),
-            points: increment(pointsEarned - pointsRedeemed)
-          });
+            points: increment(pointsEarned - pointsRedeemed),
+            lastVisit: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          if (custName) {
+            custPayload.name = custName;
+          }
+          batch.set(custDocRef, custPayload, { merge: true });
         }
 
         // Deduct from gift card balance in Firestore (batch write)
@@ -1912,15 +1930,23 @@ export const useOrderStore = create((set, get) => ({
 
             // Cloud update for customer loyalty
             let cloudLoyaltyPromise = Promise.resolve();
-            if (existingOrder?.customerPhone && existingOrder?.paymentMethod === 'unpaid') {
+            const rawPhone = (existingOrder?.customerPhone || '').replace(/\D/g, '');
+            if (rawPhone && rawPhone.length >= 8 && existingOrder?.paymentMethod === 'unpaid') {
               const pointsEarned = existingOrder.loyaltyEarned ?? Math.floor(settlementTotal / 10);
               const pointsRedeemed = existingOrder.loyaltyRedeemed ?? 0;
-              const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', existingOrder.customerPhone);
-              cloudLoyaltyPromise = updateDoc(custDocRef, {
+              const custDocRef = doc(db, 'restaurants', restaurantId, 'customers', rawPhone);
+              const custPayload = {
+                phone: rawPhone,
                 visitCount: increment(1),
                 lifetimeSpend: increment(settlementTotal),
-                points: increment(pointsEarned - pointsRedeemed)
-              }).catch(e => console.warn('Could not update customer loyalty points at settle:', e));
+                points: increment(pointsEarned - pointsRedeemed),
+                lastVisit: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              };
+              if (existingOrder.customerName) {
+                custPayload.name = existingOrder.customerName;
+              }
+              cloudLoyaltyPromise = setDoc(custDocRef, custPayload, { merge: true }).catch(e => console.warn('Could not update customer loyalty points at settle:', e));
             }
 
             await Promise.allSettled([cloudOrderPromise, cloudShiftPromise, cloudLoyaltyPromise]);

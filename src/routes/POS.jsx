@@ -869,7 +869,7 @@ export default function POS() {
     }
   };
 
-  const handleCustomerLookup = async (phoneStr) => {
+  const handleCustomerLookup = async (phoneStr, showRegisterModal = false) => {
     const cleanPhone = phoneStr.replace(/\D/g, '');
     if (cleanPhone.length < 8) return;
 
@@ -881,14 +881,14 @@ export default function POS() {
       if (docSnap.exists()) {
         const profile = { id: docSnap.id, ...docSnap.data() };
         setCustomerProfile(profile);
-        setCustomer(profile.name, profile.phone);
+        setCustomer(profile.name || '', cleanPhone);
         setCustSearch('');
-        toast.success(`Attached customer: ${profile.name}`);
-      } else {
+        toast.success(`Attached returning customer: ${profile.name || cleanPhone}`, { id: 'cust-lookup', duration: 2500 });
+      } else if (showRegisterModal) {
         setShowQuickRegister(true);
       }
     } catch (e) {
-      toast.error('Lookup failed: ' + e.message);
+      console.warn('Customer lookup error:', e?.message);
     }
   };
 
@@ -2577,7 +2577,7 @@ export default function POS() {
                             const val = e.target.value;
                             setCustomer(customerName, val);
                             if (val.replace(/\D/g, '').length >= 8) {
-                              handleCustomerLookup(val);
+                              handleCustomerLookup(val, false);
                             }
                           }}
                           id="customer-phone-input"
