@@ -51,8 +51,6 @@ export default function CustomerModal({
       } else {
         setIsExisting(false);
         setExistingProfile(null);
-        // Automatically guide cursor to name for new customer
-        setTimeout(() => nameInputRef.current?.focus(), 60);
       }
     } catch (e) {
       console.warn('Customer lookup error:', e?.message);
@@ -73,12 +71,13 @@ export default function CustomerModal({
     setExistingProfile(customer || null);
 
     // Initial lookup if phone is already provided
-    if (startPhone.length >= 8 && !customer) {
+    if (startPhone.length >= 10) {
       lookupCustomer(startPhone);
-    } else if (!startPhone) {
-      setTimeout(() => phoneInputRef.current?.focus(), 80);
-    } else {
+      // Only focus name if the complete 10-digit phone was already provided before opening!
       setTimeout(() => nameInputRef.current?.focus(), 80);
+    } else {
+      if (startPhone.length >= 8) lookupCustomer(startPhone);
+      setTimeout(() => phoneInputRef.current?.focus(), 80);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -269,6 +268,16 @@ export default function CustomerModal({
                 placeholder="Enter 10-digit mobile number"
                 value={phone}
                 onChange={handlePhoneChange}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!name.trim()) {
+                      nameInputRef.current?.focus();
+                    } else {
+                      handleSave(e);
+                    }
+                  }
+                }}
                 style={{
                   width: '100%',
                   height: 38,
@@ -318,6 +327,12 @@ export default function CustomerModal({
               placeholder="e.g. Rahul Sharma"
               value={name}
               onChange={e => setName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSave(e);
+                }
+              }}
               style={{
                 width: '100%',
                 height: 38,
