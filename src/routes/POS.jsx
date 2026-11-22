@@ -291,6 +291,12 @@ export default function POS() {
   const isShowingCategoryCards = isCategoryFirst && catFirstOverview && !trimmedSearch;
   const [adminBypassShift, setAdminBypassShift] = useState(false);
   const [activeCat,  setActiveCat]  = useState('all');
+  const [activeSubCat, setActiveSubCat] = useState('all');
+
+  // Reset subcategory filter whenever main category changes
+  useEffect(() => {
+    setActiveSubCat('all');
+  }, [activeCat]);
   const dietaryFilter = useMenuStore(s => s.dietaryFilter);
   const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
@@ -988,6 +994,34 @@ export default function POS() {
     }
   };
 
+  // Available Subcategories in currently active category view
+  const availableSubCategories = useMemo(() => {
+    if (activeCat === 'deals') return [];
+    const candidateItems = activeCat === 'all'
+      ? categories.flatMap(c => c.items || [])
+      : (categories.find(c => c.id === activeCat)?.items || []);
+    const counts = {};
+    candidateItems.forEach(i => {
+      const sub = typeof i.subCategory === 'string' ? i.subCategory.trim() : '';
+      if (sub) {
+        counts[sub] = (counts[sub] || 0) + 1;
+      }
+    });
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
+  }, [categories, activeCat]);
+
+  const popularSubCatCount = useMemo(() => {
+    if (activeCat === 'deals') return 0;
+    const candidateItems = activeCat === 'all'
+      ? categories.flatMap(c => c.items || [])
+      : (categories.find(c => c.id === activeCat)?.items || []);
+    return candidateItems.filter(i => {
+      const nameKey = (i.name || '').trim().toLowerCase();
+      const sales = (itemSalesMap[i.id] || 0) + (itemSalesMap[nameKey] || 0);
+      return i.isBestseller || i.bestseller || i.popular || i.highMargin || sales > 0;
+    }).length;
+  }, [categories, activeCat, itemSalesMap]);
+
   // Menu items from active category (or all categories when searching) + dietary filter
   const displayItems = useMemo(() => {
     const searchStr = typeof search === 'string' ? search.trim() : '';
@@ -1087,8 +1121,19 @@ export default function POS() {
       }
     }
 
+    // Filter by Active Subcategory
+    if (activeSubCat === 'popular') {
+      filtered = filtered.filter(i => {
+        const nameKey = (i.name || '').trim().toLowerCase();
+        const sales = (itemSalesMap[i.id] || 0) + (itemSalesMap[nameKey] || 0);
+        return i.isBestseller || i.bestseller || i.popular || i.highMargin || sales > 0;
+      });
+    } else if (activeSubCat !== 'all') {
+      filtered = filtered.filter(i => (i.subCategory || '').trim().toLowerCase() === activeSubCat.toLowerCase());
+    }
+
     return filtered;
-  }, [categories, activeCat, search, dietaryFilter, itemSalesMap, activeOffers]);
+  }, [categories, activeCat, activeSubCat, search, dietaryFilter, itemSalesMap, activeOffers]);
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
@@ -1964,7 +2009,55 @@ export default function POS() {
             <div>No items found</div>
           </div>
         ) : (
-          <div className={`menu-grid ${menuDensity === 'dense' ? 'dense' : ''}`}>
+          <>
+            {/* Dual-Tier Subcategory Pill Bar (Toast POS Standard) */}
+            {availableSubCategories.length > 0 && (
+              <div className="pos-subcategory-bar" role="tablist" aria-label="Sub-Categories">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubCat === 'all'}
+                  className={`pos-subcat-pill ${activeSubCat === 'all' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setActiveSubCat('all'); }}
+                >
+                  <span>All</span>
+                  <span className="pos-subcat-count">
+                    {activeCat === 'all' 
+                      ? categories.reduce((sum, c) => sum + (c.items?.length || 0), 0)
+                      : (categories.find(c => c.id === activeCat)?.items?.length || 0)}
+                  </span>
+                </button>
+
+                {popularSubCatCount > 0 && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeSubCat === 'popular'}
+                    className={`pos-subcat-pill pos-subcat-pill--popular ${activeSubCat === 'popular' ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveSubCat('popular'); }}
+                  >
+                    <span>⭐ Popular</span>
+                    <span className="pos-subcat-count">{popularSubCatCount}</span>
+                  </button>
+                )}
+
+                {availableSubCategories.map(sub => (
+                  <button
+                    key={sub.name}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeSubCat.toLowerCase() === sub.name.toLowerCase()}
+                    className={`pos-subcat-pill ${activeSubCat.toLowerCase() === sub.name.toLowerCase() ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setActiveSubCat(sub.name); }}
+                  >
+                    <span>{sub.name}</span>
+                    <span className="pos-subcat-count">{sub.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className={`menu-grid ${menuDensity === 'dense' ? 'dense' : ''}`}>
             {displayItems.map(item => {
               const qty = getItemQty(item);
               const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
@@ -1999,6 +2092,9 @@ export default function POS() {
                       <div className="menu-key-title-wrap">
                         <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
                         <span className="menu-key-name" title={item.name}>{item.name}</span>
+                        {item.subCategory && (
+                          <span className="item-subcat-badge">{item.subCategory}</span>
+                        )}
                       </div>
                       <div className="menu-key-badges-right">
                         {qty > 0 ? (
@@ -2137,6 +2233,9 @@ export default function POS() {
                   <div className="menu-item-body">
                     <div className="menu-item-name" title={item.name}>
                       <span className="menu-item-name-text">{item.name}</span>
+                      {item.subCategory && (
+                        <span className="item-subcat-badge">{item.subCategory}</span>
+                      )}
                       {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
                       {(item.isBestseller || item.bestseller || item.popular) && (
                         <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
@@ -2170,6 +2269,7 @@ export default function POS() {
               );
             })}
           </div>
+          </>
         )}
           </>
         )}

@@ -99,6 +99,11 @@ export default function MobileWaiterHandheld({
   }, [isKitchenActiveProp, restaurant?.modes, restaurant?.features?.enableKds, restaurant?.kitchenConfig?.mode]);
 
   const [activeCategory, setActiveCategory] = useState('all');
+  const [activeSubCategory, setActiveSubCategory] = useState('all');
+
+  useEffect(() => {
+    setActiveSubCategory('all');
+  }, [activeCategory]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all' | 'veg' | 'non-veg' | 'bestseller'
   
@@ -318,12 +323,32 @@ export default function MobileWaiterHandheld({
     return { count, subtotal };
   }, [items]);
 
+  // Available subcategories for current active category
+  const availableSubCategories = useMemo(() => {
+    const candidateItems = activeCategory !== 'all'
+      ? menuItems.filter(i => i.categoryId === activeCategory)
+      : menuItems;
+    const counts = {};
+    candidateItems.forEach(i => {
+      const sub = typeof i.subCategory === 'string' ? i.subCategory.trim() : '';
+      if (sub) {
+        counts[sub] = (counts[sub] || 0) + 1;
+      }
+    });
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
+  }, [menuItems, activeCategory]);
+
   // Filter menu items
   const filteredItems = useMemo(() => {
     return menuItems.filter(item => {
       // Category filter
       if (activeCategory !== 'all' && item.categoryId !== activeCategory) {
         return false;
+      }
+      // Subcategory filter
+      if (activeSubCategory !== 'all') {
+        const itemSub = (item.subCategory || '').trim().toLowerCase();
+        if (itemSub !== activeSubCategory.toLowerCase()) return false;
       }
       // Dietary filter
       if (dietaryFilter === 'veg' && !item.isVeg) return false;
@@ -343,7 +368,7 @@ export default function MobileWaiterHandheld({
       }
       return true;
     });
-  }, [menuItems, activeCategory, dietaryFilter, searchQuery]);
+  }, [menuItems, activeCategory, activeSubCategory, dietaryFilter, searchQuery]);
 
   // Handle table switch from bottom sheet
   const handleSelectTable = (tbl) => {
@@ -594,6 +619,33 @@ export default function MobileWaiterHandheld({
         </div>
       </div>
 
+      {/* ── Subcategory Pill Bar (Toast POS Standard) ─────────────────── */}
+      {availableSubCategories.length > 0 && (
+        <div className="pos-subcategory-bar" style={{ padding: '6px 12px', minHeight: 42 }}>
+          <button
+            type="button"
+            className={`pos-subcat-pill ${activeSubCategory === 'all' ? 'active' : ''}`}
+            onClick={() => { hapticTap('light'); setActiveSubCategory('all'); }}
+          >
+            <span>All</span>
+            <span className="pos-subcat-count">
+              {activeCategory === 'all' ? menuItems.length : menuItems.filter(i => i.categoryId === activeCategory).length}
+            </span>
+          </button>
+          {availableSubCategories.map(sub => (
+            <button
+              key={sub.name}
+              type="button"
+              className={`pos-subcat-pill ${activeSubCategory.toLowerCase() === sub.name.toLowerCase() ? 'active' : ''}`}
+              onClick={() => { hapticTap('light'); setActiveSubCategory(sub.name); }}
+            >
+              <span>{sub.name}</span>
+              <span className="pos-subcat-count">{sub.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Menu Grid / List (Thumb-Target Optimized) ─────────────────── */}
       <main className={`handheld-menu-scroll ${viewMode === 'grid' ? 'grid-view' : 'list-view'}`}>
         <div className={`handheld-menu-layout ${viewMode === 'grid' ? 'handheld-grid' : 'handheld-list'}`}>
@@ -708,6 +760,11 @@ export default function MobileWaiterHandheld({
                     )}
                     {item.isBestseller && (
                       <span className="handheld-item-pill bestseller">Popular</span>
+                    )}
+                    {item.subCategory && (
+                      <span className="handheld-item-pill" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
+                        {item.subCategory}
+                      </span>
                     )}
                   </div>
                 </div>

@@ -69,7 +69,7 @@ export default function MenuEditor() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '' });
-  const [itemForm, setItemForm] = useState({ name: '', categoryId: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
+  const [itemForm, setItemForm] = useState({ name: '', categoryId: '', subCategory: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
   const [isAiTranslating, setIsAiTranslating] = useState(false);
   const [isBatchTranslating, setIsBatchTranslating] = useState(false);
   const [inventory, setInventory] = useState([]);
@@ -140,6 +140,7 @@ export default function MenuEditor() {
     setItemForm({
       name: '',
       categoryId: defaultCatId,
+      subCategory: '',
       mlName: '',
       hiName: '',
       price: '',
@@ -172,6 +173,7 @@ export default function MenuEditor() {
     setItemForm({
       name: item.name,
       categoryId: itemCatId,
+      subCategory: item.subCategory ?? '',
       mlName: item.mlName ?? item.name_ml ?? '',
       hiName: item.hiName ?? item.name_hi ?? '',
       price: item.price,
@@ -727,6 +729,7 @@ export default function MenuEditor() {
       unit: itemForm.unit || 'pcs',
       isVeg: isVeg,
       dietary: isVeg ? 'veg' : 'non-veg',
+      subCategory: itemForm.subCategory?.trim() || '',
       ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {})
     };
 
@@ -937,6 +940,19 @@ export default function MenuEditor() {
   }, [isAllItems, searchQuery, allDishes, activeCatId]);
 
   const displayItems = isReorderMode ? currentCategoryItems : filteredItems;
+
+  const existingSubCategories = useMemo(() => {
+    const targetCatId = itemForm.categoryId || (activeCat && activeCat !== 'all' ? activeCat : categories[0]?.id);
+    const cat = categories.find(c => c.id === targetCatId);
+    if (!cat || !Array.isArray(cat.items)) return [];
+    const set = new Set();
+    cat.items.forEach(i => {
+      if (i.subCategory && typeof i.subCategory === 'string' && i.subCategory.trim()) {
+        set.add(i.subCategory.trim());
+      }
+    });
+    return Array.from(set);
+  }, [categories, itemForm.categoryId, activeCat]);
 
 
   return (
@@ -1835,6 +1851,24 @@ export default function MenuEditor() {
                           </div>
                         )}
 
+                        {item.subCategory && (
+                          <div style={{ marginBottom: 4 }}>
+                            <span 
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: '#60a5fa',
+                                border: '1px solid rgba(59, 130, 246, 0.25)',
+                                padding: '1px 6px',
+                                borderRadius: '4px'
+                              }}
+                            >
+                              {item.subCategory}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="menu-editor-card-title-row" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span
                             className={isVegetarianItem(item) ? "food-badge-veg" : "food-badge-nonveg"}
@@ -2168,22 +2202,66 @@ export default function MenuEditor() {
             {/* Tab 1: General Info */}
             {activeTab === 'general' && (
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
-                {/* Category Selection */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>Category</label>
-                  <select
-                    id="item-category-select"
-                    className="form-select"
-                    value={itemForm.categoryId || (categories[0]?.id ?? '')}
-                    onChange={e => setItemForm(f => ({ ...f, categoryId: e.target.value }))}
-                    style={{ height: 40, fontSize: '13px' }}
-                  >
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.emoji || '🍽️'} {c.name}
-                      </option>
-                    ))}
-                  </select>
+                {/* Category & Subcategory Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>Category</label>
+                    <select
+                      id="item-category-select"
+                      className="form-select"
+                      value={itemForm.categoryId || (categories[0]?.id ?? '')}
+                      onChange={e => setItemForm(f => ({ ...f, categoryId: e.target.value }))}
+                      style={{ height: 40, fontSize: '13px' }}
+                    >
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.emoji || '🍽️'} {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>
+                      Sub-Category (Optional)
+                    </label>
+                    <input
+                      id="item-subcategory-input"
+                      className="form-input"
+                      placeholder="e.g. Mocktails, Indian, etc."
+                      value={itemForm.subCategory || ''}
+                      onChange={e => setItemForm(f => ({ ...f, subCategory: e.target.value }))}
+                      list="existing-subcategories-list"
+                      style={{ height: 40, fontSize: '13px' }}
+                    />
+                    <datalist id="existing-subcategories-list">
+                      {existingSubCategories.map((sub, sIdx) => (
+                        <option key={sIdx} value={sub} />
+                      ))}
+                    </datalist>
+                    {existingSubCategories.length > 0 && !itemForm.subCategory && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                        {existingSubCategories.slice(0, 4).map((sub, sIdx) => (
+                          <button
+                            key={sIdx}
+                            type="button"
+                            onClick={() => setItemForm(f => ({ ...f, subCategory: sub }))}
+                            style={{
+                              border: '1px solid var(--color-separator)',
+                              background: 'var(--color-bg-secondary)',
+                              color: 'var(--color-label-secondary)',
+                              fontSize: '10.5px',
+                              borderRadius: '4px',
+                              padding: '1px 6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            + {sub}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Row 1: Item Name & Sleek Status Pill */}

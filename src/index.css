@@ -2209,6 +2209,107 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Dual-Tier Subcategory Pill Bar (Toast POS Gold Standard)
+────────────────────────────────────────────────────────────── */
+.pos-subcategory-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--color-bg-base, #131722);
+  border-bottom: 1px solid var(--color-separator, #272f45);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  touch-action: pan-x;
+  flex-shrink: 0;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.pos-subcategory-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.pos-subcat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 34px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid var(--color-separator, #334155);
+  background: var(--color-bg-card, #1e293b);
+  color: var(--color-label-secondary, #94a3b8);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: manipulation;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.pos-subcat-pill:hover {
+  background: var(--color-bg-elevated, #253349);
+  color: var(--color-label-primary, #ffffff);
+  border-color: var(--color-label-tertiary, #64748b);
+  transform: translateY(-1px);
+}
+
+.pos-subcat-pill:active {
+  transform: scale(0.96);
+}
+
+.pos-subcat-pill.active {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+  font-weight: 750;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+}
+
+.pos-subcat-count {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
+  font-weight: 700;
+}
+
+.pos-subcat-pill:not(.active) .pos-subcat-count {
+  background: var(--color-bg-secondary, rgba(255, 255, 255, 0.05));
+  color: var(--color-label-tertiary, #94a3b8);
+}
+
+.pos-subcat-pill--popular {
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.pos-subcat-pill--popular.active {
+  background: #f59e0b;
+  color: #ffffff;
+  border-color: #f59e0b;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+
+.item-subcat-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────
    POS Template 2: Categories on the Left (Vertical Sidebar Rail)
    Exact same features as Template 1, differing only by category position.
    No emojis, enlarged category font size (15px bold).
