@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles, PauseCircle
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -30,6 +30,7 @@ import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import CustomerModal from '../components/pos/CustomerModal';
 import OffersDrawerModal from '../components/pos/OffersDrawerModal';
+import HeldOrdersModal from '../components/pos/HeldOrdersModal';
 import { evaluateBogo, DEFAULT_OFFERS } from '../utils/promoEngine';
 import { sendWhatsAppReceipt } from '../services/whatsappService';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
@@ -86,7 +87,7 @@ const getDisplayPrice = (item, currency) => {
   return { isFrom: false, text: formatCurrency(item?.price || 0, currency) };
 };
 
-function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift }) {
+function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift, heldCount = 0, onOpenHeldOrders }) {
   return (
     <div className="pos-empty-cart-minimal">
       <div className="pos-empty-cart-icon-wrap">
@@ -94,6 +95,31 @@ function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift }) {
       </div>
       <div className="pos-empty-cart-title">Your cart is empty</div>
       <div className="pos-empty-cart-subtitle">Select items from the menu to start order</div>
+      {heldCount > 0 && onOpenHeldOrders && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            hapticTap('light');
+            onOpenHeldOrders();
+          }}
+          className="btn btn-secondary btn-sm"
+          style={{
+            marginTop: 10,
+            background: 'rgba(245, 158, 11, 0.15)',
+            border: '1px solid rgba(245, 158, 11, 0.45)',
+            color: '#f59e0b',
+            borderRadius: 8,
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6
+          }}
+        >
+          <PauseCircle size={14} />
+          <span>Resume {heldCount} Held {heldCount === 1 ? 'Order' : 'Orders'}</span>
+        </button>
+      )}
       <div className="pos-empty-cart-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
         {onAddCustomItem && (
           <button
@@ -157,7 +183,9 @@ export default function POS() {
     tokenNumber, setToken,
     activeSeat, setActiveSeat, setItemSeat, setItemDetails,
     settleSubCheck, settledChecks,
-    billPrinted, markBillPrinted
+    billPrinted, markBillPrinted,
+    heldOrders, holdCurrentOrder, resumeHeldOrder, discardHeldOrder, clearAllHeldOrders,
+    isComplimentary, setComplimentary
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -203,7 +231,15 @@ export default function POS() {
       settleSubCheck: state.settleSubCheck,
       settledChecks: state.settledChecks,
       billPrinted: state.billPrinted,
-      markBillPrinted: state.markBillPrinted
+      markBillPrinted: state.markBillPrinted,
+      heldOrders: state.heldOrders || [],
+      holdCurrentOrder: state.holdCurrentOrder,
+      resumeHeldOrder: state.resumeHeldOrder,
+      discardHeldOrder: state.discardHeldOrder,
+      clearAllHeldOrders: state.clearAllHeldOrders,
+      isComplimentary: Boolean(state.isComplimentary),
+      setComplimentary: state.setComplimentary,
+      complimentaryReason: state.complimentaryReason
     }))
   );
 
@@ -505,6 +541,40 @@ export default function POS() {
   }, [items, activeOffers]);
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
+  const [showHeldOrdersModal, setShowHeldOrdersModal] = useState(false);
+
+  const handleHoldOrder = () => {
+    if (!items.length) {
+      toast.error('Cart is empty to hold');
+      return;
+    }
+    const held = holdCurrentOrder();
+    if (held) {
+      hapticTap('medium');
+      toast.success(`Order held (#${held.holdNumber || 1}) · Ready for next guest`, {
+        icon: '⏸️',
+        duration: 3500
+      });
+    }
+  };
+
+  const handleResumeHeldOrder = (heldOrId) => {
+    const targetId = typeof heldOrId === 'object' && heldOrId !== null ? heldOrId.id : heldOrId;
+    const targetOrder = (heldOrders || []).find(h => h.id === targetId) || (typeof heldOrId === 'object' ? heldOrId : null);
+    if (!targetOrder) return;
+    if (items.length > 0) {
+      if (window.confirm('Current cart has items. Hold current cart and resume this one?')) {
+        holdCurrentOrder();
+        resumeHeldOrder(targetOrder.id);
+        setShowHeldOrdersModal(false);
+        toast.success(`Resumed Held #${targetOrder.holdNumber || 1}!`, { icon: '▶️' });
+      }
+    } else {
+      resumeHeldOrder(targetOrder.id);
+      setShowHeldOrdersModal(false);
+      toast.success(`Resumed Held #${targetOrder.holdNumber || 1}!`, { icon: '▶️' });
+    }
+  };
 
 
   // Global Real-time Kitchen Food Ready Alerts are handled cleanly by the single
@@ -1040,6 +1110,21 @@ export default function POS() {
 
   const handleCheckout = async () => {
     if (!items.length) return;
+    if (isComplimentary) {
+      setPaymentMethod('complimentary');
+      const res = await submitOrder(restaurant, staffDoc?.id);
+      if (res.ok) {
+        hapticTap('success');
+        toast.success('Order settled as Complimentary (NC)!', { icon: '🎁' });
+        if (orderType === 'dine-in' && tableId) {
+          useTableStore.getState().freeTable(tableId);
+        }
+        clearCart();
+      } else {
+        toast.error(`Checkout failed: ${res.error}`);
+      }
+      return;
+    }
     setPaymentMethod('cash');
     setShowPayment(true);
   };
@@ -2369,6 +2454,33 @@ export default function POS() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {heldOrders?.length > 0 && (
+                <button
+                  type="button"
+                  className="cart-held-pill"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHeldOrdersModal(true);
+                  }}
+                  title="View held/parked orders"
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    border: '1px solid rgba(245, 158, 11, 0.45)',
+                    color: '#f59e0b',
+                    borderRadius: '6px',
+                    padding: '2px 7px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <PauseCircle size={12} />
+                  <span>Held ({heldOrders.length})</span>
+                </button>
+              )}
               <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
                 {items.reduce((s, i) => s + i.qty, 0)}
               </span>
@@ -2420,6 +2532,30 @@ export default function POS() {
                   <ChevronUp size={11} />
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {heldOrders?.length > 0 && (
+                    <button
+                      type="button"
+                      className="cart-held-pill"
+                      onClick={() => setShowHeldOrdersModal(true)}
+                      title="View held/parked orders"
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.18)',
+                        border: '1px solid rgba(245, 158, 11, 0.45)',
+                        color: '#f59e0b',
+                        borderRadius: '6px',
+                        padding: '2px 7px',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <PauseCircle size={12} />
+                      <span>Held ({heldOrders.length})</span>
+                    </button>
+                  )}
                   <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
                     {items.reduce((s, i) => s + i.qty, 0)} items
                   </span>
@@ -2793,6 +2929,8 @@ export default function POS() {
               onAddCustomItem={() => setShowOpenItemModal(true)}
               onOpenTill={() => setShowTillModal(true)}
               activeShift={activeShift}
+              heldCount={heldOrders?.length || 0}
+              onOpenHeldOrders={() => setShowHeldOrdersModal(true)}
             />
           ) : (
             (() => {
@@ -3144,22 +3282,45 @@ export default function POS() {
                     style={{ flex: 1, height: 26, padding: '2px 8px', fontSize: 11, textAlign: 'right', borderRadius: '4px', border: '1px solid var(--color-separator)' }}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {[5, 10, 15, 20].map(pct => (
                     <button
                       key={pct}
                       type="button"
                       className="cart-discount-preset-btn"
-                      onClick={() => setDiscount(pct, 'percent')}
+                      onClick={() => {
+                        if (isComplimentary) setComplimentary(false);
+                        setDiscount(pct, 'percent');
+                      }}
                     >
                       {pct}%
                     </button>
                   ))}
-                  {discount > 0 && (
+                  <button
+                    type="button"
+                    className="cart-discount-preset-btn"
+                    onClick={() => {
+                      setComplimentary(!isComplimentary, 'Management Comp');
+                      setActiveAddon(null);
+                    }}
+                    style={{
+                      background: isComplimentary ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                      color: isComplimentary ? '#10b981' : 'var(--color-label-secondary)',
+                      borderColor: isComplimentary ? '#10b981' : 'var(--color-separator)',
+                      fontWeight: 700
+                    }}
+                    title="100% Complimentary Non-Commercial (NC) bill"
+                  >
+                    🎁 NC Comp
+                  </button>
+                  {(discount > 0 || isComplimentary) && (
                     <button
                       type="button"
                       className="cart-discount-preset-btn"
-                      onClick={() => setDiscount(0, discountType)}
+                      onClick={() => {
+                        if (isComplimentary) setComplimentary(false);
+                        setDiscount(0, discountType);
+                      }}
                       style={{ color: 'var(--color-red)', marginLeft: 'auto' }}
                     >
                       Clear
@@ -3292,8 +3453,28 @@ export default function POS() {
                   🎁 Offers
                 </button>
               )}
-              {/* Discount Pill / Micro-Button */}
-              {discount > 0 ? (
+              {/* Complimentary NC Pill / Discount Pill */}
+              {isComplimentary ? (
+                <div 
+                  className="cart-addon-micro-chip"
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    borderColor: 'rgba(16, 185, 129, 0.4)',
+                    color: '#10b981'
+                  }}
+                >
+                  <Sparkles size={10} />
+                  <span style={{ fontWeight: 700 }}>🎁 NC / Comp</span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => setComplimentary(false)}
+                    title="Remove complimentary status"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : discount > 0 ? (
                 <div className="cart-addon-micro-chip">
                   <Tag size={10} />
                   <span 
@@ -3368,6 +3549,38 @@ export default function POS() {
               )}
             </div>
 
+            {/* Complimentary NC Fast-Toggle Row (Petpooja style 1-touch) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0 2px' }}>
+              <label 
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  fontSize: 11.5,
+                  fontWeight: 650,
+                  color: isComplimentary ? '#10b981' : 'var(--color-label-secondary)',
+                  userSelect: 'none'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isComplimentary}
+                  onChange={(e) => {
+                    hapticTap('light');
+                    setComplimentary(e.target.checked, 'Management NC');
+                  }}
+                  style={{ accentColor: '#10b981', cursor: 'pointer', width: 14, height: 14 }}
+                />
+                <span>Complimentary (NC)</span>
+              </label>
+              {isComplimentary && (
+                <span style={{ fontSize: 10, color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                  100% OFF · ₹0 DUE
+                </span>
+              )}
+            </div>
+
             {/* Grand Total Line */}
             <div className="cart-total-row grand-total" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '6px 0 2px', borderTop: '1px solid var(--color-separator)' }}>
               <button
@@ -3383,7 +3596,16 @@ export default function POS() {
                 </span>
               </button>
 
-              {settledTotal > 0 ? (
+              {isComplimentary ? (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', textDecoration: 'line-through' }}>
+                    {formatCurrency(subtotal, currency)}
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: '#10b981' }}>
+                    {formatCurrency(0, currency)}
+                  </div>
+                </div>
+              ) : settledTotal > 0 ? (
                 <div 
                   onClick={() => setShowTotalsBreakdown(!showTotalsBreakdown)}
                   style={{ cursor: 'pointer', textAlign: 'right' }}
@@ -3415,7 +3637,7 @@ export default function POS() {
             className="cart-action-buttons" 
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: orderType === 'dine-in' ? '44px 1fr 1.35fr' : '1fr 1.25fr', 
+              gridTemplateColumns: orderType === 'dine-in' ? '44px 44px 1fr 1.35fr' : '44px 1fr 1.25fr', 
               gap: 8,
               padding: '10px 12px 14px'
             }}
@@ -3434,6 +3656,30 @@ export default function POS() {
                 <Printer size={18} />
               </button>
             )}
+            <button
+              className="btn btn-secondary btn-sm"
+              id="hold-order-btn"
+              onClick={handleHoldOrder}
+              disabled={!items.length}
+              type="button"
+              style={{
+                width: 44,
+                height: 44,
+                padding: 0,
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                color: '#f59e0b',
+                background: 'rgba(245, 158, 11, 0.1)',
+                borderColor: 'rgba(245, 158, 11, 0.3)'
+              }}
+              title="Hold / Park Order (Resume anytime)"
+              aria-label="Hold Order"
+            >
+              <PauseCircle size={18} />
+            </button>
             <button
               className="cart-action-btn-kitchen"
               id="send-to-kitchen-btn"
@@ -3474,10 +3720,21 @@ export default function POS() {
               onClick={handleCheckout}
               disabled={!items.length}
               type="button"
-              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px' }}
-              title={orderType === 'takeaway' ? "Collect payment immediately & fire order to kitchen (KOT)" : "Proceed to payment & checkout"}
+              style={{
+                height: 44,
+                borderRadius: 12,
+                opacity: items.length ? 1 : 0.4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 10px',
+                background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
+              }}
+              title={isComplimentary ? 'Settle Complimentary / NC Order directly' : orderType === 'takeaway' ? "Collect payment immediately & fire order to kitchen (KOT)" : "Proceed to payment & checkout"}
             >
-              <span style={{ fontSize: 13.5, fontWeight: 800 }}>Pay {formatCurrency(remainingTotal, currency)}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 800 }}>
+                {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(remainingTotal, currency)}`}
+              </span>
             </button>
           </div>
         ) : (
@@ -3495,14 +3752,49 @@ export default function POS() {
               <Printer size={18} />
             </button>
             <button
+              className="btn btn-secondary"
+              id="hold-order-btn"
+              onClick={handleHoldOrder}
+              disabled={!items.length}
+              type="button"
+              style={{
+                width: 44,
+                height: 44,
+                padding: 0,
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                color: '#f59e0b',
+                background: 'rgba(245, 158, 11, 0.1)',
+                borderColor: 'rgba(245, 158, 11, 0.3)'
+              }}
+              title="Hold / Park Order (Resume anytime)"
+              aria-label="Hold Order"
+            >
+              <PauseCircle size={18} />
+            </button>
+            <button
               className="cart-checkout-btn"
               id="checkout-btn"
               onClick={handleCheckout}
               disabled={!items.length}
               type="button"
-              style={{ flex: 1, height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 12,
+                opacity: items.length ? 1 : 0.4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
+              }}
             >
-              <span className="cart-checkout-title" style={{ fontSize: 14, fontWeight: 800 }}>Pay {formatCurrency(total, currency)}</span>
+              <span className="cart-checkout-title" style={{ fontSize: 14, fontWeight: 800 }}>
+                {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(total, currency)}`}
+              </span>
             </button>
           </div>
         )}
@@ -3768,6 +4060,19 @@ export default function POS() {
           onApplyOffer={(offer) => setAppliedOffer(offer)}
           onRemoveOffer={() => clearAppliedOffer()}
           onQuickAddItem={(item) => addItem(item)}
+        />
+      )}
+
+      {/* Held / Parked Orders Modal */}
+      {showHeldOrdersModal && (
+        <HeldOrdersModal
+          isOpen={showHeldOrdersModal}
+          onClose={() => setShowHeldOrdersModal(false)}
+          heldOrders={heldOrders}
+          onResume={(heldId) => handleResumeHeldOrder(heldId)}
+          onDiscard={(heldId) => discardHeldOrder(heldId)}
+          onClearAll={() => clearAllHeldOrders()}
+          currency={currency}
         />
       )}
 

@@ -59,6 +59,17 @@ const isKdsActiveTab = () => {
 };
 
 const CART_STORAGE_KEY = 'dineos_active_cart';
+const HELD_ORDERS_STORAGE_KEY = 'dineos_held_orders';
+
+const loadPersistedHeldOrders = () => {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(HELD_ORDERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
 
 const loadPersistedCart = () => {
   if (typeof localStorage === 'undefined') return null;
@@ -91,7 +102,9 @@ const savePersistedCart = (state) => {
       discountType: state.discountType,
       tipAmount: state.tipAmount,
       editingOrderId: state.editingOrderId,
-      billPrinted: Boolean(state.billPrinted)
+      billPrinted: Boolean(state.billPrinted),
+      isComplimentary: Boolean(state.isComplimentary),
+      complimentaryReason: state.complimentaryReason || ''
     };
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartSnapshot));
   } catch {}
@@ -124,6 +137,9 @@ export const useOrderStore = create((set, get) => ({
   billPrinted: Boolean(initialCart?.billPrinted),
   assignedWaiterId: null,
   assignedWaiterName: null,
+  isComplimentary: Boolean(initialCart?.isComplimentary),
+  complimentaryReason: initialCart?.complimentaryReason || '',
+  heldOrders: loadPersistedHeldOrders(),
 
   // Active orders list (realtime)
   activeOrders: [],
@@ -252,7 +268,9 @@ export const useOrderStore = create((set, get) => ({
       upiRef: order.upiRef ?? '',
       tokenNumber: order.token ?? null,
       assignedWaiterId: order.assignedWaiterId ?? null,
-      assignedWaiterName: order.assignedWaiterName ?? null
+      assignedWaiterName: order.assignedWaiterName ?? null,
+      isComplimentary: Boolean(order.isComplimentary),
+      complimentaryReason: order.complimentaryReason || ''
     });
   },
 
@@ -264,7 +282,8 @@ export const useOrderStore = create((set, get) => ({
       discount: 0, discountType: 'fixed', appliedOffer: null, splitPayments: [],
       customer: null, redeemingPoints: false,
       tipAmount: 0, upiRef: '', terminalTx: null,
-      assignedWaiterId: null, assignedWaiterName: null
+      assignedWaiterId: null, assignedWaiterName: null,
+      isComplimentary: false, complimentaryReason: ''
     });
     useGiftCardStore.getState().clearGiftCard();
   },
@@ -458,6 +477,112 @@ export const useOrderStore = create((set, get) => ({
   },
   setUpiRef: (upiRef) => set({ upiRef }),
   setTerminalTx: (tx) => set({ terminalTx: tx }),
+
+  setComplimentary: (isComp, reason = 'Manager Comp') => {
+    const isComplimentary = Boolean(isComp);
+    if (isComplimentary) {
+      if (useGiftCardStore.getState().giftCardCode) {
+        useGiftCardStore.getState().clearGiftCard();
+      }
+    }
+    set({
+      isComplimentary,
+      complimentaryReason: isComplimentary ? reason : '',
+      discount: isComplimentary ? 100 : 0,
+      discountType: 'percent'
+    });
+  },
+
+  // ── Held / Parked Orders ─────────────────────────────────
+  holdCurrentOrder: (customNote = '') => {
+    const state = get();
+    if (!state.items || state.items.length === 0) return null;
+
+    const holdId = 'hold_' + Date.now().toString(36);
+    const holdNumber = (state.heldOrders?.length || 0) + 1;
+    const subtotal = state.getSubtotal();
+    const total = state.getTotal ? state.getTotal() : subtotal;
+
+    const heldOrder = {
+      id: holdId,
+      holdNumber,
+      heldAt: Date.now(),
+      items: [...state.items],
+      activeSeat: state.activeSeat,
+      orderType: state.orderType,
+      tableId: state.tableId,
+      tableName: state.tableName,
+      tokenNumber: state.tokenNumber,
+      customerName: state.customerName,
+      customerPhone: state.customerPhone,
+      customer: state.customer,
+      note: customNote || state.note,
+      discount: state.discount,
+      discountType: state.discountType,
+      appliedOffer: state.appliedOffer,
+      isComplimentary: Boolean(state.isComplimentary),
+      complimentaryReason: state.complimentaryReason || '',
+      subtotal,
+      total
+    };
+
+    const nextHeld = [heldOrder, ...(state.heldOrders || [])];
+    try {
+      localStorage.setItem(HELD_ORDERS_STORAGE_KEY, JSON.stringify(nextHeld));
+    } catch {}
+
+    state.clearCart();
+    set({ heldOrders: nextHeld });
+    return heldOrder;
+  },
+
+  resumeHeldOrder: (heldId) => {
+    const state = get();
+    const target = (state.heldOrders || []).find(h => h.id === heldId);
+    if (!target) return false;
+
+    set({
+      items: target.items || [],
+      activeSeat: target.activeSeat || null,
+      orderType: target.orderType || 'takeaway',
+      tableId: target.tableId || null,
+      tableName: target.tableName || null,
+      tokenNumber: target.tokenNumber || null,
+      customerName: target.customerName || '',
+      customerPhone: target.customerPhone || '',
+      customer: target.customer || null,
+      note: target.note || '',
+      discount: target.discount || 0,
+      discountType: target.discountType || 'fixed',
+      appliedOffer: target.appliedOffer || null,
+      isComplimentary: Boolean(target.isComplimentary),
+      complimentaryReason: target.complimentaryReason || '',
+      editingOrderId: null
+    });
+
+    const nextHeld = (state.heldOrders || []).filter(h => h.id !== heldId);
+    try {
+      localStorage.setItem(HELD_ORDERS_STORAGE_KEY, JSON.stringify(nextHeld));
+    } catch {}
+    set({ heldOrders: nextHeld });
+    return true;
+  },
+
+  discardHeldOrder: (heldId) => {
+    const state = get();
+    const nextHeld = (state.heldOrders || []).filter(h => h.id !== heldId);
+    try {
+      localStorage.setItem(HELD_ORDERS_STORAGE_KEY, JSON.stringify(nextHeld));
+    } catch {}
+    set({ heldOrders: nextHeld });
+  },
+
+  clearAllHeldOrders: () => {
+    try {
+      localStorage.removeItem(HELD_ORDERS_STORAGE_KEY);
+    } catch {}
+    set({ heldOrders: [] });
+  },
 
 
 
@@ -750,6 +875,9 @@ export const useOrderStore = create((set, get) => ({
   },
 
   getDiscountAmount: () => {
+    if (get().isComplimentary) {
+      return get().getSubtotal();
+    }
     const manual = get().getManualDiscountAmount ? get().getManualDiscountAmount() : 0;
     const promo = Number(get().appliedOffer?.discountAmount) || 0;
     const subtotal = get().getSubtotal();
@@ -840,7 +968,9 @@ export const useOrderStore = create((set, get) => ({
     const taxTotal = Number(taxInfo?.taxTotal) || 0;
     const total    = get().getTotal(restaurant);
 
-    const isPaid = paymentMethod !== 'unpaid';
+    const isComplimentary = Boolean(get().isComplimentary);
+    const isPaid = isComplimentary ? true : paymentMethod !== 'unpaid';
+    const effectivePaymentMethod = isComplimentary ? 'complimentary' : paymentMethod;
     const currentStaffDoc = useAuthStore.getState().staffDoc;
     const currentStaffRole = currentStaffDoc?.role;
     const isCurrentStaffWaiter = ['waiter', 'server'].includes(currentStaffRole);
@@ -858,6 +988,9 @@ export const useOrderStore = create((set, get) => ({
       type: orderType,
       status: 'pending',
       paid: isPaid,
+      paymentMethod: effectivePaymentMethod,
+      isComplimentary,
+      complimentaryReason: get().complimentaryReason || null,
       items: items.map(i => ({
         id: i.id,
         name: i.name,
@@ -888,7 +1021,6 @@ export const useOrderStore = create((set, get) => ({
       taxInfo: taxInfo ?? {},
       taxTotal: taxTotal ?? 0,
       total,
-      paymentMethod,
       tableId: tableId ?? null,
       tableName: tableName ?? null,
       token: tokenNumber ?? null,
