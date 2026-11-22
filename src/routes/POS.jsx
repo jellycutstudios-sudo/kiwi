@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Tag, Banknote, Search, 
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -29,6 +29,8 @@ import ModifierModal from '../components/pos/ModifierModal';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
 import CustomerModal from '../components/pos/CustomerModal';
+import OffersDrawerModal from '../components/pos/OffersDrawerModal';
+import { evaluateBogo } from '../utils/promoEngine';
 import { sendWhatsAppReceipt } from '../services/whatsappService';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
@@ -148,7 +150,8 @@ export default function POS() {
     paymentMethod,
     setPaymentMethod,
     editingOrderId,
-    discount, discountType, setDiscount, getDiscountAmount,
+    discount, discountType, setDiscount, getDiscountAmount, getManualDiscountAmount,
+    appliedOffer, setAppliedOffer, clearAppliedOffer,
     customer, setCustomerProfile, setRedeemingPoints,
     loadOrderToCart,
     tokenNumber, setToken,
@@ -183,6 +186,10 @@ export default function POS() {
       discountType: state.discountType,
       setDiscount: state.setDiscount,
       getDiscountAmount: state.getDiscountAmount,
+      getManualDiscountAmount: state.getManualDiscountAmount,
+      appliedOffer: state.appliedOffer,
+      setAppliedOffer: state.setAppliedOffer,
+      clearAppliedOffer: state.clearAppliedOffer,
       customer: state.customer,
       setCustomerProfile: state.setCustomerProfile,
       setRedeemingPoints: state.setRedeemingPoints,
@@ -428,6 +435,7 @@ export default function POS() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [modalInitialPhone, setModalInitialPhone] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
+  const [showOffersDrawer, setShowOffersDrawer] = useState(false);
 
   const [openFloatCash, setOpenFloatCash] = useState('0.00');
   const [checkingShift, setCheckingShift] = useState(true);
@@ -483,6 +491,11 @@ export default function POS() {
     return (settledChecks || []).reduce((sum, c) => sum + (Number(c.total) || 0), 0);
   }, [settledChecks]);
   const remainingTotal = settledTotal > 0 ? Math.max(0, Math.round((total - settledTotal) * 100) / 100) : total;
+
+  // Real-time BOGO & Upsell Evaluation
+  const bogoEvaluation = useMemo(() => {
+    return evaluateBogo(items, ['pizza', 'mains', 'burgers', 'bogo']);
+  }, [items]);
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
 
@@ -2806,6 +2819,24 @@ export default function POS() {
                               </span>
                             )}
 
+                            {/* Item-level Promo Offer Badge */}
+                            {appliedOffer?.itemDiscounts?.[i.id] > 0 && (
+                              <span 
+                                style={{
+                                  fontSize: '9.5px',
+                                  fontWeight: '700',
+                                  color: '#ef4444',
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  letterSpacing: '0.02em'
+                                }}
+                              >
+                                {appliedOffer.tag || 'PROMO'} -{formatCurrency(appliedOffer.itemDiscounts[i.id], currency)}
+                              </span>
+                            )}
+
                             {/* Hold Badge — only visible if explicitly on hold */}
                             {i.prepState === 'hold' && (
                               <button
@@ -2901,6 +2932,63 @@ export default function POS() {
             })()
           )}
         </div>
+
+        {/* Real-time BOGO Upsell Nudge Banner */}
+        {bogoEvaluation.nudge && !appliedOffer && (
+          <div 
+            className="cart-bogo-nudge-banner"
+            style={{
+              margin: '0 8px 6px 8px',
+              padding: '6px 10px',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08))',
+              border: '1px dashed rgba(239, 68, 68, 0.4)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '6px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--color-label-primary)' }}>
+              <span style={{ fontSize: '13px' }}>🔥</span>
+              <span>
+                Add 1 more <strong>{bogoEvaluation.nudge.itemName}</strong> for <strong>FREE</strong>!
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-xs"
+              onClick={() => {
+                const targetItem = items.find(i => i.id === bogoEvaluation.nudge.itemId);
+                if (targetItem) {
+                  addItem(targetItem);
+                  setAppliedOffer({
+                    id: 'bogo_pizza',
+                    name: 'BOGO - Buy 1 Get 1 Free',
+                    tag: 'BOGO',
+                    type: 'bogo',
+                    discountAmount: bogoEvaluation.nudge.potentialSavings,
+                    itemDiscounts: { [targetItem.id]: bogoEvaluation.nudge.potentialSavings }
+                  });
+                  toast.success(`BOGO applied! 1 Free ${targetItem.name}`, { icon: '🎁' });
+                }
+              }}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                fontSize: '10.5px',
+                fontWeight: '700',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              + Add Free 1
+            </button>
+          </div>
+        )}
 
         {/* Compact Totals & Inlined Actions Card */}
         {items.length > 0 && (
@@ -3049,6 +3137,18 @@ export default function POS() {
                   <span>{t('subtotal')}</span>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(subtotal, currency)}</span>
                 </div>
+                {appliedOffer?.discountAmount > 0 && (
+                  <div className="cart-total-row" style={{ fontSize: '11.5px', color: '#10b981', fontWeight: 600 }}>
+                    <span>Offer ({appliedOffer.name})</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>-{formatCurrency(appliedOffer.discountAmount, currency)}</span>
+                  </div>
+                )}
+                {discount > 0 && (
+                  <div className="cart-total-row" style={{ fontSize: '11.5px', color: '#10b981' }}>
+                    <span>{t('discount') || 'Discount'} ({discountType === 'percent' ? `${discount}%` : 'Flat'})</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>-{formatCurrency(getManualDiscountAmount ? getManualDiscountAmount() : 0, currency)}</span>
+                  </div>
+                )}
                 {taxInfo.lines.map(l => (
                   <div key={l.label} className="cart-total-row" style={{ fontSize: '11.5px' }}>
                     <span>{l.label}</span>
@@ -3058,8 +3158,50 @@ export default function POS() {
               </div>
             )}
 
-            {/* Quick Addons Micro-Bar: Discount · Note · Split */}
+            {/* Quick Addons Micro-Bar: Offers · Discount · Note · Split */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '0 0 6px 0' }}>
+              {/* Offers Button or Active Offer Badge */}
+              {appliedOffer ? (
+                <div 
+                  className="cart-addon-micro-chip"
+                  style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                >
+                  <Sparkles size={10} color="#ef4444" />
+                  <span 
+                    onClick={() => setShowOffersDrawer(true)}
+                    style={{ cursor: 'pointer', color: '#ef4444', fontWeight: 700 }}
+                    title="Click to view or change applied offer"
+                  >
+                    {appliedOffer.name} (-{formatCurrency(appliedOffer.discountAmount, currency)})
+                  </span>
+                  <button
+                    type="button"
+                    className="cart-addon-remove"
+                    onClick={() => {
+                      clearAppliedOffer();
+                      toast.success('Offer removed');
+                    }}
+                    title="Remove offer"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="cart-addon-micro-btn"
+                  onClick={() => setShowOffersDrawer(true)}
+                  title="View offers, BOGO & coupons"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    fontWeight: 600
+                  }}
+                >
+                  🎁 Offers
+                </button>
+              )}
               {/* Discount Pill / Micro-Button */}
               {discount > 0 ? (
                 <div className="cart-addon-micro-chip">
@@ -3520,6 +3662,22 @@ export default function POS() {
             setCustSearch('');
             setModalInitialPhone('');
           }}
+        />
+      )}
+
+      {/* Offers & BOGO Drawer Modal */}
+      {showOffersDrawer && (
+        <OffersDrawerModal
+          isOpen={showOffersDrawer}
+          onClose={() => setShowOffersDrawer(false)}
+          items={items}
+          subtotal={subtotal}
+          currency={currency}
+          restaurant={restaurant}
+          appliedOffer={appliedOffer}
+          onApplyOffer={(offer) => setAppliedOffer(offer)}
+          onRemoveOffer={() => clearAppliedOffer()}
+          onQuickAddItem={(item) => addItem(item)}
         />
       )}
 

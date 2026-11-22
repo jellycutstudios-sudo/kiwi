@@ -14,6 +14,7 @@ import { playNotificationTone, vibrateDevice } from '../utils/soundNotifications
 import { useOfflineQueueStore } from './offlineQueueStore';
 import toast from 'react-hot-toast';
 import { localSyncChannel } from '../utils/localSyncChannel';
+import { evaluateSingleOffer } from '../utils/promoEngine';
 
 let activeOrdersUnsub = null;
 let subscribedOrdersRestId = null;
@@ -29,6 +30,20 @@ export const markLocalCreatedOrder = (orderId) => {
 };
 
 export const isLocalCreatedOrder = (orderId) => localCreatedOrderIds.has(orderId);
+
+export function recalculateAppliedOffer(offer, items) {
+  if (!offer) return null;
+  const subtotal = items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
+  const reEval = evaluateSingleOffer(offer, items, subtotal);
+  if (reEval.isEligible && reEval.discountAmount > 0) {
+    return {
+      ...offer,
+      discountAmount: reEval.discountAmount,
+      itemDiscounts: reEval.itemDiscounts || {}
+    };
+  }
+  return null;
+}
 
 const isWaiterReadyCapsuleActive = (notifConfig) => {
   if (notifConfig?.waiterSlidePopupEnabled === false) return false;
@@ -123,9 +138,10 @@ export const useOrderStore = create((set, get) => ({
   upiRef: '',
   terminalTx: null, // { transactionId, status, rrn, authCode, provider, terminalId, paymentMethodUsed }
 
-  // Discount
+  // Discount & Offers
   discount: 0,
   discountType: 'fixed', // 'fixed' | 'percent'
+  appliedOffer: null, // { id, name, type, discountAmount, itemDiscounts, ... }
 
   // Tips
   tipAmount: 0,
@@ -146,39 +162,41 @@ export const useOrderStore = create((set, get) => ({
       (i.seatNumber ?? null) === (itemSeat ?? null)
     );
     const addedQty = Math.max(1, parseInt(item.qty, 10) || 1);
+    let nextItems;
     if (existing) {
-      set({ 
-        items: items.map(i => 
-          (i.id === item.id && 
-           JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? []) &&
-           (i.seatNumber ?? null) === (itemSeat ?? null)) 
-            ? { ...i, qty: i.qty + addedQty } 
-            : i
-        ) 
-      });
+      nextItems = items.map(i => 
+        (i.id === item.id && 
+         JSON.stringify(i.selectedModifiers ?? []) === JSON.stringify(item.selectedModifiers ?? []) &&
+         (i.seatNumber ?? null) === (itemSeat ?? null)) 
+          ? { ...i, qty: i.qty + addedQty } 
+          : i
+      );
     } else {
-      set({ items: [...items, { 
+      nextItems = [...items, { 
         ...item, 
         qty: addedQty, 
         course: item.course ?? 'Mains', 
         prepState: item.prepState ?? 'fired',
         seatNumber: itemSeat
-      }] });
+      }];
     }
+    const nextOffer = recalculateAppliedOffer(get().appliedOffer, nextItems);
+    set({ items: nextItems, appliedOffer: nextOffer });
   },
 
   removeItem: (id, selectedModifiers) => {
     if (useGiftCardStore.getState().giftCardCode) {
       useGiftCardStore.getState().clearGiftCard();
     }
-    // If selectedModifiers provided, match both id AND modifiers to avoid removing
-    // a different variant of the same item (e.g. same dish with different add-ons)
+    let nextItems;
     if (selectedModifiers !== undefined) {
       const modKey = JSON.stringify(selectedModifiers ?? []);
-      set({ items: get().items.filter(i => !(i.id === id && JSON.stringify(i.selectedModifiers ?? []) === modKey)) });
+      nextItems = get().items.filter(i => !(i.id === id && JSON.stringify(i.selectedModifiers ?? []) === modKey));
     } else {
-      set({ items: get().items.filter(i => i.id !== id) });
+      nextItems = get().items.filter(i => i.id !== id);
     }
+    const nextOffer = recalculateAppliedOffer(get().appliedOffer, nextItems);
+    set({ items: nextItems, appliedOffer: nextOffer });
   },
 
   updateQty: (id, qty, selectedModifiers) => {
@@ -186,15 +204,17 @@ export const useOrderStore = create((set, get) => ({
       useGiftCardStore.getState().clearGiftCard();
     }
     if (qty <= 0) { get().removeItem(id, selectedModifiers); return; }
+    let nextItems;
     if (selectedModifiers !== undefined) {
-      // Match by both id AND modifiers to avoid updating a different variant
       const modKey = JSON.stringify(selectedModifiers ?? []);
-      set({ items: get().items.map(i =>
+      nextItems = get().items.map(i =>
         (i.id === id && JSON.stringify(i.selectedModifiers ?? []) === modKey) ? { ...i, qty } : i
-      )});
+      );
     } else {
-      set({ items: get().items.map(i => i.id === id ? { ...i, qty } : i) });
+      nextItems = get().items.map(i => i.id === id ? { ...i, qty } : i);
     }
+    const nextOffer = recalculateAppliedOffer(get().appliedOffer, nextItems);
+    set({ items: nextItems, appliedOffer: nextOffer });
   },
 
   loadOrderToCart: (order) => {
@@ -226,6 +246,7 @@ export const useOrderStore = create((set, get) => ({
       billPrinted: Boolean(order.billPrinted),
       discount: Number(order.discount) || 0,
       discountType: order.discountType ?? 'fixed',
+      appliedOffer: order.appliedOffer ?? null,
       splitPayments: order.splitPayments ?? [],
       settledChecks: Array.isArray(order.settledChecks) ? order.settledChecks : [],
       upiRef: order.upiRef ?? '',
@@ -240,7 +261,7 @@ export const useOrderStore = create((set, get) => ({
     set({
       items: [], activeSeat: null, settledChecks: [], orderType: 'dine-in', tokenNumber: null, tableId: null, tableName: null,
       customerName: '', customerPhone: '', note: '', editingOrderId: null, billPrinted: false,
-      discount: 0, discountType: 'fixed', splitPayments: [],
+      discount: 0, discountType: 'fixed', appliedOffer: null, splitPayments: [],
       customer: null, redeemingPoints: false,
       tipAmount: 0, upiRef: '', terminalTx: null,
       assignedWaiterId: null, assignedWaiterName: null
@@ -418,6 +439,14 @@ export const useOrderStore = create((set, get) => ({
     }
     set({ discount, discountType });
   },
+  setAppliedOffer: (offer) => {
+    if (useGiftCardStore.getState().giftCardCode) {
+      useGiftCardStore.getState().clearGiftCard();
+    }
+    set({ appliedOffer: offer });
+  },
+  clearAppliedOffer: () => set({ appliedOffer: null }),
+  getPromoDiscountAmount: () => Number(get().appliedOffer?.discountAmount) || 0,
   setCustomerProfile:(c) => set({ customer: c }),
   setRedeemingPoints:(r) => set({ redeemingPoints: r }),
   setTip: (amt) => {
@@ -709,7 +738,7 @@ export const useOrderStore = create((set, get) => ({
   // ── Totals ───────────────────────────────────────────────
   getSubtotal: () => get().items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0), 0),
 
-  getDiscountAmount: () => {
+  getManualDiscountAmount: () => {
     const { discount, discountType } = get();
     if (!discount || discount <= 0) return 0;
     const subtotal = get().getSubtotal();
@@ -718,6 +747,13 @@ export const useOrderStore = create((set, get) => ({
       return Math.round(((subtotal * effectiveRate) / 100) * 100) / 100;
     }
     return Math.min(Math.max(0, discount), subtotal);
+  },
+
+  getDiscountAmount: () => {
+    const manual = get().getManualDiscountAmount ? get().getManualDiscountAmount() : 0;
+    const promo = Number(get().appliedOffer?.discountAmount) || 0;
+    const subtotal = get().getSubtotal();
+    return Math.min(subtotal, Math.round((manual + promo) * 100) / 100);
   },
 
   getPointsDiscountAmount: () => {
@@ -843,6 +879,8 @@ export const useOrderStore = create((set, get) => ({
       discount,
       discountType,
       discountAmount,
+      appliedOffer: get().appliedOffer ? { id: get().appliedOffer.id, name: get().appliedOffer.name, discountAmount: get().getPromoDiscountAmount() } : null,
+      promoDiscount: get().getPromoDiscountAmount(),
       pointsDiscount,
       serviceChargeRate: restaurant?.serviceChargeRate ?? 0,
       serviceChargeAmount,
