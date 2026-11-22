@@ -151,7 +151,7 @@
   --sidebar-bg:            #ffffff;
   --topbar-bg:             #ffffff;
   --topbar-height:         64px;
-  --pos-cart-width:        400px;
+  --pos-cart-width:        380px;
 
   /* ===================================================
      BORDER RADIUS — Generous rounded shapes from Dribbble
@@ -346,21 +346,17 @@ html.dark {
 }
 
 /* --- Responsive POS Cart Width custom overrides --- */
-@media (max-width: 1366px) {
+/* Golden standard: 380px on 1080p desktop; 360px on laptops; 350px on tablets (iPads / 1024x768).
+   Never drop below 340px on landscape so 4-button action bars & table selectors never clip. */
+@media (max-width: 1440px) {
   :root {
-    --pos-cart-width: 330px;
+    --pos-cart-width: 360px;
   }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1200px) {
   :root {
-    --pos-cart-width: 310px;
-  }
-}
-
-@media (max-width: 1024px) {
-  :root {
-    --pos-cart-width: 280px; /* Compact but still usable for modifier/discount/loyalty */
+    --pos-cart-width: 350px; /* Safe minimum for landscape tablets: 0 clipping, generous touch padding */
   }
 }
 

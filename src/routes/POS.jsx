@@ -2535,7 +2535,7 @@ export default function POS() {
                   >
                     <Armchair size={13} className="summary-chip-icon" />
                     <span className="summary-chip-label">
-                      {tableId ? `Table ${tableName}` : 'Select Table'}
+                      {tableId ? `Table ${tableName}` : 'Table'}
                     </span>
                   </button>
                   {tableId && (
@@ -2593,8 +2593,8 @@ export default function POS() {
                   <span>Held ({heldOrders.length})</span>
                 </button>
               )}
-              <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
-                {items.reduce((s, i) => s + i.qty, 0)}
+              <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items in cart`} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '0 7px' }}>
+                {items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}
               </span>
               <button 
                 type="button"
@@ -3749,9 +3749,11 @@ export default function POS() {
             className="cart-action-buttons" 
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: orderType === 'dine-in' ? '44px 44px 1fr 1.35fr' : '44px 1fr 1.25fr', 
-              gap: 8,
-              padding: '10px 12px 14px'
+              gridTemplateColumns: orderType === 'dine-in' ? '40px 40px minmax(68px, 1fr) minmax(105px, 1.35fr)' : '40px minmax(75px, 1fr) minmax(115px, 1.4fr)', 
+              gap: 6,
+              padding: '10px 10px 14px',
+              boxSizing: 'border-box',
+              width: '100%'
             }}
           >
             {orderType === 'dine-in' && (
@@ -3761,7 +3763,7 @@ export default function POS() {
                 onClick={handlePrintPreBill}
                 disabled={!items.length}
                 type="button"
-                style={{ width: 44, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                style={{ width: 40, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                 title="Print Customer Bill / Pre-Bill Check"
                 aria-label="Print Customer Bill"
               >
@@ -3775,7 +3777,7 @@ export default function POS() {
               disabled={!items.length}
               type="button"
               style={{
-                width: 44,
+                width: 40,
                 height: 44,
                 padding: 0,
                 borderRadius: 12,
@@ -3798,7 +3800,7 @@ export default function POS() {
               onClick={handleSendToKitchen}
               disabled={!items.length}
               type="button"
-              style={{ height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}
+              style={{ minWidth: 0, height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}
               title={
                 !isKitchenActive
                   ? (orderType === 'dine-in' ? 'Save order to table for cashier counter payment' : 'Hold order for pickup')
@@ -3807,23 +3809,23 @@ export default function POS() {
             >
               {!isKitchenActive ? (
                 orderType === 'takeaway' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 750 }}>Hold Order</span>
-                    <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay on Pickup</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hold</span>
+                    <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Pickup</span>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 750 }}>Save Table</span>
-                    <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay at Counter</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Save</span>
+                    <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Counter</span>
                   </div>
                 )
               ) : orderType === 'takeaway' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 750 }}>Kitchen</span>
-                  <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Pay on Pickup</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Kitchen</span>
+                  <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>KOT</span>
                 </div>
               ) : (
-                <span>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
+                <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
               )}
             </button>
             <button
@@ -3833,31 +3835,41 @@ export default function POS() {
               disabled={!items.length}
               type="button"
               style={{
+                minWidth: 0,
                 height: 44,
                 borderRadius: 12,
                 opacity: items.length ? 1 : 0.4,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '0 10px',
+                padding: '0 8px',
                 background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
               }}
               title={isComplimentary ? 'Settle Complimentary / NC Order directly' : orderType === 'takeaway' ? "Collect payment immediately & fire order to kitchen (KOT)" : "Proceed to payment & checkout"}
             >
-              <span style={{ fontSize: 13.5, fontWeight: 800 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(remainingTotal, currency)}`}
               </span>
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 8, padding: '10px 12px 14px' }}>
+          <div 
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '40px 40px 1fr', 
+              gap: 6, 
+              padding: '10px 10px 14px',
+              boxSizing: 'border-box',
+              width: '100%'
+            }}
+          >
             <button
               className="btn btn-secondary"
               id="print-prebill-btn"
               onClick={handlePrintPreBill}
               disabled={!items.length}
               type="button"
-              style={{ width: 44, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              style={{ width: 40, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
               title="Print Customer Bill / Pre-Bill Check"
               aria-label="Print Customer Bill"
             >
@@ -3870,7 +3882,7 @@ export default function POS() {
               disabled={!items.length}
               type="button"
               style={{
-                width: 44,
+                width: 40,
                 height: 44,
                 padding: 0,
                 borderRadius: 12,
@@ -3894,17 +3906,18 @@ export default function POS() {
               disabled={!items.length}
               type="button"
               style={{
-                flex: 1,
+                minWidth: 0,
                 height: 44,
                 borderRadius: 12,
                 opacity: items.length ? 1 : 0.4,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                padding: '0 8px',
                 background: isComplimentary ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined
               }}
             >
-              <span className="cart-checkout-title" style={{ fontSize: 14, fontWeight: 800 }}>
+              <span className="cart-checkout-title" style={{ fontSize: 13.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {isComplimentary ? 'Settle (Comp)' : `Pay ${formatCurrency(total, currency)}`}
               </span>
             </button>
