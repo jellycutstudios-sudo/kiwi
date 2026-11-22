@@ -9,7 +9,7 @@ import {
   Save, Copy, Check, Plus, Trash2, Edit2, Printer, X, Volume2, Bell, Bluetooth, Upload, 
   Sparkles, RefreshCw, Search, ArrowRight, Tv, ExternalLink,
   Download, ShieldCheck, Bot, Zap, Lock, Mail, MessageSquare, Send,
-  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown, Monitor
+  Store, SlidersHorizontal, ChefHat, CreditCard, Receipt, Smartphone, HardDrive, LayoutDashboard, Activity, ChevronDown, Monitor, HelpCircle
 } from 'lucide-react';
 import { generateDiagnosticReport, runSystemDiagnostics, getRecentLogs } from '../../utils/logger';
 import { playNotificationTone, TONE_PRESETS } from '../../utils/soundNotifications';
@@ -881,6 +881,7 @@ export default function Settings() {
   const [sendingTestReport, setSendingTestReport] = useState(false);
   const [testingWhatsApp, setTestingWhatsApp] = useState(false);
   const [testWhatsAppPhone, setTestWhatsAppPhone] = useState('');
+  const [showPermanentTokenGuide, setShowPermanentTokenGuide] = useState(false);
 
   const handleSendTestWhatsApp = async () => {
     const waConfig = settings.whatsapp || restaurant?.settings?.whatsapp || {};
@@ -4523,10 +4524,30 @@ export default function Settings() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>Permanent Access Token (System User Token)</span>
-                      <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>Bearer Token from Meta Business Manager</span>
-                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <label className="form-label" style={{ margin: 0 }}>
+                        Permanent Access Token (System User Token)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowPermanentTokenGuide(prev => !prev)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-primary, #3b82f6)',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: 0
+                        }}
+                      >
+                        <HelpCircle size={13} />
+                        {showPermanentTokenGuide ? 'Hide instructions' : 'How to get permanent token (never expires)?'}
+                      </button>
+                    </div>
                     <input
                       className="form-input"
                       type="password"
@@ -4534,6 +4555,85 @@ export default function Settings() {
                       value={settings.whatsapp?.accessToken ?? ''}
                       onChange={e => updateField('whatsapp', { ...(settings.whatsapp || {}), accessToken: e.target.value })}
                     />
+
+                    {/* Step-by-Step Permanent Token Instruction Card */}
+                    {showPermanentTokenGuide && (
+                      <div style={{
+                        marginTop: 10,
+                        padding: '14px 16px',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'rgba(59, 130, 246, 0.06)',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                        fontSize: 12.5,
+                        color: 'var(--color-label-primary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                          <span style={{ fontWeight: 700, color: 'var(--color-primary, #2563eb)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <ShieldCheck size={16} /> How to generate a Permanent Meta Token (Never Expires)
+                          </span>
+                          <a
+                            href="https://business.facebook.com/settings/system-users"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 11.5,
+                              color: 'var(--color-primary, #2563eb)',
+                              fontWeight: 600,
+                              textDecoration: 'underline'
+                            }}
+                          >
+                            Open Meta Business Settings <ExternalLink size={11} />
+                          </a>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, lineHeight: 1.5 }}>
+                          <div>
+                            <strong>Step 1: Create a System User</strong>
+                            <div style={{ color: 'var(--color-label-secondary)', fontSize: 12, marginTop: 2 }}>
+                              Open <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>Meta Business Settings</a> &rarr; <strong>Users</strong> &rarr; <strong>System Users</strong> &rarr; click <strong>Add</strong> &rarr; Name: <code>Kiwi POS</code>, Role: <strong>Admin</strong>.
+                            </div>
+                          </div>
+
+                          <div>
+                            <strong>Step 2: Assign Your WhatsApp App</strong>
+                            <div style={{ color: 'var(--color-label-secondary)', fontSize: 12, marginTop: 2 }}>
+                              Select the new system user &rarr; click <strong>Add Assets</strong> &rarr; choose <strong>Apps</strong> &rarr; pick your WhatsApp App &rarr; toggle on <strong>Full Control (Manage App)</strong> &rarr; Save.
+                            </div>
+                          </div>
+
+                          <div>
+                            <strong>Step 3: Generate Permanent Token</strong>
+                            <div style={{ color: 'var(--color-label-secondary)', fontSize: 12, marginTop: 2 }}>
+                              Click <strong>Generate New Token</strong> &rarr; select your App &rarr; set Token Expiration to <strong>Never</strong>.
+                            </div>
+                          </div>
+
+                          <div>
+                            <strong>Step 4: Check Permissions & Copy</strong>
+                            <div style={{ color: 'var(--color-label-secondary)', fontSize: 12, marginTop: 2 }}>
+                              Under permissions, select <strong>whatsapp_business_messaging</strong> and <strong>whatsapp_business_management</strong> &rarr; click <strong>Generate Token</strong> &rarr; copy and paste it into the box above.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          fontSize: 11.5,
+                          background: 'rgba(234, 179, 8, 0.1)',
+                          border: '1px solid rgba(234, 179, 8, 0.3)',
+                          borderRadius: 6,
+                          padding: '6px 10px',
+                          color: '#ca8a04'
+                        }}>
+                          💡 <em>Note:</em> The temporary 24-hour token shown on developers.facebook.com is only for quick testing. A System User token never expires, ensuring receipts send 24/7 without interruption.
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Mode & Promo Text */}
