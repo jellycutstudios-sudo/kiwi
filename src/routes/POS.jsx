@@ -9,7 +9,7 @@ import { useMenuStore } from '../stores/menuStore';
 import { useTableStore } from '../stores/tableStore';
 import { useGiftCardStore } from '../stores/giftCardStore';
 import { useShallow } from 'zustand/react/shallow';
-import { collection, doc, getDoc, setDoc, query, where, getDocs, addDoc, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, query, where, getDocs, addDoc, limit } from 'firebase/firestore';
 import { db, functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -28,6 +28,7 @@ import TableSelectModal from '../components/pos/TableSelectModal';
 import ModifierModal from '../components/pos/ModifierModal';
 import OpenItemModal from '../components/pos/OpenItemModal';
 import DigitalReceiptModal from '../components/pos/DigitalReceiptModal';
+import CustomerModal from '../components/pos/CustomerModal';
 import { sendWhatsAppReceipt } from '../services/whatsappService';
 import MobileWaiterHandheld from '../components/pos/MobileWaiterHandheld';
 import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
@@ -424,9 +425,8 @@ export default function POS() {
       return () => clearTimeout(id);
     }
   }, [items.length]);
-  const [showQuickRegister, setShowQuickRegister] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [modalInitialPhone, setModalInitialPhone] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
 
   const [openFloatCash, setOpenFloatCash] = useState('0.00');
@@ -870,7 +870,7 @@ export default function POS() {
     }
   };
 
-  const handleCustomerLookup = async (phoneStr, triggerRegisterIfNew = false) => {
+  const handleCustomerLookup = async (phoneStr, openModalIfNew = false) => {
     const cleanPhone = (phoneStr || '').replace(/\D/g, '');
     if (cleanPhone.length < 8) return;
 
@@ -884,67 +884,17 @@ export default function POS() {
         setCustomerProfile(profile);
         setCustomer(profile.name || cleanPhone, cleanPhone);
         setCustSearch('');
-        setShowQuickRegister(false);
-        setRegPhone('');
         toast.success(`Attached returning customer: ${profile.name || cleanPhone}`, { id: 'cust-lookup', duration: 2500 });
-      } else if (triggerRegisterIfNew) {
-        setRegPhone(cleanPhone);
-        setShowQuickRegister(true);
-        // Pre-attach the phone to the order immediately so WhatsApp receipt has the recipient phone
-        const curName = customerName || 'Customer';
-        setCustomer(curName, cleanPhone);
-        setCustomerProfile({ name: curName, phone: cleanPhone, points: 0 });
+      } else if (openModalIfNew) {
+        setModalInitialPhone(cleanPhone);
+        setShowCustomerModal(true);
       }
     } catch (e) {
       console.warn('Customer lookup error:', e?.message);
-      if (triggerRegisterIfNew) {
-        setRegPhone(cleanPhone);
-        setShowQuickRegister(true);
-        const curName = customerName || 'Customer';
-        setCustomer(curName, cleanPhone);
-        setCustomerProfile({ name: curName, phone: cleanPhone, points: 0 });
+      if (openModalIfNew) {
+        setModalInitialPhone(cleanPhone);
+        setShowCustomerModal(true);
       }
-    }
-  };
-
-  const handleQuickRegister = async () => {
-    const cleanPhone = (regPhone || custSearch || customerPhone || '').replace(/\D/g, '');
-    if (cleanPhone.length < 8) {
-      toast.error('Valid phone number required (at least 8 digits)');
-      return;
-    }
-    const name = newCustName.trim() || customerName || 'Customer';
-
-    const payload = {
-      name,
-      phone: cleanPhone,
-      points: 0,
-      visitCount: 0,
-      lifetimeSpend: 0,
-      birthday: '',
-      notes: '',
-      createdAt: new Date()
-    };
-
-    try {
-      await ensureAnonymousAuth();
-      await setDoc(doc(db, 'restaurants', restaurant.id, 'customers', cleanPhone), payload, { merge: true });
-      setCustomerProfile(payload);
-      setCustomer(payload.name, payload.phone);
-      setShowQuickRegister(false);
-      setNewCustName('');
-      setCustSearch('');
-      setRegPhone('');
-      toast.success(`Attached customer: ${payload.name} (${cleanPhone})`);
-    } catch (e) {
-      console.warn('Registration fallback:', e?.message);
-      setCustomerProfile(payload);
-      setCustomer(payload.name, payload.phone);
-      setShowQuickRegister(false);
-      setNewCustName('');
-      setCustSearch('');
-      setRegPhone('');
-      toast.success(`Attached to order: ${payload.name}`);
     }
   };
 
@@ -2474,77 +2424,56 @@ export default function POS() {
                     {/* Customer / Loyalty Info row */}
                     <div className="cart-service-row cart-service-customer-row">
                       {customer ? (
-                        <div className="cart-customer-vip-card">
+                        <div
+                          className="cart-customer-vip-card"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setModalInitialPhone(customer.phone || customerPhone || '');
+                            setShowCustomerModal(true);
+                          }}
+                        >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                             <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {customer.name}
+                              👤 {customer.name || customerName || 'Customer'}
                             </span>
                             <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                              {customer.phone || customerPhone || `${customer.points || 0} pts`}
+                              {customer.phone || customerPhone}
                             </span>
+                            {Boolean(customer.points) && (
+                              <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                {customer.points} pts
+                              </span>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCustomerProfile(null);
-                              setCustomer('', '');
-                              setRedeemingPoints(false);
-                              setCustSearch('');
-                              setRegPhone('');
-                            }}
-                            style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                            title="Remove customer"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ) : showQuickRegister ? (
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '6px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--color-primary, #3b82f6)', whiteSpace: 'nowrap' }}>
-                            {regPhone || custSearch.replace(/\D/g, '')}:
-                          </span>
-                          <input
-                            autoFocus
-                            className="form-input"
-                            placeholder="Customer name..."
-                            value={newCustName}
-                            onChange={e => setNewCustName(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleQuickRegister();
-                              if (e.key === 'Escape') {
-                                setShowQuickRegister(false);
-                                setRegPhone('');
-                              }
-                            }}
-                            style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1, minWidth: 0 }}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-success btn-xs"
-                            onClick={handleQuickRegister}
-                            style={{ height: 26, padding: '0 8px', fontSize: 11, fontWeight: 700 }}
-                            title="Save customer"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-xs"
-                            onClick={() => {
-                              const p = regPhone || custSearch.replace(/\D/g, '');
-                              if (p) {
-                                setCustomer(customerName || 'Customer', p);
-                                setCustomerProfile({ name: customerName || 'Customer', phone: p, points: 0 });
-                              }
-                              setShowQuickRegister(false);
-                              setCustSearch('');
-                              setRegPhone('');
-                            }}
-                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
-                            title="Close"
-                          >
-                            ✕
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-xs"
+                              style={{ padding: '1px 5px', fontSize: 10, color: '#047857', fontWeight: 600, border: 'none', background: 'none' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setModalInitialPhone(customer.phone || customerPhone || '');
+                                setShowCustomerModal(true);
+                              }}
+                              title="Edit customer details"
+                            >
+                              Edit ✎
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomerProfile(null);
+                                setCustomer('', '');
+                                setRedeemingPoints(false);
+                                setCustSearch('');
+                              }}
+                              style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                              title="Remove customer"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div style={{ width: '100%' }}>
@@ -2570,22 +2499,42 @@ export default function POS() {
                                   if (digits.length >= 8) {
                                     handleCustomerLookup(custSearch, true);
                                   } else {
-                                    toast.error('Enter at least 8 digits');
+                                    setModalInitialPhone(custSearch);
+                                    setShowCustomerModal(true);
                                   }
                                 }
                               }}
                             />
-                            {custSearch && (
+                            {custSearch ? (
                               <button
                                 type="button"
                                 className="cart-customer-search-clear"
-                                onClick={() => {
-                                  setCustSearch('');
-                                  setRegPhone('');
-                                }}
+                                onClick={() => setCustSearch('')}
                                 title="Clear search"
                               >
                                 <X size={12} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setModalInitialPhone('');
+                                  setShowCustomerModal(true);
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  right: 4,
+                                  background: 'rgba(59, 130, 246, 0.12)',
+                                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                                  color: 'var(--color-primary, #3b82f6)',
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: 5,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                + Customer
                               </button>
                             )}
                           </div>
@@ -2621,27 +2570,48 @@ export default function POS() {
                   /* Takeaway / Counter: Sleek unified row inside cart-service-details */
                   <div className="cart-service-row cart-service-takeaway-row">
                     {customer ? (
-                      <div className="cart-customer-vip-card" style={{ width: '100%' }}>
+                      <div className="cart-customer-vip-card" style={{ width: '100%', cursor: 'pointer' }} onClick={() => { setModalInitialPhone(customer.phone || customerPhone || ''); setShowCustomerModal(true); }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                           <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {customer.name}
+                            👤 {customer.name || customerName || 'Customer'}
                           </span>
                           <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                            {customer.points} pts
+                            {customer.phone || customerPhone}
                           </span>
+                          {Boolean(customer.points) && (
+                            <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.25)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
+                              {customer.points} pts
+                            </span>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomerProfile(null);
-                            setCustomer('', '');
-                            setRedeemingPoints(false);
-                          }}
-                          style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
-                          title="Clear customer"
-                        >
-                          <X size={12} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs"
+                            style={{ padding: '1px 5px', fontSize: 10, color: '#047857', fontWeight: 600, border: 'none', background: 'none' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModalInitialPhone(customer.phone || customerPhone || '');
+                              setShowCustomerModal(true);
+                            }}
+                            title="Edit customer details"
+                          >
+                            Edit ✎
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCustomerProfile(null);
+                              setCustomer('', '');
+                              setRedeemingPoints(false);
+                            }}
+                            style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                            title="Clear customer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="cart-takeaway-inputs-wrap">
@@ -3521,6 +3491,34 @@ export default function POS() {
               items: digitalReceiptOrder.items || [],
               staffName: staffDoc?.name || 'Cashier'
             });
+          }}
+        />
+      )}
+
+      {/* Customer & Loyalty Modal (Toast / Square style) */}
+      {showCustomerModal && (
+        <CustomerModal
+          isOpen={showCustomerModal}
+          onClose={() => {
+            setShowCustomerModal(false);
+            setModalInitialPhone('');
+          }}
+          initialPhone={modalInitialPhone}
+          restaurant={restaurant}
+          customer={customer}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          onAttach={(profile) => {
+            setCustomerProfile(profile);
+            setCustomer(profile.name || 'Customer', profile.phone);
+            setCustSearch('');
+            setModalInitialPhone('');
+          }}
+          onDetach={() => {
+            setCustomerProfile(null);
+            setCustomer('', '');
+            setCustSearch('');
+            setModalInitialPhone('');
           }}
         />
       )}
