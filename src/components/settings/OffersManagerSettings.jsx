@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
-  Plus, Trash2, Edit2, Check, X, Tag, Sparkles, RotateCcw
+  Plus, Trash2, Edit2, Copy, Check, X, Tag, Sparkles, RotateCcw, 
+  Search, Layers, ShoppingBag, Globe, Flame, CheckSquare, Square
 } from 'lucide-react';
 import { useMenuStore } from '../../stores/menuStore';
 import { DEFAULT_OFFERS } from '../../utils/promoEngine';
@@ -11,11 +12,94 @@ import toast from 'react-hot-toast';
 
 const PRESET_BADGE_COLORS = [
   '#ef4444', // Red
+  '#f97316', // Orange
   '#f59e0b', // Amber
   '#10b981', // Emerald
   '#3b82f6', // Blue
   '#8b5cf6', // Purple
   '#ec4899', // Pink
+];
+
+const PRESETS = [
+  {
+    label: '🔥 Buy 1 Get 1 Free',
+    name: 'Buy 1 Get 1 Free (BOGO)',
+    type: 'bogo',
+    tag: 'BOGO',
+    icon: '🔥',
+    badgeColor: '#ef4444',
+    targetType: 'category',
+    categoryFilter: [],
+    targetItemIds: [],
+    buyQty: 1,
+    getQty: 1,
+    discountPercent: 100,
+    description: 'Buy 1 qualifying item, get 1 free (cheaper item free)'
+  },
+  {
+    label: '🍕 Buy 2 Get 1 Free',
+    name: 'Buy 2 Get 1 Free Deal',
+    type: 'bogo',
+    tag: 'B2G1',
+    icon: '🍕',
+    badgeColor: '#f97316',
+    targetType: 'category',
+    categoryFilter: [],
+    targetItemIds: [],
+    buyQty: 2,
+    getQty: 1,
+    discountPercent: 100,
+    description: 'Buy any 2 qualifying items and get the 3rd item free'
+  },
+  {
+    label: '🎉 2nd at 50% Off',
+    name: 'Buy 1 Get 2nd at 50% Off',
+    type: 'bogo',
+    tag: 'BOGO50',
+    icon: '🎉',
+    badgeColor: '#ec4899',
+    targetType: 'category',
+    categoryFilter: [],
+    targetItemIds: [],
+    buyQty: 1,
+    getQty: 1,
+    discountPercent: 50,
+    description: 'Buy 1 qualifying item and get the 2nd item at 50% discount'
+  },
+  {
+    label: '💰 Spend & Save ₹100',
+    name: 'Flat ₹100 OFF on Orders > ₹800',
+    type: 'threshold',
+    tag: 'SAVE100',
+    icon: '💰',
+    badgeColor: '#10b981',
+    minSpend: 800,
+    discountAmount: 100,
+    description: 'Save flat ₹100 when cart subtotal reaches ₹800'
+  },
+  {
+    label: '🍹 Happy Hour 20%',
+    name: 'Happy Hour - 20% OFF Drinks',
+    type: 'percent_category',
+    tag: 'HAPPY20',
+    icon: '🍹',
+    badgeColor: '#3b82f6',
+    targetType: 'category',
+    targetCategory: 'beverages',
+    targetItemIds: [],
+    discountPercent: 20,
+    description: '20% off all beverages in this order'
+  },
+  {
+    label: '👑 VIP 10% Off Cart',
+    name: 'VIP Guest Special (10% OFF)',
+    type: 'percent_cart',
+    tag: 'VIP10',
+    icon: '👑',
+    badgeColor: '#8b5cf6',
+    discountPercent: 10,
+    description: '10% off entire order for loyalty customers'
+  }
 ];
 
 export default function OffersManagerSettings({ restaurant, currency = 'INR' }) {
@@ -25,9 +109,32 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
       ? restaurant.offers
       : DEFAULT_OFFERS;
   });
-  const [editingOffer, setEditingOffer] = useState(null); // null or offer object
+  const [editingOffer, setEditingOffer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+
+  // Flattened menu items for custom product targeting
+  const allMenuItems = useMemo(() => {
+    return (categories || []).flatMap(c => 
+      (c.items || []).map(item => ({
+        ...item,
+        categoryId: c.id,
+        categoryName: c.name
+      }))
+    );
+  }, [categories]);
+
+  // Filtered menu items based on search
+  const filteredMenuItems = useMemo(() => {
+    if (!productSearch.trim()) return allMenuItems;
+    const q = productSearch.toLowerCase().trim();
+    return allMenuItems.filter(item => 
+      item.name?.toLowerCase().includes(q) ||
+      item.categoryName?.toLowerCase().includes(q) ||
+      item.sku?.toLowerCase().includes(q)
+    );
+  }, [allMenuItems, productSearch]);
 
   const persistOffers = async (newOffers) => {
     if (!restaurant?.id) return;
@@ -49,8 +156,7 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
   const handleToggleOffer = async (offerId) => {
     const updated = offers.map(o => {
       if (o.id === offerId) {
-        const nextActive = o.isActive === false ? true : false;
-        return { ...o, isActive: nextActive };
+        return { ...o, isActive: o.isActive === false ? true : false };
       }
       return o;
     });
@@ -63,12 +169,26 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
     await persistOffers(updated);
   };
 
+  const handleDuplicateOffer = async (offer) => {
+    const clone = {
+      ...offer,
+      id: 'offer_' + Date.now().toString(36),
+      name: `${offer.name} (Copy)`,
+      tag: offer.tag ? `${offer.tag}2` : 'PROMO',
+      isActive: true
+    };
+    const updated = [clone, ...offers];
+    await persistOffers(updated);
+    toast.success('Offer duplicated!');
+  };
+
   const handleResetDefaults = async () => {
     if (!window.confirm('Reset all offers to Kiwi standard defaults (BOGO Pizza, 20% Happy Hour, Flat ₹100 Off)?')) return;
     await persistOffers(DEFAULT_OFFERS);
   };
 
   const handleOpenAddModal = () => {
+    setProductSearch('');
     setEditingOffer({
       id: 'offer_' + Date.now().toString(36),
       name: '',
@@ -77,8 +197,12 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
       badgeColor: '#ef4444',
       icon: '🔥',
       description: '',
+      targetType: 'category',
       categoryFilter: [],
       targetCategory: '',
+      targetItemIds: [],
+      buyQty: 1,
+      getQty: 1,
       discountPercent: 100,
       minSpend: 500,
       discountAmount: 50,
@@ -88,8 +212,60 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
   };
 
   const handleOpenEditModal = (offer) => {
-    setEditingOffer({ ...offer });
+    setProductSearch('');
+    setEditingOffer({
+      ...offer,
+      targetType: offer.targetType || (Array.isArray(offer.targetItemIds) && offer.targetItemIds.length > 0 ? 'items' : 'category'),
+      targetItemIds: Array.isArray(offer.targetItemIds) ? offer.targetItemIds : [],
+      categoryFilter: Array.isArray(offer.categoryFilter) ? offer.categoryFilter : [],
+      buyQty: offer.buyQty !== undefined ? Number(offer.buyQty) : 1,
+      getQty: offer.getQty !== undefined ? Number(offer.getQty) : 1,
+      discountPercent: offer.discountPercent !== undefined ? Number(offer.discountPercent) : 100
+    });
     setIsModalOpen(true);
+  };
+
+  const handleApplyPreset = (preset) => {
+    setEditingOffer(prev => ({
+      ...prev,
+      name: preset.name,
+      type: preset.type,
+      tag: preset.tag,
+      icon: preset.icon,
+      badgeColor: preset.badgeColor,
+      targetType: preset.targetType || 'category',
+      categoryFilter: preset.categoryFilter || [],
+      targetCategory: preset.targetCategory || '',
+      targetItemIds: preset.targetItemIds || [],
+      buyQty: preset.buyQty || 1,
+      getQty: preset.getQty || 1,
+      discountPercent: preset.discountPercent !== undefined ? preset.discountPercent : 100,
+      minSpend: preset.minSpend || 500,
+      discountAmount: preset.discountAmount || 50,
+      description: preset.description
+    }));
+    toast.success(`Loaded "${preset.label}" template`);
+  };
+
+  const handleToggleTargetProduct = (itemId) => {
+    setEditingOffer(prev => {
+      const current = Array.isArray(prev.targetItemIds) ? prev.targetItemIds : [];
+      const exists = current.includes(itemId);
+      const next = exists ? current.filter(id => id !== itemId) : [...current, itemId];
+      return { ...prev, targetItemIds: next };
+    });
+  };
+
+  const handleSelectAllFilteredProducts = () => {
+    setEditingOffer(prev => {
+      const current = new Set(prev.targetItemIds || []);
+      filteredMenuItems.forEach(item => current.add(item.id));
+      return { ...prev, targetItemIds: Array.from(current) };
+    });
+  };
+
+  const handleClearSelectedProducts = () => {
+    setEditingOffer(prev => ({ ...prev, targetItemIds: [] }));
   };
 
   const handleSaveModalOffer = async (e) => {
@@ -99,13 +275,36 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
       return;
     }
 
+    // Default description if empty
+    let autoDesc = editingOffer.description;
+    if (!autoDesc) {
+      if (editingOffer.type === 'bogo') {
+        const discountText = editingOffer.discountPercent === 100 ? 'FREE' : `${editingOffer.discountPercent}% OFF`;
+        const scopeText = editingOffer.targetType === 'items'
+          ? `${editingOffer.targetItemIds?.length || 0} selected dishes`
+          : (editingOffer.categoryFilter?.length ? editingOffer.categoryFilter.join(', ') : 'all qualifying items');
+        autoDesc = `Buy ${editingOffer.buyQty || 1}, Get ${editingOffer.getQty || 1} at ${discountText} on ${scopeText}`;
+      } else if (editingOffer.type === 'threshold') {
+        autoDesc = `Flat ${formatCurrency(editingOffer.discountAmount, currency)} OFF on orders above ${formatCurrency(editingOffer.minSpend, currency)}`;
+      } else if (editingOffer.type === 'percent_category') {
+        autoDesc = `${editingOffer.discountPercent}% OFF on ${editingOffer.targetCategory || 'qualifying items'}`;
+      } else if (editingOffer.type === 'percent_cart') {
+        autoDesc = `${editingOffer.discountPercent}% OFF on entire order`;
+      }
+    }
+
+    const payload = {
+      ...editingOffer,
+      description: autoDesc
+    };
+
     const existingIndex = offers.findIndex(o => o.id === editingOffer.id);
     let updated;
     if (existingIndex >= 0) {
       updated = [...offers];
-      updated[existingIndex] = editingOffer;
+      updated[existingIndex] = payload;
     } else {
-      updated = [editingOffer, ...offers];
+      updated = [payload, ...offers];
     }
 
     await persistOffers(updated);
@@ -129,23 +328,21 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <Tag size={20} />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: 'var(--color-label-primary)' }}>
-                Offers, BOGO & Promotions
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: '2px 0 0 0' }}>
-                Auto-evaluate Buy-1-Get-1, tiered spend rewards, happy hours and promo coupons at POS checkout.
-              </p>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: 42, height: 42, borderRadius: '10px',
+            background: 'rgba(239, 68, 68, 0.15)',
+            color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Flame size={22} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: 'var(--color-label-primary)' }}>
+              Offers, BOGO & Promotions
+            </h2>
+            <p style={{ fontSize: '12px', color: 'var(--color-label-secondary)', margin: '2px 0 0 0' }}>
+              Customizable Buy-X-Get-Y rules, mixed-product cheapest-free pools, and spend thresholds (Toast & Square standard).
+            </p>
           </div>
         </div>
 
@@ -171,7 +368,7 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
         </div>
       </div>
 
-      {/* Summary Chips */}
+      {/* Summary KPI Chips */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
         <div style={{
           background: 'var(--color-bg-card)',
@@ -208,7 +405,7 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
           padding: '14px 16px'
         }}>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>
-            POS Cart Drawer
+            POS Cart & Storefront
           </div>
           <div style={{ fontSize: '13px', fontWeight: 700, color: '#3b82f6', marginTop: '8px', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Sparkles size={14} /> Real-time Upsell Engine Active
@@ -241,6 +438,19 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
         ) : (
           offers.map(offer => {
             const isEnabled = offer.isActive !== false;
+            
+            // Scope badge text
+            let scopeBadge = null;
+            if (offer.targetType === 'items') {
+              const count = offer.targetItemIds?.length || 0;
+              scopeBadge = `🍔 ${count} Specific Product${count === 1 ? '' : 's'}`;
+            } else if (offer.targetType === 'category') {
+              const count = offer.categoryFilter?.length || 0;
+              scopeBadge = count > 0 ? `📂 ${count} Categor${count === 1 ? 'y' : 'ies'}` : '📂 All Categories';
+            } else if (offer.targetType === 'any') {
+              scopeBadge = '🌐 Entire Menu';
+            }
+
             return (
               <div
                 key={offer.id}
@@ -258,7 +468,7 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                 }}
               >
                 {/* Left: Icon & Info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
                   <div style={{
                     width: 44,
                     height: 44,
@@ -268,12 +478,13 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '20px'
+                    fontSize: '20px',
+                    flexShrink: 0
                   }}>
                     {offer.icon || '🎁'}
                   </div>
 
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-label-primary)' }}>
                         {offer.name}
@@ -290,6 +501,19 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                       }}>
                         {offer.tag || offer.type}
                       </span>
+                      {scopeBadge && (
+                        <span style={{
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          color: 'var(--color-label-secondary)',
+                          border: '1px solid var(--color-separator)'
+                        }}>
+                          {scopeBadge}
+                        </span>
+                      )}
                       {!isEnabled && (
                         <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-label-tertiary)' }}>
                           (Disabled)
@@ -297,14 +521,14 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                       )}
                     </div>
 
-                    <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '4px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {offer.description || (
                         offer.type === 'bogo'
-                          ? `Buy 1 Get 1 Free on ${offer.categoryFilter?.join(', ') || 'qualifying items'}`
+                          ? `Buy ${offer.buyQty || 1} Get ${offer.getQty || 1} Free (${offer.categoryFilter?.join(', ') || 'qualifying items'})`
                           : offer.type === 'threshold'
                           ? `Flat ${formatCurrency(offer.discountAmount, currency)} OFF on orders > ${formatCurrency(offer.minSpend, currency)}`
                           : offer.type === 'percent_category'
-                          ? `${offer.discountPercent}% OFF on category: ${offer.targetCategory}`
+                          ? `${offer.discountPercent}% OFF on ${offer.targetCategory}`
                           : `Promo Coupon (${offer.tag})`
                       )}
                     </div>
@@ -312,9 +536,9 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                 </div>
 
                 {/* Right: Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   {/* Toggle Switch */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0, paddingRight: '4px' }}>
                     <input
                       type="checkbox"
                       checked={isEnabled}
@@ -325,6 +549,16 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                       {isEnabled ? 'Active' : 'Off'}
                     </span>
                   </label>
+
+                  {/* Duplicate */}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-icon"
+                    onClick={() => handleDuplicateOffer(offer)}
+                    title="Duplicate / Clone offer"
+                  >
+                    <Copy size={14} />
+                  </button>
 
                   {/* Edit */}
                   <button
@@ -361,8 +595,8 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
             position: 'fixed',
             inset: 0,
             zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(3px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -379,17 +613,26 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
               border: '1px solid var(--color-separator, #334155)',
               borderRadius: '16px',
               width: '100%',
-              maxWidth: '540px',
-              maxHeight: '90vh',
+              maxWidth: '580px',
+              maxHeight: '92vh',
               overflowY: 'auto',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              padding: '24px'
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--color-label-primary)' }}>
-                {offers.some(o => o.id === editingOffer.id) ? 'Edit Promotion' : 'Create Promotion'}
-              </h3>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--color-label-primary)' }}>
+                  {offers.some(o => o.id === editingOffer.id) ? 'Edit Promotion' : 'Create Promotion'}
+                </h3>
+                <span style={{ fontSize: '11px', color: 'var(--color-label-secondary)' }}>
+                  Configure rule logic, discount rates, and target items
+                </span>
+              </div>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm btn-icon"
@@ -399,8 +642,38 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
               </button>
             </div>
 
+            {/* 1-Tap Presets Bar */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: '10px',
+              padding: '10px 12px'
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-label-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>
+                ⚡ Quick Templates (1-Tap Fill)
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {PRESETS.map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleApplyPreset(p)}
+                    className="btn btn-xs btn-secondary"
+                    style={{
+                      fontSize: '11px',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255,255,255,0.08)'
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleSaveModalOffer} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Offer Type */}
+              {/* Promotion Rule Type */}
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
                   Promotion Rule Type
@@ -411,10 +684,10 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                   onChange={(e) => {
                     const newType = e.target.value;
                     const defaults = {
-                      bogo: { tag: 'BOGO', icon: '🔥', badgeColor: '#ef4444' },
-                      threshold: { tag: 'Spend & Save', icon: '💰', badgeColor: '#10b981' },
-                      percent_category: { tag: 'Happy Hour', icon: '🍹', badgeColor: '#f59e0b' },
-                      percent_cart: { tag: 'VIP Guest', icon: '👑', badgeColor: '#8b5cf6' }
+                      bogo: { tag: 'BOGO', icon: '🔥', badgeColor: '#ef4444', targetType: 'category' },
+                      threshold: { tag: 'SAVE100', icon: '💰', badgeColor: '#10b981' },
+                      percent_category: { tag: 'HAPPY20', icon: '🍹', badgeColor: '#3b82f6', targetType: 'category' },
+                      percent_cart: { tag: 'VIP10', icon: '👑', badgeColor: '#8b5cf6' }
                     };
                     setEditingOffer({
                       ...editingOffer,
@@ -424,9 +697,9 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                   }}
                   style={{ width: '100%', height: '36px', fontSize: '13px' }}
                 >
-                  <option value="bogo">🔥 BOGO (Buy 1 Get 1 Free on Category/Items)</option>
+                  <option value="bogo">🔥 Buy X Get Y (BOGO / Multi-item Deal)</option>
                   <option value="threshold">💰 Spend Threshold (e.g. Spend ₹800 Get ₹100 Off)</option>
-                  <option value="percent_category">🍹 Category Happy Hour (% off Drinks/Mains)</option>
+                  <option value="percent_category">🍹 Category or Product Discount (% off)</option>
                   <option value="percent_cart">👑 Cart Percentage (% off Entire Order)</option>
                 </select>
               </div>
@@ -476,39 +749,377 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                 </div>
               </div>
 
-              {/* Type-Specific Settings */}
+              {/* BOGO Specific Configuration: Buy X Get Y Steppers & Discount Rate */}
               {editingOffer.type === 'bogo' && (
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
-                    Qualifying Menu Categories
-                  </label>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                    {categories.map(cat => {
-                      const isSelected = (editingOffer.categoryFilter || []).some(cf => cf.toLowerCase() === cat.name.toLowerCase());
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          className={`btn btn-xs ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
-                          onClick={() => {
-                            const cur = editingOffer.categoryFilter || [];
-                            const next = isSelected
-                              ? cur.filter(c => c.toLowerCase() !== cat.name.toLowerCase())
-                              : [...cur, cat.name];
-                            setEditingOffer({ ...editingOffer, categoryFilter: next });
-                          }}
-                        >
-                          {isSelected && <Check size={10} style={{ marginRight: 2 }} />} {cat.name}
-                        </button>
-                      );
-                    })}
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.05)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444' }}>
+                    Bundle Quantities & Discount Rate
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
-                    Customers ordering 2 items from these categories will get the 2nd one 100% free.
-                  </span>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {/* Buy Quantity */}
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
+                        Buy Quantity (X)
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          style={{ width: 28, height: 32, fontSize: 14 }}
+                          onClick={() => setEditingOffer({ ...editingOffer, buyQty: Math.max(1, (editingOffer.buyQty || 1) - 1) })}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          className="form-input"
+                          value={editingOffer.buyQty || 1}
+                          onChange={(e) => setEditingOffer({ ...editingOffer, buyQty: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                          style={{ width: '100%', height: '32px', textAlign: 'center', fontWeight: 700 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          style={{ width: 28, height: 32, fontSize: 14 }}
+                          onClick={() => setEditingOffer({ ...editingOffer, buyQty: (editingOffer.buyQty || 1) + 1 })}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Get Quantity */}
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
+                        Get Quantity (Y)
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          style={{ width: 28, height: 32, fontSize: 14 }}
+                          onClick={() => setEditingOffer({ ...editingOffer, getQty: Math.max(1, (editingOffer.getQty || 1) - 1) })}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          className="form-input"
+                          value={editingOffer.getQty || 1}
+                          onChange={(e) => setEditingOffer({ ...editingOffer, getQty: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                          style={{ width: '100%', height: '32px', textAlign: 'center', fontWeight: 700 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          style={{ width: 28, height: 32, fontSize: 14 }}
+                          onClick={() => setEditingOffer({ ...editingOffer, getQty: (editingOffer.getQty || 1) + 1 })}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Discount Rate on Get Items */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Discount Rate on Reward Item (Y)
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className={`btn btn-xs ${editingOffer.discountPercent === 100 ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ flex: 1, height: '30px' }}
+                        onClick={() => setEditingOffer({ ...editingOffer, discountPercent: 100 })}
+                      >
+                        100% Free
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-xs ${editingOffer.discountPercent === 50 ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ flex: 1, height: '30px' }}
+                        onClick={() => setEditingOffer({ ...editingOffer, discountPercent: 50 })}
+                      >
+                        50% Off (Half Price)
+                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          className="form-input"
+                          placeholder="Custom %"
+                          value={![100, 50].includes(editingOffer.discountPercent) ? editingOffer.discountPercent : ''}
+                          onChange={(e) => setEditingOffer({ ...editingOffer, discountPercent: Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)) })}
+                          style={{ width: '100%', height: '30px', fontSize: '12px' }}
+                        />
+                        <span style={{ fontSize: '12px', color: 'var(--color-label-secondary)' }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)', lineHeight: 1.4 }}>
+                    💡 <strong>Toast / Square Standard:</strong> If customer orders items with different prices, the discount automatically applies to the lowest-priced qualifying unit.
+                  </div>
                 </div>
               )}
 
+              {/* Target Scope Switcher (For BOGO and Percent Category) */}
+              {(editingOffer.type === 'bogo' || editingOffer.type === 'percent_category') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                    Target Scope: Where does this promotion apply?
+                  </label>
+                  
+                  {/* Scope Tabs */}
+                  <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg, #0f172a)', padding: '3px', borderRadius: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setEditingOffer({ ...editingOffer, targetType: 'category' })}
+                      className="btn btn-xs"
+                      style={{
+                        flex: 1,
+                        background: editingOffer.targetType === 'category' ? 'var(--color-bg-card, #1e293b)' : 'transparent',
+                        color: editingOffer.targetType === 'category' ? 'var(--color-label-primary)' : 'var(--color-label-secondary)',
+                        border: editingOffer.targetType === 'category' ? '1px solid var(--color-separator)' : 'none',
+                        boxShadow: editingOffer.targetType === 'category' ? '0 1px 3px rgba(0,0,0,0.2)' : 'none'
+                      }}
+                    >
+                      <Layers size={13} style={{ marginRight: 4 }} /> By Category
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingOffer({ ...editingOffer, targetType: 'items' })}
+                      className="btn btn-xs"
+                      style={{
+                        flex: 1,
+                        background: editingOffer.targetType === 'items' ? 'var(--color-bg-card, #1e293b)' : 'transparent',
+                        color: editingOffer.targetType === 'items' ? 'var(--color-label-primary)' : 'var(--color-label-secondary)',
+                        border: editingOffer.targetType === 'items' ? '1px solid var(--color-separator)' : 'none',
+                        boxShadow: editingOffer.targetType === 'items' ? '0 1px 3px rgba(0,0,0,0.2)' : 'none'
+                      }}
+                    >
+                      <ShoppingBag size={13} style={{ marginRight: 4 }} /> Specific Products
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingOffer({ ...editingOffer, targetType: 'any' })}
+                      className="btn btn-xs"
+                      style={{
+                        flex: 1,
+                        background: editingOffer.targetType === 'any' ? 'var(--color-bg-card, #1e293b)' : 'transparent',
+                        color: editingOffer.targetType === 'any' ? 'var(--color-label-primary)' : 'var(--color-label-secondary)',
+                        border: editingOffer.targetType === 'any' ? '1px solid var(--color-separator)' : 'none',
+                        boxShadow: editingOffer.targetType === 'any' ? '0 1px 3px rgba(0,0,0,0.2)' : 'none'
+                      }}
+                    >
+                      <Globe size={13} style={{ marginRight: 4 }} /> Entire Menu
+                    </button>
+                  </div>
+
+                  {/* Scope: Category Selection */}
+                  {editingOffer.targetType === 'category' && (
+                    <div style={{ marginTop: '4px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        {categories.map(cat => {
+                          const isSelected = (editingOffer.categoryFilter || []).some(cf => cf.toLowerCase() === cat.name.toLowerCase());
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              className={`btn btn-xs ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
+                              onClick={() => {
+                                const cur = editingOffer.categoryFilter || [];
+                                const next = isSelected
+                                  ? cur.filter(c => c.toLowerCase() !== cat.name.toLowerCase())
+                                  : [...cur, cat.name];
+                                setEditingOffer({ ...editingOffer, categoryFilter: next, targetCategory: next[0] || '' });
+                              }}
+                            >
+                              {isSelected && <Check size={10} style={{ marginRight: 2 }} />} {cat.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                        Select 1 or more categories. If none are selected, all categories qualify.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Scope: Specific Products Selection */}
+                  {editingOffer.targetType === 'items' && (
+                    <div style={{
+                      background: 'rgba(0, 0, 0, 0.25)',
+                      border: '1px solid var(--color-separator)',
+                      borderRadius: '8px',
+                      padding: '10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      {/* Search Bar & Quick Controls */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Search dishes by name or category..."
+                            value={productSearch}
+                            onChange={(e) => setProductSearch(e.target.value)}
+                            style={{ width: '100%', height: '32px', fontSize: '12px', paddingLeft: '30px' }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={handleSelectAllFilteredProducts}
+                          title="Select all search results"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={handleClearSelectedProducts}
+                          title="Clear all selections"
+                        >
+                          Clear
+                        </button>
+                      </div>
+
+                      {/* Selected Items Counter Badge */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                        <span style={{ color: '#10b981', fontWeight: 700 }}>
+                          ✓ {(editingOffer.targetItemIds || []).length} products selected
+                        </span>
+                        <span style={{ color: 'var(--color-label-tertiary)' }}>
+                          Showing {filteredMenuItems.length} products
+                        </span>
+                      </div>
+
+                      {/* Selected Tags Preview Chips */}
+                      {(editingOffer.targetItemIds || []).length > 0 && (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxHeight: '60px', overflowY: 'auto' }}>
+                          {(editingOffer.targetItemIds || []).map(id => {
+                            const item = allMenuItems.find(i => i.id === id);
+                            if (!item) return null;
+                            return (
+                              <span
+                                key={id}
+                                style={{
+                                  fontSize: '10.5px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  color: '#ef4444',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                              >
+                                {item.name}
+                                <X
+                                  size={10}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => handleToggleTargetProduct(id)}
+                                />
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Product Selection List */}
+                      <div style={{
+                        maxHeight: '160px',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        borderTop: '1px solid var(--color-separator)',
+                        paddingTop: '6px'
+                      }}>
+                        {filteredMenuItems.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: 'var(--color-label-tertiary)' }}>
+                            No dishes found matching "{productSearch}"
+                          </div>
+                        ) : (
+                          filteredMenuItems.map(item => {
+                            const isSelected = (editingOffer.targetItemIds || []).includes(item.id);
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => handleToggleTargetProduct(item.id)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '6px 8px',
+                                  borderRadius: '6px',
+                                  background: isSelected ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                                  border: isSelected ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                                  cursor: 'pointer',
+                                  transition: 'background 0.15s ease'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {isSelected ? (
+                                    <CheckSquare size={14} color="#10b981" />
+                                  ) : (
+                                    <Square size={14} color="var(--color-label-tertiary)" />
+                                  )}
+                                  <span style={{ fontSize: '12px', fontWeight: isSelected ? 700 : 500, color: 'var(--color-label-primary)' }}>
+                                    {item.name}
+                                  </span>
+                                  <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>
+                                    {item.categoryName}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>
+                                  {formatCurrency(item.price, currency)}
+                                </span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scope: Entire Menu */}
+                  {editingOffer.targetType === 'any' && (
+                    <div style={{
+                      padding: '10px 12px',
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: '8px',
+                      fontSize: '11.5px',
+                      color: '#60a5fa'
+                    }}>
+                      🌐 <strong>Entire Menu Enabled:</strong> This promotion will automatically qualify all dishes and drinks on your menu.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Spend Threshold Settings */}
               {editingOffer.type === 'threshold' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
@@ -538,45 +1149,29 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                 </div>
               )}
 
+              {/* Category / Product Percent Settings */}
               {editingOffer.type === 'percent_category' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
-                      Target Category
-                    </label>
-                    <select
-                      className="form-select"
-                      value={editingOffer.targetCategory}
-                      onChange={(e) => setEditingOffer({ ...editingOffer, targetCategory: e.target.value })}
-                      style={{ width: '100%', height: '36px' }}
-                    >
-                      <option value="">Select Category...</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.name.toLowerCase()}>{cat.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
-                      Discount %
-                    </label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      min={1}
-                      max={100}
-                      value={editingOffer.discountPercent}
-                      onChange={(e) => setEditingOffer({ ...editingOffer, discountPercent: parseFloat(e.target.value) || 0 })}
-                      style={{ width: '100%', height: '36px' }}
-                    />
-                  </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
+                    Discount Percentage (%)
+                  </label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    min={1}
+                    max={100}
+                    value={editingOffer.discountPercent}
+                    onChange={(e) => setEditingOffer({ ...editingOffer, discountPercent: parseFloat(e.target.value) || 0 })}
+                    style={{ width: '100%', height: '36px' }}
+                  />
                 </div>
               )}
 
+              {/* Entire Cart Percent Settings */}
               {editingOffer.type === 'percent_cart' && (
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
-                    Order Discount %
+                    Order Discount % (applied on full cart subtotal)
                   </label>
                   <input
                     type="number"
@@ -593,19 +1188,19 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
               {/* Description */}
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Description (shown in Offers Drawer)
+                  Description (shown in Offers Drawer & receipts)
                 </label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Buy any 2 pizzas, get 1 free!"
+                  placeholder="e.g. Buy 1 pizza, get 1 free! (Cheapest free)"
                   value={editingOffer.description}
                   onChange={(e) => setEditingOffer({ ...editingOffer, description: e.target.value })}
                   style={{ width: '100%', height: '36px', fontSize: '13px' }}
                 />
               </div>
 
-              {/* Color Theme */}
+              {/* Badge Color Palette */}
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block', marginBottom: '6px' }}>
                   Badge Color
@@ -630,7 +1225,7 @@ export default function OffersManagerSettings({ restaurant, currency = 'INR' }) 
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
                 <button
                   type="button"

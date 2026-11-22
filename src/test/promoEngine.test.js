@@ -85,4 +85,76 @@ describe('Promotion & Offer Engine (BOGO & Discounts)', () => {
     expect(bogo.isEligible).toBe(true);
     expect(bogo.discountAmount).toBe(250);
   });
+
+  it('correctly discounts the lowest-priced item in mixed BOGO pairs (Toast/Square standard)', () => {
+    const mixedCart = [
+      { id: 'p_pep', name: 'Pepperoni Pizza', categoryName: 'Pizza', price: 350, qty: 1 },
+      { id: 'p_mar', name: 'Margherita Pizza', categoryName: 'Pizza', price: 250, qty: 1 }
+    ];
+    const result = evaluateBogo(mixedCart, ['pizza']);
+    expect(result.isEligible).toBe(true);
+    // Cheaper pizza (250) is free
+    expect(result.discountAmount).toBe(250);
+    expect(result.itemDiscounts['p_mar']).toBe(250);
+    expect(result.itemDiscounts['p_pep']).toBeUndefined();
+  });
+
+  it('supports custom product SKU / item-level targeting', () => {
+    const customProductOffer = {
+      id: 'custom_bogo',
+      type: 'bogo',
+      targetType: 'items',
+      targetItemIds: ['special_burger_1'],
+      buyQty: 1,
+      getQty: 1,
+      discountPercent: 100
+    };
+    const cart = [
+      { id: 'other_burger', name: 'Regular Burger', categoryName: 'Mains', price: 150, qty: 2 },
+      { id: 'special_burger_1', name: 'Truffle Burger', categoryName: 'Mains', price: 300, qty: 2 }
+    ];
+    const res = evaluateSingleOffer(customProductOffer, cart, 900);
+    expect(res.isEligible).toBe(true);
+    // Only Truffle Burger qualifies; 1 free = 300
+    expect(res.discountAmount).toBe(300);
+    expect(res.itemDiscounts['special_burger_1']).toBe(300);
+  });
+
+  it('supports Buy 2 Get 1 Free rules', () => {
+    const buy2Get1 = {
+      id: 'b2g1',
+      type: 'bogo',
+      categoryFilter: ['pizza'],
+      buyQty: 2,
+      getQty: 1,
+      discountPercent: 100
+    };
+    // 2 pizzas (needs 1 more)
+    const cart2 = [{ id: 'p1', name: 'Pizza', categoryName: 'Pizza', price: 200, qty: 2 }];
+    const res2 = evaluateSingleOffer(buy2Get1, cart2, 400);
+    expect(res2.isEligible).toBe(false);
+    expect(res2.nudge.text).toContain('Add 1 more');
+
+    // 3 pizzas (1 free!)
+    const cart3 = [{ id: 'p1', name: 'Pizza', categoryName: 'Pizza', price: 200, qty: 3 }];
+    const res3 = evaluateSingleOffer(buy2Get1, cart3, 600);
+    expect(res3.isEligible).toBe(true);
+    expect(res3.discountAmount).toBe(200);
+  });
+
+  it('supports Buy 1 Get 1 at 50% Off rules', () => {
+    const bogoHalf = {
+      id: 'bogo_50',
+      type: 'bogo',
+      categoryFilter: ['pizza'],
+      buyQty: 1,
+      getQty: 1,
+      discountPercent: 50
+    };
+    const cart = [{ id: 'p1', name: 'Pizza', categoryName: 'Pizza', price: 300, qty: 2 }];
+    const res = evaluateSingleOffer(bogoHalf, cart, 600);
+    expect(res.isEligible).toBe(true);
+    // 50% of 300 = 150
+    expect(res.discountAmount).toBe(150);
+  });
 });

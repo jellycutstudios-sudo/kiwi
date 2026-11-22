@@ -87,10 +87,7 @@ export default function MobileWaiterHandheld({
   const bogoEvaluation = useMemo(() => {
     const activeBogo = activeOffers.find(o => o.type === 'bogo');
     if (!activeBogo) return { isEligible: false, discountAmount: 0, nudge: null };
-    const targetCats = (activeBogo.categoryFilter && activeBogo.categoryFilter.length > 0)
-      ? activeBogo.categoryFilter
-      : ['pizza', 'mains', 'burgers', 'bogo'];
-    return evaluateBogo(items, targetCats);
+    return evaluateBogo(items, activeBogo);
   }, [items, activeOffers]);
 
   const isKitchenActive = useMemo(() => {
