@@ -494,8 +494,13 @@ export default function POS() {
 
   // Real-time BOGO & Upsell Evaluation
   const bogoEvaluation = useMemo(() => {
-    return evaluateBogo(items, ['pizza', 'mains', 'burgers', 'bogo']);
-  }, [items]);
+    const activeBogo = activeOffers.find(o => o.type === 'bogo');
+    if (!activeBogo) return { isEligible: false, discountAmount: 0, nudge: null };
+    const targetCats = (activeBogo.categoryFilter && activeBogo.categoryFilter.length > 0)
+      ? activeBogo.categoryFilter
+      : ['pizza', 'mains', 'burgers', 'bogo'];
+    return evaluateBogo(items, targetCats);
+  }, [items, activeOffers]);
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [digitalReceiptOrder, setDigitalReceiptOrder] = useState(null);
 
@@ -3049,10 +3054,11 @@ export default function POS() {
                 const targetItem = items.find(i => i.id === bogoEvaluation.nudge.itemId);
                 if (targetItem) {
                   addItem(targetItem);
+                  const activeBogo = activeOffers.find(o => o.type === 'bogo');
                   setAppliedOffer({
-                    id: 'bogo_pizza',
-                    name: 'BOGO - Buy 1 Get 1 Free',
-                    tag: 'BOGO',
+                    id: activeBogo?.id || 'bogo_pizza',
+                    name: activeBogo?.name || 'BOGO - Buy 1 Get 1 Free',
+                    tag: activeBogo?.tag || 'BOGO',
                     type: 'bogo',
                     discountAmount: bogoEvaluation.nudge.potentialSavings,
                     itemDiscounts: { [targetItem.id]: bogoEvaluation.nudge.potentialSavings }

@@ -123,8 +123,8 @@ export function evaluateBogo(items = [], categoryFilters = []) {
  * Evaluates an offer against the current cart state.
  */
 export function evaluateSingleOffer(offer, items = [], subtotal = 0) {
-  if (!offer || !offer.type) {
-    return { isEligible: false, discountAmount: 0, statusText: 'Invalid offer' };
+  if (!offer || !offer.type || offer.isActive === false) {
+    return { isEligible: false, discountAmount: 0, statusText: 'Offer inactive' };
   }
 
   switch (offer.type) {
@@ -192,30 +192,24 @@ export function evaluateSingleOffer(offer, items = [], subtotal = 0) {
  * Returns all available restaurant offers enriched with live eligibility against current cart items.
  */
 export function getAvailableOffers(restaurant, items = [], subtotal = 0, currentAppliedOfferId = null) {
-  const customOffers = restaurant?.settings?.offers || restaurant?.offers || [];
-  const combined = [...customOffers, ...DEFAULT_OFFERS];
+  const customOffers = restaurant?.settings?.offers || restaurant?.offers;
+  const list = Array.isArray(customOffers) && customOffers.length > 0
+    ? customOffers
+    : DEFAULT_OFFERS;
 
-  // Deduplicate by ID
-  const seen = new Set();
-  const list = [];
-  combined.forEach(o => {
-    if (o && o.id && !seen.has(o.id)) {
-      seen.add(o.id);
-      list.push(o);
-    }
-  });
-
-  return list.map(offer => {
-    const evalResult = evaluateSingleOffer(offer, items, subtotal);
-    const isApplied = currentAppliedOfferId === offer.id;
-    return {
-      ...offer,
-      isApplied,
-      isEligible: evalResult.isEligible,
-      discountAmount: evalResult.discountAmount,
-      nudge: evalResult.nudge,
-      statusText: evalResult.statusText,
-      itemDiscounts: evalResult.itemDiscounts || {}
-    };
-  });
+  return list
+    .filter(offer => offer && offer.isActive !== false)
+    .map(offer => {
+      const evalResult = evaluateSingleOffer(offer, items, subtotal);
+      const isApplied = currentAppliedOfferId === offer.id;
+      return {
+        ...offer,
+        isApplied,
+        isEligible: evalResult.isEligible,
+        discountAmount: evalResult.discountAmount,
+        nudge: evalResult.nudge,
+        statusText: evalResult.statusText,
+        itemDiscounts: evalResult.itemDiscounts || {}
+      };
+    });
 }

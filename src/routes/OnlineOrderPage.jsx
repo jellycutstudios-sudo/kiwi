@@ -15,6 +15,7 @@ import LoadingScreen from '../components/shared/LoadingScreen';
 import { triggerHaptic, triggerHapticSuccess } from '../utils/haptics';
 import { getItemVisuals } from '../utils/itemVisuals';
 import { safeStorage } from '../utils/safeStorage';
+import { getAvailableOffers, evaluateSingleOffer } from '../utils/promoEngine';
 
 // Helper to determine dietary category (Veg vs Non-Veg)
 const isVegetarianItem = (item) => {
@@ -344,6 +345,28 @@ export default function OnlineOrderPage() {
     return cart.reduce((s, i) => s + i.price * i.qty, 0);
   }, [cart]);
 
+  const [appliedOffer, setAppliedOffer] = useState(null);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+
+  // Auto re-evaluate promo offer when cart items change
+  useEffect(() => {
+    if (appliedOffer) {
+      const reEval = evaluateSingleOffer(appliedOffer, cart, subtotal);
+      if (reEval.isEligible && reEval.discountAmount > 0) {
+        setAppliedOffer(prev => ({
+          ...prev,
+          discountAmount: reEval.discountAmount,
+          itemDiscounts: reEval.itemDiscounts || {}
+        }));
+      } else {
+        setAppliedOffer(null);
+      }
+    }
+  }, [cart, subtotal, appliedOffer]);
+
+  const promoDiscount = appliedOffer?.discountAmount || 0;
+  const effectiveSubtotal = Math.max(0, subtotal - promoDiscount);
+
   const deliveryFee = useMemo(() => {
     if (orderType !== 'delivery') return 0;
     const baseFee = parseFloat(restaurant?.deliveryFee) || 0;
@@ -353,14 +376,14 @@ export default function OnlineOrderPage() {
   }, [orderType, restaurant?.deliveryFee, restaurant?.freeDeliveryAbove, subtotal]);
 
   const taxResult = useMemo(() => {
-    return computeTax(subtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 }, {
+    return computeTax(effectiveSubtotal, restaurant?.taxConfig ?? { type: 'none', rate: 0 }, {
       items: cart,
       orderType
     });
-  }, [subtotal, restaurant?.taxConfig, cart, orderType]);
+  }, [effectiveSubtotal, restaurant?.taxConfig, cart, orderType]);
 
   const total = useMemo(() => {
-    return taxResult.total + deliveryFee;
+    return Math.max(0, taxResult.total + deliveryFee);
   }, [taxResult.total, deliveryFee]);
 
   const cartCount = useMemo(() => {
@@ -438,6 +461,9 @@ export default function OnlineOrderPage() {
           status: 'pending'
         })),
         subtotal: Math.max(0, Number(subtotal) || 0),
+        discountAmount: promoDiscount,
+        promoDiscount,
+        appliedOffer: appliedOffer ? { id: appliedOffer.id, name: appliedOffer.name, discountAmount: promoDiscount } : null,
         deliveryFee: Math.max(0, Number(deliveryFee) || 0),
         taxAmount: Math.max(0, Number(taxResult.taxTotal) || 0),
         taxTotal: Math.max(0, Number(taxResult.taxTotal) || 0),
@@ -920,6 +946,59 @@ export default function OnlineOrderPage() {
                 ))}
               </div>
 
+              {/* Promo Coupon Box */}
+              <div style={{ margin: '0 0 var(--space-4) 0', padding: '10px 12px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
+                {appliedOffer ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', fontSize: '13px', fontWeight: 700 }}>
+                      <Sparkles size={14} /> {appliedOffer.name} (-{formatCurrency(appliedOffer.discountAmount, currency)})
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => setAppliedOffer(null)}
+                      style={{ color: '#ef4444', padding: '2px 6px' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Have a coupon or promo code?"
+                      value={promoCodeInput}
+                      onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
+                      style={{ flex: 1, height: 34, fontSize: 12 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const clean = promoCodeInput.trim().toUpperCase();
+                        if (!clean) return;
+                        const available = getAvailableOffers(restaurant, cart, subtotal);
+                        const matched = available.find(o => o.id.toUpperCase() === clean || o.tag.toUpperCase() === clean || o.name.toUpperCase().includes(clean));
+                        if (matched) {
+                          if (matched.isEligible) {
+                            setAppliedOffer(matched);
+                            toast.success(`Coupon applied: ${matched.name}!`, { icon: '🎉' });
+                            setPromoCodeInput('');
+                          } else {
+                            toast.error(matched.statusText || 'Order does not qualify for this coupon');
+                          }
+                        } else {
+                          toast.error('Invalid coupon code');
+                        }
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Upsell Nudge */}
               {sevenDayAvg > 0 && subtotal > 0 && subtotal < sevenDayAvg && (
                 <div style={{
@@ -1050,6 +1129,12 @@ export default function OnlineOrderPage() {
                         formatCurrency(deliveryFee, currency)
                       )}
                     </span>
+                  </div>
+                )}
+                {appliedOffer && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)', color: '#10b981', fontWeight: 600 }}>
+                    <span>Offer ({appliedOffer.name})</span>
+                    <span>-{formatCurrency(appliedOffer.discountAmount, currency)}</span>
                   </div>
                 )}
                 {taxResult.lines.map((line, idx) => (

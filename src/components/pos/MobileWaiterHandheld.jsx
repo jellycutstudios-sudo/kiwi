@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import ModifierModal from './ModifierModal';
 import TouchQuantityPadModal from './TouchQuantityPadModal';
 import OffersDrawerModal from './OffersDrawerModal';
-import { evaluateBogo } from '../../utils/promoEngine';
+import { evaluateBogo, DEFAULT_OFFERS } from '../../utils/promoEngine';
 
 const COMMON_ALLERGIES = [
   { id: 'nut_free', label: '🥜 Nut Allergy' },
@@ -79,9 +79,19 @@ export default function MobileWaiterHandheld({
   } = useOrderStore();
 
   const [showOffersModal, setShowOffersModal] = useState(false);
+
+  const activeOffers = useMemo(() => {
+    return (restaurant?.offers || DEFAULT_OFFERS).filter(o => o.isActive !== false);
+  }, [restaurant?.offers]);
+
   const bogoEvaluation = useMemo(() => {
-    return evaluateBogo(items, ['pizza', 'mains', 'burgers', 'bogo']);
-  }, [items]);
+    const activeBogo = activeOffers.find(o => o.type === 'bogo');
+    if (!activeBogo) return { isEligible: false, discountAmount: 0, nudge: null };
+    const targetCats = (activeBogo.categoryFilter && activeBogo.categoryFilter.length > 0)
+      ? activeBogo.categoryFilter
+      : ['pizza', 'mains', 'burgers', 'bogo'];
+    return evaluateBogo(items, targetCats);
+  }, [items, activeOffers]);
 
   const isKitchenActive = useMemo(() => {
     if (typeof isKitchenActiveProp === 'boolean') return isKitchenActiveProp;
@@ -1017,10 +1027,11 @@ export default function MobileWaiterHandheld({
                       const target = items.find(i => i.id === bogoEvaluation.nudge.itemId);
                       if (target) {
                         addItem(target);
+                        const activeBogo = activeOffers.find(o => o.type === 'bogo');
                         setAppliedOffer({
-                          id: 'bogo_pizza',
-                          name: 'BOGO - Buy 1 Get 1 Free',
-                          tag: 'BOGO',
+                          id: activeBogo?.id || 'bogo_pizza',
+                          name: activeBogo?.name || 'BOGO - Buy 1 Get 1 Free',
+                          tag: activeBogo?.tag || 'BOGO',
                           type: 'bogo',
                           discountAmount: bogoEvaluation.nudge.potentialSavings,
                           itemDiscounts: { [target.id]: bogoEvaluation.nudge.potentialSavings }
