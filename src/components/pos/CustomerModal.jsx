@@ -47,23 +47,21 @@ export default function CustomerModal({
         const data = { id: docSnap.id, ...docSnap.data() };
         setIsExisting(true);
         setExistingProfile(data);
-        if (data.name && !name.trim()) {
-          setName(data.name);
-        }
+        setName(prev => (prev && prev.trim() ? prev : (data.name || '')));
       } else {
         setIsExisting(false);
         setExistingProfile(null);
         // Automatically guide cursor to name for new customer
-        setTimeout(() => nameInputRef.current?.focus(), 50);
+        setTimeout(() => nameInputRef.current?.focus(), 60);
       }
     } catch (e) {
       console.warn('Customer lookup error:', e?.message);
     } finally {
       setIsSearching(false);
     }
-  }, [restaurant?.id, ensureAnonymousAuth, name]);
+  }, [restaurant?.id, ensureAnonymousAuth]);
 
-  // Sync state when modal opens
+  // Sync state ONLY when modal opens (never on every keystroke!)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -82,7 +80,8 @@ export default function CustomerModal({
     } else {
       setTimeout(() => nameInputRef.current?.focus(), 80);
     }
-  }, [isOpen, initialPhone, customer, customerName, customerPhone, lookupCustomer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handlePhoneChange = (e) => {
     const val = e.target.value;
@@ -267,7 +266,7 @@ export default function CustomerModal({
                 ref={phoneInputRef}
                 type="tel"
                 className="form-input"
-                placeholder="e.g. 9400112833"
+                placeholder="Enter 10-digit mobile number"
                 value={phone}
                 onChange={handlePhoneChange}
                 style={{

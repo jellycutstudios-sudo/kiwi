@@ -3503,7 +3503,7 @@ export default function POS() {
             setShowCustomerModal(false);
             setModalInitialPhone('');
           }}
-          initialPhone={modalInitialPhone}
+          initialPhone={modalInitialPhone || custSearch || ''}
           restaurant={restaurant}
           customer={customer}
           customerName={customerName}
