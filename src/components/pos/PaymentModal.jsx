@@ -32,8 +32,25 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     getPointsDiscountAmount, tipAmount, setTip,
     tableName, tokenNumber, upiRef, setUpiRef,
     setTerminalTx, getSettledTotal, getRemainingTotal,
-    billPrinted, customerPhone
+    billPrinted, customerPhone, setCustomer, customerName, setCustomerProfile
   } = useOrderStore();
+
+  const [editingWaPhone, setEditingWaPhone] = useState(false);
+  const [waPhoneInput, setWaPhoneInput] = useState('');
+
+  const handleSaveWaPhone = () => {
+    const clean = waPhoneInput.replace(/\D/g, '');
+    if (clean.length < 8) {
+      toast.error('Enter valid phone number (at least 8 digits)');
+      return;
+    }
+    const name = customerName || customer?.name || 'Customer';
+    setCustomer(name, clean);
+    setCustomerProfile({ name, phone: clean, points: customer?.points || 0 });
+    setEditingWaPhone(false);
+    setWaPhoneInput('');
+    toast.success(`WhatsApp receipt attached to +${clean}`);
+  };
 
   const [shouldPrintReceipt, setShouldPrintReceipt] = useState(() => !billPrinted);
 
@@ -1841,14 +1858,55 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             }}>
               <span style={{ fontSize: 15 }}>📲</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: 700, color: '#16a34a', display: 'block' }}>
-                  Meta WhatsApp E-Receipt
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {(customerPhone || customer?.phone)
-                    ? `Auto-sends to customer: ${customerPhone || customer?.phone}`
-                    : 'Customer mobile not set (add phone in cart to auto-send)'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <span style={{ fontWeight: 700, color: '#16a34a' }}>
+                    Meta WhatsApp E-Receipt
+                  </span>
+                  {(customerPhone || customer?.phone) && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingWaPhone(p => !p)}
+                      style={{ background: 'none', border: 'none', color: '#16a34a', fontSize: 11, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    >
+                      {editingWaPhone ? 'Cancel' : 'Change #'}
+                    </button>
+                  )}
+                </div>
+                {editingWaPhone || !(customerPhone || customer?.phone) ? (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
+                    <input
+                      type="tel"
+                      placeholder="Enter mobile # (e.g. 9400112833)"
+                      value={waPhoneInput}
+                      onChange={e => setWaPhoneInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleSaveWaPhone();
+                      }}
+                      style={{
+                        flex: 1,
+                        height: 26,
+                        fontSize: 11,
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        border: '1px solid rgba(22, 163, 74, 0.4)',
+                        background: 'var(--color-bg-base)',
+                        color: 'var(--color-label)'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveWaPhone}
+                      className="btn btn-success btn-xs"
+                      style={{ height: 26, padding: '0 8px', fontSize: 11, fontWeight: 700 }}
+                    >
+                      Attach
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Auto-sends to customer: <strong>{customerPhone || customer?.phone}</strong> ({customer?.name || customerName || 'Customer'})
+                  </span>
+                )}
               </div>
             </div>
           )}

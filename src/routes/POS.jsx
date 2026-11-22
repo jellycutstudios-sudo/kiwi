@@ -426,6 +426,7 @@ export default function POS() {
   }, [items.length]);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [newCustName, setNewCustName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
 
   const [openFloatCash, setOpenFloatCash] = useState('0.00');
@@ -869,8 +870,8 @@ export default function POS() {
     }
   };
 
-  const handleCustomerLookup = async (phoneStr, showRegisterModal = false) => {
-    const cleanPhone = phoneStr.replace(/\D/g, '');
+  const handleCustomerLookup = async (phoneStr, triggerRegisterIfNew = false) => {
+    const cleanPhone = (phoneStr || '').replace(/\D/g, '');
     if (cleanPhone.length < 8) return;
 
     try {
@@ -881,30 +882,41 @@ export default function POS() {
       if (docSnap.exists()) {
         const profile = { id: docSnap.id, ...docSnap.data() };
         setCustomerProfile(profile);
-        setCustomer(profile.name || '', cleanPhone);
+        setCustomer(profile.name || cleanPhone, cleanPhone);
         setCustSearch('');
+        setShowQuickRegister(false);
+        setRegPhone('');
         toast.success(`Attached returning customer: ${profile.name || cleanPhone}`, { id: 'cust-lookup', duration: 2500 });
-      } else if (showRegisterModal) {
+      } else if (triggerRegisterIfNew) {
+        setRegPhone(cleanPhone);
         setShowQuickRegister(true);
+        // Pre-attach the phone to the order immediately so WhatsApp receipt has the recipient phone
+        const curName = customerName || 'Customer';
+        setCustomer(curName, cleanPhone);
+        setCustomerProfile({ name: curName, phone: cleanPhone, points: 0 });
       }
     } catch (e) {
       console.warn('Customer lookup error:', e?.message);
+      if (triggerRegisterIfNew) {
+        setRegPhone(cleanPhone);
+        setShowQuickRegister(true);
+        const curName = customerName || 'Customer';
+        setCustomer(curName, cleanPhone);
+        setCustomerProfile({ name: curName, phone: cleanPhone, points: 0 });
+      }
     }
   };
 
   const handleQuickRegister = async () => {
-    if (!newCustName.trim()) {
-      toast.error('Please enter customer name');
-      return;
-    }
-    const cleanPhone = custSearch.replace(/\D/g, '');
+    const cleanPhone = (regPhone || custSearch || customerPhone || '').replace(/\D/g, '');
     if (cleanPhone.length < 8) {
-      toast.error('Valid phone number required');
+      toast.error('Valid phone number required (at least 8 digits)');
       return;
     }
+    const name = newCustName.trim() || customerName || 'Customer';
 
     const payload = {
-      name: newCustName.trim(),
+      name,
       phone: cleanPhone,
       points: 0,
       visitCount: 0,
@@ -916,15 +928,23 @@ export default function POS() {
 
     try {
       await ensureAnonymousAuth();
-      await setDoc(doc(db, 'restaurants', restaurant.id, 'customers', cleanPhone), payload);
+      await setDoc(doc(db, 'restaurants', restaurant.id, 'customers', cleanPhone), payload, { merge: true });
       setCustomerProfile(payload);
       setCustomer(payload.name, payload.phone);
       setShowQuickRegister(false);
       setNewCustName('');
       setCustSearch('');
-      toast.success(`Registered & Attached: ${payload.name}`);
+      setRegPhone('');
+      toast.success(`Attached customer: ${payload.name} (${cleanPhone})`);
     } catch (e) {
-      toast.error('Registration failed: ' + e.message);
+      console.warn('Registration fallback:', e?.message);
+      setCustomerProfile(payload);
+      setCustomer(payload.name, payload.phone);
+      setShowQuickRegister(false);
+      setNewCustName('');
+      setCustSearch('');
+      setRegPhone('');
+      toast.success(`Attached to order: ${payload.name}`);
     }
   };
 
@@ -2460,7 +2480,7 @@ export default function POS() {
                               {customer.name}
                             </span>
                             <span style={{ fontSize: '10px', color: '#065f46', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                              {customer.points} pts
+                              {customer.phone || customerPhone || `${customer.points || 0} pts`}
                             </span>
                           </div>
                           <button
@@ -2469,6 +2489,8 @@ export default function POS() {
                               setCustomerProfile(null);
                               setCustomer('', '');
                               setRedeemingPoints(false);
+                              setCustSearch('');
+                              setRegPhone('');
                             }}
                             style={{ color: 'var(--color-red)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
                             title="Remove customer"
@@ -2477,58 +2499,118 @@ export default function POS() {
                           </button>
                         </div>
                       ) : showQuickRegister ? (
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px' }}>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', width: '100%', padding: '0 6px', height: '32px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '6px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--color-primary, #3b82f6)', whiteSpace: 'nowrap' }}>
+                            {regPhone || custSearch.replace(/\D/g, '')}:
+                          </span>
                           <input
+                            autoFocus
                             className="form-input"
-                            placeholder="Customer name"
+                            placeholder="Customer name..."
                             value={newCustName}
                             onChange={e => setNewCustName(e.target.value)}
-                            style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1 }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleQuickRegister();
+                              if (e.key === 'Escape') {
+                                setShowQuickRegister(false);
+                                setRegPhone('');
+                              }
+                            }}
+                            style={{ height: 26, fontSize: '11px', padding: '2px 8px', flex: 1, minWidth: 0 }}
                           />
                           <button
                             type="button"
                             className="btn btn-success btn-xs"
                             onClick={handleQuickRegister}
-                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                            style={{ height: 26, padding: '0 8px', fontSize: 11, fontWeight: 700 }}
+                            title="Save customer"
                           >
                             ✓
                           </button>
                           <button
                             type="button"
                             className="btn btn-secondary btn-xs"
-                            onClick={() => setShowQuickRegister(false)}
+                            onClick={() => {
+                              const p = regPhone || custSearch.replace(/\D/g, '');
+                              if (p) {
+                                setCustomer(customerName || 'Customer', p);
+                                setCustomerProfile({ name: customerName || 'Customer', phone: p, points: 0 });
+                              }
+                              setShowQuickRegister(false);
+                              setCustSearch('');
+                              setRegPhone('');
+                            }}
                             style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                            title="Close"
                           >
                             ✕
                           </button>
                         </div>
                       ) : (
-                        <div className="cart-customer-search-wrap">
-                          <Search size={13} className="cart-customer-search-icon" />
-                          <input
-                            className="cart-customer-search-input"
-                            placeholder="Customer phone or loyalty #..."
-                            value={custSearch}
-                            onChange={e => {
-                              setCustSearch(e.target.value);
-                              if (e.target.value.replace(/\D/g, '').length >= 8) {
-                                handleCustomerLookup(e.target.value);
-                              }
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                handleCustomerLookup(custSearch);
-                              }
-                            }}
-                          />
-                          {custSearch && (
+                        <div style={{ width: '100%' }}>
+                          <div className="cart-customer-search-wrap">
+                            <Search size={13} className="cart-customer-search-icon" />
+                            <input
+                              className="cart-customer-search-input"
+                              placeholder="Customer phone or loyalty #..."
+                              value={custSearch}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setCustSearch(val);
+                                const digits = val.replace(/\D/g, '');
+                                if (digits.length >= 10) {
+                                  handleCustomerLookup(val, true);
+                                } else if (digits.length >= 8) {
+                                  handleCustomerLookup(val, false);
+                                }
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  const digits = custSearch.replace(/\D/g, '');
+                                  if (digits.length >= 8) {
+                                    handleCustomerLookup(custSearch, true);
+                                  } else {
+                                    toast.error('Enter at least 8 digits');
+                                  }
+                                }
+                              }}
+                            />
+                            {custSearch && (
+                              <button
+                                type="button"
+                                className="cart-customer-search-clear"
+                                onClick={() => {
+                                  setCustSearch('');
+                                  setRegPhone('');
+                                }}
+                                title="Clear search"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                          {custSearch.replace(/\D/g, '').length >= 8 && (
                             <button
                               type="button"
-                              className="cart-customer-search-clear"
-                              onClick={() => setCustSearch('')}
-                              title="Clear search"
+                              onClick={() => handleCustomerLookup(custSearch, true)}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '4px 8px',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: 'none',
+                                borderTop: '1px solid rgba(59, 130, 246, 0.2)',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                color: 'var(--color-primary, #3b82f6)',
+                                fontWeight: 600,
+                                textAlign: 'left'
+                              }}
                             >
-                              <X size={12} />
+                              <span>+ Add customer: {custSearch.replace(/\D/g, '')}</span>
+                              <span style={{ fontSize: '10px', opacity: 0.75 }}>Press Enter ↵</span>
                             </button>
                           )}
                         </div>
