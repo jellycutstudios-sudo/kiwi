@@ -2579,8 +2579,9 @@ export default function POS() {
                     background: 'rgba(245, 158, 11, 0.18)',
                     border: '1px solid rgba(245, 158, 11, 0.45)',
                     color: '#f59e0b',
-                    borderRadius: '6px',
-                    padding: '2px 7px',
+                    borderRadius: '8px',
+                    padding: '0 8px',
+                    height: '30px',
                     fontSize: '11px',
                     fontWeight: '800',
                     display: 'inline-flex',
@@ -2622,24 +2623,9 @@ export default function POS() {
                 }}
                 title="Expand full order details"
                 aria-label="Expand full order details"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '2px 8px',
-                  borderRadius: 6,
-                  background: 'rgba(16, 185, 129, 0.14)',
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
-                  color: '#10b981',
-                  fontSize: 11.5,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  height: 28,
-                  userSelect: 'none'
-                }}
               >
                 <span>{items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}</span>
-                <ChevronDown size={12} />
+                <ChevronDown size={12} style={{ flexShrink: 0 }} />
               </button>
             </div>
           </div>
