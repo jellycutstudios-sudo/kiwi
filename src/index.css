@@ -3558,6 +3558,77 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   margin-left: 4px;
 }
 
+/* POS Topbar Brand Logo Touch Button (Opens navigation on touch) */
+.pos-topbar-brand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 10px 0 6px;
+  border-radius: 10px;
+  border: 1px solid var(--color-separator);
+  background: var(--color-bg-secondary);
+  color: var(--color-label);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pos-topbar-brand-btn:hover {
+  background: var(--color-fill);
+  border-color: var(--color-label-tertiary);
+}
+
+.pos-topbar-brand-btn:active {
+  transform: scale(0.95);
+}
+
+.pos-topbar-brand-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.pos-topbar-brand-name {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--color-label);
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tablet screen width optimization: On tablets (<= 1100px), show logo icon only so search & dietary filters have generous room */
+@media (max-width: 1100px) {
+  .pos-topbar-brand-btn {
+    padding: 0;
+    width: 38px;
+    justify-content: center;
+  }
+  .pos-topbar-brand-name {
+    display: none !important;
+  }
+  .top-bar.pos-top-bar {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .pos-topbar-center {
+    gap: 6px;
+  }
+  .pos-search-wrapper {
+    min-width: 120px;
+    max-width: 260px;
+  }
+}
+
 /* POS Topbar Center & Responsive Controls */
 .top-bar.pos-top-bar {
   display: flex;
@@ -4036,6 +4107,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   font-size: 12px !important;
   font-weight: 700 !important;
   gap: 7px !important;
+}
+
+.pos-top-bar #network-outbox-status-btn.is-clean-online {
+  width: 38px !important;
+  min-width: 38px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+}
+
+.pos-top-bar #network-outbox-status-btn.is-clean-online .network-status-text {
+  display: none !important;
 }
 
 /* Mobile & Tablet Header Responsive Rules */

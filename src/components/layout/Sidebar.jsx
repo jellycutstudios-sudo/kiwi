@@ -149,7 +149,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     const handleClickOutside = (e) => {
       if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
         const burgerBtn = document.getElementById('burger-menu-btn');
-        if (burgerBtn && burgerBtn.contains(e.target)) return;
+        const brandBtn = document.getElementById('pos-topbar-brand-btn');
+        if ((burgerBtn && burgerBtn.contains(e.target)) || (brandBtn && brandBtn.contains(e.target))) return;
         setMobileOpen(false);
       }
     };

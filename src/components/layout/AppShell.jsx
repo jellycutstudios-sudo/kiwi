@@ -310,17 +310,40 @@ export default function AppShell() {
         {/* Top Bar - hidden on KDS to eliminate duplicate headers */}
         {!isKDS && (
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
-          {/* Burger menu button visible only on mobile/tablet */}
-          <button
-            className="btn btn-secondary btn-icon burger-menu-btn"
-            onClick={() => setMobileSidebarOpen(true)}
-            id="burger-menu-btn"
-            title="Open menu"
-            aria-label="Open menu"
-            aria-expanded={mobileSidebarOpen}
-          >
-            <Menu size={20} />
-          </button>
+          {/* Burger menu button visible only on non-POS mobile/tablet */}
+          {!isPOS && (
+            <button
+              className="btn btn-secondary btn-icon burger-menu-btn"
+              onClick={() => setMobileSidebarOpen(true)}
+              id="burger-menu-btn"
+              title="Open menu"
+              aria-label="Open menu"
+              aria-expanded={mobileSidebarOpen}
+            >
+              <Menu size={20} />
+            </button>
+          )}
+
+          {/* Branded Logo Touch Button on POS — 1-tap opens navigation drawer */}
+          {isPOS && (
+            <button
+              type="button"
+              className="pos-topbar-brand-btn"
+              onClick={() => setMobileSidebarOpen(prev => !prev)}
+              id="pos-topbar-brand-btn"
+              title={`${restaurant?.name || 'DineOS'} — Tap to open navigation`}
+              aria-label="Open navigation menu"
+            >
+              <img
+                src={restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo || '/ricon.svg'}
+                alt={restaurant?.name || 'DineOS'}
+                className="pos-topbar-brand-logo"
+              />
+              <span className="pos-topbar-brand-name">
+                {restaurant?.name || 'DineOS'}
+              </span>
+            </button>
+          )}
           
           {!isPOS && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -610,51 +633,65 @@ export default function AppShell() {
               const isLocalOnly = Boolean(restaurant?.localStorageOnly);
               const isPrivateSales = Boolean(restaurant?.privateSalesMode);
 
-              let borderColor = isOnline && offlineQueue.length === 0 ? 'var(--color-border)' : 'rgba(245, 158, 11, 0.45)';
-              let bgColor = isOnline && offlineQueue.length === 0 ? 'var(--color-surface)' : 'rgba(245, 158, 11, 0.14)';
-              let textColor = isOnline && offlineQueue.length === 0 ? 'var(--color-text-secondary)' : '#d97706';
-              let dotColor = !isOnline ? '#f59e0b' : (offlineQueue.length > 0 ? '#f59e0b' : '#22c55e');
-              let dotGlow = !isOnline ? '0 0 8px rgba(245, 158, 11, 0.6)' : (offlineQueue.length > 0 ? '0 0 6px #f59e0b' : '0 0 6px #22c55e');
-              let statusText = !isOnline 
-                ? `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}` 
-                : (offlineQueue.length > 0 ? (isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`) : 'Live Online');
+              let borderColor = 'var(--color-border)';
+              let bgColor = 'var(--color-surface)';
+              let textColor = 'var(--color-text-secondary)';
+              let dotColor = '#22c55e';
+              let dotGlow = '0 0 6px #22c55e';
+              let statusText = 'Live Online';
 
-              if (isLocalOnly) {
+              if (!isOnline) {
+                borderColor = 'rgba(245, 158, 11, 0.45)';
+                bgColor = 'rgba(245, 158, 11, 0.14)';
+                textColor = '#d97706';
+                dotColor = '#f59e0b';
+                dotGlow = '0 0 8px rgba(245, 158, 11, 0.6)';
+                statusText = `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}`;
+              } else if (offlineQueue.length > 0) {
+                borderColor = 'rgba(245, 158, 11, 0.45)';
+                bgColor = 'rgba(245, 158, 11, 0.14)';
+                textColor = '#d97706';
+                dotColor = '#f59e0b';
+                dotGlow = '0 0 6px #f59e0b';
+                statusText = isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`;
+              } else if (isLocalOnly) {
                 borderColor = 'rgba(56, 189, 248, 0.45)';
                 bgColor = 'rgba(56, 189, 248, 0.12)';
                 textColor = '#38bdf8';
                 dotColor = '#38bdf8';
                 dotGlow = '0 0 8px rgba(56, 189, 248, 0.6)';
-                statusText = `Local Mode${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}`;
+                statusText = 'Local Mode';
               } else if (isPrivateSales) {
                 borderColor = 'rgba(16, 185, 129, 0.45)';
                 bgColor = 'rgba(16, 185, 129, 0.12)';
                 textColor = '#10b981';
                 dotColor = '#10b981';
                 dotGlow = '0 0 8px rgba(16, 185, 129, 0.6)';
-                statusText = `Private Sales${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}`;
+                statusText = 'Private Sales';
               }
+
+              // Clean state: online and 0 pending offline queue orders
+              const isClean = isOnline && offlineQueue.length === 0;
 
               return (
                 <button
                   type="button"
                   id="network-outbox-status-btn"
-                  className={`network-outbox-status-btn ${!isLocalOnly && !isPrivateSales && isOnline && offlineQueue.length === 0 ? 'is-clean-online' : ''}`}
+                  className={`network-outbox-status-btn ${isClean ? 'is-clean-online' : ''}`}
                   onClick={() => setShowOfflineModal(true)}
                   title={isLocalOnly
-                    ? `Local-Only Mode Active — ${offlineQueue.length} order(s) stored on device. Click to backup or inspect.`
+                    ? `Local-Only Mode Active — ${offlineQueue.length} order(s) stored on device. Tap to inspect.`
                     : (isPrivateSales
-                      ? `Private Sales Mode Active — Financial records & transactions stay strictly on this device.`
+                      ? `Private Sales Mode Active — Financial records & transactions stay strictly on this device. Tap to inspect.`
                       : (!isOnline 
                         ? `Offline Mode Active — ${offlineQueue.length} order(s) buffered locally. Tap to inspect.` 
-                        : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — click to inspect` : 'Connected to cloud server')))}
+                        : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — tap to inspect` : 'Connected to cloud server')))}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    height: '34px',
-                    padding: '0 10px',
-                    borderRadius: 'var(--radius-sm)',
+                    height: '38px',
+                    borderRadius: '10px',
                     fontSize: '11.5px',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -673,9 +710,11 @@ export default function AppShell() {
                     boxShadow: dotGlow,
                     flexShrink: 0
                   }} />
-                  <span className="network-status-text">
-                    {statusText}
-                  </span>
+                  {(!isPOS || !isClean) && (
+                    <span className="network-status-text">
+                      {statusText}
+                    </span>
+                  )}
                 </button>
               );
             })()}
