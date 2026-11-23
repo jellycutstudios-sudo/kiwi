@@ -1026,6 +1026,7 @@ export const useOrderStore = create((set, get) => ({
       token: tokenNumber ?? null,
       customerName: customerName || (customer?.name ?? ''),
       customerPhone: customerPhone || (customer?.phone ?? ''),
+      deliveryAddress: customer?.address || '',
       loyaltyEarned: Math.floor(total / 10),
       loyaltyRedeemed: redeemingPoints && customer ? Math.round(pointsDiscount * 10) : 0,
       note: note ?? '',

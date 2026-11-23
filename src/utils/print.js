@@ -188,10 +188,15 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   const orderTypeLabel =
     order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
+    order.type === 'delivery' ? `Delivery` :
     `Online`;
   writeTextLine(orderTypeLabel);
   
   if (order.customerName) writeTextLine(`Customer: ${order.customerName}`);
+  if (order.customerPhone) writeTextLine(`Phone: ${order.customerPhone}`);
+  if (order.deliveryAddress || order.customer?.address) {
+    writeTextLine(`Address: ${order.deliveryAddress || order.customer?.address}`);
+  }
   if (staffName) writeTextLine(`Staff: ${staffName}`);
   
   writeTextLine(divider);
@@ -362,6 +367,7 @@ function compileEscPosKitchenTicket({ restaurant, order, items, staffName, print
   const orderTypeLabel =
     order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
+    order.type === 'delivery' ? `DELIVERY` :
     `Online`;
   
   writeBytes(BOLD_ON);
@@ -369,6 +375,10 @@ function compileEscPosKitchenTicket({ restaurant, order, items, staffName, print
   writeBytes(BOLD_OFF);
   
   if (order.customerName) writeTextLine(`Customer: ${order.customerName}`);
+  if (order.customerPhone) writeTextLine(`Phone: ${order.customerPhone}`);
+  if (order.deliveryAddress || order.customer?.address) {
+    writeTextLine(`Address: ${order.deliveryAddress || order.customer?.address}`);
+  }
   if (staffName) writeTextLine(`Staff: ${staffName}`);
   
   writeTextLine(divider);
@@ -1052,6 +1062,7 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
   const orderTypeLabel =
     order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
+    order.type === 'delivery' ? `Delivery` :
     `Online`;
 
   const promoAmt = Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0;
@@ -1120,6 +1131,8 @@ ${order.isOffline ? `<div class="center bold" style="background:#f3f4f6;padding:
 <div>Date: ${new Date().toLocaleString()}</div>
 <div class="bold">${orderTypeLabel}</div>
 ${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
+${order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : ''}
+${(order.deliveryAddress || order.customer?.address) ? `<div>Address: ${order.deliveryAddress || order.customer?.address}</div>` : ''}
 ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 <div class="divider"></div>
 <table>
@@ -1205,6 +1218,7 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
   const orderTypeLabel =
     order.type === 'dine-in'  ? (order.tableName ? `Dine-In (Table ${order.tableName})` : `Dine-In (Open Seating)`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Takeaway (Token #${order.token})` : 'Takeaway (Pickup)') :
+    order.type === 'delivery' ? (order.token ? `Direct Delivery (Token #${order.token})` : 'Direct Delivery') :
     `Online Delivery`;
 
   win.document.write(`
@@ -1309,6 +1323,7 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
           <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Billed To / Customer</div>
           <div style="font-size: 14px; font-weight: 700; color: #111827;">${order.customerName || 'Walk-in Customer'}</div>
           ${order.customerPhone ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">Phone: ${order.customerPhone}</div>` : ''}
+          ${(order.deliveryAddress || order.customer?.address) ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">Delivery Address: ${order.deliveryAddress || order.customer?.address}</div>` : ''}
         </td>
         <td style="width: 50%; vertical-align: top; text-align: right;">
           <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Payment Summary</div>
@@ -1442,6 +1457,7 @@ function printKitchenBrowser({ restaurant, order, items, printerName, paperSize 
   const orderTypeLabel =
     order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
     order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
+    order.type === 'delivery' ? `Delivery` :
     `Online`;
 
   const bodyWidth = is58mm ? '52mm' : '76mm';
@@ -1480,6 +1496,8 @@ function printKitchenBrowser({ restaurant, order, items, printerName, paperSize 
 <div style="font-size: ${is58mm ? '13px' : '15px'}; font-weight: 900;">${orderTypeLabel}</div>
 <div>Time: ${new Date().toLocaleTimeString()}</div>
 ${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
+${order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : ''}
+${(order.deliveryAddress || order.customer?.address) ? `<div>Address: ${order.deliveryAddress || order.customer?.address}</div>` : ''}
 <div class="divider"></div>
 <table>
   <tbody>${itemRows}</tbody>
@@ -1551,7 +1569,7 @@ export function printTokenTicket({ token, orderType, customerName, restaurant, i
       writeTextLine('*** OFFLINE TICKET ***');
     }
     writeTextLine(divider);
-    writeTextLine(orderType === 'dine-in' ? 'DINE IN' : 'TAKEAWAY / PICKUP');
+    writeTextLine(orderType === 'dine-in' ? 'DINE IN' : orderType === 'delivery' ? 'DIRECT DELIVERY' : 'TAKEAWAY / PICKUP');
     if (customerName) {
       writeTextLine(customerName);
     }

@@ -5695,6 +5695,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   color: #0284c7;
   flex-shrink: 0;
 }
+.cart-unified-mode-icon--delivery {
+  color: #f59e0b;
+}
 .cart-unified-mode-caret {
   opacity: 0.6;
   margin-left: 2px;
@@ -5920,6 +5923,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 [data-theme="dark"] .cart-unified-mode-icon {
   color: #38bdf8;
+}
+[data-theme="dark"] .cart-unified-mode-icon--delivery {
+  color: #fbbf24;
 }
 [data-theme="dark"] .cart-unified-chip {
   background: #141724;

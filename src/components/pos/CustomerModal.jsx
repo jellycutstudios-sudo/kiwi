@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuthStore } from '../../stores/authStore';
-import { X, User, Phone, Check, Sparkles, MessageSquare, Trash2, Award } from 'lucide-react';
+import { X, User, Phone, Check, Sparkles, MessageSquare, Trash2, Award, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CustomerModal({
@@ -21,6 +21,7 @@ export default function CustomerModal({
   const { ensureAnonymousAuth } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
   const [isExisting, setIsExisting] = useState(null);
   const [existingProfile, setExistingProfile] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -48,6 +49,9 @@ export default function CustomerModal({
         setIsExisting(true);
         setExistingProfile(data);
         setName(prev => (prev && prev.trim() ? prev : (data.name || '')));
+        if (data.address) {
+          setAddress(prev => (prev && prev.trim() ? prev : (data.address || '')));
+        }
       } else {
         setIsExisting(false);
         setExistingProfile(null);
@@ -65,8 +69,10 @@ export default function CustomerModal({
 
     const startPhone = (initialPhone || customerPhone || customer?.phone || '').replace(/\D/g, '');
     const startName = customerName || customer?.name || '';
+    const startAddress = customer?.address || '';
     setPhone(startPhone);
     setName(startName);
+    setAddress(startAddress);
     setIsExisting(customer ? true : null);
     setExistingProfile(customer || null);
 
@@ -110,6 +116,7 @@ export default function CustomerModal({
     const payload = {
       name: finalName,
       phone: cleanPhone,
+      address: address.trim() || existingProfile?.address || '',
       points: existingProfile?.points || customer?.points || 0,
       visitCount: (existingProfile?.visitCount || customer?.visitCount || 0) + 1,
       lifetimeSpend: existingProfile?.lifetimeSpend || customer?.lifetimeSpend || 0,
@@ -327,6 +334,33 @@ export default function CustomerModal({
               placeholder="e.g. Rahul Sharma"
               value={name}
               onChange={e => setName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSave(e);
+                }
+              }}
+              style={{
+                width: '100%',
+                height: 38,
+                fontSize: 13,
+                padding: '0 12px',
+                borderRadius: 8
+              }}
+            />
+          </div>
+
+          {/* Delivery Address Field */}
+          <div style={{ marginTop: 10 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-label, #ffffff)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+              <MapPin size={13} style={{ color: '#f59e0b' }} /> Delivery Address / Landmark (For Riders)
+            </label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="e.g. Flat 402, Sunshine Heights, Near City Mall"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();

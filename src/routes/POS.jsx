@@ -16,7 +16,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets, printKitchenVoidTicket, printInvoiceA4 } from '../utils/print';
 import toast from 'react-hot-toast';
 import {
-  ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X,
+  ShoppingCart, ShoppingBag, UtensilsCrossed, Bike, Trash2, Plus, Minus, X,
   ChevronDown, Tag, Banknote,
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
@@ -1135,6 +1135,7 @@ export default function POS() {
   const orderTypes = [
     { key: 'dine-in', label: t('dineIn') || 'Dine In', Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly },
     { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (isBillOnly ? 'Counter' : (t('takeaway') || 'Takeaway'))), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
+    { key: 'delivery', label: t('delivery') || 'Delivery', Icon: Bike, enabled: !isRetail && !isService && !isBillOnly },
     { key: 'online', label: t('online') || 'Online', Icon: ShoppingCart, enabled: false }, // online handled separately
   ].filter(o => o.enabled);
 
@@ -1186,7 +1187,7 @@ export default function POS() {
     }
 
     let token = modes.includes('token') ? tokenNumber : null;
-    if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
+    if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'delivery' || orderType === 'dine-in') && !token) {
       token = await issueToken(restaurant.id);
       setToken(token);
     }
@@ -2485,15 +2486,17 @@ export default function POS() {
                   const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
                   handleOrderTypeChange(orderTypes[nextIdx].key);
                 }}
-                title={`Current: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode`}
+                title={`Current: ${orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway'}. Tap to switch mode`}
               >
                 {orderType === 'dine-in' ? (
                   <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
+                ) : orderType === 'delivery' ? (
+                  <Bike size={18} className="cart-unified-mode-icon cart-unified-mode-icon--delivery" />
                 ) : (
                   <ShoppingBag size={18} className="cart-unified-mode-icon" />
                 )}
                 <span className="cart-unified-mode-label">
-                  {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway')}
+                  {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway')}
                 </span>
                 <ChevronDown size={13} className="cart-unified-mode-caret" />
               </button>
