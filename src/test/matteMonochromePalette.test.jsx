@@ -103,4 +103,67 @@ describe('Matte Monochrome Palette System', () => {
     // Free table status dot must stay green
     expect(css).toMatch(/\.tm-status-dot\.free\s*\{[^}]*#10b981/);
   });
+
+  describe('TableMap Relatable Status Colors', () => {
+    it('sets occupied tables to calm ocean blue instead of alarm red', () => {
+      // Light mode
+      const lightOccupied = css.match(/\.tm-card--occupied\s*\{([^}]+)\}/);
+      expect(lightOccupied).not.toBeNull();
+      expect(lightOccupied[1]).toContain('#0284c7');
+      expect(lightOccupied[1]).not.toContain('#ef4444');
+
+      // Dark mode
+      const darkOccupied = css.match(/\[data-theme="dark"\]\s+\.tm-card--occupied\s*\{([^}]+)\}/);
+      expect(darkOccupied).not.toBeNull();
+      expect(darkOccupied[1]).toContain('#0284c7');
+      expect(darkOccupied[1]).not.toContain('#ef4444');
+    });
+
+    it('sets billed tables to warm golden amber (turnover imminent)', () => {
+      const lightBilled = css.match(/\.tm-card--billed\s*\{([^}]+)\}/);
+      expect(lightBilled).not.toBeNull();
+      expect(lightBilled[1]).toContain('#d97706');
+
+      const darkBilled = css.match(/\[data-theme="dark"\]\s+\.tm-card--billed\s*\{([^}]+)\}/);
+      expect(darkBilled).not.toBeNull();
+      expect(darkBilled[1]).toContain('#f59e0b');
+    });
+
+    it('sets reserved tables to royal amethyst purple', () => {
+      const lightReserved = css.match(/\.tm-card--reserved\s*\{([^}]+)\}/);
+      expect(lightReserved).not.toBeNull();
+      expect(lightReserved[1]).toContain('#9333ea');
+
+      const darkReserved = css.match(/\[data-theme="dark"\]\s+\.tm-card--reserved\s*\{([^}]+)\}/);
+      expect(darkReserved).not.toBeNull();
+      expect(darkReserved[1]).toContain('#a855f7');
+    });
+
+    it('reserves alarm red strictly for overdue tables', () => {
+      const overdueMatch = css.match(/\.tm-card--occupied\.overdue,\s*\.tm-card--overdue\s*\{([^}]+)\}/);
+      expect(overdueMatch).not.toBeNull();
+      expect(overdueMatch[1]).toContain('#ef4444');
+    });
+
+    it('sets table card bill amount to neutral white/slate instead of red', () => {
+      const billAmount = css.match(/\.tm-card-bill-amount\s*\{([^}]+)\}/);
+      expect(billAmount).not.toBeNull();
+      expect(billAmount[1]).toContain('color: #0f172a');
+      expect(billAmount[1]).not.toContain('#ef4444');
+
+      const darkBillAmount = css.match(/\[data-theme="dark"\]\s+\.tm-card-bill-amount[^{]*\{([^}]+)\}/);
+      expect(darkBillAmount).not.toBeNull();
+      expect(darkBillAmount[1]).toContain('color: #f8fafc');
+    });
+
+    it('sets floor section stat pills to matching blue and purple colors', () => {
+      const occupiedPill = css.match(/\.tm-floor-stat-pill\.occupied\s*\{([^}]+)\}/);
+      expect(occupiedPill).not.toBeNull();
+      expect(occupiedPill[1]).toContain('#0284c7');
+
+      const darkOccupiedPill = css.match(/\[data-theme="dark"\]\s+\.tm-floor-stat-pill\.occupied[^{]*\{([^}]+)\}/);
+      expect(darkOccupiedPill).not.toBeNull();
+      expect(darkOccupiedPill[1]).toContain('#38bdf8');
+    });
+  });
 });

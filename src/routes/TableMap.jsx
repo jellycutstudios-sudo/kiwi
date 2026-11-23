@@ -780,9 +780,11 @@ export default function TableMap() {
         }}
         className={`tm-card ${isLargeTable ? 'tm-card--large' : 'tm-card--standard'} ${
           isFoodReady
-            ? 'tm-card--ready'
+            ? (isPassOverdue ? 'tm-card--ready overdue' : 'tm-card--ready')
             : isBilled
             ? 'tm-card--billed'
+            : (effectiveStatus === 'occupied' && elapsedMins >= 90)
+            ? 'tm-card--occupied overdue'
             : effectiveStatus === 'occupied'
             ? 'tm-card--occupied'
             : isReserved
@@ -879,7 +881,7 @@ export default function TableMap() {
           ) : isReserved ? (
             <div className="tm-card-reserved-state">
               <span className="tm-card-reserved-label">
-                <Star size={11} fill="#f59e0b" color="#f59e0b" /> Reserved
+                <Star size={11} fill="#a855f7" color="#a855f7" /> Reserved
               </span>
               <span className="tm-card-sub-hint">Reserved table</span>
             </div>
