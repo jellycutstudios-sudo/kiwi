@@ -1750,8 +1750,10 @@ export default function POS() {
                           ? `${pendingOnlineOrdersCount} Online`
                           : `${runningOrders.length} Running`}
                     </span>
-                    {readyOrdersCount > 0 && (
+                    {readyOrdersCount > 0 ? (
                       <span className="pos-op-pulse-dot" />
+                    ) : (
+                      <span className="pos-op-live-dot" title="Active kitchen orders running" />
                     )}
                   </button>
                 )}
@@ -1967,8 +1969,10 @@ export default function POS() {
                             ? `${pendingOnlineOrdersCount} Online`
                             : `${runningOrders.length} Running`}
                       </span>
-                      {readyOrdersCount > 0 && (
+                      {readyOrdersCount > 0 ? (
                         <span className="pos-op-pulse-dot" />
+                      ) : (
+                        <span className="pos-op-live-dot" title="Active kitchen orders running" />
                       )}
                     </button>
                   )}

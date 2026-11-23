@@ -46,4 +46,14 @@ describe('POS Dynamic Table and Customer Pills in Cart Header', () => {
     expect(indexCss).toContain('.cart-unified-chip--customer');
     expect(indexCss).toMatch(/\.cart-unified-chip--customer\s*\{[^}]*flex:\s*1/);
   });
+
+  it('verifies subtle live breathing dot on active running orders button', () => {
+    // POS.jsx renders pos-op-live-dot when orders are running but not ready
+    expect(posJsx).toContain('className="pos-op-live-dot"');
+
+    // index.css has liveBreath animation and styling
+    expect(indexCss).toContain('@keyframes liveBreath');
+    expect(indexCss).toContain('.pos-op-live-dot');
+    expect(indexCss).toMatch(/\.pos-op-live-dot\s*\{[^}]*animation:\s*liveBreath/);
+  });
 });
