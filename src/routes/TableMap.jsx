@@ -726,7 +726,8 @@ export default function TableMap() {
     const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
     const isBilled = order?.status === 'billed';
     const capacity = Number(t.capacity) || 4;
-    const isLargeTable = capacity >= 6;
+    const isRound = t.shape === 'round';
+    const isLargeTable = capacity >= 6 && !isRound;
 
     let elapsedMins = 0;
     if (hasOrder && order) {
@@ -748,7 +749,6 @@ export default function TableMap() {
     const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
     const itemCount = hasOrder && order?.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0;
 
-    const isRound = t.shape === 'round';
     const statusKey = isFoodReady
       ? (isPassOverdue ? 'ready overdue' : 'ready')
       : isBilled
@@ -765,16 +765,17 @@ export default function TableMap() {
     return (
       <div
         key={t.id}
-        className={`table-3d-item-wrapper ${isLargeTable ? 'tm-card--large' : 'tm-card--standard'}`}
+        className={`table-3d-item-wrapper ${isLargeTable ? 'tm-card--large' : 'tm-card--standard'} ${isRound ? 'is-round-table' : ''}`}
       >
-        {/* Surrounding 3D Chair Cushions */}
-        <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
-        <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
-        <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
-        <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+        <div className={`table-3d-frame ${isRound ? 'round' : ''}`}>
+          {/* Surrounding 3D Chair Cushions */}
+          <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+          <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+          <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+          <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
 
-        {/* 3D Realistic Tabletop Keycap */}
-        <div
+          {/* 3D Realistic Tabletop Keycap */}
+          <div
           onClick={() => {
             if (effectiveStatus === 'free') {
               clearCart();
@@ -912,7 +913,8 @@ export default function TableMap() {
           )}
         </div>
       </div>
-    );
+    </div>
+  );
   }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency, canEditLayout]);
 
   return (
@@ -2012,23 +2014,25 @@ export default function TableMap() {
                 <div className="tm-prop-preview-stage">
                   <span className="tm-prop-preview-label">Live Floor Map Preview</span>
                   <div
-                    className={`table-3d-item-wrapper ${Number(selectedEditTable.capacity) >= 6 && selectedEditTable.shape !== 'round' ? 'tm-card--large' : 'tm-card--standard'}`}
+                    className={`table-3d-item-wrapper ${Number(selectedEditTable.capacity) >= 6 && selectedEditTable.shape !== 'round' ? 'tm-card--large' : 'tm-card--standard'} ${selectedEditTable.shape === 'round' ? 'is-round-table' : ''}`}
                     style={{
                       maxWidth: selectedEditTable.shape === 'round' ? 140 : (Number(selectedEditTable.capacity) >= 6 ? 240 : 150),
                       pointerEvents: 'none',
                     }}
                   >
-                    <div className={`table-3d-chair chair-top ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
-                    <div className={`table-3d-chair chair-bottom ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
-                    <div className={`table-3d-chair chair-left ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
-                    <div className={`table-3d-chair chair-right ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                    <div className={`table-3d-frame ${selectedEditTable.shape === 'round' ? 'round' : ''}`}>
+                      <div className={`table-3d-chair chair-top ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                      <div className={`table-3d-chair chair-bottom ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                      <div className={`table-3d-chair chair-left ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                      <div className={`table-3d-chair chair-right ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
 
-                    <div className={`table-3d-card ${selectedEditTable.shape === 'round' ? 'round' : ''} free`}>
-                      <span className="table-3d-pill-badge free">
-                        <span className="table-3d-dot free" /> Free
-                      </span>
-                      <span className="table-3d-title">{selectedEditTable.name || 'T1'}</span>
-                      <span className="table-3d-seats">{selectedEditTable.capacity || 4} seats</span>
+                      <div className={`table-3d-card ${selectedEditTable.shape === 'round' ? 'round' : ''} free`}>
+                        <span className="table-3d-pill-badge free">
+                          <span className="table-3d-dot free" /> Free
+                        </span>
+                        <span className="table-3d-title">{selectedEditTable.name || 'T1'}</span>
+                        <span className="table-3d-seats">{selectedEditTable.capacity || 4} seats</span>
+                      </div>
                     </div>
                   </div>
                 </div>

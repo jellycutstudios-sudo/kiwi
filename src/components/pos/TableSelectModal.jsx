@@ -178,43 +178,45 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
     const status = getEffectiveStatus(table);
 
     return (
-      <div key={table.id} className="table-3d-item-wrapper">
-        {/* Surrounding 3D Chair Cushions */}
-        <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''}`} />
-        <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''}`} />
-        <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''}`} />
-        <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''}`} />
+      <div key={table.id} className={`table-3d-item-wrapper ${isRound ? 'is-round-table' : ''}`}>
+        <div className={`table-3d-frame ${isRound ? 'round' : ''}`}>
+          {/* Surrounding 3D Chair Cushions */}
+          <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''}`} />
+          <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''}`} />
+          <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''}`} />
+          <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''}`} />
 
-        {/* 3D Realistic Tabletop Keycap */}
-        <button
-          id={`table-select-${table.id}`}
-          type="button"
-          className={`table-3d-card ${isRound ? 'round' : ''} ${status}`}
-          onClick={() => onSelect(table.id, table.name, activeOrder, table)}
-          title={`${table.name} · ${table.capacity} seats · ${status}`}
-        >
-          {/* Status Pill Badge */}
-          <span className={`table-3d-status-pill ${status}`}>
-            {status === 'free' && 'Free'}
-            {status === 'occupied' && 'Occupied'}
-            {status === 'reserved' && 'Reserved'}
-          </span>
-
-          {/* Bold Table Code */}
-          <span className="table-3d-name">{table.name}</span>
-
-          {/* Capacity */}
-          <span className="table-3d-capacity">
-            {table.capacity} seats
-          </span>
-
-          {/* Live Active Order Total if Occupied */}
-          {table.status === 'occupied' && activeOrder?.total && (
-            <span className="table-3d-order-total">
-              {formatCurrency(activeOrder.total, currency)}
+          {/* 3D Realistic Tabletop Keycap */}
+          <button
+            id={`table-select-${table.id}`}
+            type="button"
+            className={`table-3d-card ${isRound ? 'round' : ''} ${status}`}
+            onClick={() => onSelect(table.id, table.name, activeOrder, table)}
+            title={`${table.name} · ${table.capacity} seats · ${status}`}
+          >
+            {/* Status Pill Badge */}
+            <span className={`table-3d-status-pill ${status}`}>
+              {status === 'free' && 'Free'}
+              {status === 'occupied' && 'Occupied'}
+              {status === 'reserved' && 'Reserved'}
             </span>
-          )}
-        </button>
+
+            {/* Bold Table Code */}
+            <span className="table-3d-name">{table.name}</span>
+
+            {/* Capacity */}
+            <span className="table-3d-capacity">
+              {table.capacity} seats
+            </span>
+
+            {/* Live Active Order Total if Occupied */}
+            {table.status === 'occupied' && activeOrder?.total && (
+              <span className="table-3d-order-total">
+                {formatCurrency(activeOrder.total, currency)}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     );
   }, [getEffectiveStatus, tableOrders, onSelect, currency]);

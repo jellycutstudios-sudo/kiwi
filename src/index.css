@@ -18085,14 +18085,35 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   width: 100%;
 }
 
-.table-3d-item-wrapper.tm-card--standard {
-  grid-column: span 1;
+.table-3d-item-wrapper.tm-card--standard,
+.table-3d-item-wrapper.is-round-table {
+  grid-column: span 1 !important;
 }
 
 @media (min-width: 601px) {
-  .table-3d-item-wrapper.tm-card--large {
+  .table-3d-item-wrapper.tm-card--large:not(.is-round-table) {
     grid-column: span 2;
   }
+}
+
+/* 3D Geometric Frame matching table shape */
+.table-3d-frame {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-3d-frame.round {
+  width: 136px;
+  height: 136px;
+  min-height: 136px;
+  max-width: 136px;
+  max-height: 136px;
+  margin: 0 auto;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* Base 3D Table Keycap / Furniture */
@@ -18120,10 +18141,19 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 .table-3d-card.round {
   border-radius: 50% !important;
   aspect-ratio: 1 / 1;
+  width: 136px;
+  height: 136px;
   max-width: 136px;
-  min-height: 128px;
+  max-height: 136px;
+  min-height: 136px;
   padding: 12px;
   margin: 0 auto;
+}
+
+.table-3d-frame.round .table-3d-card.round {
+  width: 100%;
+  height: 100%;
+  margin: 0;
 }
 
 /* 3D Chair Cushions surrounding the table */
@@ -18140,6 +18170,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 .chair-top {
   top: -3.5px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 26px;
   height: 5px;
   border-radius: 3px 3px 0 0;
@@ -18147,6 +18179,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 .chair-bottom {
   bottom: -3.5px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 26px;
   height: 5px;
   border-radius: 0 0 3px 3px;
@@ -18154,6 +18188,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 .chair-left {
   left: -3.5px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 5px;
   height: 26px;
   border-radius: 3px 0 0 3px;
@@ -18161,6 +18197,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 .chair-right {
   right: -3.5px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 5px;
   height: 26px;
   border-radius: 0 3px 3px 0;
@@ -18170,23 +18208,46 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 .chair-bottom.round-chair,
 .chair-left.round-chair,
 .chair-right.round-chair {
-  border-radius: 9999px;
+  border-radius: 9999px !important;
 }
 
 .round-chair.chair-top {
   top: -2.5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 6px;
 }
 
 .round-chair.chair-bottom {
   bottom: -2.5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 6px;
 }
 
 .round-chair.chair-left {
   left: -2.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 28px;
 }
 
 .round-chair.chair-right {
   right: -2.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 28px;
+}
+
+.table-3d-item-wrapper.is-round-table:not(:has(.table-3d-frame.round)) .round-chair.chair-left {
+  left: calc(50% - 71px);
+}
+.table-3d-item-wrapper.is-round-table:not(:has(.table-3d-frame.round)) .round-chair.chair-right {
+  right: calc(50% - 71px);
 }
 
 /* 3D Chair Cushions Status Tints (Light Theme) */
@@ -18431,6 +18492,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   width: 22px;
   height: 22px;
   z-index: 5;
+}
+
+.table-3d-card.round .tm-card-edit-btn {
+  top: 10px;
+  right: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
 }
 
 /* Dark Theme Overrides for 3D Furniture Mode */
