@@ -73,15 +73,20 @@ export default function TableMap() {
   const [selected, setSelected] = useState(null);
   const [reservations, setReservations] = useState([]);
 
-  // Live ticker for elapsed times (paused when app is hidden/pocketed)
+  // Snappy live ticker: ticks every 1s when food is ready (for live pass timer), 30s otherwise (conserves battery/CPU)
+  const hasFoodReadyOrder = useMemo(() => {
+    return (activeOrders || []).some(o => o.status === 'ready' || (o.items || []).some(i => i.status === 'ready'));
+  }, [activeOrders]);
+
   const [nowTime, setNowTime] = useState(() => Date.now());
   useEffect(() => {
+    const intervalMs = hasFoodReadyOrder ? 1000 : 30000;
     const id = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       setNowTime(Date.now());
-    }, 60000);
+    }, intervalMs);
     return () => clearInterval(id);
-  }, []);
+  }, [hasFoodReadyOrder]);
 
   // Derive table orders directly from orderStore activeOrders (eliminates duplicate Firestore query)
   const tableOrders = useMemo(() => {
