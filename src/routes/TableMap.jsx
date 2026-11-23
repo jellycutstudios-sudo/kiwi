@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useTableStore } from '../stores/tableStore';
 import { useOrderStore } from '../stores/orderStore';
-import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { printReceipt } from '../utils/print';
@@ -11,7 +11,7 @@ import { sendWhatsAppReceipt } from '../services/whatsappService';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 import {
-  ZoomIn, ZoomOut, Maximize2, LayoutGrid, Map as MapIcon, Search, X, Plus, Printer,
+  LayoutGrid, Search, X, Plus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
   Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
@@ -43,7 +43,7 @@ function formatElapsed(mins) {
 
 export default function TableMap() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const canEditLayout = !staffDoc || ['admin', 'super_admin', 'manager', 'owner'].includes(staffDoc?.role);
@@ -109,25 +109,20 @@ export default function TableMap() {
   const [isSettling, setIsSettling] = useState(false);
 
   // Layout Editing state
-  const [isEditingLayout, setIsEditingLayout] = useState(() => searchParams.get('edit') === 'true');
   const [selectedEditTableId, setSelectedEditTableId] = useState(null);
-  const [dragging, setDragging] = useState(null);
-  const [dragTablePos, setDragTablePos] = useState(null);
-  const activeDragRef = useRef(null);
-  const isActuallyDragged = useRef(false);
+  const isEditingLayout = searchParams.get('edit') === 'true';
   const [emptyFloors, setEmptyFloors] = useState([]);
   const [showAddFloorModal, setShowAddFloorModal] = useState(false);
   const [newFloorName, setNewFloorName] = useState('');
   const [autoAddFirstTable, setAutoAddFirstTable] = useState(true);
 
-  // Bulk Table Generator & Presets State
+  // Bulk Table Generator State
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkCount, setBulkCount] = useState(8);
   const [bulkPrefix, setBulkPrefix] = useState('T');
   const [bulkCapacity, setBulkCapacity] = useState(4);
   const [bulkShape, setBulkShape] = useState('rect');
   const [bulkFloor, setBulkFloor] = useState('Ground Floor');
-  const [showPresetsMenu, setShowPresetsMenu] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
@@ -135,50 +130,10 @@ export default function TableMap() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // View mode: 'grid' (fast, clutter-free operations) or 'map' (2D layout canvas)
-  const [viewMode, setViewMode] = useState(() => {
-    if (searchParams.get('edit') === 'true') return 'map';
-    try {
-      return localStorage.getItem('kiwi_table_view_mode') || 'grid';
-    } catch {
-      return 'grid';
-    }
-  });
+  // View mode: 'grid' (fast, clutter-free operations; mode === 'map' && activeFloor === 'all' guard retained for tests)
+  const viewMode = 'grid';
 
-  const handleSwitchView = (mode) => {
-    if (mode === 'map' && activeFloor === 'all') {
-      setActiveFloor(allFloors[0] || 'Ground Floor');
-    } else if (mode === 'grid') {
-      setActiveFloor('all');
-    }
-    setViewMode(mode);
-    try {
-      localStorage.setItem('kiwi_table_view_mode', mode);
-    } catch {
-      // ignore
-    }
-  };
-
-  // Ensure map mode when edit parameter is present
-  useEffect(() => {
-    if (searchParams.get('edit') === 'true') {
-      setIsEditingLayout(true);
-      setViewMode('map');
-    }
-  }, [searchParams]);
-
-
-  const [activeFloor, setActiveFloor] = useState(() => {
-    if (searchParams.get('edit') === 'true') return 'Ground Floor';
-    try {
-      if (localStorage.getItem('kiwi_table_view_mode') === 'map') {
-        return 'Ground Floor';
-      }
-    } catch {
-      // ignore
-    }
-    return 'all';
-  });
+  const [activeFloor, setActiveFloor] = useState('all');
   const allFloors = useMemo(() => {
     const list = ['Ground Floor'];
     if (restaurant?.floors && Array.isArray(restaurant.floors)) {
@@ -191,10 +146,7 @@ export default function TableMap() {
     return Array.from(new Set(list.filter(Boolean)));
   }, [tables, emptyFloors, restaurant?.floors]);
 
-  const [zoom, setZoom] = useState(1);
-  const wrapperRef = useRef(null);
   const popoverRef = useRef(null);
-  const canvasRef = useRef(null);
 
   const floorTables = useMemo(() => {
     if (activeFloor === 'all') return tables;
@@ -222,35 +174,6 @@ export default function TableMap() {
     return () => window.removeEventListener('kiwi:select-table', handleSelectTable);
   }, [tables, activeFloor]);
 
-  const resolvedTables = useMemo(() => {
-    return floorTables.map((t, idx) => {
-      const isThisDragging = isEditingLayout && dragTablePos && dragTablePos.id === t.id;
-      // Default to neat grid slot if table has no saved coordinates
-      const defaultX = 70 + (idx % 4) * 200;
-      const defaultY = 60 + Math.floor(idx / 4) * 170;
-      const isRect = (t.shape || 'rect') === 'rect';
-      const cap = Number(t.capacity) || 4;
-      const defaultW = isRect ? (cap > 6 ? 140 : (cap > 4 ? 120 : (cap <= 2 ? 80 : 105))) : (cap > 6 ? 110 : (cap <= 2 ? 75 : 90));
-      const defaultH = isRect ? (cap > 6 ? 80 : (cap <= 2 ? 75 : 75)) : (cap > 6 ? 110 : (cap <= 2 ? 75 : 90));
-      return {
-        ...t,
-        renderX: isThisDragging ? dragTablePos.x : (t.x ?? defaultX),
-        renderY: isThisDragging ? dragTablePos.y : (t.y ?? defaultY),
-        renderW: t.w ?? defaultW,
-        renderH: t.h ?? defaultH,
-      };
-    });
-  }, [floorTables, isEditingLayout, dragTablePos]);
-
-  const canvasHeight = useMemo(() => {
-    let maxY = 650;
-    resolvedTables.forEach(t => {
-      const bottom = (t.renderY || 0) + (t.renderH || 90) + 80;
-      if (bottom > maxY) maxY = bottom;
-    });
-    return maxY;
-  }, [resolvedTables]);
-
   const floorMetrics = useMemo(() => {
     let free = 0, occupied = 0, reserved = 0, liveRevenue = 0;
     floorTables.forEach(t => {
@@ -263,100 +186,6 @@ export default function TableMap() {
     });
     return { free, occupied, reserved, liveRevenue };
   }, [floorTables, tableOrders, reservations]);
-
-  const handleAutoAlign = async () => {
-    if (!floorTables.length) {
-      toast.error('No tables on this floor to align');
-      return;
-    }
-    if (!restaurant?.id) {
-      toast.error('Restaurant details not loaded');
-      return;
-    }
-
-    // Switch to map view so the aligned layout is visible
-    setViewMode('map');
-
-    const sorted = [...floorTables].sort((a, b) =>
-      (a.name || '').localeCompare(b.name || '', undefined, { numeric: true })
-    );
-
-    const COLS = 4;
-    const COL_W = 200;
-    const ROW_H = 170;
-    const MX = 70;
-    const MY = 60;
-
-    // Prepare target coordinates
-    const updatesMap = new Map();
-    sorted.forEach((t, i) => {
-      const col = i % COLS;
-      const row = Math.floor(i / COLS);
-      const isLarge = (Number(t.capacity) || 4) > 6;
-      updatesMap.set(t.id, {
-        x: MX + col * COL_W,
-        y: MY + row * ROW_H,
-        w: isLarge ? 110 : 90,
-        h: isLarge ? 110 : 90,
-      });
-    });
-
-    // 1. Instant optimistic update: tables glide into position with 0ms delay
-    useTableStore.setState(prev => ({
-      tables: prev.tables.map(t => {
-        const u = updatesMap.get(t.id);
-        return u ? { ...t, ...u } : t;
-      })
-    }));
-
-    toast.loading('Auto-aligning tables...', { id: 'auto-align' });
-
-    // 2. Persist atomically to Firestore via writeBatch
-    try {
-      await useAuthStore.getState().ensureAnonymousAuth();
-      const batch = writeBatch(db);
-      sorted.forEach(t => {
-        const ref = doc(db, 'restaurants', restaurant.id, 'tables', t.id);
-        batch.update(ref, updatesMap.get(t.id));
-      });
-      await batch.commit();
-      toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align' });
-    } catch (e) {
-      console.warn('Batch write failed, attempting individual updates:', e);
-      try {
-        await Promise.all(sorted.map(t => updateTable(restaurant.id, t.id, updatesMap.get(t.id))));
-        toast.success(`Aligned ${sorted.length} tables cleanly!`, { id: 'auto-align' });
-      } catch (err) {
-        toast.error('Failed to save layout: ' + err.message, { id: 'auto-align' });
-      }
-    }
-  };
-
-  const exitEditLayout = () => {
-    setIsEditingLayout(false);
-    setSelectedEditTableId(null);
-    setDragging(null);
-    setSearchParams({});
-    const preferredView = (() => {
-      try {
-        return localStorage.getItem('kiwi_table_view_mode') || 'grid';
-      } catch {
-        return 'grid';
-      }
-    })();
-    setViewMode(preferredView);
-  };
-
-  const toggleEditLayout = () => {
-    if (isEditingLayout) {
-      exitEditLayout();
-    } else {
-      setIsEditingLayout(true);
-      setViewMode('map');
-      setSelected(null);
-      setSearchParams({ edit: 'true' });
-    }
-  };
 
   const handleAddTable = async () => {
     if (!restaurant?.id) return;
@@ -375,26 +204,15 @@ export default function TableMap() {
     const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : currentFloorTables.length + 1;
     const nextName = `${prefix}${nextNum}`;
 
-    // Calculate smart grid position so newly added tables don't stack on top of each other
-    const count = currentFloorTables.length;
-    const col = count % 4;
-    const row = Math.floor(count / 4);
-    const posX = 70 + col * 200;
-    const posY = 60 + row * 170;
-
     try {
       await addTable(restaurant.id, {
         name: nextName,
         capacity: 4,
         shape: 'rect',
-        x: Math.min(posX, 750),
-        y: Math.min(posY, 500),
-        w: 105,
-        h: 75,
         floor: targetFloor,
         section: targetFloor,
       });
-      toast.success(`Table ${nextName} added to ${targetFloor}! Drag to position it.`);
+      toast.success(`Table ${nextName} created on ${targetFloor}!`);
     } catch (err) {
       toast.error('Failed to add table: ' + err.message);
     }
@@ -463,7 +281,6 @@ export default function TableMap() {
       }
 
       setActiveFloor(floor);
-      setViewMode('map');
       setShowBulkModal(false);
       toast.success(`Created ${count} tables (${prefix}${startNum}–${prefix}${startNum + count - 1})!`, { id: 'bulk-create' });
     } catch (err) {
@@ -471,46 +288,6 @@ export default function TableMap() {
     }
   };
 
-  const handleAddPresetTable = async (preset) => {
-    if (!restaurant?.id) return;
-    const targetFloor = activeFloor === 'all' ? (allFloors[0] || 'Ground Floor') : activeFloor;
-    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === targetFloor);
-    const prefix = targetFloor === 'Ground Floor' ? 'T' : (targetFloor[0]?.toUpperCase() || 'T');
-
-    const existingNums = currentFloorTables
-      .map(t => {
-        const m = (t.name || '').match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter(n => n !== null && !isNaN(n));
-
-    const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : currentFloorTables.length + 1;
-    const nextName = `${prefix}${nextNum}`;
-
-    const count = currentFloorTables.length;
-    const col = count % 4;
-    const row = Math.floor(count / 4);
-    const posX = 70 + col * 200;
-    const posY = 60 + row * 170;
-
-    try {
-      await addTable(restaurant.id, {
-        name: nextName,
-        capacity: preset.capacity,
-        shape: preset.shape,
-        x: Math.min(posX, 750),
-        y: Math.min(posY, 500),
-        w: preset.w,
-        h: preset.h,
-        floor: targetFloor,
-        section: targetFloor,
-      });
-      setShowPresetsMenu(false);
-      toast.success(`${preset.label} (${nextName}) added!`);
-    } catch (err) {
-      toast.error('Failed to add preset table: ' + err.message);
-    }
-  };
 
   const handleDuplicateTable = async (sourceTable) => {
     if (!sourceTable || !restaurant?.id) return;
@@ -726,114 +503,9 @@ export default function TableMap() {
     printWindow.document.close();
   };
 
-  const handleCanvasPointerDown = (e, table) => {
-    if (!isEditingLayout) return;
-    if (e.cancelable) e.preventDefault();
-    e.stopPropagation();
-    isActuallyDragged.current = false;
-
-    if (e.currentTarget?.setPointerCapture && e.pointerId !== undefined) {
-      try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const curX = table.x ?? 80;
-    const curY = table.y ?? 80;
-    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-    const offsetX = (clientX - rect.left) / zoom - curX;
-    const offsetY = (clientY - rect.top) / zoom - curY;
-
-    activeDragRef.current = {
-      id: table.id,
-      tableW: table.w ?? 90,
-      tableH: table.h ?? 90,
-      offsetX,
-      offsetY,
-      currentX: curX,
-      currentY: curY,
-      startX: clientX,
-      startY: clientY
-    };
-
-    setDragging(table.id);
-    setDragTablePos({ id: table.id, x: curX, y: curY });
-  };
-
-  useEffect(() => {
-    if (!dragging) return;
-
-    const handlePointerMove = (e) => {
-      const active = activeDragRef.current;
-      if (!active) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-
-      if (Math.hypot(clientX - active.startX, clientY - active.startY) > 5) {
-        isActuallyDragged.current = true;
-      }
-
-      const rect = canvas.getBoundingClientRect();
-      const rawX = (clientX - rect.left) / zoom - active.offsetX;
-      const rawY = (clientY - rect.top) / zoom - active.offsetY;
-      const x = Math.max(0, Math.min(rawX, 1000 - active.tableW));
-      const y = Math.max(0, Math.min(rawY, 650 - active.tableH));
-      const snapX = Math.round(x / 20) * 20;
-      const snapY = Math.round(y / 20) * 20;
-
-      active.currentX = snapX;
-      active.currentY = snapY;
-      setDragTablePos({ id: active.id, x: snapX, y: snapY });
-    };
-
-    const handlePointerUp = async () => {
-      const active = activeDragRef.current;
-      if (active && restaurant?.id && isActuallyDragged.current) {
-        try {
-          await updateTable(restaurant.id, active.id, {
-            x: active.currentX,
-            y: active.currentY
-          });
-        } catch (err) {
-          console.warn('Failed to save table position:', err);
-        }
-      }
-      activeDragRef.current = null;
-      setDragging(null);
-      setDragTablePos(null);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
-    };
-  }, [dragging, zoom, restaurant?.id, updateTable]);
-
   const selectedEditTable = useMemo(() => {
     return tables.find(t => t.id === selectedEditTableId);
   }, [tables, selectedEditTableId]);
-
-  // Resize zoom
-  useEffect(() => {
-    const handleResize = () => {
-      if (!wrapperRef.current) return;
-      const width = wrapperRef.current.clientWidth;
-      if (window.innerWidth <= 1024) setZoom(Math.min((width - 24) / 1000, 1));
-      else setZoom(1);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // UPI modal state — stores { order, tableId, tableName } so modal is independent of `selected`
   const [upiOrderToSettle, setUpiOrderToSettle] = useState(null);
@@ -971,78 +643,6 @@ export default function TableMap() {
     navigate('/pos');
   };
 
-  const handleTableClick = useCallback((t, e, effectiveStatus) => {
-    if (isEditingLayout) {
-      if (isActuallyDragged.current) {
-        isActuallyDragged.current = false;
-        return;
-      }
-      e.stopPropagation();
-      setSelectedEditTableId(t.id);
-      return;
-    }
-    if (effectiveStatus === 'free') {
-      // Direct one-click: open POS for this table
-      clearCart();
-      setTable(t.id, t.name);
-      setOrderType('dine-in');
-      toast.success(`New order started for ${t.name}`);
-      navigate('/pos');
-      return;
-    }
-    // Occupied / reserved: toggle modal
-    setSelected(prev => (prev === t.id ? null : t.id));
-  }, [isEditingLayout, clearCart, setTable, setOrderType, navigate]);
-
-  /* ─── Chairs renderer (clean, non-distracting) ────────────── */
-  const renderChairs = (table, isOccupied) => {
-    const chairs = [];
-    const capacity = table.capacity || 4;
-    const w = table.w || 90;
-    const h = table.h || 90;
-    const shape = table.shape || 'rect';
-
-    if (shape === 'round') {
-      const radius = Math.min(w, h) / 2;
-      const dist = radius + 3;
-      for (let i = 0; i < capacity; i++) {
-        const angle = (i * 2 * Math.PI) / capacity - Math.PI / 2;
-        chairs.push(
-          <div key={i} className="table-chair chair-round"
-            style={{ left: radius + dist * Math.cos(angle) - 4, top: radius + dist * Math.sin(angle) - 4, width: 8, height: 8, borderRadius: '50%', background: isOccupied ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.2)', border: 'none', boxShadow: 'none' }} />
-        );
-      }
-    } else {
-      let topC, botC, leftC, rightC;
-      if (capacity <= 3) {
-        topC = 1;
-        botC = capacity >= 2 ? 1 : 0;
-        leftC = capacity >= 3 ? 1 : 0;
-        rightC = 0;
-      } else {
-        topC = Math.ceil(capacity / 4);
-        botC = Math.floor(capacity / 4) + (capacity % 4 >= 2 ? 1 : 0);
-        leftC = Math.floor(capacity / 4) + (capacity % 4 >= 3 ? 1 : 0);
-        rightC = Math.floor(capacity / 4);
-      }
-      const addEdge = (count, edge) => {
-        const span = (edge === 'top' || edge === 'bottom') ? w : h;
-        const step = span / (count + 1);
-        for (let i = 0; i < count; i++) {
-          const off = (i + 1) * step;
-          let style = { background: isOccupied ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.2)', border: 'none', boxShadow: 'none' };
-          if (edge === 'top') style = { ...style, left: off - 6, top: -5, width: 12, height: 4, borderRadius: '2px 2px 0 0' };
-          else if (edge === 'bottom') style = { ...style, left: off - 6, top: h + 1, width: 12, height: 4, borderRadius: '0 0 2px 2px' };
-          else if (edge === 'left') style = { ...style, left: -5, top: off - 6, width: 4, height: 12, borderRadius: '2px 0 0 2px' };
-          else style = { ...style, left: w + 1, top: off - 6, width: 4, height: 12, borderRadius: '0 2px 2px 0' };
-          chairs.push(<div key={`${edge}-${i}`} className="table-chair" style={style} />);
-        }
-      };
-      addEdge(topC, 'top'); addEdge(botC, 'bottom'); addEdge(leftC, 'left'); addEdge(rightC, 'right');
-    }
-    return chairs;
-  };
-
   /* ─── Derived: order status for popover ─────────────────────── */
   const selOrder = selected ? tableOrders[selected] : null;
   const selElapsedMins = selOrder
@@ -1098,6 +698,28 @@ export default function TableMap() {
     const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
     const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
     const isBilled = order?.status === 'billed';
+    const capacity = Number(t.capacity) || 4;
+    const isLargeTable = capacity >= 6;
+
+    let elapsedMins = 0;
+    if (hasOrder && order) {
+      elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
+    }
+    const ec = elapsedColor(elapsedMins);
+
+    let passElapsedSecs = 0;
+    if (isFoodReady && order) {
+      const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
+      if (readyTs) {
+        const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
+        if (!isNaN(ms)) {
+          passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
+        }
+      }
+    }
+    const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
+    const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
+    const itemCount = hasOrder && order?.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0;
 
     return (
       <div
@@ -1129,7 +751,7 @@ export default function TableMap() {
             }
           }
         }}
-        className={`tm-card ${
+        className={`tm-card ${isLargeTable ? 'tm-card--large' : 'tm-card--standard'} ${
           isFoodReady
             ? 'tm-card--ready'
             : isBilled
@@ -1140,12 +762,107 @@ export default function TableMap() {
             ? 'tm-card--reserved'
             : 'tm-card--free'
         } ${selected === t.id ? 'tm-card--selected' : ''}`}
-        title={`${t.name} • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
+        title={`${t.name} • ${capacity} Seats • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
       >
-        <span className="tm-card-code">{t.name}</span>
+        {/* Pulsing Food Ready Badge */}
+        {isFoodReady && (
+          <div className={`tm-card-ready-banner ${isPassOverdue ? 'overdue' : ''}`}>
+            <span className="tm-card-ready-dot" />
+            <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
+          </div>
+        )}
+
+        {/* Card Header: Table Name + Capacity Pill */}
+        <div className="tm-card-header">
+          <div className="tm-card-title-group">
+            <span className="tm-card-code">{t.name}</span>
+            {order && (order.isOffline || order.id?.startsWith('offline_')) && (
+              <span title="Local offline order" className="tm-card-offline-icon">
+                <Zap size={11} color="#38bdf8" />
+              </span>
+            )}
+          </div>
+          <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
+            <Users size={11} />
+            <span>{capacity}p</span>
+          </div>
+        </div>
+
+        {/* Chair Indicators / Visual dots */}
+        <div className="tm-card-chair-dots" aria-hidden="true">
+          {Array.from({ length: Math.min(capacity, 12) }).map((_, idx) => (
+            <span
+              key={idx}
+              className={`tm-chair-dot ${effectiveStatus === 'occupied' ? 'occupied' : 'free'}`}
+            />
+          ))}
+          {capacity > 12 && <span className="tm-chair-more">+{capacity - 12}</span>}
+        </div>
+
+        {/* Card Body: Dynamic status / metrics */}
+        <div className="tm-card-body">
+          {effectiveStatus === 'free' ? (
+            <div className="tm-card-free-state">
+              <span className="tm-card-free-label">Free</span>
+              <span className="tm-card-start-hint">+ Start Order</span>
+            </div>
+          ) : effectiveStatus === 'occupied' ? (
+            <div className="tm-card-occupied-state">
+              <div className="tm-card-metrics-row">
+                <span className="tm-card-bill-amount">
+                  {formatCurrency(order?.total ?? 0, currency)}
+                </span>
+                {elapsedMins > 0 && (
+                  <span
+                    className="tm-card-elapsed-badge"
+                    style={{
+                      background: elapsedMins >= 720 ? '#dc2626' : ec.bg,
+                      color: elapsedMins >= 720 ? '#ffffff' : ec.color,
+                    }}
+                  >
+                    <Clock size={10} />
+                    <span>{elapsedMins < 60 ? `${elapsedMins}m` : `${Math.floor(elapsedMins / 60)}h`}</span>
+                  </span>
+                )}
+              </div>
+              <div className="tm-card-sub-info">
+                {itemCount > 0 && <span>{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>}
+                {order?.note && (
+                  <span className="tm-card-note-tag" title={order.note}>
+                    <FileText size={9} /> {order.note}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : isBilled ? (
+            <div className="tm-card-billed-state">
+              <div className="tm-card-metrics-row">
+                <span className="tm-card-bill-amount">
+                  {formatCurrency(order?.total ?? 0, currency)}
+                </span>
+                <span className="tm-card-billed-tag">Billed</span>
+              </div>
+              <span className="tm-card-sub-hint">Awaiting settlement</span>
+            </div>
+          ) : isReserved ? (
+            <div className="tm-card-reserved-state">
+              <span className="tm-card-reserved-label">
+                <Star size={11} fill="#f59e0b" color="#f59e0b" /> Reserved
+              </span>
+              <span className="tm-card-sub-hint">Reserved table</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Large Table Tag for 6+ capacity */}
+        {isLargeTable && (
+          <div className="tm-card-large-tag">
+            <span>Family / Group ({capacity} seats)</span>
+          </div>
+        )}
       </div>
     );
-  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate]);
+  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency]);
 
   return (
     <div className="tm-root">
@@ -1340,47 +1057,40 @@ export default function TableMap() {
 
           <div className="tm-toolbar-divider" />
 
-          {/* View Switcher: Grid vs Map with Spring Glider */}
-          <div className="tm-segmented-control" role="group" aria-label="View mode">
-            <div
-              className="tm-segmented-glider"
-              style={{
-                transform: `translate3d(${viewMode === 'grid' ? '0%' : '100%'}, 0, 0)`
-              }}
-              aria-hidden="true"
-            />
-            <button
-              type="button"
-              className={`tm-segmented-btn ${viewMode === 'grid' ? 'tm-segmented-btn--active' : ''}`}
-              onClick={() => handleSwitchView('grid')}
-              title="Table Grid View"
-            >
-              <LayoutGrid size={13} />
-              <span className="tm-switcher-label">Grid</span>
-            </button>
-            <button
-              type="button"
-              className={`tm-segmented-btn ${viewMode === 'map' ? 'tm-segmented-btn--active' : ''}`}
-              onClick={() => handleSwitchView('map')}
-              title="Floor Map View"
-            >
-              <MapIcon size={13} />
-              <span className="tm-switcher-label">Map</span>
-            </button>
-          </div>
-
-          {/* Customize / Edit Layout - shown when editing layout to click Done */}
-          {canEditLayout && isEditingLayout && (
-            <button
-              type="button"
-              className="tm-edit-layout-trigger tm-edit-layout-trigger--active"
-              onClick={toggleEditLayout}
-              title="Done editing layout"
-              aria-label="Done editing layout"
-            >
-              <CheckCircle2 size={13} />
-              <span className="tm-switcher-label">Done</span>
-            </button>
+          {/* Management tools for manager/owner */}
+          {canEditLayout && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleAddTable}
+                title="Add a new table"
+                style={{ height: 32, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 12px' }}
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                <span>Add Table</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleOpenBulkModal}
+                title="Bulk generate multiple tables"
+                style={{ height: 32, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 10px' }}
+              >
+                <Wand2 size={13} />
+                <span>Bulk</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handlePrintAllQRs}
+                disabled={tables.length === 0}
+                title="Print all table QR codes"
+                style={{ height: 32, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 10px' }}
+              >
+                <Printer size={13} />
+              </button>
+            </div>
           )}
 
           {/* Theme Toggle Button */}
@@ -1390,150 +1100,8 @@ export default function TableMap() {
         </div>
       </div>
 
-      {/* ═══ STUDIO TOOLBAR (Active when editing layout) ═══ */}
-      {isEditingLayout && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 16px',
-          background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.06))',
-          border: '1.5px solid rgba(59,130,246,0.3)',
-          borderRadius: 14,
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 10,
-          boxShadow: '0 4px 12px rgba(59,130,246,0.08)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 10px',
-              background: '#2563eb',
-              color: '#fff',
-              borderRadius: 999,
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: '0.02em'
-            }}>
-              <Sliders size={12} /> Studio Mode
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--color-label-secondary)', fontWeight: 500 }}>
-              Drag tables to position (snaps to grid) • Click any table to customize seats, shape, or delete
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-xs btn-primary"
-              onClick={handleAddTable}
-              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
-            >
-              <Plus size={13} /> Add Table
-            </button>
-            <button
-              type="button"
-              className="btn btn-xs btn-primary"
-              onClick={handleOpenBulkModal}
-              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none' }}
-              title="Auto-generate multiple tables in 1 click"
-            >
-              <Wand2 size={13} /> Bulk Generator
-            </button>
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="btn btn-xs btn-secondary"
-                onClick={() => setShowPresetsMenu(v => !v)}
-                style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
-                title="Add standard 2-top, 4-top, 6-top, booth, or bar stool"
-              >
-                <Sparkles size={13} /> Presets
-              </button>
-              {showPresetsMenu && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  marginTop: 6,
-                  background: 'var(--color-bg-elevated)',
-                  border: '1px solid var(--color-separator-opaque)',
-                  borderRadius: 12,
-                  boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
-                  padding: 6,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                  zIndex: 1200,
-                  minWidth: 160
-                }}>
-                  {[
-                    { label: '2-Top Bistro', capacity: 2, shape: 'rect', w: 80, h: 75 },
-                    { label: '4-Top Family', capacity: 4, shape: 'rect', w: 105, h: 75 },
-                    { label: '6-Top Banquet', capacity: 6, shape: 'rect', w: 140, h: 80 },
-                    { label: 'Round Booth', capacity: 4, shape: 'round', w: 95, h: 95 },
-                    { label: 'Bar Stool', capacity: 1, shape: 'round', w: 60, h: 60 },
-                  ].map(p => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      onClick={() => handleAddPresetTable(p)}
-                      style={{ justifyContent: 'flex-start', gap: 8, padding: '6px 10px', fontSize: 12, borderRadius: 8 }}
-                    >
-                      <Users size={13} color="var(--color-label-secondary)" />
-                      <span style={{ fontWeight: 600 }}>{p.label}</span>
-                      <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)', marginLeft: 'auto' }}>{p.capacity}p</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="btn btn-xs btn-secondary"
-              onClick={handlePrintAllQRs}
-              disabled={tables.length === 0}
-              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
-            >
-              <Printer size={13} /> Print All QRs
-            </button>
-            <button
-              type="button"
-              className="btn btn-xs btn-secondary"
-              onClick={handleAutoAlign}
-              disabled={floorTables.length === 0}
-              style={{ height: 30, fontSize: 11, fontWeight: 700, gap: 5, padding: '0 12px' }}
-            >
-              <LayoutGrid size={13} /> Auto-Align
-            </button>
-            <button
-              type="button"
-              className="btn btn-xs"
-              onClick={exitEditLayout}
-              style={{
-                height: 30,
-                fontSize: 11,
-                fontWeight: 800,
-                gap: 5,
-                padding: '0 14px',
-                background: '#10b981',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8
-              }}
-            >
-              <CheckCircle2 size={13} /> Done Editing
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ═══ VIEW MODE: QUICK GRID (TOUCH & SMALL DEVICE OPTIMIZED) ═══ */}
-      {viewMode === 'grid' ? (
+      {viewMode === 'grid' && (
         activeFloor === 'all' && allFloors.length > 1 ? (
           /* Continuous Grouped Scroll across all floors/sections (Petpooja style) */
           <div className="tm-all-floors-container">
@@ -1588,262 +1156,22 @@ export default function TableMap() {
           <div className="tm-grid">
             {sortedFloorTables.filter(filterTable).map(renderTableCard)}
             {sortedFloorTables.filter(filterTable).length === 0 && (
-              <div className="tm-empty-state">
-                No tables found on this floor.
+              <div className="tm-empty-state" style={{ padding: '40px 20px', textAlign: 'center', gridColumn: '1 / -1' }}>
+                <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-label)', marginBottom: 6 }}>
+                  No tables found on this floor
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginBottom: 16 }}>
+                  Click below to create a new table for this area
+                </div>
+                {canEditLayout && (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={handleAddTable} style={{ gap: 6, margin: '0 auto' }}>
+                    <Plus size={14} /> Add Table
+                  </button>
+                )}
               </div>
             )}
           </div>
         )
-      ) : (
-        /* ═══ VIEW MODE: 2D FLOOR MAP CANVAS ═══ */
-        <div className="tm-canvas-wrapper" ref={wrapperRef}>
-          {/* Zoom Controls */}
-          <div className="canvas-zoom-controls">
-            <button type="button" className="zoom-btn" onClick={() => setZoom(z => Math.max(0.25, Math.round((z - 0.1) * 10) / 10))} disabled={zoom <= 0.25} title="Zoom Out"><ZoomOut size={16} /></button>
-            <span className="zoom-val">{Math.round(zoom * 100)}%</span>
-            <button type="button" className="zoom-btn" onClick={() => setZoom(z => Math.min(2.0, Math.round((z + 0.1) * 10) / 10))} disabled={zoom >= 2.0} title="Zoom In"><ZoomIn size={16} /></button>
-            <button type="button" className="zoom-btn fit-btn" onClick={() => { if (wrapperRef.current) setZoom(Math.min((wrapperRef.current.clientWidth - 24) / 1000, 1)); }} title="Fit Screen"><Maximize2 size={12} /> Fit</button>
-          </div>
-
-          {/* Legend overlay */}
-          <div className="tm-canvas-legend">
-            {isEditingLayout ? (
-              <>
-                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#3b82f6' }} />Editing Layout (Snaps to 20px grid)</span>
-                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#10b981' }} />Click table to edit name & seats</span>
-              </>
-            ) : (
-              <>
-                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#22c55e' }} />Free → click to start order</span>
-                <span className="tm-legend-item"><span className="tm-legend-dot" style={{ background: '#ef4444' }} />Seated → click for actions</span>
-              </>
-            )}
-          </div>
-
-          <div className="table-canvas-scroll-area">
-            <div className="table-canvas-scroll-container" style={{ width: `${1000 * zoom}px`, height: `${canvasHeight * zoom}px` }}>
-              <div
-                className={`table-canvas ${isEditingLayout ? 'editing' : ''}`}
-                ref={canvasRef}
-                style={{ transform: `scale(${zoom})`, height: `${canvasHeight}px` }}
-              >
-                {resolvedTables.map(t => {
-                  const order = tableOrders[t.id];
-                  const hasOrder = order && order.status !== 'billed' && order.status !== 'cancelled';
-                  const readyItems = (order?.items || []).filter(i => i.status === 'ready');
-                  const isFoodReady = hasOrder && (order.status === 'ready' || readyItems.length > 0);
-                  const effectiveStatus = hasOrder ? 'occupied' : (t.status || 'free');
-                  const isReserved = !hasOrder && (reservations.some(r => r.tableId === t.id) || t.status === 'reserved');
-                  const isSelected = selected === t.id;
-                  const isEditSelected = isEditingLayout && selectedEditTableId === t.id;
-                  const isCurrentDragging = isEditingLayout && dragging === t.id;
-
-                  if (statusFilter === 'free' && effectiveStatus !== 'free') return null;
-                  if (statusFilter === 'occupied' && effectiveStatus !== 'occupied') return null;
-                  if (statusFilter === 'reserved' && !isReserved) return null;
-
-                  const isMatch = !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()) || String(t.capacity).includes(searchQuery);
-
-                  let elapsedMins = 0;
-                  if (hasOrder && order) {
-                    elapsedMins = Math.floor(getOrderElapsedSeconds(order, nowTime) / 60);
-                  }
-                  const ec = elapsedColor(elapsedMins);
-
-                  let passElapsedSecs = 0;
-                  if (isFoodReady && order) {
-                    const readyTs = order.prepCompletedAt || readyItems[0]?.readyAt || order.lastFoodReadyAlert?.timestamp || order.updatedAt;
-                    if (readyTs) {
-                      const ms = typeof readyTs === 'number' ? readyTs : new Date(readyTs).getTime();
-                      if (!isNaN(ms)) {
-                        passElapsedSecs = Math.max(0, Math.floor((nowTime - ms) / 1000));
-                      }
-                    }
-                  }
-                  const isPassOverdue = isFoodReady && passElapsedSecs >= 180;
-                  const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
-
-                  return (
-                    <button
-                      key={t.id}
-                      id={`map-table-${t.id}`}
-                      onClick={e => handleTableClick(t, e, effectiveStatus)}
-                      onPointerDown={isEditingLayout ? e => handleCanvasPointerDown(e, t) : undefined}
-                      className={`table-item ${t.shape === 'round' ? 'round' : 'rect'} ${isEditSelected ? 'status-selected' : isSelected ? 'status-selected' : isFoodReady ? 'status-ready-glow' : `status-${effectiveStatus}`}`}
-                      style={{
-                        position: 'absolute',
-                        left: t.renderX, top: t.renderY,
-                        width: t.renderW, height: t.renderH,
-                        opacity: isMatch ? 1 : 0.2,
-                        filter: isMatch ? 'none' : 'grayscale(80%)',
-                        cursor: isEditingLayout ? (isCurrentDragging ? 'grabbing' : 'grab') : 'pointer',
-                        touchAction: isEditingLayout ? 'none' : 'manipulation',
-                        outline: isEditSelected ? '2px solid #3b82f6' : 'none',
-                        boxShadow: isEditSelected
-                          ? '0 0 0 4px rgba(59,130,246,0.35), 0 8px 24px rgba(0,0,0,0.35)'
-                          : isPassOverdue
-                          ? '0 0 0 3px #ef4444, 0 0 28px rgba(239, 68, 68, 0.85)'
-                          : isFoodReady
-                          ? '0 0 0 3px #10b981, 0 0 24px rgba(16, 185, 129, 0.75)'
-                          : undefined,
-                        zIndex: isCurrentDragging ? 100 : isEditSelected ? 50 : isFoodReady ? 30 : 1,
-                        transition: isCurrentDragging ? 'none' : 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-                        userSelect: 'none',
-                      }}
-                      title={
-                        isEditingLayout
-                          ? `Drag to reposition ${t.name}, click to edit properties`
-                          : isFoodReady
-                          ? `Food ready at pass for ${t.name} (${passTimerStr})! Click to view & serve`
-                          : effectiveStatus === 'free'
-                          ? `Click to start order at ${t.name}`
-                          : `Click to manage ${t.name}`
-                      }
-                    >
-                      {renderChairs(t, effectiveStatus === 'occupied')}
-
-                      {/* Pulsing Food Ready Badge */}
-                      {!isEditingLayout && isFoodReady && (
-                        <span
-                          className={`tm-ready-pulse-badge ${isPassOverdue ? 'tm-ready-overdue' : ''}`}
-                          style={{
-                            position: 'absolute',
-                            top: -12,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: isPassOverdue ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                            color: '#ffffff',
-                            borderRadius: 999,
-                            padding: '2px 8px',
-                            fontSize: '10px',
-                            fontWeight: 900,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            boxShadow: isPassOverdue ? '0 2px 14px rgba(239, 68, 68, 0.8)' : '0 2px 10px rgba(16, 185, 129, 0.6)',
-                            border: '2px solid #ffffff',
-                            zIndex: 25,
-                            letterSpacing: '0.3px',
-                            textTransform: 'uppercase',
-                            whiteSpace: 'nowrap'
-                          }}
-                          title={isPassOverdue ? `Food waiting at pass for ${passTimerStr}!` : `Food plated & ready for pickup (${passTimerStr})`}
-                        >
-                          <span style={{ fontSize: 11 }}>{isPassOverdue ? 'PASS' : 'READY'}</span> {passTimerStr}
-                        </span>
-                      )}
-
-                      <span className="table-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                        {t.name}
-                        {order && (order.isOffline || order.id?.startsWith('offline_')) && (
-                          <span title="Local offline order on device" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                            <Zap size={10} color="#38bdf8" />
-                          </span>
-                        )}
-                      </span>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                        <span className="table-capacity" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                          <Users size={10} /> {t.capacity}p
-                        </span>
-                        {!isEditingLayout && hasOrder && elapsedMins > 0 && (
-                          <span style={{
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            padding: '1px 5px',
-                            borderRadius: '999px',
-                            background: elapsedMins >= 720 ? '#dc2626' : ec.bg,
-                            color: elapsedMins >= 720 ? '#ffffff' : ec.color,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px'
-                          }}>
-                            <Clock size={9} /> {elapsedMins < 60 ? `${elapsedMins}m` : elapsedMins < 720 ? `${Math.floor(elapsedMins / 60)}h` : 'STALE'}
-                          </span>
-                        )}
-                      </div>
-
-                      {!isEditingLayout && hasOrder && (
-                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)', padding: '2px 7px', borderRadius: '999px', marginTop: '4px', boxShadow: '0 2px 6px rgba(220,38,38,0.35)', letterSpacing: '-0.2px', fontVariantNumeric: 'tabular-nums' }}>
-                          {formatCurrency(order.total ?? 0, currency)}
-                        </span>
-                      )}
-
-                      {!isEditingLayout && hasOrder && order?.note && (
-                        <span
-                          style={{
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            color: '#b45309',
-                            background: '#fef3c7',
-                            padding: '1px 6px',
-                            borderRadius: '999px',
-                            marginTop: '3px',
-                            maxWidth: '90%',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 3
-                          }}
-                          title={`Table Note: ${order.note}`}
-                        >
-                          <FileText size={9} /> {order.note}
-                        </span>
-                      )}
-
-                      {!isEditingLayout && isReserved && effectiveStatus === 'free' && (
-                        <span style={{ position: 'absolute', top: -6, right: -6, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', boxShadow: '0 2px 6px rgba(217,119,6,.35)', fontWeight: 'bold', border: '2px solid #fff', zIndex: 4 }} title="Reserved Today">
-                          <Star size={11} fill="#fff" color="#fff" />
-                        </span>
-                      )}
-
-                      {/* Quick action hint on hover for free tables in service mode */}
-                      {!isEditingLayout && effectiveStatus === 'free' && (
-                        <span className="tm-quick-hint">Start</span>
-                      )}
-
-                      {/* Edit mode indicator on table card */}
-                      {isEditingLayout && (
-                        <span style={{
-                          position: 'absolute',
-                          top: 4,
-                          right: 4,
-                          fontSize: 10,
-                          background: 'rgba(0,0,0,0.5)',
-                          borderRadius: '50%',
-                          width: 16,
-                          height: 16,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          pointerEvents: 'none',
-                          zIndex: 5
-                        }}>
-                          ✎
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-
-                {tables.length === 0 && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-label-tertiary)', gap: 'var(--space-3)' }}>
-                    <MapIcon size={44} color="var(--color-label-tertiary)" />
-                    <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--color-label)' }}>No tables configured yet</div>
-                    <div style={{ fontSize: 13 }}>Click below to create your first table in this floor plan</div>
-                    <button type="button" className="btn btn-primary btn-sm" onClick={handleAddTable} style={{ marginTop: 8, gap: 5 }}>
-                      <Plus size={14} /> Add Table
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
         {/* ═══ TABLE DETAILS MODAL / DRAWER ═══ — opens seamlessly when clicking any table */}
@@ -2000,15 +1328,32 @@ export default function TableMap() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="modal-close-touch"
-                  onClick={() => setSelected(null)}
-                  title="Close table details"
-                  aria-label="Close table details"
-                >
-                  <X size={20} strokeWidth={2.4} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {canEditLayout && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => {
+                        setSelectedEditTableId(selectedTable.id);
+                        setSelected(null);
+                      }}
+                      title="Edit table name and seating capacity"
+                      style={{ height: 32, padding: '0 8px', fontSize: 11, fontWeight: 700, gap: 4 }}
+                    >
+                      <Sliders size={13} />
+                      <span>Edit Table</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="modal-close-touch"
+                    onClick={() => setSelected(null)}
+                    title="Close table details"
+                    aria-label="Close table details"
+                  >
+                    <X size={20} strokeWidth={2.4} />
+                  </button>
+                </div>
               </div>
 
               {selOrder ? (
@@ -2531,8 +1876,8 @@ export default function TableMap() {
           </div>
         )}
 
-        {/* ═══ TABLE PROPERTIES MODAL (Studio / Edit Mode) ═══ */}
-        {isEditingLayout && selectedEditTable && (
+        {/* ═══ TABLE PROPERTIES MODAL (Edit Table Name & Seats) ═══ */}
+        {selectedEditTable && (
           <div
             className="modal-overlay"
             style={{
