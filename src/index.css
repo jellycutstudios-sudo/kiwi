@@ -5805,6 +5805,101 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   color: #1d4ed8;
 }
 
+/* Held Orders Pill */
+.cart-unified-held-btn {
+  height: 42px;
+  padding: 0 9px;
+  border-radius: 11px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1.5px solid rgba(245, 158, 11, 0.38);
+  color: #d97706;
+  font-size: 12px;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+.cart-unified-held-btn:hover {
+  background: rgba(245, 158, 11, 0.24);
+  border-color: #f59e0b;
+}
+.cart-unified-held-btn:active {
+  transform: scale(0.97);
+}
+
+/* Clear Cart Button */
+.cart-unified-clear-cart-btn {
+  height: 42px;
+  min-width: 38px;
+  padding: 0 10px;
+  border-radius: 11px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1.5px solid rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  font-size: 11.5px;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+.cart-unified-clear-cart-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #ef4444;
+}
+.cart-unified-clear-cart-btn:active {
+  transform: scale(0.96);
+}
+.cart-unified-clear-cart-btn.is-confirming {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+.cart-unified-clear-label {
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .cart-unified-held-btn {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+[data-theme="dark"] .cart-unified-held-btn:hover {
+  background: rgba(245, 158, 11, 0.28);
+  border-color: #fbbf24;
+}
+[data-theme="dark"] .cart-unified-clear-cart-btn {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+[data-theme="dark"] .cart-unified-clear-cart-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #f87171;
+  color: #ffffff;
+}
+[data-theme="dark"] .cart-unified-clear-cart-btn.is-confirming {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
 /* Dark theme overrides */
 [data-theme="dark"] .cart-unified-mode-btn {
   background: #141724;

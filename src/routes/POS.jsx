@@ -17,7 +17,7 @@ import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets
 import toast from 'react-hot-toast';
 import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X,
-  ChevronDown, ChevronUp, Tag, Banknote,
+  ChevronDown, Tag, Banknote,
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift
@@ -300,8 +300,6 @@ export default function POS() {
   const dietaryFilter = useMenuStore(s => s.dietaryFilter);
   const setDietaryFilter = useMenuStore(s => s.setDietaryFilter);
   const [activeAddon, setActiveAddon] = useState(null); // null | 'discount' | 'note'
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  // Header remains stable when adding items (CLS = 0) to avoid jarring layout shifts; can still be toggled manually by cashier via Hide/Show Details
 
   const [showPayment, setShowPayment] = useState(false);
   const [showSplitBillModal, setShowSplitBillModal] = useState(false);
@@ -2474,373 +2472,203 @@ export default function POS() {
             </div>
           )}
 
-          {/* Collapsible Order & Table Header: Compact, organized & touch-optimized */}
-          {items.length > 0 && isHeaderCollapsed ? (
-            <div
-              className="cart-header-summary-strip"
-              onClick={() => setIsHeaderCollapsed(false)}
-              title="Click bar to expand full order details"
-              role="region"
-              aria-label="Order summary bar"
-            >
-              <div className="cart-header-summary-left">
-                {/* Order Type Chip with Direct 1-Tap Toggle */}
+          {/* Single-Line Touch Header: Permanent 42px Touch Bar (Zero Collapse / Zero Accordion Jump) */}
+          <div className="cart-unified-header-bar">
+            {/* 1. Single Clickable Order Mode Switcher */}
+            {orderTypes.length > 1 ? (
+              <button
+                type="button"
+                className="cart-unified-mode-btn"
+                id={`order-type-${orderType}`}
+                onClick={() => {
+                  hapticTap('light');
+                  const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
+                  handleOrderTypeChange(orderTypes[nextIdx].key);
+                }}
+                title={`Current: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode`}
+              >
+                {orderType === 'dine-in' ? (
+                  <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
+                ) : (
+                  <ShoppingBag size={18} className="cart-unified-mode-icon" />
+                )}
+                <span className="cart-unified-mode-label">
+                  {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway')}
+                </span>
+                <ChevronDown size={13} className="cart-unified-mode-caret" />
+              </button>
+            ) : (
+              <div className="cart-unified-mode-btn is-single">
+                <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
+                <span className="cart-unified-mode-label">Dine In</span>
+              </div>
+            )}
+
+            {/* 2. Big-Icon Table Pill (Dine-In) */}
+            {orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) && (
+              <div className={`cart-unified-chip cart-unified-chip--table ${tableId ? 'is-assigned' : ''}`}>
                 <button
                   type="button"
-                  className="cart-header-summary-chip type-chip"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (orderTypes.length > 1) {
-                      const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
-                      handleOrderTypeChange(orderTypes[nextIdx].key);
-                    } else {
-                      setIsHeaderCollapsed(false);
-                    }
+                  id="select-table-dropdown"
+                  className="cart-unified-chip-main"
+                  onClick={() => {
+                    hapticTap('light');
+                    setTableSelAction('select');
+                    setShowTableSel(true);
                   }}
-                  title={orderTypes.length > 1 ? `Order mode: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode` : 'Order mode'}
+                  title={tableId ? `Table ${tableName} selected - click to switch` : 'Tap to select table from floor map'}
                 >
-                  {orderType === 'dine-in' ? (
-                    <UtensilsCrossed size={12} className="summary-chip-icon" />
-                  ) : (
-                    <ShoppingBag size={12} className="summary-chip-icon" />
-                  )}
-                  <span className="summary-chip-label">
-                    {isRetail ? 'Purchase' : (isService ? 'Service' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway'))}
+                  <Armchair size={19} className="cart-unified-icon" />
+                  <span className="cart-unified-label">
+                    {tableId ? `Table ${tableName}` : 'Table'}
                   </span>
-                  {orderTypes.length > 1 && <ChevronDown size={10} className="summary-chip-caret" />}
+                  {!tableId && <span className="cart-unified-badge">Map ▾</span>}
                 </button>
-
-                {/* Table Selector Chip (Dine-In) with Direct 1-Tap Floor Map Modal */}
-                {orderType === 'dine-in' && (restaurant?.features?.table || modes.includes('table')) && (
-                  <div className="cart-header-summary-table-group">
-                    <button
-                      type="button"
-                      className={`cart-header-summary-chip table-chip ${tableId ? 'has-table' : 'needs-table'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTableSelAction('select');
-                        setShowTableSel(true);
-                      }}
-                      title={tableId ? `Table ${tableName} assigned - Tap to switch` : 'Tap to select table from floor map'}
-                    >
-                      <Armchair size={13} className="summary-chip-icon" />
-                      <span className="summary-chip-label">
-                        {tableId ? `Table ${tableName}` : 'Table'}
-                      </span>
-                    </button>
-                    {tableId && (
-                      <button
-                        type="button"
-                        className="cart-header-summary-unassign-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTable(null, null);
-                        }}
-                        title="Clear table assignment"
-                      >
-                        <X size={11} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Customer Chip */}
-                {(customer || customerName) && (
-                  <span className="cart-header-summary-chip cust-chip" title="Assigned customer">
-                    <User size={13} className="summary-chip-icon" />
-                    <span className="summary-chip-label">
-                      {customer ? customer.name : customerName}
-                    </span>
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                {heldOrders?.length > 0 && (
+                {tableId && (
                   <button
                     type="button"
-                    className="cart-held-pill"
+                    className="cart-unified-clear-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowHeldOrdersModal(true);
-                    }}
-                    title="View held/parked orders"
-                    style={{
-                      background: 'rgba(245, 158, 11, 0.18)',
-                      border: '1px solid rgba(245, 158, 11, 0.45)',
-                      color: '#f59e0b',
-                      borderRadius: '8px',
-                      padding: '0 8px',
-                      height: '30px',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <PauseCircle size={12} />
-                    <span>Held ({heldOrders.length})</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!confirmClearCart) {
-                      setConfirmClearCart(true);
-                      setTimeout(() => setConfirmClearCart(false), 3000);
-                    } else {
-                      hapticTap('medium');
-                      clearCart();
-                      setConfirmClearCart(false);
-                    }
-                  }}
-                  id="clear-cart-btn"
-                  title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
-                >
-                  <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                  <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
-                </button>
-                <button
-                  type="button"
-                  className="cart-header-edit-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsHeaderCollapsed(false);
-                  }}
-                  title="Expand full order details"
-                  aria-label="Expand full order details"
-                >
-                  <span>{items.reduce((s, i) => s + i.qty, 0)} {items.reduce((s, i) => s + i.qty, 0) === 1 ? 'item' : 'items'}</span>
-                  <ChevronDown size={12} style={{ flexShrink: 0 }} />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="cart-header-expanded-wrap">
-              {items.length > 0 && (
-                <div className="cart-header-collapse-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsHeaderCollapsed(true)}
-                    className="cart-header-collapse-trigger"
-                    title="Collapse order details to view more cart items"
-                  >
-                    <span>Hide Details</span>
-                    <ChevronUp size={11} />
-                  </button>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    {heldOrders?.length > 0 && (
-                      <button
-                        type="button"
-                        className="cart-held-pill"
-                        onClick={() => setShowHeldOrdersModal(true)}
-                        title="View held/parked orders"
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.18)',
-                          border: '1px solid rgba(245, 158, 11, 0.45)',
-                          color: '#f59e0b',
-                          borderRadius: '6px',
-                          padding: '2px 7px',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <PauseCircle size={12} />
-                        <span>Held ({heldOrders.length})</span>
-                      </button>
-                    )}
-                    <span className="cart-count-pill" title={`${items.reduce((s, i) => s + i.qty, 0)} items`}>
-                      {items.reduce((s, i) => s + i.qty, 0)} items
-                    </span>
-                    <button
-                      type="button"
-                      className={`pos-cart-clear-btn ${confirmClearCart ? 'confirming' : ''}`}
-                      onClick={() => {
-                        if (!confirmClearCart) {
-                          setConfirmClearCart(true);
-                          setTimeout(() => setConfirmClearCart(false), 3000);
-                        } else {
-                          hapticTap('medium');
-                          clearCart();
-                          setConfirmClearCart(false);
-                        }
-                      }}
-                      id="clear-cart-btn-expanded"
-                      title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear all items in cart'}
-                    >
-                      <Trash2 size={12} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                      <span className="pos-cart-btn-label">{confirmClearCart ? 'Clear All?' : 'Clear'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Single-Line Touch Header: Order Mode Toggle + Table + Customer in 1 Line (42px height) */}
-              <div className="cart-unified-header-bar">
-                {/* 1. Single Clickable Order Mode Switcher */}
-                {orderTypes.length > 1 ? (
-                  <button
-                    type="button"
-                    className="cart-unified-mode-btn"
-                    id={`order-type-${orderType}`}
-                    onClick={() => {
                       hapticTap('light');
-                      const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
-                      handleOrderTypeChange(orderTypes[nextIdx].key);
+                      setTable(null, null);
                     }}
-                    title={`Current: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode`}
+                    title="Clear table assignment"
+                    aria-label="Clear table"
                   >
-                    {orderType === 'dine-in' ? (
-                      <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
-                    ) : (
-                      <ShoppingBag size={18} className="cart-unified-mode-icon" />
-                    )}
-                    <span className="cart-unified-mode-label">
-                      {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway')}
-                    </span>
-                    <ChevronDown size={13} className="cart-unified-mode-caret" />
-                  </button>
-                ) : (
-                  <div className="cart-unified-mode-btn is-single">
-                    <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
-                    <span className="cart-unified-mode-label">Dine In</span>
-                  </div>
-                )}
-
-                {/* 2. Big-Icon Table Pill (Dine-In) */}
-                {orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) && (
-                  <div className={`cart-unified-chip cart-unified-chip--table ${tableId ? 'is-assigned' : ''}`}>
-                    <button
-                      type="button"
-                      id="select-table-dropdown"
-                      className="cart-unified-chip-main"
-                      onClick={() => {
-                        hapticTap('light');
-                        setTableSelAction('select');
-                        setShowTableSel(true);
-                      }}
-                      title={tableId ? `Table ${tableName} selected - click to switch` : 'Tap to select table from floor map'}
-                    >
-                      <Armchair size={19} className="cart-unified-icon" />
-                      <span className="cart-unified-label">
-                        {tableId ? `Table ${tableName}` : (t('selectTable') || 'Table')}
-                      </span>
-                      {!tableId && <span className="cart-unified-badge">Map ▾</span>}
-                    </button>
-                    {tableId && (
-                      <button
-                        type="button"
-                        className="cart-unified-clear-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          hapticTap('light');
-                          setTable(null, null);
-                        }}
-                        title="Clear table assignment"
-                        aria-label="Clear table"
-                      >
-                        <X size={14} strokeWidth={2.4} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* 3. Big-Icon Customer Pill */}
-                {customer ? (
-                  <div
-                    className="cart-unified-chip cart-unified-chip--customer is-assigned"
-                    onClick={() => {
-                      hapticTap('light');
-                      setModalInitialPhone(customer.phone || customerPhone || '');
-                      setShowCustomerModal(true);
-                    }}
-                    title="Edit customer details"
-                  >
-                    <button type="button" className="cart-unified-chip-main">
-                      <User size={19} className="cart-unified-icon" />
-                      <span className="cart-unified-label">
-                        {customer.name || customerName || 'Customer'}
-                      </span>
-                      {Boolean(customer.points) && (
-                        <span className="cart-unified-points-chip">{customer.points}p</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="cart-unified-clear-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        hapticTap('light');
-                        setCustomerProfile(null);
-                        setCustomer('', '');
-                        setRedeemingPoints(false);
-                        setCustSearch('');
-                      }}
-                      title="Remove customer"
-                      aria-label="Remove customer"
-                    >
-                      <X size={14} strokeWidth={2.4} />
-                    </button>
-                  </div>
-                ) : (customerName || customerPhone) ? (
-                  <div
-                    className="cart-unified-chip cart-unified-chip--customer is-assigned"
-                    onClick={() => {
-                      hapticTap('light');
-                      setModalInitialPhone(customerPhone || '');
-                      setShowCustomerModal(true);
-                    }}
-                    title="Edit customer details"
-                  >
-                    <button type="button" className="cart-unified-chip-main">
-                      <User size={19} className="cart-unified-icon" />
-                      <span className="cart-unified-label">
-                        {customerName || customerPhone}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="cart-unified-clear-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        hapticTap('light');
-                        setCustomerProfile(null);
-                        setCustomer('', '');
-                        setRedeemingPoints(false);
-                        setCustSearch('');
-                      }}
-                      title="Remove customer"
-                      aria-label="Remove customer"
-                    >
-                      <X size={14} strokeWidth={2.4} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="cart-unified-chip cart-unified-chip--customer is-empty"
-                    onClick={() => {
-                      hapticTap('light');
-                      setModalInitialPhone('');
-                      setShowCustomerModal(true);
-                    }}
-                    title="Attach or register customer for loyalty & receipts"
-                  >
-                    <UserPlus size={19} className="cart-unified-icon" />
-                    <span className="cart-unified-label">Customer</span>
+                    <X size={14} strokeWidth={2.4} />
                   </button>
                 )}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* 3. Big-Icon Customer Pill */}
+            {customer ? (
+              <div
+                className="cart-unified-chip cart-unified-chip--customer is-assigned"
+                onClick={() => {
+                  hapticTap('light');
+                  setModalInitialPhone(customer.phone || customerPhone || '');
+                  setShowCustomerModal(true);
+                }}
+                title="Edit customer details"
+              >
+                <button type="button" className="cart-unified-chip-main">
+                  <User size={19} className="cart-unified-icon" />
+                  <span className="cart-unified-label">
+                    {customer.name || customerName || 'Customer'}
+                  </span>
+                  {Boolean(customer.points) && (
+                    <span className="cart-unified-points-chip">{customer.points}p</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="cart-unified-clear-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticTap('light');
+                    setCustomerProfile(null);
+                    setCustomer('', '');
+                    setRedeemingPoints(false);
+                    setCustSearch('');
+                  }}
+                  title="Remove customer"
+                  aria-label="Remove customer"
+                >
+                  <X size={14} strokeWidth={2.4} />
+                </button>
+              </div>
+            ) : (customerName || customerPhone) ? (
+              <div
+                className="cart-unified-chip cart-unified-chip--customer is-assigned"
+                onClick={() => {
+                  hapticTap('light');
+                  setModalInitialPhone(customerPhone || '');
+                  setShowCustomerModal(true);
+                }}
+                title="Edit customer details"
+              >
+                <button type="button" className="cart-unified-chip-main">
+                  <User size={19} className="cart-unified-icon" />
+                  <span className="cart-unified-label">
+                    {customerName || customerPhone}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="cart-unified-clear-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticTap('light');
+                    setCustomerProfile(null);
+                    setCustomer('', '');
+                    setRedeemingPoints(false);
+                    setCustSearch('');
+                  }}
+                  title="Remove customer"
+                  aria-label="Remove customer"
+                >
+                  <X size={14} strokeWidth={2.4} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="cart-unified-chip cart-unified-chip--customer is-empty"
+                onClick={() => {
+                  hapticTap('light');
+                  setModalInitialPhone('');
+                  setShowCustomerModal(true);
+                }}
+                title="Attach or register customer for loyalty & receipts"
+              >
+                <UserPlus size={19} className="cart-unified-icon" />
+                <span className="cart-unified-label">Customer</span>
+              </button>
+            )}
+
+            {/* 4. Held Orders Pill (only when held orders exist) */}
+            {heldOrders?.length > 0 && (
+              <button
+                type="button"
+                className="cart-unified-held-btn"
+                onClick={() => {
+                  hapticTap('light');
+                  setShowHeldOrdersModal(true);
+                }}
+                title={`View ${heldOrders.length} held order${heldOrders.length === 1 ? '' : 's'}`}
+              >
+                <PauseCircle size={16} />
+                <span className="cart-unified-held-count">{heldOrders.length}</span>
+              </button>
+            )}
+
+            {/* 5. Clear Cart Button (only when cart has items) */}
+            {items.length > 0 && (
+              <button
+                type="button"
+                className={`cart-unified-clear-cart-btn ${confirmClearCart ? 'is-confirming' : ''}`}
+                onClick={() => {
+                  if (!confirmClearCart) {
+                    hapticTap('light');
+                    setConfirmClearCart(true);
+                    setTimeout(() => setConfirmClearCart(false), 3000);
+                  } else {
+                    hapticTap('medium');
+                    clearCart();
+                    setConfirmClearCart(false);
+                  }
+                }}
+                id="clear-cart-btn"
+                title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear active cart items'}
+                aria-label="Clear active cart items"
+              >
+                <Trash2 size={16} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                {confirmClearCart && <span className="cart-unified-clear-label">Clear?</span>}
+              </button>
+            )}
+          </div>
 
           {/* Active Seats Bar for Dine-In (only when seats are actively being tagged) */}
           {orderType === 'dine-in' && items.length > 0 && (items.some(i => i.seatNumber) || activeSeat !== null) && (
