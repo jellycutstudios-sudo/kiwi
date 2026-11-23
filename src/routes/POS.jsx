@@ -467,6 +467,31 @@ export default function POS() {
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
   const [showOffersDrawer, setShowOffersDrawer] = useState(false);
 
+  // Touch dropdown state for fast order mode switching
+  const [showOrderTypeMenu, setShowOrderTypeMenu] = useState(false);
+  const orderTypeMenuRef = useRef(null);
+
+  // Close order mode dropdown on click outside or Escape
+  useEffect(() => {
+    if (!showOrderTypeMenu) return;
+    const handlePointerDown = (e) => {
+      if (orderTypeMenuRef.current && !orderTypeMenuRef.current.contains(e.target)) {
+        setShowOrderTypeMenu(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowOrderTypeMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showOrderTypeMenu]);
+
   const [openFloatCash, setOpenFloatCash] = useState('0.00');
   const [checkingShift, setCheckingShift] = useState(true);
   const [openShiftError, setOpenShiftError] = useState(null);
@@ -1133,13 +1158,35 @@ export default function POS() {
 
   // Order type buttons with modern Lucide icons
   const orderTypes = [
-    { key: 'dine-in', label: t('dineIn') || 'Dine In', Icon: UtensilsCrossed, enabled: !isRetail && !isService && !isBillOnly },
-    { key: 'takeaway', label: isRetail ? 'Purchase' : (isService ? 'Service' : (isBillOnly ? 'Counter' : (t('takeaway') || 'Takeaway'))), Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag), enabled: true },
-    { key: 'delivery', label: t('delivery') || 'Delivery', Icon: Bike, enabled: !isRetail && !isService && !isBillOnly },
-    { key: 'online', label: t('online') || 'Online', Icon: ShoppingCart, enabled: false }, // online handled separately
+    {
+      key: 'dine-in',
+      label: t('dineIn') || 'Dine In',
+      description: 'Table seating & dine-in service',
+      Icon: UtensilsCrossed,
+      enabled: !isRetail && !isService && !isBillOnly
+    },
+    {
+      key: 'takeaway',
+      label: isRetail ? 'Purchase' : (isService ? 'Service' : (isBillOnly ? 'Counter' : (t('takeaway') || 'Takeaway'))),
+      description: isRetail ? 'Standard retail counter checkout' : (isService ? 'Direct service checkout' : 'Counter pickup & parcel'),
+      Icon: isRetail ? ShoppingBag : (isService ? HeartHandshake : ShoppingBag),
+      enabled: true
+    },
+    {
+      key: 'delivery',
+      label: t('delivery') || 'Delivery',
+      description: 'Direct phone/WhatsApp with own rider',
+      Icon: Bike,
+      enabled: !isRetail && !isService && !isBillOnly
+    },
+    {
+      key: 'online',
+      label: t('online') || 'Online',
+      description: 'Aggregators & online platform',
+      Icon: ShoppingCart,
+      enabled: false
+    }, // online handled separately
   ].filter(o => o.enabled);
-
-  const activeOrderTypeIndex = Math.max(0, orderTypes.findIndex(ot => ot.key === orderType));
 
   // Default non-food retail, service or bill-only modes to 'takeaway' (counter)
   useEffect(() => {
@@ -2475,31 +2522,67 @@ export default function POS() {
 
           {/* Single-Line Touch Header: Permanent 42px Touch Bar (Zero Collapse / Zero Accordion Jump) */}
           <div className="cart-unified-header-bar">
-            {/* 1. Single Clickable Order Mode Switcher */}
+            {/* 1. Single Clickable Order Mode Switcher with Big-Button Touch Dropdown */}
             {orderTypes.length > 1 ? (
-              <button
-                type="button"
-                className="cart-unified-mode-btn"
-                id={`order-type-${orderType}`}
-                onClick={() => {
-                  hapticTap('light');
-                  const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
-                  handleOrderTypeChange(orderTypes[nextIdx].key);
-                }}
-                title={`Current: ${orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway'}. Tap to switch mode`}
-              >
-                {orderType === 'dine-in' ? (
-                  <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
-                ) : orderType === 'delivery' ? (
-                  <Bike size={18} className="cart-unified-mode-icon cart-unified-mode-icon--delivery" />
-                ) : (
-                  <ShoppingBag size={18} className="cart-unified-mode-icon" />
+              <div className="cart-unified-mode-wrapper" ref={orderTypeMenuRef}>
+                <button
+                  type="button"
+                  className={`cart-unified-mode-btn ${showOrderTypeMenu ? 'is-open' : ''}`}
+                  id={`order-type-${orderType}`}
+                  onClick={() => {
+                    hapticTap('light');
+                    setShowOrderTypeMenu(prev => !prev);
+                  }}
+                  aria-haspopup="listbox"
+                  aria-expanded={showOrderTypeMenu}
+                  title="Change order service mode"
+                >
+                  {orderType === 'dine-in' ? (
+                    <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
+                  ) : orderType === 'delivery' ? (
+                    <Bike size={18} className="cart-unified-mode-icon cart-unified-mode-icon--delivery" />
+                  ) : (
+                    <ShoppingBag size={18} className="cart-unified-mode-icon" />
+                  )}
+                  <span className="cart-unified-mode-label">
+                    {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway')}
+                  </span>
+                  <ChevronDown size={13} className={`cart-unified-mode-caret ${showOrderTypeMenu ? 'is-open' : ''}`} />
+                </button>
+
+                {showOrderTypeMenu && (
+                  <div className="cart-unified-mode-dropdown" role="menu" aria-label="Order Mode Selection">
+                    {orderTypes.map(ot => {
+                      const isActive = ot.key === orderType;
+                      const Icon = ot.Icon;
+                      return (
+                        <button
+                          key={ot.key}
+                          type="button"
+                          role="menuitem"
+                          className={`cart-unified-mode-option ${isActive ? 'is-active' : ''}`}
+                          onClick={() => {
+                            hapticTap('light');
+                            handleOrderTypeChange(ot.key);
+                            setShowOrderTypeMenu(false);
+                          }}
+                        >
+                          <div className={`cart-unified-mode-option-icon cart-unified-mode-option-icon--${ot.key}`}>
+                            <Icon size={20} strokeWidth={2.2} />
+                          </div>
+                          <div className="cart-unified-mode-option-text">
+                            <span className="cart-unified-mode-option-label">{ot.label}</span>
+                            {ot.description && (
+                              <span className="cart-unified-mode-option-desc">{ot.description}</span>
+                            )}
+                          </div>
+                          {isActive && <Check size={18} strokeWidth={2.6} className="cart-unified-mode-option-check" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
-                <span className="cart-unified-mode-label">
-                  {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway')}
-                </span>
-                <ChevronDown size={13} className="cart-unified-mode-caret" />
-              </button>
+              </div>
             ) : (
               <div className="cart-unified-mode-btn is-single">
                 <UtensilsCrossed size={18} className="cart-unified-mode-icon" />

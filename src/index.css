@@ -5657,6 +5657,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   margin: 4px var(--space-3, 12px) 6px;
   min-height: 42px;
   box-sizing: border-box;
+  position: relative;
+  z-index: 50;
+}
+
+.cart-unified-mode-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  z-index: 60;
 }
 
 .cart-unified-mode-btn {
@@ -5678,7 +5687,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
-.cart-unified-mode-btn:hover {
+.cart-unified-mode-btn:hover,
+.cart-unified-mode-btn.is-open {
   background: var(--color-bg-elevated, #ffffff);
   border-color: #94a3b8;
 }
@@ -5702,6 +5712,126 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   opacity: 0.6;
   margin-left: 2px;
   flex-shrink: 0;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.cart-unified-mode-caret.is-open {
+  transform: rotate(180deg);
+  opacity: 0.95;
+}
+
+/* Big-Button Touch Dropdown Popover */
+.cart-unified-mode-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  min-width: 255px;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1.5px solid var(--color-separator, #cbd5e1);
+  border-radius: 14px;
+  box-shadow: 0 14px 34px -4px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(15, 23, 42, 0.1);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: cartModePopIn 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cartModePopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cart-unified-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--color-label, #0f172a);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+.cart-unified-mode-option:hover {
+  background: var(--color-bg-secondary, #f1f5f9);
+}
+
+.cart-unified-mode-option:active {
+  transform: scale(0.98);
+}
+
+.cart-unified-mode-option.is-active {
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+}
+
+.cart-unified-mode-option-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #f1f5f9;
+  color: #0284c7;
+}
+
+.cart-unified-mode-option-icon--dine-in {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.cart-unified-mode-option-icon--takeaway {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.cart-unified-mode-option-icon--delivery {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.cart-unified-mode-option-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-unified-mode-option-label {
+  font-size: 13.5px;
+  font-weight: 750;
+  line-height: 1.2;
+  color: var(--color-label, #0f172a);
+}
+
+.cart-unified-mode-option-desc {
+  font-size: 11px;
+  color: var(--color-label-secondary, #64748b);
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.cart-unified-mode-option-check {
+  color: #0284c7;
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
 .cart-unified-chip {
@@ -5917,9 +6047,46 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border-color: rgba(255, 255, 255, 0.12);
   color: #ffffff;
 }
-[data-theme="dark"] .cart-unified-mode-btn:hover {
+[data-theme="dark"] .cart-unified-mode-btn:hover,
+[data-theme="dark"] .cart-unified-mode-btn.is-open {
   background: #1c2134;
-  border-color: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+[data-theme="dark"] .cart-unified-mode-dropdown {
+  background: #151827;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+[data-theme="dark"] .cart-unified-mode-option {
+  color: #ffffff;
+}
+[data-theme="dark"] .cart-unified-mode-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .cart-unified-mode-option.is-active {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+[data-theme="dark"] .cart-unified-mode-option-icon--dine-in {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+[data-theme="dark"] .cart-unified-mode-option-icon--takeaway {
+  background: rgba(74, 222, 128, 0.18);
+  color: #4ade80;
+}
+[data-theme="dark"] .cart-unified-mode-option-icon--delivery {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+}
+[data-theme="dark"] .cart-unified-mode-option-label {
+  color: #ffffff;
+}
+[data-theme="dark"] .cart-unified-mode-option-desc {
+  color: #94a3b8;
+}
+[data-theme="dark"] .cart-unified-mode-option-check {
+  color: #38bdf8;
 }
 [data-theme="dark"] .cart-unified-mode-icon {
   color: #38bdf8;
