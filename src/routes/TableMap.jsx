@@ -11,7 +11,7 @@ import { sendWhatsAppReceipt } from '../services/whatsappService';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 import {
-  LayoutGrid, Search, X, Plus, Printer,
+  LayoutGrid, Search, X, Plus, Minus, Printer,
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
   Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
@@ -1945,54 +1945,37 @@ export default function TableMap() {
             onClick={() => setSelectedEditTableId(null)}
           >
             <div
-              className="animate-scale-in"
-              style={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: 440,
-                background: 'var(--color-bg-elevated)',
-                border: '1.5px solid var(--color-separator-opaque)',
-                borderRadius: 20,
-                boxShadow: '0 24px 60px rgba(0,0,0,0.3)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
+              className="animate-scale-in tm-prop-modal"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px 20px',
-                borderBottom: '1px solid var(--color-separator)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <LayoutGrid size={20} color="var(--color-accent, #38bdf8)" />
+              <div className="tm-prop-header">
+                <div className="tm-prop-header-left">
+                  <div className="tm-prop-header-icon">
+                    <LayoutGrid size={18} strokeWidth={2.2} />
+                  </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-label)' }}>
+                    <h3 className="tm-prop-header-title">
                       Table {selectedEditTable.name}
                     </h3>
-                    <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                    <span className="tm-prop-header-sub">
                       Customize seats, shape & QR code
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="tm-prop-header-actions">
                   <button
                     type="button"
-                    className="btn btn-secondary btn-xs"
+                    className="tm-prop-action-btn duplicate"
                     onClick={() => handleDuplicateTable(selectedEditTable)}
-                    style={{ height: 28, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
                     title="Clone this table and its seats"
                   >
-                    <Copy size={12} /> Duplicate
+                    <Copy size={13} /> Duplicate
                   </button>
                   {isOwnerOrAdmin && (
                     <button
                       type="button"
-                      className="btn btn-danger btn-xs"
+                      className="tm-prop-action-btn delete"
                       onClick={() => {
                         const activeOrder = tableOrders[selectedEditTable.id];
                         const hasActiveOrder = (activeOrder && !['billed', 'cancelled'].includes(activeOrder.status)) || selectedEditTable.status === 'occupied';
@@ -2006,31 +1989,55 @@ export default function TableMap() {
                           toast.success(`Table ${selectedEditTable.name} permanently removed`);
                         }
                       }}
-                      style={{ height: 28, fontSize: 11, fontWeight: 700, gap: 4, padding: '0 8px' }}
                       title="Permanently remove this table (Owner/Admin only)"
                     >
-                      <Trash2 size={12} /> Delete
+                      <Trash2 size={13} /> Delete
                     </button>
                   )}
                   <button
                     type="button"
-                    className="modal-close-touch"
+                    className="tm-prop-close-btn modal-close-touch"
                     onClick={() => setSelectedEditTableId(null)}
                     title="Close table settings"
                     aria-label="Close table settings"
                   >
-                    <X size={20} strokeWidth={2.4} />
+                    <X size={18} strokeWidth={2.4} />
                   </button>
                 </div>
               </div>
 
               {/* Body */}
-              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '75vh', overflowY: 'auto' }}>
+              <div className="tm-prop-body">
+                {/* Live Floor Map 3D Table Preview */}
+                <div className="tm-prop-preview-stage">
+                  <span className="tm-prop-preview-label">Live Floor Map Preview</span>
+                  <div
+                    className={`table-3d-item-wrapper ${Number(selectedEditTable.capacity) >= 6 && selectedEditTable.shape !== 'round' ? 'tm-card--large' : 'tm-card--standard'}`}
+                    style={{
+                      maxWidth: selectedEditTable.shape === 'round' ? 140 : (Number(selectedEditTable.capacity) >= 6 ? 240 : 150),
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <div className={`table-3d-chair chair-top ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                    <div className={`table-3d-chair chair-bottom ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                    <div className={`table-3d-chair chair-left ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+                    <div className={`table-3d-chair chair-right ${selectedEditTable.shape === 'round' ? 'round-chair' : ''} free`} />
+
+                    <div className={`table-3d-card ${selectedEditTable.shape === 'round' ? 'round' : ''} free`}>
+                      <span className="table-3d-pill-badge free">
+                        <span className="table-3d-dot free" /> Free
+                      </span>
+                      <span className="table-3d-title">{selectedEditTable.name || 'T1'}</span>
+                      <span className="table-3d-seats">{selectedEditTable.capacity || 4} seats</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Table Name */}
-                <div className="fpe-form-group">
-                  <label className="fpe-label">Table Name / Number</label>
+                <div className="tm-prop-section fpe-form-group">
+                  <label className="tm-prop-label fpe-label">Table Name / Number</label>
                   <input
-                    className="fpe-input"
+                    className="tm-prop-input fpe-input"
                     value={selectedEditTable.name}
                     onChange={e => updateTable(restaurant.id, selectedEditTable.id, { name: e.target.value })}
                     onBlur={e => {
@@ -2048,25 +2055,104 @@ export default function TableMap() {
                   />
                 </div>
 
+                {/* Table Shape Selector */}
+                <div className="tm-prop-section">
+                  <label className="tm-prop-label">
+                    <span>Table Shape</span>
+                    <span style={{ fontSize: 10.5, textTransform: 'none', color: 'var(--color-label-tertiary)', fontWeight: 500 }}>
+                      Tap to switch 3D layout
+                    </span>
+                  </label>
+                  <div className="tm-prop-shape-grid">
+                    <button
+                      type="button"
+                      className={`tm-prop-shape-card ${selectedEditTable.shape !== 'round' ? 'active' : ''}`}
+                      onClick={() => {
+                        updateTable(restaurant.id, selectedEditTable.id, { shape: 'rect' });
+                        toast.success(`Table ${selectedEditTable.name} set to Square / Rect`);
+                      }}
+                    >
+                      <div className="tm-shape-icon-stage">
+                        <span className="tm-shape-icon-chair top" />
+                        <span className="tm-shape-icon-chair bottom" />
+                        <span className="tm-shape-icon-chair left" />
+                        <span className="tm-shape-icon-chair right" />
+                        <div className="tm-shape-icon-table" />
+                      </div>
+                      <div className="tm-prop-shape-info">
+                        <span className="tm-prop-shape-name">Square / Rect</span>
+                        <span className="tm-prop-shape-sub">Standard & banquet</span>
+                      </div>
+                      {selectedEditTable.shape !== 'round' && (
+                        <span className="tm-prop-shape-badge">✓</span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`tm-prop-shape-card ${selectedEditTable.shape === 'round' ? 'active' : ''}`}
+                      onClick={() => {
+                        updateTable(restaurant.id, selectedEditTable.id, { shape: 'round' });
+                        toast.success(`Table ${selectedEditTable.name} set to Round / Circle`);
+                      }}
+                    >
+                      <div className="tm-shape-icon-stage">
+                        <span className="tm-shape-icon-chair top" style={{ borderRadius: '2px' }} />
+                        <span className="tm-shape-icon-chair bottom" style={{ borderRadius: '2px' }} />
+                        <span className="tm-shape-icon-chair left" style={{ borderRadius: '2px' }} />
+                        <span className="tm-shape-icon-chair right" style={{ borderRadius: '2px' }} />
+                        <div className="tm-shape-icon-table round" />
+                      </div>
+                      <div className="tm-prop-shape-info">
+                        <span className="tm-prop-shape-name">Round / Circle</span>
+                        <span className="tm-prop-shape-sub">Bistro & circular</span>
+                      </div>
+                      {selectedEditTable.shape === 'round' && (
+                        <span className="tm-prop-shape-badge">✓</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Seating Capacity */}
-                <div className="fpe-form-group">
-                  <label className="fpe-label">Seating Capacity (Guests)</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 10 }}>
+                <div className="tm-prop-section fpe-form-group">
+                  <div className="tm-prop-label fpe-label">
+                    <span>Seating Capacity (Guests)</span>
+                    <span className={`tm-prop-span-badge ${Number(selectedEditTable.capacity) >= 6 ? 'wide' : 'standard'}`}>
+                      {Number(selectedEditTable.capacity) >= 6 ? '★ Wide Card (2 cols)' : 'Standard Card (1 col)'}
+                    </span>
+                  </div>
+
+                  {/* Preset Pills */}
+                  <div className="tm-prop-seats-grid">
                     {[2, 4, 6, 8, 10, 12].map(cap => (
                       <button
                         key={cap}
                         type="button"
-                        className={`fpe-segment-btn ${Number(selectedEditTable.capacity) === cap ? 'active' : ''}`}
-                        style={{ justifyContent: 'center', padding: '8px 4px', fontWeight: 700, fontSize: 13 }}
+                        className={`tm-prop-seat-btn fpe-segment-btn ${Number(selectedEditTable.capacity) === cap ? 'active' : ''}`}
                         onClick={() => updateTable(restaurant.id, selectedEditTable.id, { capacity: cap })}
                       >
                         {cap}p
                       </button>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+                  {/* Stepper + Custom Number Input */}
+                  <div className="tm-prop-stepper-row">
+                    <button
+                      type="button"
+                      className="tm-prop-stepper-btn"
+                      onClick={() => {
+                        const cur = Math.max(1, (parseInt(selectedEditTable.capacity, 10) || 4) - 1);
+                        updateTable(restaurant.id, selectedEditTable.id, { capacity: cur });
+                      }}
+                      disabled={Number(selectedEditTable.capacity) <= 1}
+                      title="Decrease seats"
+                    >
+                      <Minus size={16} strokeWidth={2.5} />
+                    </button>
                     <input
-                      className="fpe-input"
+                      className="tm-prop-stepper-input fpe-input"
                       type="number"
                       min={1}
                       max={50}
@@ -2088,19 +2174,27 @@ export default function TableMap() {
                         }
                       }}
                       placeholder="Custom seats (1–50)"
-                      style={{ flex: 1 }}
                     />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: Number(selectedEditTable.capacity) >= 6 ? 'var(--color-accent, #10b981)' : 'var(--color-label-tertiary)', whiteSpace: 'nowrap' }}>
-                      {Number(selectedEditTable.capacity) >= 6 ? '★ Wide Card (2 cols)' : 'Standard Card (1 col)'}
-                    </span>
+                    <button
+                      type="button"
+                      className="tm-prop-stepper-btn"
+                      onClick={() => {
+                        const cur = Math.min(50, (parseInt(selectedEditTable.capacity, 10) || 4) + 1);
+                        updateTable(restaurant.id, selectedEditTable.id, { capacity: cur });
+                      }}
+                      disabled={Number(selectedEditTable.capacity) >= 50}
+                      title="Increase seats"
+                    >
+                      <Plus size={16} strokeWidth={2.5} />
+                    </button>
                   </div>
                 </div>
 
                 {/* Floor Location */}
-                <div className="fpe-form-group">
-                  <label className="fpe-label">Floor / Area</label>
+                <div className="tm-prop-section fpe-form-group">
+                  <label className="tm-prop-label fpe-label">Floor / Area</label>
                   <select
-                    className="fpe-input"
+                    className="tm-prop-input fpe-input"
                     value={selectedEditTable.floor ?? 'Ground Floor'}
                     onChange={e => {
                       const nextFloor = e.target.value;
@@ -2117,31 +2211,31 @@ export default function TableMap() {
 
                 {/* QR Code Section */}
                 <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 14 }}>
-                  <label className="fpe-label">Customer Dine-In QR Code</label>
+                  <label className="tm-prop-label fpe-label" style={{ marginBottom: 8 }}>Customer Dine-In QR Code</label>
                   {(() => {
                     const qrUrl = `${window.location.origin}/order/${restaurant?.id}?tableId=${selectedEditTable.id}&tableName=${encodeURIComponent(selectedEditTable.name)}`;
                     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}`;
                     return (
-                      <div className="fpe-qr-card">
-                        <div className="fpe-qr-wrapper">
-                          <img className="fpe-qr-img" src={qrSrc} alt={`QR for Table ${selectedEditTable.name}`} />
+                      <div className="fpe-qr-card" style={{ padding: '14px', borderRadius: '16px' }}>
+                        <div className="fpe-qr-wrapper" style={{ padding: '8px', borderRadius: '12px' }}>
+                          <img className="fpe-qr-img" src={qrSrc} alt={`QR for Table ${selectedEditTable.name}`} style={{ width: 110, height: 110 }} />
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 11.5, color: 'var(--color-label-tertiary)', textAlign: 'center', maxWidth: 280 }}>
                           Customers can scan this code to browse menu & order directly.
                         </div>
-                        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                        <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 4 }}>
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            style={{ flex: 1, fontSize: 12, gap: 5 }}
+                            style={{ flex: 1, height: 40, fontSize: 12.5, fontWeight: 700, gap: 6, borderRadius: 10 }}
                             onClick={() => window.open(qrSrc, '_blank')}
                           >
-                            <Download size={13} /> Download
+                            <Download size={14} /> Download
                           </button>
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            style={{ flex: 1, fontSize: 12, gap: 5 }}
+                            style={{ flex: 1, height: 40, fontSize: 12.5, fontWeight: 700, gap: 6, borderRadius: 10 }}
                             onClick={() => {
                               const pw = window.open('', '_blank');
                               if (!pw) { toast.error('Pop-up blocked'); return; }
@@ -2170,7 +2264,7 @@ export default function TableMap() {
                               pw.document.close();
                             }}
                           >
-                            <Printer size={13} /> Print
+                            <Printer size={14} /> Print
                           </button>
                         </div>
                       </div>
@@ -2180,18 +2274,11 @@ export default function TableMap() {
               </div>
 
               {/* Footer */}
-              <div style={{
-                padding: '12px 20px',
-                borderTop: '1px solid var(--color-separator)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                background: 'var(--color-bg-secondary)',
-              }}>
+              <div className="tm-prop-footer">
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm"
+                  className="tm-prop-done-btn"
                   onClick={() => setSelectedEditTableId(null)}
-                  style={{ padding: '0 20px', fontWeight: 700 }}
                 >
                   Done
                 </button>
