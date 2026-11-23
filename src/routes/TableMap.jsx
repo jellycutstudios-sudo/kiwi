@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
+import ThemeToggle from '../components/shared/ThemeToggle';
 import './admin/FloorPlanEditor.css';
 
 /* ─── Elapsed time badge helper ─────────────────────────────── */
@@ -1228,14 +1229,16 @@ export default function TableMap() {
                 </div>
               );
             })}
-            <button
-              type="button"
-              className="tm-floor-tab tm-floor-tab--add"
-              onClick={handleAddFloor}
-              title="Add a new dining room, floor, or patio area"
-            >
-              <Plus size={12} /> Add Room
-            </button>
+            {isEditingLayout && (
+              <button
+                type="button"
+                className="tm-floor-tab tm-floor-tab--add"
+                onClick={handleAddFloor}
+                title="Add a new dining room, floor, or patio area"
+              >
+                <Plus size={12} /> Add Room
+              </button>
+            )}
           </div>
 
           <div className="tm-toolbar-divider" />
@@ -1366,19 +1369,24 @@ export default function TableMap() {
             </button>
           </div>
 
-          {/* Customize / Edit Layout */}
-          {canEditLayout && (
+          {/* Customize / Edit Layout - shown when editing layout to click Done */}
+          {canEditLayout && isEditingLayout && (
             <button
               type="button"
-              className={`tm-edit-layout-trigger ${isEditingLayout ? 'tm-edit-layout-trigger--active' : ''}`}
+              className="tm-edit-layout-trigger tm-edit-layout-trigger--active"
               onClick={toggleEditLayout}
-              title={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
-              aria-label={isEditingLayout ? 'Done editing layout' : 'Customize table positions and floor layout'}
+              title="Done editing layout"
+              aria-label="Done editing layout"
             >
-              {isEditingLayout ? <CheckCircle2 size={13} /> : <Sliders size={13} />}
-              <span className="tm-switcher-label">{isEditingLayout ? 'Done' : 'Edit'}</span>
+              <CheckCircle2 size={13} />
+              <span className="tm-switcher-label">Done</span>
             </button>
           )}
+
+          {/* Theme Toggle Button */}
+          <div style={{ marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 

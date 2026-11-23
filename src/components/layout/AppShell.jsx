@@ -265,16 +265,17 @@ export default function AppShell() {
 
   const isPOS = location.pathname === '/pos';
   const isKDS = location.pathname === '/kds';
+  const isTableMap = location.pathname === '/tables';
 
   useEffect(() => {
-    if (isPOS) {
+    if (isPOS || isTableMap) {
       // Defer to avoid synchronous setState-in-effect lint rule.
-      // Always collapse to icon-only on POS — maximises menu grid space on every screen size.
+      // Always collapse to icon-only on POS & Tables — maximises screen space on every screen size.
       const id = setTimeout(() => setSidebarCollapsed(true), 0);
       return () => clearTimeout(id);
     }
     // On other pages we respect whatever state the user has set (or the screen-size default above).
-  }, [isPOS]);
+  }, [isPOS, isTableMap]);
 
   return (
     <div className={`app-shell ${isKDS ? 'kds-app-shell' : ''}`}>
@@ -307,8 +308,8 @@ export default function AppShell() {
       )}
 
       <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isKDS ? 'kds-main-content' : ''}`}>
-        {/* Top Bar - hidden on KDS to eliminate duplicate headers */}
-        {!isKDS && (
+        {/* Top Bar - hidden on KDS & Tables to eliminate duplicate headers */}
+        {!isKDS && !isTableMap && (
         <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
           {/* Burger menu button visible only on non-POS mobile/tablet */}
           {!isPOS && (
@@ -764,7 +765,7 @@ export default function AppShell() {
         )}
 
         {/* Page content */}
-        <main className={isPOS || isKDS ? '' : 'page-content'} style={isPOS ? { flex: 1, overflow: 'hidden' } : (isKDS ? { flex: 1, overflow: 'auto', padding: '12px 16px' } : {})}>
+        <main className={isPOS || isKDS || isTableMap ? '' : 'page-content'} style={isPOS ? { flex: 1, overflow: 'hidden' } : (isKDS ? { flex: 1, overflow: 'auto', padding: '12px 16px' } : (isTableMap ? { flex: 1, overflow: 'hidden', padding: '10px 14px' } : {}))}>
           <ErrorBoundary isPageLevel resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>
