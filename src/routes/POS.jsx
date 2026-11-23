@@ -20,7 +20,8 @@ import {
   ChevronDown, Tag, Banknote,
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift,
+  MapPin
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -1490,6 +1491,12 @@ export default function POS() {
     }
     hapticTap('light');
     setOrderType(newType);
+    if (newType === 'delivery' || newType === 'takeaway') {
+      setTable(null, null);
+    }
+    if (newType === 'delivery' && !customerPhone && !customer?.address) {
+      setTimeout(() => setShowCustomerModal(true), 120);
+    }
   };
 
   if (checkingShift) {
@@ -2556,7 +2563,7 @@ export default function POS() {
               </div>
             )}
 
-            {/* 2. Big-Icon Table Pill (Dine-In) */}
+            {/* 2. Dynamic Table Pill (Dine-In) — Table number displayed directly without bulky icon */}
             {orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) && (
               tableId ? (
                 <div className="cart-unified-chip cart-unified-chip--table is-assigned">
@@ -2571,8 +2578,7 @@ export default function POS() {
                     }}
                     title={`Table ${tableName} selected - click to switch`}
                   >
-                    <Armchair size={20} className="cart-unified-icon" />
-                    <span className="cart-unified-label">
+                    <span className="cart-unified-table-num">
                       {tableName ? (tableName.startsWith('Table') ? tableName : `T${tableName.replace(/^T/i, '')}`) : 'Table'}
                     </span>
                   </button>
@@ -2587,14 +2593,14 @@ export default function POS() {
                     title="Clear table assignment"
                     aria-label="Clear table"
                   >
-                    <X size={14} strokeWidth={2.4} />
+                    <X size={13} strokeWidth={2.4} />
                   </button>
                 </div>
               ) : (
                 <button
                   type="button"
                   id="select-table-dropdown"
-                  className="cart-unified-chip cart-unified-chip--table is-empty is-icon-only"
+                  className="cart-unified-chip cart-unified-chip--table is-empty"
                   onClick={() => {
                     hapticTap('light');
                     setTableSelAction('select');
@@ -2603,28 +2609,29 @@ export default function POS() {
                   title="Select table from floor map"
                   aria-label="Select table from floor map"
                 >
-                  <Armchair size={21} className="cart-unified-icon" />
+                  <Armchair size={15} className="cart-unified-icon" />
+                  <span className="cart-unified-label">Table</span>
                 </button>
               )
             )}
 
-            {/* 3. Big-Icon Customer Pill */}
-            {customer ? (
+            {/* 3. Customer Pill (Dynamic & Never Truncated / Broken) */}
+            {(customer || customerName || customerPhone) ? (
               <div
                 className="cart-unified-chip cart-unified-chip--customer is-assigned"
                 onClick={() => {
                   hapticTap('light');
-                  setModalInitialPhone(customer.phone || customerPhone || '');
+                  setModalInitialPhone(customer?.phone || customerPhone || '');
                   setShowCustomerModal(true);
                 }}
                 title="Edit customer details"
               >
                 <button type="button" className="cart-unified-chip-main">
-                  <User size={20} className="cart-unified-icon" />
+                  <User size={14} className="cart-unified-icon" />
                   <span className="cart-unified-label">
-                    {customer.name || customerName || 'Customer'}
+                    {customer?.name || customerName || customer?.phone || customerPhone}
                   </span>
-                  {Boolean(customer.points) && (
+                  {Boolean(customer?.points) && (
                     <span className="cart-unified-points-chip">{customer.points}p</span>
                   )}
                 </button>
@@ -2642,55 +2649,32 @@ export default function POS() {
                   title="Remove customer"
                   aria-label="Remove customer"
                 >
-                  <X size={14} strokeWidth={2.4} />
-                </button>
-              </div>
-            ) : (customerName || customerPhone) ? (
-              <div
-                className="cart-unified-chip cart-unified-chip--customer is-assigned"
-                onClick={() => {
-                  hapticTap('light');
-                  setModalInitialPhone(customerPhone || '');
-                  setShowCustomerModal(true);
-                }}
-                title="Edit customer details"
-              >
-                <button type="button" className="cart-unified-chip-main">
-                  <User size={20} className="cart-unified-icon" />
-                  <span className="cart-unified-label">
-                    {customerName || customerPhone}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="cart-unified-clear-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    hapticTap('light');
-                    setCustomerProfile(null);
-                    setCustomer('', '');
-                    setRedeemingPoints(false);
-                    setCustSearch('');
-                  }}
-                  title="Remove customer"
-                  aria-label="Remove customer"
-                >
-                  <X size={14} strokeWidth={2.4} />
+                  <X size={13} strokeWidth={2.4} />
                 </button>
               </div>
             ) : (
               <button
                 type="button"
-                className="cart-unified-chip cart-unified-chip--customer is-empty is-icon-only"
+                className="cart-unified-chip cart-unified-chip--customer is-empty"
                 onClick={() => {
                   hapticTap('light');
                   setModalInitialPhone('');
                   setShowCustomerModal(true);
                 }}
-                title="Attach or register customer for loyalty & receipts"
-                aria-label="Attach or register customer"
+                title={orderType === 'delivery' ? 'Add delivery customer & address' : 'Attach customer for loyalty & receipts'}
+                aria-label="Add customer"
               >
-                <UserPlus size={21} className="cart-unified-icon" />
+                {orderType === 'delivery' ? (
+                  <>
+                    <MapPin size={15} className="cart-unified-icon" style={{ color: '#f59e0b' }} />
+                    <span className="cart-unified-label" style={{ color: '#f59e0b', fontWeight: 750 }}>Delivery Info</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={15} className="cart-unified-icon" />
+                    <span className="cart-unified-label">Customer</span>
+                  </>
+                )}
               </button>
             )}
 
