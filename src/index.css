@@ -10310,7 +10310,7 @@ html.dark .tm-segmented-glider {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 108px;
+  min-height: 88px;
   min-width: 0;
   cursor: pointer;
   position: relative;
@@ -10543,41 +10543,48 @@ html.dark .tm-segmented-glider {
   align-self: flex-start;
 }
 
-/* Pulsing Food Ready Banner */
-.tm-card-ready-banner {
-  position: absolute;
-  top: -9px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Inline Food Ready Pill inside Header */
+.tm-card-ready-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3.5px;
+  padding: 2.5px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 850;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: #ffffff;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 9.5px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.6);
-  border: 1.5px solid #ffffff;
-  z-index: 10;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+  animation: tableReadyPulseGlow 2s infinite ease-in-out;
   white-space: nowrap;
-  animation: tableReadyPulseGlow 2.2s infinite ease-in-out;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
-.tm-card-ready-banner.overdue {
+.tm-card-ready-pill.overdue {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 2px 14px rgba(239, 68, 68, 0.8);
-  animation: tableOverduePulseGlow 1.8s infinite ease-in-out;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+  animation: tableOverduePulseGlow 1.6s infinite ease-in-out;
 }
 
-.tm-card-ready-dot {
-  width: 5px;
-  height: 5px;
+.tm-status-dot.free {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #ffffff;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+}
+
+.tm-card-free-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: #10b981;
 }
 
 @media (max-width: 600px) {
@@ -11026,19 +11033,7 @@ html.dark .tm-segmented-glider {
   min-width: 0;
 }
 
-.tm-card-ready-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  font-size: 11px;
-  font-weight: 700;
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 6px;
-  padding: 3px 6px;
-}
+
 
 .tm-card-server-row {
   font-size: 11.5px;

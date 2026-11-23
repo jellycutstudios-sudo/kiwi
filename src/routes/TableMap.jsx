@@ -15,7 +15,7 @@ import {
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
   Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
-  ArrowLeft
+  ArrowLeft, Bell
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
@@ -791,18 +791,16 @@ export default function TableMap() {
         } ${selected === t.id ? 'tm-card--selected' : ''}`}
         title={`${t.name} • ${capacity} Seats • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
       >
-        {/* Pulsing Food Ready Badge */}
-        {isFoodReady && (
-          <div className={`tm-card-ready-banner ${isPassOverdue ? 'overdue' : ''}`}>
-            <span className="tm-card-ready-dot" />
-            <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
-          </div>
-        )}
-
-        {/* Card Header: Table Name + Capacity Pill & Quick Edit */}
+        {/* Card Header: Table Name + Ready Badge & Capacity Pill */}
         <div className="tm-card-header">
           <div className="tm-card-title-group">
             <span className="tm-card-code">{t.name}</span>
+            {isFoodReady && (
+              <span className={`tm-card-ready-pill ${isPassOverdue ? 'overdue' : ''}`}>
+                <Bell size={10} strokeWidth={2.5} />
+                <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
+              </span>
+            )}
             {order && (order.isOffline || order.id?.startsWith('offline_')) && (
               <span title="Local offline order" className="tm-card-offline-icon">
                 <Zap size={11} color="#38bdf8" />
@@ -831,23 +829,14 @@ export default function TableMap() {
           </div>
         </div>
 
-        {/* Chair Indicators / Visual dots */}
-        <div className="tm-card-chair-dots" aria-hidden="true">
-          {Array.from({ length: Math.min(capacity, 12) }).map((_, idx) => (
-            <span
-              key={idx}
-              className={`tm-chair-dot ${effectiveStatus === 'occupied' ? 'occupied' : 'free'}`}
-            />
-          ))}
-          {capacity > 12 && <span className="tm-chair-more">+{capacity - 12}</span>}
-        </div>
-
         {/* Card Body: Dynamic status / metrics */}
         <div className="tm-card-body">
           {effectiveStatus === 'free' ? (
             <div className="tm-card-free-state">
-              <span className="tm-card-free-label">Free</span>
-              <span className="tm-card-start-hint">+ Start Order</span>
+              <span className="tm-card-free-label">
+                <span className="tm-status-dot free" />
+                Free
+              </span>
             </div>
           ) : effectiveStatus === 'occupied' ? (
             <div className="tm-card-occupied-state">
@@ -896,13 +885,6 @@ export default function TableMap() {
             </div>
           ) : null}
         </div>
-
-        {/* Large Table Tag for 6+ capacity */}
-        {isLargeTable && (
-          <div className="tm-card-large-tag">
-            <span>Family / Group ({capacity} seats)</span>
-          </div>
-        )}
       </div>
     );
   }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency, canEditLayout]);

@@ -55,4 +55,18 @@ describe('Petpooja-Style Continuous Section-Grouped Scroll Table View', () => {
     expect(indexCss).toContain('[data-theme="dark"] .tm-floor-section-header');
     expect(indexCss).toContain('.tm-grid.tm-grid--section');
   });
+
+  it('verifies Table Cards in TableMap are clean, minimal and non-colliding', () => {
+    // READY badge is rendered inside header flow without collision
+    expect(tableMapJsx).toContain('className={`tm-card-ready-pill ${isPassOverdue ? \'overdue\' : \'\'}`}');
+    expect(indexCss).toContain('.tm-card-ready-pill');
+
+    // Clutter removed: no redundant chair dots, no redundant large table tags
+    expect(tableMapJsx).not.toContain('tm-card-chair-dots');
+    expect(tableMapJsx).not.toContain('tm-card-large-tag');
+    expect(tableMapJsx).not.toContain('+ Start Order');
+
+    // Clean free state with indicator dot
+    expect(tableMapJsx).toContain('className="tm-status-dot free"');
+  });
 });
