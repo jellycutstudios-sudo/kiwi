@@ -188,10 +188,12 @@ export function vibrateDevice(pattern = [200, 100, 200]) {
 export function hapticTap(strength = 'light') {
   try {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      // Clear any pending queued vibration so fast repeated taps never lag behind fingers
+      navigator.vibrate(0);
       if (strength === 'light') navigator.vibrate(10);
-      else if (strength === 'medium') navigator.vibrate(22);
-      else if (strength === 'heavy') navigator.vibrate(40);
-      else if (strength === 'success') navigator.vibrate([15, 60, 30]);
+      else if (strength === 'medium') navigator.vibrate(20);
+      else if (strength === 'heavy') navigator.vibrate(35);
+      else if (strength === 'success') navigator.vibrate([15, 50, 25]);
     }
   } catch {
     // Unsupported / blocked

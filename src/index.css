@@ -380,6 +380,11 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+html, body {
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -392,6 +397,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   touch-action: pan-y;
+  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -2029,6 +2035,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   overflow: hidden;
   border-left: 1.5px solid var(--color-separator);
   box-shadow: -4px 0 24px rgba(15, 23, 42, 0.04);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 [dir="rtl"] .pos-cart-panel {
@@ -14181,11 +14189,14 @@ button:active:not(:disabled),
 .modal-overlay {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  animation: modalBackdropFadeIn 0.14s var(--ease-out) forwards;
+  animation: modalBackdropFadeIn 0.11s var(--ease-out) forwards;
 }
 
-.modal, .modal-content {
-  animation: modalSlideUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.modal, .modal-content, .drawer-content {
+  animation: modalSlideUp 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 @keyframes modalBackdropFadeIn {
@@ -22350,7 +22361,7 @@ html.dark .modal-tabs-glider {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalSlideUp 0.12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Header */
@@ -22949,7 +22960,7 @@ html.dark .modal-tabs-glider {
   border-radius: 20px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
   overflow: hidden;
-  animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalSlideUp 0.12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .terminal-dispatch-header {

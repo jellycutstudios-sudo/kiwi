@@ -28,4 +28,17 @@ describe('Zero-Latency Instant Touch & Click System', () => {
     expect(posJsx).toContain('setShowCustomerModal(true);');
     expect(posJsx).not.toContain('setTimeout(() => setShowCustomerModal(true), 120);');
   });
+
+  it('verifies overscroll containment and snappy GPU modal performance', () => {
+    // Prevents pull-to-refresh and rubber-band bounce
+    expect(indexCss).toContain('overscroll-behavior-y: none;');
+
+    // Snappy 0.12s modal entry
+    expect(indexCss).toContain('animation: modalSlideUp 0.12s cubic-bezier(0.16, 1, 0.3, 1)');
+    expect(indexCss).toContain('will-change: transform, opacity;');
+
+    // GPU layer compositing on cart
+    expect(indexCss).toContain('.pos-cart-panel');
+    expect(indexCss).toMatch(/\.pos-cart-panel\s*\{[^}]*transform:\s*translateZ\(0\)/);
+  });
 });
