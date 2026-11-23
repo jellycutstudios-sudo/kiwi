@@ -2506,25 +2506,24 @@ export default function POS() {
 
             {/* 2. Big-Icon Table Pill (Dine-In) */}
             {orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) && (
-              <div className={`cart-unified-chip cart-unified-chip--table ${tableId ? 'is-assigned' : ''}`}>
-                <button
-                  type="button"
-                  id="select-table-dropdown"
-                  className="cart-unified-chip-main"
-                  onClick={() => {
-                    hapticTap('light');
-                    setTableSelAction('select');
-                    setShowTableSel(true);
-                  }}
-                  title={tableId ? `Table ${tableName} selected - click to switch` : 'Tap to select table from floor map'}
-                >
-                  <Armchair size={19} className="cart-unified-icon" />
-                  <span className="cart-unified-label">
-                    {tableId ? `Table ${tableName}` : 'Table'}
-                  </span>
-                  {!tableId && <span className="cart-unified-badge">Map ▾</span>}
-                </button>
-                {tableId && (
+              tableId ? (
+                <div className="cart-unified-chip cart-unified-chip--table is-assigned">
+                  <button
+                    type="button"
+                    id="select-table-dropdown"
+                    className="cart-unified-chip-main"
+                    onClick={() => {
+                      hapticTap('light');
+                      setTableSelAction('select');
+                      setShowTableSel(true);
+                    }}
+                    title={`Table ${tableName} selected - click to switch`}
+                  >
+                    <Armchair size={20} className="cart-unified-icon" />
+                    <span className="cart-unified-label">
+                      {tableName ? (tableName.startsWith('Table') ? tableName : `T${tableName.replace(/^T/i, '')}`) : 'Table'}
+                    </span>
+                  </button>
                   <button
                     type="button"
                     className="cart-unified-clear-btn"
@@ -2538,8 +2537,23 @@ export default function POS() {
                   >
                     <X size={14} strokeWidth={2.4} />
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  id="select-table-dropdown"
+                  className="cart-unified-chip cart-unified-chip--table is-empty is-icon-only"
+                  onClick={() => {
+                    hapticTap('light');
+                    setTableSelAction('select');
+                    setShowTableSel(true);
+                  }}
+                  title="Select table from floor map"
+                  aria-label="Select table from floor map"
+                >
+                  <Armchair size={21} className="cart-unified-icon" />
+                </button>
+              )
             )}
 
             {/* 3. Big-Icon Customer Pill */}
@@ -2554,7 +2568,7 @@ export default function POS() {
                 title="Edit customer details"
               >
                 <button type="button" className="cart-unified-chip-main">
-                  <User size={19} className="cart-unified-icon" />
+                  <User size={20} className="cart-unified-icon" />
                   <span className="cart-unified-label">
                     {customer.name || customerName || 'Customer'}
                   </span>
@@ -2590,7 +2604,7 @@ export default function POS() {
                 title="Edit customer details"
               >
                 <button type="button" className="cart-unified-chip-main">
-                  <User size={19} className="cart-unified-icon" />
+                  <User size={20} className="cart-unified-icon" />
                   <span className="cart-unified-label">
                     {customerName || customerPhone}
                   </span>
@@ -2615,16 +2629,16 @@ export default function POS() {
             ) : (
               <button
                 type="button"
-                className="cart-unified-chip cart-unified-chip--customer is-empty"
+                className="cart-unified-chip cart-unified-chip--customer is-empty is-icon-only"
                 onClick={() => {
                   hapticTap('light');
                   setModalInitialPhone('');
                   setShowCustomerModal(true);
                 }}
                 title="Attach or register customer for loyalty & receipts"
+                aria-label="Attach or register customer"
               >
-                <UserPlus size={19} className="cart-unified-icon" />
-                <span className="cart-unified-label">Customer</span>
+                <UserPlus size={21} className="cart-unified-icon" />
               </button>
             )}
 

@@ -5721,6 +5721,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
+.cart-unified-chip.is-icon-only {
+  justify-content: center;
+  padding: 0 12px;
+}
+.cart-unified-chip.is-icon-only .cart-unified-icon {
+  margin: 0;
+  opacity: 0.95;
+}
 .cart-unified-chip:hover {
   background: var(--color-bg-elevated, #ffffff);
   border-color: #94a3b8;
