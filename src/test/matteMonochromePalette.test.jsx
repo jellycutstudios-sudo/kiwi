@@ -61,6 +61,42 @@ describe('Matte Monochrome Palette System', () => {
     expect(ncRules).toContain('color: #e2e8f0 !important');
   });
 
+  it('sets sidebar active nav item to high-contrast monochrome', () => {
+    // Dark mode
+    const darkNavMatch = css.match(/\[data-theme="dark"\]\s+\.sidebar\.collapsed\s+\.nav-item\.active,\s*\[data-theme="dark"\]\s+\.nav-item\.active\s*\{([^}]+)\}/);
+    expect(darkNavMatch).not.toBeNull();
+    expect(darkNavMatch[1]).toContain('background: #ffffff !important');
+    expect(darkNavMatch[1]).toContain('color: #09090b !important');
+
+    // Light mode
+    const lightNavMatch = css.match(/\.nav-item\.active\s*\{([^}]+)\}/);
+    expect(lightNavMatch).not.toBeNull();
+    expect(lightNavMatch[1]).toContain('background: #0f172a');
+    expect(lightNavMatch[1]).toContain('color: #ffffff');
+  });
+
+  it('sets dark mode primary buttons to solid matte white pill with dark text', () => {
+    const darkBtnMatch = css.match(/\[data-theme="dark"\]\s+\.btn-primary\s*\{([^}]+)\}/);
+    expect(darkBtnMatch).not.toBeNull();
+    expect(darkBtnMatch[1]).toContain('background: #ffffff !important');
+    expect(darkBtnMatch[1]).toContain('color: #09090b !important');
+    expect(darkBtnMatch[1]).not.toContain('#10b981');
+  });
+
+  it('neutralizes dark mode form inputs focus state', () => {
+    const darkFocusMatch = css.match(/\[data-theme="dark"\]\s+\.form-input:focus[^{]*\{([^}]+)\}/);
+    expect(darkFocusMatch).not.toBeNull();
+    expect(darkFocusMatch[1]).toContain('border-color: #ffffff');
+    expect(darkFocusMatch[1]).not.toContain('#10b981');
+  });
+
+  it('sets dark mode TableMap floor tab to high-contrast white', () => {
+    const darkFloorTabMatch = css.match(/\[data-theme="dark"\]\s+\.tm-floor-tab--active[^{]*\{([^}]+)\}/);
+    expect(darkFloorTabMatch).not.toBeNull();
+    expect(darkFloorTabMatch[1]).toContain('background: #ffffff !important');
+    expect(darkFloorTabMatch[1]).toContain('color: #09090b !important');
+  });
+
   it('preserves real-world semantic green on veg badges and free table indicators', () => {
     // Veg badge must stay green
     expect(css).toMatch(/\.food-badge-veg\s*\{[^}]*#16a34a/);
