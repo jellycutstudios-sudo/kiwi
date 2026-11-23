@@ -1031,18 +1031,6 @@ export default function POS() {
     return Object.entries(counts).map(([name, count]) => ({ name, count }));
   }, [categories, activeCat]);
 
-  const popularSubCatCount = useMemo(() => {
-    if (activeCat === 'deals') return 0;
-    const candidateItems = activeCat === 'all'
-      ? categories.flatMap(c => c.items || [])
-      : (categories.find(c => c.id === activeCat)?.items || []);
-    return candidateItems.filter(i => {
-      const nameKey = (i.name || '').trim().toLowerCase();
-      const sales = (itemSalesMap[i.id] || 0) + (itemSalesMap[nameKey] || 0);
-      return i.isBestseller || i.bestseller || i.popular || i.highMargin || sales > 0;
-    }).length;
-  }, [categories, activeCat, itemSalesMap]);
-
   // Menu items from active category (or all categories when searching) + dietary filter
   const displayItems = useMemo(() => {
     const searchStr = typeof search === 'string' ? search.trim() : '';
@@ -2058,50 +2046,28 @@ export default function POS() {
                   </div>
                 ) : (
                   <>
-                    {/* Dual-Tier Subcategory Pill Bar (Toast POS Standard) */}
+                    {/* Dual-Tier Subcategory Pill Bar — Clean Assigned Subcategories with 1-Tap Toggle */}
                     {availableSubCategories.length > 0 && (
                       <div className="pos-subcategory-bar" role="tablist" aria-label="Sub-Categories">
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={activeSubCat === 'all'}
-                          className={`pos-subcat-pill ${activeSubCat === 'all' ? 'active' : ''}`}
-                          onClick={() => { hapticTap('light'); setActiveSubCat('all'); }}
-                        >
-                          <span>All</span>
-                          <span className="pos-subcat-count">
-                            {activeCat === 'all'
-                              ? categories.reduce((sum, c) => sum + (c.items?.length || 0), 0)
-                              : (categories.find(c => c.id === activeCat)?.items?.length || 0)}
-                          </span>
-                        </button>
-
-                        {popularSubCatCount > 0 && (
-                          <button
-                            type="button"
-                            role="tab"
-                            aria-selected={activeSubCat === 'popular'}
-                            className={`pos-subcat-pill pos-subcat-pill--popular ${activeSubCat === 'popular' ? 'active' : ''}`}
-                            onClick={() => { hapticTap('light'); setActiveSubCat('popular'); }}
-                          >
-                            <span>⭐ Popular</span>
-                            <span className="pos-subcat-count">{popularSubCatCount}</span>
-                          </button>
-                        )}
-
-                        {availableSubCategories.map(sub => (
-                          <button
-                            key={sub.name}
-                            type="button"
-                            role="tab"
-                            aria-selected={activeSubCat.toLowerCase() === sub.name.toLowerCase()}
-                            className={`pos-subcat-pill ${activeSubCat.toLowerCase() === sub.name.toLowerCase() ? 'active' : ''}`}
-                            onClick={() => { hapticTap('light'); setActiveSubCat(sub.name); }}
-                          >
-                            <span>{sub.name}</span>
-                            <span className="pos-subcat-count">{sub.count}</span>
-                          </button>
-                        ))}
+                        {availableSubCategories.map(sub => {
+                          const isActive = activeSubCat.toLowerCase() === sub.name.toLowerCase();
+                          return (
+                            <button
+                              key={sub.name}
+                              type="button"
+                              role="tab"
+                              aria-selected={isActive}
+                              className={`pos-subcat-pill ${isActive ? 'active' : ''}`}
+                              onClick={() => {
+                                hapticTap('light');
+                                setActiveSubCat(isActive ? 'all' : sub.name);
+                              }}
+                            >
+                              <span>{sub.name}</span>
+                              <span className="pos-subcat-count">{sub.count}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
 
