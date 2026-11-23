@@ -147,6 +147,8 @@ export default function TableMap() {
   const handleSwitchView = (mode) => {
     if (mode === 'map' && activeFloor === 'all') {
       setActiveFloor(allFloors[0] || 'Ground Floor');
+    } else if (mode === 'grid') {
+      setActiveFloor('all');
     }
     setViewMode(mode);
     try {
@@ -165,7 +167,17 @@ export default function TableMap() {
   }, [searchParams]);
 
 
-  const [activeFloor, setActiveFloor] = useState('Ground Floor');
+  const [activeFloor, setActiveFloor] = useState(() => {
+    if (searchParams.get('edit') === 'true') return 'Ground Floor';
+    try {
+      if (localStorage.getItem('kiwi_table_view_mode') === 'map') {
+        return 'Ground Floor';
+      }
+    } catch {
+      // ignore
+    }
+    return 'all';
+  });
   const allFloors = useMemo(() => {
     const list = ['Ground Floor'];
     if (restaurant?.floors && Array.isArray(restaurant.floors)) {
@@ -347,8 +359,9 @@ export default function TableMap() {
 
   const handleAddTable = async () => {
     if (!restaurant?.id) return;
-    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
-    const prefix = activeFloor === 'Ground Floor' ? 'T' : (activeFloor[0]?.toUpperCase() || 'T');
+    const targetFloor = activeFloor === 'all' ? (allFloors[0] || 'Ground Floor') : activeFloor;
+    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === targetFloor);
+    const prefix = targetFloor === 'Ground Floor' ? 'T' : (targetFloor[0]?.toUpperCase() || 'T');
 
     // Find highest existing numeric suffix across ALL tables on this floor to eliminate duplicate names
     const existingNums = currentFloorTables
@@ -377,19 +390,20 @@ export default function TableMap() {
         y: Math.min(posY, 500),
         w: 105,
         h: 75,
-        floor: activeFloor,
-        section: activeFloor,
+        floor: targetFloor,
+        section: targetFloor,
       });
-      toast.success(`Table ${nextName} added to ${activeFloor}! Drag to position it.`);
+      toast.success(`Table ${nextName} added to ${targetFloor}! Drag to position it.`);
     } catch (err) {
       toast.error('Failed to add table: ' + err.message);
     }
   };
 
   const handleOpenBulkModal = () => {
-    const prefix = activeFloor === 'Ground Floor' ? 'T' : (activeFloor[0]?.toUpperCase() || 'T');
+    const targetFloor = activeFloor === 'all' ? (allFloors[0] || 'Ground Floor') : activeFloor;
+    const prefix = targetFloor === 'Ground Floor' ? 'T' : (targetFloor[0]?.toUpperCase() || 'T');
     setBulkPrefix(prefix);
-    setBulkFloor(activeFloor);
+    setBulkFloor(targetFloor);
     setShowBulkModal(true);
   };
 
@@ -399,7 +413,7 @@ export default function TableMap() {
     const count = Math.min(Math.max(parseInt(bulkCount, 10) || 1, 1), 30);
     const cap = parseInt(bulkCapacity, 10) || 4;
     const shape = bulkShape || 'rect';
-    const floor = bulkFloor || activeFloor;
+    const floor = bulkFloor || (activeFloor === 'all' ? (allFloors[0] || 'Ground Floor') : activeFloor);
     const prefix = (bulkPrefix || 'T').trim().toUpperCase() || 'T';
 
     const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === floor);
@@ -458,8 +472,9 @@ export default function TableMap() {
 
   const handleAddPresetTable = async (preset) => {
     if (!restaurant?.id) return;
-    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
-    const prefix = activeFloor === 'Ground Floor' ? 'T' : (activeFloor[0]?.toUpperCase() || 'T');
+    const targetFloor = activeFloor === 'all' ? (allFloors[0] || 'Ground Floor') : activeFloor;
+    const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === targetFloor);
+    const prefix = targetFloor === 'Ground Floor' ? 'T' : (targetFloor[0]?.toUpperCase() || 'T');
 
     const existingNums = currentFloorTables
       .map(t => {
@@ -486,8 +501,8 @@ export default function TableMap() {
         y: Math.min(posY, 500),
         w: preset.w,
         h: preset.h,
-        floor: activeFloor,
-        section: activeFloor,
+        floor: targetFloor,
+        section: targetFloor,
       });
       setShowPresetsMenu(false);
       toast.success(`${preset.label} (${nextName}) added!`);
@@ -498,7 +513,7 @@ export default function TableMap() {
 
   const handleDuplicateTable = async (sourceTable) => {
     if (!sourceTable || !restaurant?.id) return;
-    const floor = sourceTable.floor || activeFloor || 'Ground Floor';
+    const floor = sourceTable.floor || (activeFloor === 'all' ? (allFloors[0] || 'Ground Floor') : activeFloor) || 'Ground Floor';
     const currentFloorTables = tables.filter(t => (t.floor || 'Ground Floor') === floor);
 
     const prefixMatch = (sourceTable.name || '').match(/^[A-Za-z]+/);
