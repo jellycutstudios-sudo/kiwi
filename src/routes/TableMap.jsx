@@ -793,27 +793,34 @@ export default function TableMap() {
         } ${selected === t.id ? 'tm-card--selected' : ''}`}
         title={`${t.name} • ${capacity} Seats • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
       >
-        {/* Card Header: Table Name + Ready Badge & Capacity Pill */}
+        {/* Card Header: Table Name on Left + Status Badge / Capacity on Right */}
         <div className="tm-card-header">
           <div className="tm-card-title-group">
             <span className="tm-card-code">{t.name}</span>
-            {isFoodReady && (
-              <span className={`tm-card-ready-pill ${isPassOverdue ? 'overdue' : ''}`}>
-                <Bell size={10} strokeWidth={2.5} />
-                <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
-              </span>
-            )}
             {order && (order.isOffline || order.id?.startsWith('offline_')) && (
               <span title="Local offline order" className="tm-card-offline-icon">
                 <Zap size={11} color="#38bdf8" />
               </span>
             )}
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
-              <Users size={11} />
-              <span>{capacity}p</span>
-            </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {isFoodReady ? (
+              <span className={`tm-card-ready-pill ${isPassOverdue ? 'overdue' : ''}`}>
+                <Bell size={10} strokeWidth={2.5} />
+                <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
+              </span>
+            ) : (
+              <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
+                <Users size={11} />
+                <span>{capacity}p</span>
+              </div>
+            )}
+            {isLargeTable && isFoodReady && (
+              <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
+                <Users size={11} />
+                <span>{capacity}p</span>
+              </div>
+            )}
             {canEditLayout && (
               <button
                 type="button"

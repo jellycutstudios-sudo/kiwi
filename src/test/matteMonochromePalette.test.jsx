@@ -165,5 +165,11 @@ describe('Matte Monochrome Palette System', () => {
       expect(darkOccupiedPill).not.toBeNull();
       expect(darkOccupiedPill[1]).toContain('#38bdf8');
     });
+
+    it('ensures table code never squishes or truncates away', () => {
+      const codeRule = css.match(/\.tm-card-code\s*\{([^}]+)\}/);
+      expect(codeRule).not.toBeNull();
+      expect(codeRule[1]).toContain('flex-shrink: 0');
+    });
   });
 });

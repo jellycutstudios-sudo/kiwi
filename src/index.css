@@ -10424,17 +10424,23 @@ html.dark .tm-segmented-glider {
   align-items: center;
   gap: 5px;
   min-width: 0;
+  flex: 1;
 }
 
 .tm-card-code {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.4px;
   line-height: 1.1;
   color: var(--color-label, #0f172a);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-shrink: 0;
   white-space: nowrap;
+}
+
+[data-theme="dark"] .tm-card-code,
+:root[data-theme="dark"] .tm-card-code,
+.dark .tm-card-code {
+  color: #ffffff;
 }
 
 .tm-card-capacity-badge {
