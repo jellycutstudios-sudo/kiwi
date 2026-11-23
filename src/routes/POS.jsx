@@ -1515,7 +1515,7 @@ export default function POS() {
       setTable(null, null);
     }
     if (newType === 'delivery' && !customerPhone && !customer?.address) {
-      setTimeout(() => setShowCustomerModal(true), 120);
+      setShowCustomerModal(true);
     }
   };
 

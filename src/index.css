@@ -399,16 +399,41 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* Native App: Prevent accidental text selection & callouts during fast POS touch interactions */
-button, a, input, select, textarea, [role="button"], .btn, .category-chip, .qty-btn, .table-item, .numpad-btn {
-  touch-action: manipulation;
+/* ============================================================
+   ZERO-LATENCY INSTANT TOUCH SYSTEM (0ms POS Feedback)
+   ============================================================ */
+*, *::before, *::after {
   -webkit-tap-highlight-color: transparent;
 }
 
-.btn, .nav-item, .menu-card, .table-card, .tab-btn, .category-chip, .sidebar, .top-bar, .pos-cart-panel, .numpad-btn, .qty-btn {
+button, a, input, select, textarea, [role="button"], 
+.btn, .category-chip, .qty-btn, .table-item, .numpad-btn,
+.menu-key-card, .tm-card, .cart-stepper-btn, .pos-op-card,
+.cart-unified-mode-btn, .cart-unified-chip, .tm-floor-tab, .tm-pill,
+.nav-item, .menu-card, .table-card, .tab-btn, .sidebar, .top-bar, .pos-cart-panel {
+  touch-action: manipulation !important;
   -webkit-touch-callout: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* 0ms Instant Tactile Depression on Touch-Down across all POS buttons */
+button:active:not(:disabled),
+.btn:active:not(:disabled),
+.tm-card:active,
+.menu-key-card:active,
+.category-chip:active,
+.qty-btn:active,
+.cart-stepper-btn:active,
+.pos-op-card:active,
+.cart-unified-mode-btn:active,
+.cart-unified-chip:active,
+.tm-floor-tab:active,
+.tm-pill:active,
+[role="button"]:active {
+  transform: scale(0.965) translateY(0.5px) !important;
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
 }
 
 /* Touch-optimized Stepper Button */
