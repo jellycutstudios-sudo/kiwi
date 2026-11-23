@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useOrderStore } from '../../stores/orderStore';
+import { useStaffStore } from '../../stores/staffStore';
 import { useGiftCardStore } from '../../stores/giftCardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, Coins, Printer } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Split, Ticket, HeartHandshake, Check, Loader2, ChevronDown, Coins, Printer, Bike, MapPin, Phone } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -27,6 +28,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
   const modalRef = useRef(null);
   useFocusTrap(modalRef, true);
   const { 
+    orderType, assignedRiderName, setRider,
     paymentMethod, setPaymentMethod, getSubtotal, getDiscountAmount, 
     setSplitPayments, customer, redeemingPoints, setRedeemingPoints, 
     getPointsDiscountAmount, tipAmount, setTip,
@@ -34,6 +36,11 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     setTerminalTx, getSettledTotal, getRemainingTotal,
     billPrinted, customerPhone, setCustomer, customerName, setCustomerProfile
   } = useOrderStore();
+  const rawStaff = useStaffStore(s => s.staff);
+  const riderStaff = useMemo(() => {
+    const list = rawStaff || [];
+    return list.filter(s => ['delivery', 'rider', 'driver', 'waiter', 'server'].includes(s.role) || s.status === 'active');
+  }, [rawStaff]);
 
   const [editingWaPhone, setEditingWaPhone] = useState(false);
   const [waPhoneInput, setWaPhoneInput] = useState('');
@@ -693,7 +700,9 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 {t('payment')}
               </h2>
               <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
-                {tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Direct Register Checkout')}
+                {orderType === 'delivery'
+                  ? `🛵 Delivery • ${customerName || customer?.name || 'Customer'}`
+                  : (tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Direct Register Checkout'))}
               </div>
             </div>
           </div>
@@ -739,7 +748,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 borderRadius: 999,
                 border: '1px solid var(--color-separator)'
               }}>
-                {tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Register')}
+                {orderType === 'delivery' ? '🛵 Delivery' : (tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Register'))}
               </span>
             </div>
 
@@ -794,6 +803,74 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               </div>
             )}
           </div>
+
+          {/* Delivery Dispatch Details Card */}
+          {orderType === 'delivery' && (
+            <div
+              className="payment-delivery-dispatch-card"
+              style={{
+                padding: '10px 14px',
+                borderRadius: 12,
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Bike size={16} color="#f59e0b" />
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    Delivery Dispatch
+                  </span>
+                </div>
+                {(customerPhone || customer?.phone) && (
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--color-label)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Phone size={12} color="var(--color-label-secondary)" />
+                    {customerPhone || customer?.phone}
+                  </span>
+                )}
+              </div>
+              {(customer?.address || customer?.deliveryAddress) && (
+                <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', lineHeight: 1.3, display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                  <MapPin size={13} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>{customer?.address || customer?.deliveryAddress}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
+                  Assign Rider:
+                </span>
+                <select
+                  value={assignedRiderName || ''}
+                  onChange={(e) => setRider(e.target.value)}
+                  aria-label="Assign Delivery Rider"
+                  style={{
+                    flex: 1,
+                    height: 32,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-elevated)',
+                    color: 'var(--color-label)',
+                    padding: '0 8px'
+                  }}
+                >
+                  <option value="">Unassigned (Assign later)</option>
+                  {riderStaff.map(s => (
+                    <option key={s.id || s.name} value={s.name}>{s.name} (In-House)</option>
+                  ))}
+                  <option value="Dunzo">Dunzo Delivery</option>
+                  <option value="Porter">Porter</option>
+                  <option value="Shadowfax">Shadowfax</option>
+                  <option value="Own Fleet">Own Fleet / Self Delivery</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* 2. Payment Methods (Balanced 5-Card Single Row) */}
           <div style={{ flexShrink: 0 }}>

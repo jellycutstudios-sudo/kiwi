@@ -197,6 +197,7 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   if (order.deliveryAddress || order.customer?.address) {
     writeTextLine(`Address: ${order.deliveryAddress || order.customer?.address}`);
   }
+  if (order.assignedRiderName) writeTextLine(`Rider: ${order.assignedRiderName}`);
   if (staffName) writeTextLine(`Staff: ${staffName}`);
   
   writeTextLine(divider);
@@ -379,6 +380,7 @@ function compileEscPosKitchenTicket({ restaurant, order, items, staffName, print
   if (order.deliveryAddress || order.customer?.address) {
     writeTextLine(`Address: ${order.deliveryAddress || order.customer?.address}`);
   }
+  if (order.assignedRiderName) writeTextLine(`Rider: ${order.assignedRiderName}`);
   if (staffName) writeTextLine(`Staff: ${staffName}`);
   
   writeTextLine(divider);
@@ -1133,6 +1135,7 @@ ${order.isOffline ? `<div class="center bold" style="background:#f3f4f6;padding:
 ${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
 ${order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : ''}
 ${(order.deliveryAddress || order.customer?.address) ? `<div>Address: ${order.deliveryAddress || order.customer?.address}</div>` : ''}
+${order.assignedRiderName ? `<div>Rider: ${order.assignedRiderName}</div>` : ''}
 ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 <div class="divider"></div>
 <table>
@@ -1324,6 +1327,7 @@ export function printInvoiceA4({ restaurant, order, items, taxInfo, staffName })
           <div style="font-size: 14px; font-weight: 700; color: #111827;">${order.customerName || 'Walk-in Customer'}</div>
           ${order.customerPhone ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">Phone: ${order.customerPhone}</div>` : ''}
           ${(order.deliveryAddress || order.customer?.address) ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">Delivery Address: ${order.deliveryAddress || order.customer?.address}</div>` : ''}
+          ${order.assignedRiderName ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">Rider: ${order.assignedRiderName}</div>` : ''}
         </td>
         <td style="width: 50%; vertical-align: top; text-align: right;">
           <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Payment Summary</div>
@@ -1498,6 +1502,7 @@ function printKitchenBrowser({ restaurant, order, items, printerName, paperSize 
 ${order.customerName ? `<div>Customer: ${order.customerName}</div>` : ''}
 ${order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : ''}
 ${(order.deliveryAddress || order.customer?.address) ? `<div>Address: ${order.deliveryAddress || order.customer?.address}</div>` : ''}
+${order.assignedRiderName ? `<div>Rider: ${order.assignedRiderName}</div>` : ''}
 <div class="divider"></div>
 <table>
   <tbody>${itemRows}</tbody>

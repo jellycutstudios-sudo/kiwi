@@ -1188,6 +1188,16 @@ export default function POS() {
 
   const handleCheckout = async () => {
     if (!items.length) return;
+    if (orderType === 'delivery') {
+      const activePhone = customer?.phone || customerPhone;
+      const activeAddress = customer?.address || customer?.deliveryAddress;
+      if (!activePhone || !activeAddress) {
+        hapticTap('light');
+        toast.error('Please enter customer phone and delivery address before checkout', { duration: 4000, icon: '🛵' });
+        setShowCustomerModal(true);
+        return { needsDeliveryInfo: true };
+      }
+    }
     if (isComplimentary) {
       setPaymentMethod('complimentary');
       const res = await submitOrder(restaurant, staffDoc?.id);
@@ -1220,6 +1230,16 @@ export default function POS() {
       setTableSelAction('kitchen');
       setShowTableSel(true);
       return { needsTable: true };
+    }
+    if (orderType === 'delivery') {
+      const activePhone = customer?.phone || customerPhone;
+      const activeAddress = customer?.address || customer?.deliveryAddress;
+      if (!activePhone || !activeAddress) {
+        hapticTap('light');
+        toast.error('Please enter customer phone and delivery address before sending to kitchen', { duration: 4000, icon: '🛵' });
+        setShowCustomerModal(true);
+        return { needsDeliveryInfo: true };
+      }
     }
 
     let token = modes.includes('token') ? tokenNumber : null;
@@ -2627,7 +2647,11 @@ export default function POS() {
                 title="Edit customer details"
               >
                 <button type="button" className="cart-unified-chip-main">
-                  <User size={14} className="cart-unified-icon" />
+                  {orderType === 'delivery' ? (
+                    <Bike size={14} className="cart-unified-icon" style={{ color: '#f59e0b' }} />
+                  ) : (
+                    <User size={14} className="cart-unified-icon" />
+                  )}
                   <span className="cart-unified-label">
                     {customer?.name || customerName || customer?.phone || customerPhone}
                   </span>
@@ -2719,6 +2743,49 @@ export default function POS() {
               </button>
             )}
           </div>
+
+          {/* Active Delivery Destination Strip for Delivery mode */}
+          {orderType === 'delivery' && (
+            <div
+              className="cart-delivery-destination-bar"
+              onClick={() => {
+                hapticTap('light');
+                setModalInitialPhone(customer?.phone || customerPhone || '');
+                setShowCustomerModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '5px 12px',
+                background: 'rgba(245, 158, 11, 0.08)',
+                borderBottom: '1px solid rgba(245, 158, 11, 0.2)',
+                fontSize: 11.5,
+                color: 'var(--color-label)',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title="Click to edit delivery customer or address"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                <Bike size={14} color="#f59e0b" style={{ flexShrink: 0 }} />
+                <span style={{
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: (customer?.address || customer?.deliveryAddress) ? 'var(--color-label)' : '#f59e0b'
+                }}>
+                  {(customer?.address || customer?.deliveryAddress)
+                    ? `${customer?.phone || customerPhone ? (customer?.phone || customerPhone) + ' • ' : ''}${customer?.address || customer?.deliveryAddress}`
+                    : 'Tap to add delivery address & phone'}
+                </span>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', flexShrink: 0, marginLeft: 8 }}>
+                {(customer?.address || customer?.deliveryAddress) ? 'Edit ✎' : '+ Add'}
+              </span>
+            </div>
+          )}
 
           {/* Active Seats Bar for Dine-In (only when seats are actively being tagged) */}
           {orderType === 'dine-in' && items.length > 0 && (items.some(i => i.seatNumber) || activeSeat !== null) && (

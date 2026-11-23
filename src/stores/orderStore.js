@@ -137,6 +137,7 @@ export const useOrderStore = create((set, get) => ({
   billPrinted: Boolean(initialCart?.billPrinted),
   assignedWaiterId: null,
   assignedWaiterName: null,
+  assignedRiderName: null,
   isComplimentary: Boolean(initialCart?.isComplimentary),
   complimentaryReason: initialCart?.complimentaryReason || '',
   heldOrders: loadPersistedHeldOrders(),
@@ -269,6 +270,7 @@ export const useOrderStore = create((set, get) => ({
       tokenNumber: order.token ?? null,
       assignedWaiterId: order.assignedWaiterId ?? null,
       assignedWaiterName: order.assignedWaiterName ?? null,
+      assignedRiderName: order.assignedRiderName ?? null,
       isComplimentary: Boolean(order.isComplimentary),
       complimentaryReason: order.complimentaryReason || ''
     });
@@ -282,7 +284,7 @@ export const useOrderStore = create((set, get) => ({
       discount: 0, discountType: 'fixed', appliedOffer: null, splitPayments: [],
       customer: null, redeemingPoints: false,
       tipAmount: 0, upiRef: '', terminalTx: null,
-      assignedWaiterId: null, assignedWaiterName: null,
+      assignedWaiterId: null, assignedWaiterName: null, assignedRiderName: null,
       isComplimentary: false, complimentaryReason: ''
     });
     useGiftCardStore.getState().clearGiftCard();
@@ -477,6 +479,7 @@ export const useOrderStore = create((set, get) => ({
   },
   setUpiRef: (upiRef) => set({ upiRef }),
   setTerminalTx: (tx) => set({ terminalTx: tx }),
+  setRider: (riderName) => set({ assignedRiderName: riderName }),
 
   setComplimentary: (isComp, reason = 'Manager Comp') => {
     const isComplimentary = Boolean(isComp);
@@ -1034,6 +1037,7 @@ export const useOrderStore = create((set, get) => ({
       staffName: currentStaffDoc?.name ?? null,
       assignedWaiterId: effectiveWaiterId ?? null,
       assignedWaiterName: effectiveWaiterName ?? null,
+      assignedRiderName: get().assignedRiderName || null,
       createdAt: new Date().toISOString(),
       updatedAt: serverTimestamp(),
       paidAt: isPaid ? serverTimestamp() : null,
