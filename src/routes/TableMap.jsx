@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useTableStore } from '../stores/tableStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -43,7 +43,6 @@ function formatElapsed(mins) {
 
 export default function TableMap() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const restaurant = useAuthStore(s => s.restaurant);
   const staffDoc = useAuthStore(s => s.staffDoc);
   const canEditLayout = !staffDoc || ['admin', 'super_admin', 'manager', 'owner'].includes(staffDoc?.role);
@@ -110,7 +109,6 @@ export default function TableMap() {
 
   // Layout Editing state
   const [selectedEditTableId, setSelectedEditTableId] = useState(null);
-  const isEditingLayout = searchParams.get('edit') === 'true';
   const [emptyFloors, setEmptyFloors] = useState([]);
   const [showAddFloorModal, setShowAddFloorModal] = useState(false);
   const [newFloorName, setNewFloorName] = useState('');
@@ -174,6 +172,26 @@ export default function TableMap() {
     return () => window.removeEventListener('kiwi:select-table', handleSelectTable);
   }, [tables, activeFloor]);
 
+  // Subscribe to restaurant document to keep floors synchronized in real-time
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const unsub = onSnapshot(
+      doc(db, 'restaurants', restaurant.id),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (Array.isArray(data.floors)) {
+            useAuthStore.getState().updateRestaurantState({ floors: data.floors });
+          }
+        }
+      },
+      (err) => {
+        console.warn('Restaurant floors listener notice:', err?.message);
+      }
+    );
+    return () => unsub();
+  }, [restaurant?.id]);
+
   const floorMetrics = useMemo(() => {
     let free = 0, occupied = 0, reserved = 0, liveRevenue = 0;
     floorTables.forEach(t => {
@@ -205,13 +223,16 @@ export default function TableMap() {
     const nextName = `${prefix}${nextNum}`;
 
     try {
-      await addTable(restaurant.id, {
+      const created = await addTable(restaurant.id, {
         name: nextName,
         capacity: 4,
         shape: 'rect',
         floor: targetFloor,
         section: targetFloor,
       });
+      if (created?.id) {
+        setSelectedEditTableId(created.id);
+      }
       toast.success(`Table ${nextName} created on ${targetFloor}!`);
     } catch (err) {
       toast.error('Failed to add table: ' + err.message);
@@ -352,8 +373,11 @@ export default function TableMap() {
       setEmptyFloors(prev => Array.from(new Set([...prev, cleanName])));
       setActiveFloor(cleanName);
 
-      // Persist floor to restaurant document in Firestore
+      // Persist floor to restaurant document in Firestore and local state
       if (restaurant?.id) {
+        useAuthStore.getState().updateRestaurantState({
+          floors: Array.from(new Set([...(restaurant.floors || []), cleanName]))
+        });
         try {
           await updateDoc(doc(db, 'restaurants', restaurant.id), {
             floors: arrayUnion(cleanName)
@@ -366,16 +390,16 @@ export default function TableMap() {
       // Auto-create initial table if enabled
       if (autoAddFirstTable && restaurant?.id) {
         const prefix = cleanName[0].toUpperCase();
-        await addTable(restaurant.id, {
+        const created = await addTable(restaurant.id, {
           name: `${prefix}1`,
           capacity: 4,
           shape: 'rect',
-          x: 80,
-          y: 80,
-          w: 90,
-          h: 90,
           floor: cleanName,
+          section: cleanName,
         });
+        if (created?.id) {
+          setSelectedEditTableId(created.id);
+        }
         toast.success(`Floor "${cleanName}" created with Table ${prefix}1!`);
       } else {
         toast.success(`Floor "${cleanName}" created! Add tables to design your layout.`);
@@ -401,6 +425,9 @@ export default function TableMap() {
     if (!window.confirm(`Delete empty floor "${floorToDelete}"?`)) return;
     setEmptyFloors(prev => prev.filter(f => f !== floorToDelete));
     if (restaurant?.id) {
+      useAuthStore.getState().updateRestaurantState({
+        floors: (restaurant.floors || []).filter(f => f !== floorToDelete)
+      });
       try {
         await updateDoc(doc(db, 'restaurants', restaurant.id), {
           floors: arrayRemove(floorToDelete)
@@ -772,7 +799,7 @@ export default function TableMap() {
           </div>
         )}
 
-        {/* Card Header: Table Name + Capacity Pill */}
+        {/* Card Header: Table Name + Capacity Pill & Quick Edit */}
         <div className="tm-card-header">
           <div className="tm-card-title-group">
             <span className="tm-card-code">{t.name}</span>
@@ -782,9 +809,25 @@ export default function TableMap() {
               </span>
             )}
           </div>
-          <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
-            <Users size={11} />
-            <span>{capacity}p</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
+              <Users size={11} />
+              <span>{capacity}p</span>
+            </div>
+            {canEditLayout && (
+              <button
+                type="button"
+                className="tm-card-edit-btn"
+                title={`Configure Table ${t.name}`}
+                aria-label={`Configure Table ${t.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedEditTableId(t.id);
+                }}
+              >
+                <Sliders size={12} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -862,7 +905,7 @@ export default function TableMap() {
         )}
       </div>
     );
-  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency]);
+  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency, canEditLayout]);
 
   return (
     <div className="tm-root">
@@ -920,7 +963,7 @@ export default function TableMap() {
             )}
             {allFloors.map(floor => {
               const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
-              const isCanDelete = isEditingLayout && floor !== 'Ground Floor' && floorCount === 0;
+              const isCanDelete = canEditLayout && floor !== 'Ground Floor' && floorCount === 0;
               return (
                 <div key={floor} className="tm-floor-tab-wrapper">
                   <button
@@ -946,7 +989,7 @@ export default function TableMap() {
                 </div>
               );
             })}
-            {isEditingLayout && (
+            {canEditLayout && (
               <button
                 type="button"
                 className="tm-floor-tab tm-floor-tab--add"
@@ -1997,141 +2040,51 @@ export default function TableMap() {
                   />
                 </div>
 
-                {/* Capacity */}
+                {/* Seating Capacity */}
                 <div className="fpe-form-group">
-                  <label className="fpe-label">Capacity (Seats)</label>
-                  <input
-                    className="fpe-input"
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={selectedEditTable.capacity ?? ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '') {
-                        updateTable(restaurant.id, selectedEditTable.id, { capacity: '' });
-                      } else {
-                        const num = parseInt(val, 10);
-                        if (!isNaN(num)) updateTable(restaurant.id, selectedEditTable.id, { capacity: num });
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!selectedEditTable.capacity || selectedEditTable.capacity < 1) {
-                        updateTable(restaurant.id, selectedEditTable.id, { capacity: 1 });
-                      } else if (selectedEditTable.capacity > 50) {
-                        updateTable(restaurant.id, selectedEditTable.id, { capacity: 50 });
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Shape */}
-                <div className="fpe-form-group">
-                  <label className="fpe-label">Table Shape</label>
-                  <div className="fpe-segmented">
-                    <button
-                      type="button"
-                      className={`fpe-segment-btn ${selectedEditTable.shape !== 'round' ? 'active' : ''}`}
-                      onClick={() => {
-                        const isWider = (selectedEditTable.w || 105) >= (selectedEditTable.h || 75);
-                        updateTable(restaurant.id, selectedEditTable.id, {
-                          shape: 'rect',
-                          w: isWider ? 105 : 75,
-                          h: isWider ? 75 : 105
-                        });
-                      }}
-                    >
-                      <span>▭</span> Rectangle
-                    </button>
-                    <button
-                      type="button"
-                      className={`fpe-segment-btn ${selectedEditTable.shape === 'round' ? 'active' : ''}`}
-                      onClick={() => {
-                        const s = Math.max(selectedEditTable.w || 90, selectedEditTable.h || 90);
-                        updateTable(restaurant.id, selectedEditTable.id, {
-                          shape: 'round',
-                          w: s,
-                          h: s
-                        });
-                      }}
-                    >
-                      <span>⭕</span> Circle
-                    </button>
-                  </div>
-                </div>
-
-                {/* Orientation for Rectangular Tables */}
-                {selectedEditTable.shape !== 'round' && (
-                  <div className="fpe-form-group">
-                    <label className="fpe-label">Orientation</label>
-                    <div className="fpe-segmented">
+                  <label className="fpe-label">Seating Capacity (Guests)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 10 }}>
+                    {[2, 4, 6, 8, 10, 12].map(cap => (
                       <button
+                        key={cap}
                         type="button"
-                        className={`fpe-segment-btn ${(selectedEditTable.w ?? 105) >= (selectedEditTable.h ?? 75) ? 'active' : ''}`}
-                        onClick={() => {
-                          const curW = selectedEditTable.w ?? 105;
-                          const curH = selectedEditTable.h ?? 75;
-                          if (curW < curH) {
-                            updateTable(restaurant.id, selectedEditTable.id, { w: curH, h: curW });
-                          }
-                        }}
+                        className={`fpe-segment-btn ${Number(selectedEditTable.capacity) === cap ? 'active' : ''}`}
+                        style={{ justifyContent: 'center', padding: '8px 4px', fontWeight: 700, fontSize: 13 }}
+                        onClick={() => updateTable(restaurant.id, selectedEditTable.id, { capacity: cap })}
                       >
-                        <span>▭</span> Horizontal
+                        {cap}p
                       </button>
-                      <button
-                        type="button"
-                        className={`fpe-segment-btn ${(selectedEditTable.w ?? 105) < (selectedEditTable.h ?? 75) ? 'active' : ''}`}
-                        onClick={() => {
-                          const curW = selectedEditTable.w ?? 105;
-                          const curH = selectedEditTable.h ?? 75;
-                          if (curW > curH) {
-                            updateTable(restaurant.id, selectedEditTable.id, { w: curH, h: curW });
-                          }
-                        }}
-                      >
-                        <span>▯</span> Vertical
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                )}
-
-                {/* Table Size Presets */}
-                <div className="fpe-form-group">
-                  <label className="fpe-label">Table Size</label>
-                  <div className="fpe-segmented" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-                    {[
-                      { label: 'Compact', size: 75 },
-                      { label: 'Regular', size: 95 },
-                      { label: 'Large', size: 115 },
-                      { label: 'Banquet', size: 140 },
-                    ].map(preset => {
-                      const curMax = Math.max(selectedEditTable.w ?? 90, selectedEditTable.h ?? 90);
-                      const isSelected = Math.abs(curMax - preset.size) <= 10;
-                      return (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          className={`fpe-segment-btn ${isSelected ? 'active' : ''}`}
-                          style={{ fontSize: 11, padding: '6px 2px', justifyContent: 'center' }}
-                          onClick={() => {
-                            const s = preset.size;
-                            if (selectedEditTable.shape === 'round') {
-                              updateTable(restaurant.id, selectedEditTable.id, { w: s, h: s });
-                            } else {
-                              const isHorizontal = (selectedEditTable.w ?? 105) >= (selectedEditTable.h ?? 75);
-                              const major = s;
-                              const minor = Math.round(s * 0.72);
-                              updateTable(restaurant.id, selectedEditTable.id, {
-                                w: isHorizontal ? major : minor,
-                                h: isHorizontal ? minor : major,
-                              });
-                            }
-                          }}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      className="fpe-input"
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={selectedEditTable.capacity ?? ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          updateTable(restaurant.id, selectedEditTable.id, { capacity: '' });
+                        } else {
+                          const num = parseInt(val, 10);
+                          if (!isNaN(num)) updateTable(restaurant.id, selectedEditTable.id, { capacity: num });
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!selectedEditTable.capacity || selectedEditTable.capacity < 1) {
+                          updateTable(restaurant.id, selectedEditTable.id, { capacity: 1 });
+                        } else if (selectedEditTable.capacity > 50) {
+                          updateTable(restaurant.id, selectedEditTable.id, { capacity: 50 });
+                        }
+                      }}
+                      placeholder="Custom seats (1–50)"
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: Number(selectedEditTable.capacity) >= 6 ? 'var(--color-accent, #10b981)' : 'var(--color-label-tertiary)', whiteSpace: 'nowrap' }}>
+                      {Number(selectedEditTable.capacity) >= 6 ? '★ Wide Card (2 cols)' : 'Standard Card (1 col)'}
+                    </span>
                   </div>
                 </div>
 

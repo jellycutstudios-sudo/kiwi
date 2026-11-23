@@ -10326,6 +10326,45 @@ html.dark .tm-segmented-glider {
   flex-shrink: 0;
 }
 
+.tm-card-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--color-separator, rgba(0, 0, 0, 0.08));
+  background: var(--color-bg-secondary, rgba(0, 0, 0, 0.04));
+  color: var(--color-label-secondary, #64748b);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tm-card-edit-btn:hover {
+  background: var(--color-accent, #10b981);
+  color: #ffffff;
+  border-color: var(--color-accent, #10b981);
+  transform: scale(1.05);
+}
+
+[data-theme="dark"] .tm-card-edit-btn,
+:root[data-theme="dark"] .tm-card-edit-btn,
+.dark .tm-card-edit-btn {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .tm-card-edit-btn:hover,
+:root[data-theme="dark"] .tm-card-edit-btn:hover,
+.dark .tm-card-edit-btn:hover {
+  background: var(--color-accent, #10b981);
+  color: #ffffff;
+  border-color: var(--color-accent, #10b981);
+}
+
 /* Chair Dots */
 .tm-card-chair-dots {
   display: flex;
