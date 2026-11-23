@@ -748,25 +748,34 @@ export default function TableMap() {
     const passTimerStr = `${Math.floor(passElapsedSecs / 60)}:${String(passElapsedSecs % 60).padStart(2, '0')}`;
     const itemCount = hasOrder && order?.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0;
 
+    const isRound = t.shape === 'round';
+    const statusKey = isFoodReady
+      ? (isPassOverdue ? 'ready overdue' : 'ready')
+      : isBilled
+      ? 'billed'
+      : (effectiveStatus === 'occupied' && elapsedMins >= 90)
+      ? 'occupied overdue'
+      : effectiveStatus === 'occupied'
+      ? 'occupied'
+      : isReserved
+      ? 'reserved'
+      : 'free';
+    const chairStatus = statusKey.split(' ')[0];
+
     return (
       <div
         key={t.id}
-        onClick={() => {
-          if (effectiveStatus === 'free') {
-            clearCart();
-            setTable(t.id, t.name);
-            setOrderType('dine-in');
-            toast.success(`Order started for ${t.name}`);
-            navigate('/pos');
-          } else {
-            setSelected(t.id);
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
+        className={`table-3d-item-wrapper ${isLargeTable ? 'tm-card--large' : 'tm-card--standard'}`}
+      >
+        {/* Surrounding 3D Chair Cushions */}
+        <div className={`table-3d-chair chair-top ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+        <div className={`table-3d-chair chair-bottom ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+        <div className={`table-3d-chair chair-left ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+        <div className={`table-3d-chair chair-right ${isRound ? 'round-chair' : ''} ${chairStatus}`} />
+
+        {/* 3D Realistic Tabletop Keycap */}
+        <div
+          onClick={() => {
             if (effectiveStatus === 'free') {
               clearCart();
               setTable(t.id, t.name);
@@ -776,123 +785,131 @@ export default function TableMap() {
             } else {
               setSelected(t.id);
             }
-          }
-        }}
-        className={`tm-card ${isLargeTable ? 'tm-card--large' : 'tm-card--standard'} ${
-          isFoodReady
-            ? (isPassOverdue ? 'tm-card--ready overdue' : 'tm-card--ready')
-            : isBilled
-            ? 'tm-card--billed'
-            : (effectiveStatus === 'occupied' && elapsedMins >= 90)
-            ? 'tm-card--occupied overdue'
-            : effectiveStatus === 'occupied'
-            ? 'tm-card--occupied'
-            : isReserved
-            ? 'tm-card--reserved'
-            : 'tm-card--free'
-        } ${selected === t.id ? 'tm-card--selected' : ''}`}
-        title={`${t.name} • ${capacity} Seats • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
-      >
-        {/* Card Header: Table Name on Left + Status Badge / Capacity on Right */}
-        <div className="tm-card-header">
-          <div className="tm-card-title-group">
-            <span className="tm-card-code">{t.name}</span>
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (effectiveStatus === 'free') {
+                clearCart();
+                setTable(t.id, t.name);
+                setOrderType('dine-in');
+                toast.success(`Order started for ${t.name}`);
+                navigate('/pos');
+              } else {
+                setSelected(t.id);
+              }
+            }
+          }}
+          className={`tm-card table-3d-card ${isRound ? 'round' : ''} ${
+            isFoodReady
+              ? (isPassOverdue ? 'tm-card--ready ready overdue' : 'tm-card--ready ready')
+              : isBilled
+              ? 'tm-card--billed billed'
+              : (effectiveStatus === 'occupied' && elapsedMins >= 90)
+              ? 'tm-card--occupied occupied overdue'
+              : effectiveStatus === 'occupied'
+              ? 'tm-card--occupied occupied'
+              : isReserved
+              ? 'tm-card--reserved reserved'
+              : 'tm-card--free free'
+          } ${selected === t.id ? 'tm-card--selected' : ''}`}
+          title={`${t.name} • ${capacity} Seats • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
+        >
+          {/* Status Pill Badge at Top */}
+          {isFoodReady ? (
+            <span className={`tm-card-ready-pill ${isPassOverdue ? 'overdue' : ''}`}>
+              <Bell size={10} strokeWidth={2.5} />
+              <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
+            </span>
+          ) : isBilled ? (
+            <span className="table-3d-status-pill billed">
+              <span className="tm-status-dot billed" />
+              <span>Billed</span>
+            </span>
+          ) : (effectiveStatus === 'occupied' && elapsedMins >= 90) ? (
+            <span className="table-3d-status-pill overdue">
+              <AlertCircle size={10} strokeWidth={2.5} />
+              <span>Overdue {elapsedMins}m</span>
+            </span>
+          ) : effectiveStatus === 'occupied' ? (
+            <span className="table-3d-status-pill occupied">
+              <span className="tm-status-dot occupied" />
+              <span>Seated</span>
+            </span>
+          ) : isReserved ? (
+            <span className="table-3d-status-pill reserved">
+              <Star size={10} fill="currentColor" />
+              <span>Reserved</span>
+            </span>
+          ) : (
+            <span className="table-3d-status-pill free">
+              <span className="tm-status-dot free" />
+              <span>Free</span>
+            </span>
+          )}
+
+          {/* Table Name (Prominent, High-Contrast Center) */}
+          <div className="table-3d-name-row">
+            <span className="tm-card-code table-3d-name">{t.name}</span>
             {order && (order.isOffline || order.id?.startsWith('offline_')) && (
               <span title="Local offline order" className="tm-card-offline-icon">
-                <Zap size={11} color="#38bdf8" />
+                <Zap size={10} color="#38bdf8" />
               </span>
             )}
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {isFoodReady ? (
-              <span className={`tm-card-ready-pill ${isPassOverdue ? 'overdue' : ''}`}>
-                <Bell size={10} strokeWidth={2.5} />
-                <span>{isPassOverdue ? 'PASS' : 'READY'} {passTimerStr}</span>
-              </span>
-            ) : (
-              <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
-                <Users size={11} />
-                <span>{capacity}p</span>
-              </div>
-            )}
-            {isLargeTable && isFoodReady && (
-              <div className="tm-card-capacity-badge" title={`${capacity} Seats`}>
-                <Users size={11} />
-                <span>{capacity}p</span>
-              </div>
-            )}
-            {canEditLayout && (
-              <button
-                type="button"
-                className="tm-card-edit-btn"
-                title={`Configure Table ${t.name}`}
-                aria-label={`Configure Table ${t.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEditTableId(t.id);
-                }}
-              >
-                <Sliders size={12} />
-              </button>
-            )}
-          </div>
-        </div>
 
-        {/* Card Body: Dynamic status / metrics */}
-        <div className="tm-card-body">
-          {effectiveStatus === 'free' ? (
-            <div className="tm-card-free-state">
-              <span className="tm-card-free-label">
-                <span className="tm-status-dot free" />
-                Free
+          {/* Capacity */}
+          <span className="table-3d-capacity">
+            {capacity} {capacity === 1 ? 'seat' : 'seats'}
+          </span>
+
+          {/* Live Order Metrics (if occupied / billed / ready) */}
+          {(hasOrder || isBilled || isFoodReady) && order?.total != null && (
+            <div className="table-3d-metrics">
+              <span className="tm-card-bill-amount table-3d-order-total">
+                {formatCurrency(order.total, currency)}
               </span>
-            </div>
-          ) : effectiveStatus === 'occupied' ? (
-            <div className="tm-card-occupied-state">
-              <div className="tm-card-metrics-row">
-                <span className="tm-card-bill-amount">
-                  {formatCurrency(order?.total ?? 0, currency)}
+              {elapsedMins > 0 && (
+                <span
+                  className="tm-card-elapsed-badge table-3d-elapsed-badge"
+                  style={{
+                    background: elapsedMins >= 720 ? '#dc2626' : ec.bg,
+                    color: elapsedMins >= 720 ? '#ffffff' : ec.color,
+                  }}
+                  title={formatElapsed(elapsedMins)}
+                >
+                  <Clock size={10} />
+                  <span>{elapsedMins < 60 ? `${elapsedMins}m` : `${Math.floor(elapsedMins / 60)}h`}</span>
                 </span>
-                {elapsedMins > 0 && (
-                  <span
-                    className="tm-card-elapsed-badge"
-                    style={{
-                      background: elapsedMins >= 720 ? '#dc2626' : ec.bg,
-                      color: elapsedMins >= 720 ? '#ffffff' : ec.color,
-                    }}
-                  >
-                    <Clock size={10} />
-                    <span>{elapsedMins < 60 ? `${elapsedMins}m` : `${Math.floor(elapsedMins / 60)}h`}</span>
-                  </span>
-                )}
-              </div>
-              <div className="tm-card-sub-info">
-                {itemCount > 0 && <span>{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>}
-                {order?.note && (
-                  <span className="tm-card-note-tag" title={order.note}>
-                    <FileText size={9} /> {order.note}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
-          ) : isBilled ? (
-            <div className="tm-card-billed-state">
-              <div className="tm-card-metrics-row">
-                <span className="tm-card-bill-amount">
-                  {formatCurrency(order?.total ?? 0, currency)}
-                </span>
-                <span className="tm-card-billed-tag">Billed</span>
-              </div>
-              <span className="tm-card-sub-hint">Awaiting settlement</span>
-            </div>
-          ) : isReserved ? (
-            <div className="tm-card-reserved-state">
-              <span className="tm-card-reserved-label">
-                <Star size={11} fill="#a855f7" color="#a855f7" /> Reserved
-              </span>
-              <span className="tm-card-sub-hint">Reserved table</span>
-            </div>
-          ) : null}
+          )}
+
+          {/* Items count if occupied */}
+          {itemCount > 0 && (
+            <span className="table-3d-items-sub">
+              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+              {order?.note && ` • ${order.note}`}
+            </span>
+          )}
+
+          {/* Quick Edit Button if canEditLayout */}
+          {canEditLayout && (
+            <button
+              type="button"
+              className="tm-card-edit-btn"
+              title={`Configure Table ${t.name}`}
+              aria-label={`Configure Table ${t.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedEditTableId(t.id);
+              }}
+            >
+              <Sliders size={11} />
+            </button>
+          )}
         </div>
       </div>
     );

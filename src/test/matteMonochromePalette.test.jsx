@@ -171,5 +171,26 @@ describe('Matte Monochrome Palette System', () => {
       expect(codeRule).not.toBeNull();
       expect(codeRule[1]).toContain('flex-shrink: 0');
     });
+
+    it('styles architectural 3D tables with relatable status colors and tactile cushions', () => {
+      // 3D chair cushions and item wrapper
+      expect(css).toContain('.table-3d-item-wrapper');
+      expect(css).toContain('.table-3d-chair');
+
+      // Occupied 3D card uses Ocean Blue
+      const occupied3d = css.match(/\.table-3d-card\.occupied\s*\{([^}]+)\}/);
+      expect(occupied3d).not.toBeNull();
+      expect(occupied3d[1]).toContain('#0284c7');
+
+      // Billed 3D card uses Golden Amber
+      const billed3d = css.match(/\.table-3d-card\.billed\s*\{([^}]+)\}/);
+      expect(billed3d).not.toBeNull();
+      expect(billed3d[1]).toContain('#f59e0b');
+
+      // Reserved 3D card uses Royal Purple
+      const reserved3d = css.match(/\.table-3d-card\.reserved\s*\{([^}]+)\}/);
+      expect(reserved3d).not.toBeNull();
+      expect(reserved3d[1]).toContain('#a855f7');
+    });
   });
 });
