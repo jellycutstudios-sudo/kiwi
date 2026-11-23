@@ -17,10 +17,10 @@ import { printReceipt, printReceiptSingle, printTokenTicket, printKitchenTickets
 import toast from 'react-hot-toast';
 import {
   ShoppingCart, ShoppingBag, UtensilsCrossed, Trash2, Plus, Minus, X,
-  ChevronDown, ChevronUp, Tag, Banknote, Search,
+  ChevronDown, ChevronUp, Tag, Banknote,
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
-  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, Sparkles, PauseCircle, Gift
+  Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -964,7 +964,7 @@ export default function POS() {
     }
   };
 
-  const handleCustomerLookup = async (phoneStr, openModalIfNew = false) => {
+  const _handleCustomerLookup = async (phoneStr, openModalIfNew = false) => {
     const cleanPhone = (phoneStr || '').replace(/\D/g, '');
     if (cleanPhone.length < 8) return;
 
@@ -2683,231 +2683,160 @@ export default function POS() {
                 </div>
               )}
 
-              {/* Modern Segmented Order Type Control — with smooth spring gliding pill */}
-              {orderTypes.length > 1 && (
-                <div className="cart-type-tabs">
-                  <div
-                    className="cart-type-glider"
-                    style={{
-                      width: `calc((100% - ${(orderTypes.length - 1) * 4}px) / ${orderTypes.length})`,
-                      transform: `translate3d(calc(${activeOrderTypeIndex} * (100% + 4px)), 0, 0)`,
+              {/* Single-Line Touch Header: Order Mode Toggle + Table + Customer in 1 Line (42px height) */}
+              <div className="cart-unified-header-bar">
+                {/* 1. Single Clickable Order Mode Switcher */}
+                {orderTypes.length > 1 ? (
+                  <button
+                    type="button"
+                    className="cart-unified-mode-btn"
+                    id={`order-type-${orderType}`}
+                    onClick={() => {
+                      hapticTap('light');
+                      const nextIdx = (activeOrderTypeIndex + 1) % orderTypes.length;
+                      handleOrderTypeChange(orderTypes[nextIdx].key);
                     }}
-                    aria-hidden="true"
-                  />
-                  {orderTypes.map(ot => {
-                    const Icon = ot.Icon;
-                    const isActive = orderType === ot.key;
-                    return (
-                      <button
-                        key={ot.key}
-                        id={`order-type-${ot.key}`}
-                        type="button"
-                        className={`cart-type-tab ${isActive ? 'active' : ''}`}
-                        onClick={() => handleOrderTypeChange(ot.key)}
-                      >
-                        {Icon && <Icon size={14} className="cart-type-tab-icon" />}
-                        <span>{ot.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Option A: Compact 1-Row Meta Bar (34px height) — Table & Customer in 1 row */}
-              <div className="cart-meta-bar">
-                {orderType === 'dine-in' && !isBillOnly ? (
-                  <>
-                    {(restaurant?.features?.table || modes.includes('table')) && (
-                      <div className={`cart-meta-chip cart-meta-chip--table ${tableId ? 'is-assigned' : ''}`}>
-                        <button
-                          type="button"
-                          id="select-table-dropdown"
-                          className="cart-meta-chip-btn"
-                          onClick={() => {
-                            setTableSelAction('select');
-                            setShowTableSel(true);
-                          }}
-                          title={tableId ? `Table ${tableName} selected - click to switch` : (t('selectTable') || 'Select Table')}
-                        >
-                          <Armchair size={13} className="cart-meta-icon" />
-                          <span className="cart-meta-label">
-                            {tableId ? `Table ${tableName}` : (t('selectTable') || 'Select Table')}
-                          </span>
-                          {!tableId && <span className="cart-meta-badge">Map ▾</span>}
-                        </button>
-                        {tableId && (
-                          <button
-                            type="button"
-                            className="cart-meta-clear-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTable(null, null);
-                            }}
-                            title="Clear table assignment"
-                            aria-label="Clear table"
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Customer Chip (Inline beside Table) */}
-                    {customer ? (
-                      <div
-                        className="cart-meta-chip cart-meta-chip--customer is-assigned"
-                        onClick={() => {
-                          setModalInitialPhone(customer.phone || customerPhone || '');
-                          setShowCustomerModal(true);
-                        }}
-                        title="Edit customer details"
-                      >
-                        <button type="button" className="cart-meta-chip-btn">
-                          <User size={13} className="cart-meta-icon" />
-                          <span className="cart-meta-label">
-                            {customer.name || customerName || 'Customer'}
-                          </span>
-                          {Boolean(customer.points) && (
-                            <span className="cart-meta-points-chip">{customer.points}p</span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="cart-meta-clear-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCustomerProfile(null);
-                            setCustomer('', '');
-                            setRedeemingPoints(false);
-                            setCustSearch('');
-                          }}
-                          title="Remove customer"
-                          aria-label="Remove customer"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (customerName || customerPhone) ? (
-                      <div
-                        className="cart-meta-chip cart-meta-chip--customer is-assigned"
-                        onClick={() => {
-                          setModalInitialPhone(customerPhone || '');
-                          setShowCustomerModal(true);
-                        }}
-                        title="Edit customer details"
-                      >
-                        <button type="button" className="cart-meta-chip-btn">
-                          <User size={13} className="cart-meta-icon" />
-                          <span className="cart-meta-label">
-                            {customerName || customerPhone}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="cart-meta-clear-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCustomerProfile(null);
-                            setCustomer('', '');
-                            setRedeemingPoints(false);
-                            setCustSearch('');
-                          }}
-                          title="Remove customer"
-                          aria-label="Remove customer"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
+                    title={`Current: ${orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}. Tap to switch mode`}
+                  >
+                    {orderType === 'dine-in' ? (
+                      <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
                     ) : (
-                      <button
-                        type="button"
-                        className="cart-meta-chip cart-meta-chip--customer is-empty"
-                        onClick={() => {
-                          setModalInitialPhone('');
-                          setShowCustomerModal(true);
-                        }}
-                        title="Attach customer for loyalty / WhatsApp receipt"
-                      >
-                        <User size={13} className="cart-meta-icon" />
-                        <span className="cart-meta-label">+ Customer</span>
-                      </button>
+                      <ShoppingBag size={18} className="cart-unified-mode-icon" />
                     )}
-                  </>
+                    <span className="cart-unified-mode-label">
+                      {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : 'Takeaway')}
+                    </span>
+                    <ChevronDown size={13} className="cart-unified-mode-caret" />
+                  </button>
                 ) : (
-                  /* Takeaway Row */
-                  <div className="cart-takeaway-compact-wrap">
-                    {customer ? (
-                      <div
-                        className="cart-meta-chip cart-meta-chip--customer is-assigned"
-                        style={{ width: '100%' }}
-                        onClick={() => {
-                          setModalInitialPhone(customer.phone || customerPhone || '');
-                          setShowCustomerModal(true);
+                  <div className="cart-unified-mode-btn is-single">
+                    <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
+                    <span className="cart-unified-mode-label">Dine In</span>
+                  </div>
+                )}
+
+                {/* 2. Big-Icon Table Pill (Dine-In) */}
+                {orderType === 'dine-in' && !isBillOnly && (restaurant?.features?.table || modes.includes('table')) && (
+                  <div className={`cart-unified-chip cart-unified-chip--table ${tableId ? 'is-assigned' : ''}`}>
+                    <button
+                      type="button"
+                      id="select-table-dropdown"
+                      className="cart-unified-chip-main"
+                      onClick={() => {
+                        hapticTap('light');
+                        setTableSelAction('select');
+                        setShowTableSel(true);
+                      }}
+                      title={tableId ? `Table ${tableName} selected - click to switch` : 'Tap to select table from floor map'}
+                    >
+                      <Armchair size={19} className="cart-unified-icon" />
+                      <span className="cart-unified-label">
+                        {tableId ? `Table ${tableName}` : (t('selectTable') || 'Table')}
+                      </span>
+                      {!tableId && <span className="cart-unified-badge">Map ▾</span>}
+                    </button>
+                    {tableId && (
+                      <button
+                        type="button"
+                        className="cart-unified-clear-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap('light');
+                          setTable(null, null);
                         }}
-                        title="Edit customer details"
+                        title="Clear table assignment"
+                        aria-label="Clear table"
                       >
-                        <button type="button" className="cart-meta-chip-btn">
-                          <User size={13} className="cart-meta-icon" />
-                          <span className="cart-meta-label">
-                            👤 {customer.name || customerName || 'Customer'} · {customer.phone || customerPhone}
-                          </span>
-                          {Boolean(customer.points) && (
-                            <span className="cart-meta-points-chip">{customer.points}p</span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="cart-meta-clear-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCustomerProfile(null);
-                            setCustomer('', '');
-                            setRedeemingPoints(false);
-                            setCustSearch('');
-                          }}
-                          title="Remove customer"
-                          aria-label="Remove customer"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          className="cart-takeaway-compact-input"
-                          placeholder="Customer name (optional)"
-                          value={customerName}
-                          onChange={e => setCustomer(e.target.value, customerPhone)}
-                          id="customer-name-input"
-                        />
-                        <input
-                          className="cart-takeaway-compact-input"
-                          placeholder="Phone # (optional)"
-                          value={customerPhone}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setCustomer(customerName, val);
-                            if (val.replace(/\D/g, '').length >= 8) {
-                              handleCustomerLookup(val, false);
-                            }
-                          }}
-                          id="customer-phone-input"
-                        />
-                        <button
-                          type="button"
-                          className="cart-takeaway-loyalty-btn"
-                          onClick={() => {
-                            setModalInitialPhone(customerPhone || '');
-                            setShowCustomerModal(true);
-                          }}
-                          title="Search or register loyalty customer"
-                        >
-                          <User size={12} />
-                          <span>Loyalty</span>
-                        </button>
-                      </>
+                        <X size={14} strokeWidth={2.4} />
+                      </button>
                     )}
                   </div>
+                )}
+
+                {/* 3. Big-Icon Customer Pill */}
+                {customer ? (
+                  <div
+                    className="cart-unified-chip cart-unified-chip--customer is-assigned"
+                    onClick={() => {
+                      hapticTap('light');
+                      setModalInitialPhone(customer.phone || customerPhone || '');
+                      setShowCustomerModal(true);
+                    }}
+                    title="Edit customer details"
+                  >
+                    <button type="button" className="cart-unified-chip-main">
+                      <User size={19} className="cart-unified-icon" />
+                      <span className="cart-unified-label">
+                        {customer.name || customerName || 'Customer'}
+                      </span>
+                      {Boolean(customer.points) && (
+                        <span className="cart-unified-points-chip">{customer.points}p</span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="cart-unified-clear-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap('light');
+                        setCustomerProfile(null);
+                        setCustomer('', '');
+                        setRedeemingPoints(false);
+                        setCustSearch('');
+                      }}
+                      title="Remove customer"
+                      aria-label="Remove customer"
+                    >
+                      <X size={14} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ) : (customerName || customerPhone) ? (
+                  <div
+                    className="cart-unified-chip cart-unified-chip--customer is-assigned"
+                    onClick={() => {
+                      hapticTap('light');
+                      setModalInitialPhone(customerPhone || '');
+                      setShowCustomerModal(true);
+                    }}
+                    title="Edit customer details"
+                  >
+                    <button type="button" className="cart-unified-chip-main">
+                      <User size={19} className="cart-unified-icon" />
+                      <span className="cart-unified-label">
+                        {customerName || customerPhone}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="cart-unified-clear-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap('light');
+                        setCustomerProfile(null);
+                        setCustomer('', '');
+                        setRedeemingPoints(false);
+                        setCustSearch('');
+                      }}
+                      title="Remove customer"
+                      aria-label="Remove customer"
+                    >
+                      <X size={14} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="cart-unified-chip cart-unified-chip--customer is-empty"
+                    onClick={() => {
+                      hapticTap('light');
+                      setModalInitialPhone('');
+                      setShowCustomerModal(true);
+                    }}
+                    title="Attach or register customer for loyalty & receipts"
+                  >
+                    <UserPlus size={19} className="cart-unified-icon" />
+                    <span className="cart-unified-label">Customer</span>
+                  </button>
                 )}
               </div>
             </div>
