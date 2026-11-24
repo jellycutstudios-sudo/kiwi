@@ -742,10 +742,6 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                 fontSize: 15,
                 fontWeight: 800,
                 borderRadius: 10,
-                background: canConfirm ? '#dc2626' : undefined,
-                borderColor: canConfirm ? '#dc2626' : undefined,
-                boxShadow: canConfirm ? '0 4px 14px rgba(220, 38, 38, 0.35)' : undefined,
-                color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6
@@ -1050,8 +1046,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           <div
                             key={opt.id}
                             style={{
-                              background: '#dc2626',
-                              border: '2px solid #ef4444',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              border: '2px solid #10b981',
                               borderRadius: 12,
                               padding: '12px 14px',
                               minHeight: 84,
@@ -1059,8 +1055,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                               flexDirection: 'column',
                               justifyContent: 'space-between',
                               gap: 8,
-                              boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)',
-                              color: '#ffffff',
+                              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.22)',
                               boxSizing: 'border-box'
                             }}
                           >
@@ -1069,7 +1064,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                 <div style={{
                                   width: 20, height: 20,
                                   borderRadius: '50%',
-                                  background: 'rgba(255, 255, 255, 0.25)',
+                                  background: '#10b981',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   flexShrink: 0
                                 }}>
@@ -1077,8 +1072,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                 </div>
                                 <span style={{
                                   fontSize: '15px',
-                                  fontWeight: 900,
-                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                  color: 'var(--color-label)',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap'
@@ -1086,7 +1081,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                   {opt.name}
                                 </span>
                               </div>
-                              <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#ffffff', flexShrink: 0 }}>
+                              <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#10b981', flexShrink: 0 }}>
                                 {priceLabel}
                               </span>
                             </div>
@@ -1117,9 +1112,9 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                   borderRadius: 8,
                                   padding: 0,
                                   flexShrink: 0,
-                                  background: 'rgba(255, 255, 255, 0.25)',
-                                  border: 'none',
-                                  color: '#ffffff',
+                                  background: 'rgba(16, 185, 129, 0.16)',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  color: '#10b981',
                                   cursor: 'pointer'
                                 }}
                                 title={`Decrease ${opt.name} quantity`}
@@ -1146,9 +1141,9 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                   minWidth: 44,
                                   height: 34,
                                   borderRadius: 8,
-                                  border: '1px solid rgba(255, 255, 255, 0.4)',
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  color: '#ffffff',
+                                  border: '1.5px solid #10b981',
+                                  background: 'var(--color-bg)',
+                                  color: 'var(--color-label)',
                                   fontWeight: 900,
                                   fontSize: 15,
                                   display: 'flex',
@@ -1179,9 +1174,9 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                   borderRadius: 8,
                                   padding: 0,
                                   flexShrink: 0,
-                                  background: 'rgba(255, 255, 255, 0.25)',
-                                  border: 'none',
-                                  color: '#ffffff',
+                                  background: 'rgba(16, 185, 129, 0.16)',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  color: '#10b981',
                                   cursor: 'pointer'
                                 }}
                                 title={`Increase ${opt.name} quantity`}
@@ -1571,10 +1566,6 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                 fontSize: 15,
                 fontWeight: 800,
                 borderRadius: 10,
-                background: isValid ? '#dc2626' : undefined,
-                borderColor: isValid ? '#dc2626' : undefined,
-                boxShadow: isValid ? '0 4px 14px rgba(220, 38, 38, 0.35)' : undefined,
-                color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6
