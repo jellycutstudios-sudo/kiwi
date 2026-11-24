@@ -152,7 +152,7 @@ function QuantityBar({ qty, setQty, onOpenKeypad }) {
       </div>
 
       {/* Quick Quantity Chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
         {quickPresets.map(n => {
           const isSelected = Number(qty) === n;
           return (
@@ -177,7 +177,8 @@ function QuantityBar({ qty, setQty, onOpenKeypad }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.15s'
+                transition: 'all 0.15s',
+                flexShrink: 0
               }}
             >
               {n}
@@ -713,42 +714,31 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
           )}
         </div>
 
-        <div className="modal-footer" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderTop: '1px solid var(--color-separator)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-footer modifier-modal-footer">
+          <div className="modifier-modal-total">
             <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-label-tertiary)' }}>
               Total
             </span>
-            <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
               {formatCurrency(totalPrice, currency)}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="modifier-modal-actions">
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary modifier-modal-cancel"
               onClick={onClose}
-              style={{ height: 46, padding: '0 20px', fontSize: 14.5, fontWeight: 700, borderRadius: 10 }}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="btn btn-primary btn-lg"
+              className="btn btn-primary btn-lg modifier-modal-confirm"
               onClick={handleConfirm}
               disabled={!canConfirm}
-              style={{
-                height: 46,
-                padding: '0 26px',
-                fontSize: 15,
-                fontWeight: 800,
-                borderRadius: 10,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
             >
               {canConfirm
-                ? `Save · Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
+                ? `Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
                 : 'Select style & portion'}
             </button>
           </div>
@@ -1278,13 +1268,13 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                       placeholder="Search addon item..."
                       style={{
                         width: '100%',
-                        height: 42,
-                        padding: '0 36px 0 38px',
-                        borderRadius: 10,
+                        height: 38,
+                        padding: '0 32px 0 36px',
+                        borderRadius: 8,
                         border: '1.5px solid var(--color-separator)',
                         background: 'var(--color-bg-secondary)',
                         color: 'var(--color-label)',
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: 600,
                         outline: 'none',
                         boxSizing: 'border-box'
@@ -1338,10 +1328,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                         onClick={() => handleSelect(group, opt)}
                         style={{
                           background: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg-elevated)',
-                          borderTop: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
-                          borderRight: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
-                          borderBottom: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
-                          borderLeft: '4.5px solid #10b981',
+                          border: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
+                          borderLeft: isSelected ? '4.5px solid #10b981' : '1.5px solid var(--color-separator)',
                           borderRadius: 10,
                           padding: '12px 14px',
                           minHeight: 66,
@@ -1537,42 +1525,31 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           )}
         </div>
 
-        <div className="modal-footer" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderTop: '1px solid var(--color-separator)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-footer modifier-modal-footer">
+          <div className="modifier-modal-total">
             <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-label-tertiary)' }}>
               Total
             </span>
-            <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
               {formatCurrency(totalPrice, currency)}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="modifier-modal-actions">
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary modifier-modal-cancel"
               onClick={onClose}
-              style={{ height: 46, padding: '0 20px', fontSize: 14.5, fontWeight: 700, borderRadius: 10 }}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="btn btn-primary btn-lg"
+              className="btn btn-primary btn-lg modifier-modal-confirm"
               onClick={handleSubmit}
               disabled={!isValid}
-              style={{
-                height: 46,
-                padding: '0 26px',
-                fontSize: 15,
-                fontWeight: 800,
-                borderRadius: 10,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
             >
               {isValid
-                ? `Save · Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
+                ? `Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
                 : `Select ${multiQtyGroup?.name ?? 'options'}`}
             </button>
           </div>

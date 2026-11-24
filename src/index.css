@@ -1844,6 +1844,80 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   gap: var(--space-3);
 }
 
+/* Modifier Modal Responsive Footer & Mobile Protection */
+.modifier-modal-footer {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-separator);
+  background: var(--color-bg-elevated);
+  flex-shrink: 0;
+}
+
+.modifier-modal-total {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.modifier-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.modifier-modal-cancel {
+  height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.modifier-modal-confirm {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 14.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .modifier-modal-footer {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .modifier-modal-cancel {
+    display: none !important; /* [X] button at top of bottom-sheet already closes on mobile */
+  }
+  .modifier-modal-actions {
+    flex: 1;
+  }
+  .modifier-modal-confirm {
+    width: 100% !important;
+    flex: 1 !important;
+    padding: 0 12px !important;
+    font-size: 13.5px !important;
+    height: 44px !important;
+  }
+  .modifier-modal-total span:last-child {
+    font-size: 19px !important;
+  }
+}
+
 /* ============================================================
    Variant Matrix Picker (2-step style → portion selector)
    ============================================================ */
