@@ -149,6 +149,35 @@ export default function MobileWaiterHandheld({
 
   // Sheet States
   const [showTableSheet, setShowTableSheet] = useState(false);
+  const [tableSearch, setTableSearch] = useState('');
+  const [tableFilter, setTableFilter] = useState('all'); // 'all' | 'free' | 'occupied'
+
+  const tableCounts = useMemo(() => {
+    let free = 0;
+    let occupied = 0;
+    tables.forEach(t => {
+      const isOcc = Boolean(tableOrders[t.id]) || t.status === 'occupied';
+      if (isOcc) occupied++;
+      else free++;
+    });
+    return { all: tables.length, free, occupied };
+  }, [tables, tableOrders]);
+
+  const filteredTables = useMemo(() => {
+    return tables.filter(tbl => {
+      const activeOrder = tableOrders[tbl.id];
+      const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
+      if (tableFilter === 'free' && isOccupied) return false;
+      if (tableFilter === 'occupied' && !isOccupied) return false;
+      if (tableSearch.trim()) {
+        const q = tableSearch.toLowerCase().trim();
+        const rawName = (tbl.name || '').toLowerCase();
+        const cleanName = rawName.replace(/^table\s+/i, '');
+        return rawName.includes(q) || cleanName.includes(q);
+      }
+      return true;
+    });
+  }, [tables, tableOrders, tableFilter, tableSearch]);
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   const [keypadItem, setKeypadItem] = useState(null);
@@ -1302,67 +1331,153 @@ export default function MobileWaiterHandheld({
         </div>
       )}
 
-      {/* ── Mobile Table Selector Bottom Sheet ──────────────────────── */}
+      {/* ── Mobile Table Selector Bottom Sheet (Maximum Space & Minimal Info) ─────────── */}
       {showTableSheet && (
         <div className="handheld-sheet-overlay" onClick={() => setShowTableSheet(false)}>
-          <div className="handheld-sheet animate-slide-up" onClick={e => e.stopPropagation()}>
+          <div className="handheld-sheet handheld-sheet--table-selector animate-slide-up" onClick={e => e.stopPropagation()}>
+            {/* Touch Drag Handle Pill */}
+            <div className="handheld-sheet-drag-pill" />
+
             <div className="handheld-sheet-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 18 }}>🪑</span>
-                <span style={{ fontWeight: 800, fontSize: 16 }}>Floor Tables</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>Floor Tables</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                    {tableCounts.free} Free · {tableCounts.occupied} Occupied
+                  </div>
+                </div>
               </div>
-              <button 
-                type="button" 
-                className="handheld-sheet-close"
-                onClick={() => setShowTableSheet(false)}
-              >
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {tableId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap('light');
+                      setTable(null, null);
+                      setOrderType('takeaway');
+                      setShowTableSheet(false);
+                    }}
+                    className="handheld-table-clear-btn"
+                    title="Switch to Takeaway (No table)"
+                  >
+                    Clear Table
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  className="handheld-sheet-close"
+                  onClick={() => setShowTableSheet(false)}
+                  aria-label="Close table sheet"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="handheld-sheet-body">
-              <div className="handheld-table-grid">
-                {tables.map(tbl => {
-                  const activeOrder = tableOrders[tbl.id];
-                  const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
-                  const isCurrent = tbl.id === tableId;
-                  const readyItems = (activeOrder?.items || []).filter(i => i.status === 'ready');
-                  const hasFoodReady = activeOrder && (activeOrder.status === 'ready' || readyItems.length > 0);
-
-                  return (
-                    <button
-                      key={tbl.id}
-                      type="button"
-                      className={`handheld-table-card ${hasFoodReady ? 'ready' : (isOccupied ? 'occupied' : 'free')} ${isCurrent ? 'current' : ''}`}
-                      onClick={() => handleSelectTable(tbl)}
-                    >
-                      <div className="handheld-table-card-top">
-                        <span className="handheld-table-card-title">Table {tbl.name}</span>
-                        {hasFoodReady ? (
-                          <span style={{ fontSize: 9.5, background: '#10b981', color: '#000', padding: '1px 5px', borderRadius: 4, fontWeight: 900 }}>
-                            🔔 READY
-                          </span>
-                        ) : (
-                          <span className={`handheld-table-status-dot ${isOccupied ? 'occupied' : 'free'}`} />
-                        )}
-                      </div>
-                      
-                      <div className="handheld-table-card-meta">
-                        <span>👥 {tbl.capacity || 2} Seats</span>
-                        {hasFoodReady ? (
-                          <span style={{ fontWeight: 800, color: '#10b981', fontSize: 11 }}>
-                            {readyItems.length > 0 ? `${readyItems.length} at Pass` : 'Food at Pass'}
-                          </span>
-                        ) : isOccupied && activeOrder?.total ? (
-                          <span style={{ fontWeight: 800, color: 'var(--color-accent)' }}>
-                            {formatCurrency(activeOrder.total, currency)}
-                          </span>
-                        ) : null}
-                      </div>
-                    </button>
-                  );
-                })}
+            {/* Quick Filter Bar (Search + Free / Occupied filter) */}
+            <div className="handheld-table-filter-bar">
+              <div className="handheld-table-search-box">
+                <Search size={14} className="handheld-table-search-icon" />
+                <input
+                  type="text"
+                  className="handheld-table-search-input"
+                  placeholder="Search table (e.g. T3, G7)..."
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                />
+                {tableSearch && (
+                  <button
+                    type="button"
+                    className="handheld-table-search-clear"
+                    onClick={() => setTableSearch('')}
+                    aria-label="Clear table search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
+
+              <div className="handheld-table-status-pills">
+                <button
+                  type="button"
+                  className={`handheld-table-pill ${tableFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setTableFilter('all'); }}
+                >
+                  All ({tableCounts.all})
+                </button>
+                <button
+                  type="button"
+                  className={`handheld-table-pill handheld-table-pill--free ${tableFilter === 'free' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setTableFilter('free'); }}
+                >
+                  <span className="handheld-status-dot-mini free" /> Free ({tableCounts.free})
+                </button>
+                <button
+                  type="button"
+                  className={`handheld-table-pill handheld-table-pill--occupied ${tableFilter === 'occupied' ? 'active' : ''}`}
+                  onClick={() => { hapticTap('light'); setTableFilter('occupied'); }}
+                >
+                  <span className="handheld-status-dot-mini occupied" /> Occupied ({tableCounts.occupied})
+                </button>
+              </div>
+            </div>
+
+            <div className="handheld-sheet-body handheld-sheet-body--tables">
+              {filteredTables.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--color-label-secondary)' }}>
+                  <p style={{ fontWeight: 700, fontSize: 14 }}>No tables found</p>
+                  <p style={{ fontSize: 12, marginTop: 4 }}>Try clearing search or changing status filter</p>
+                </div>
+              ) : (
+                <div className="handheld-table-grid">
+                  {filteredTables.map(tbl => {
+                    const activeOrder = tableOrders[tbl.id];
+                    const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
+                    const isCurrent = tbl.id === tableId;
+                    const readyItems = (activeOrder?.items || []).filter(i => i.status === 'ready');
+                    const hasFoodReady = activeOrder && (activeOrder.status === 'ready' || readyItems.length > 0);
+                    const cleanName = (tbl.name || '').replace(/^table\s+/i, '') || tbl.name;
+
+                    return (
+                      <button
+                        key={tbl.id}
+                        type="button"
+                        className={`handheld-table-card ${hasFoodReady ? 'ready' : (isOccupied ? 'occupied' : 'free')} ${isCurrent ? 'current' : ''}`}
+                        onClick={() => handleSelectTable(tbl)}
+                      >
+                        <div className="handheld-table-card-top">
+                          <span className="handheld-table-card-title">{cleanName}</span>
+                          <span className="handheld-table-capacity-pill">{tbl.capacity || 2}p</span>
+                        </div>
+                        
+                        <div className="handheld-table-card-meta">
+                          {hasFoodReady ? (
+                            <span className="handheld-table-ready-badge">
+                              🔔 READY
+                            </span>
+                          ) : isOccupied ? (
+                            <span className="handheld-table-occupied-info">
+                              <span className="handheld-table-status-dot occupied" />
+                              <span className="handheld-table-price">
+                                {activeOrder?.total ? formatCurrency(activeOrder.total, currency) : 'Occupied'}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="handheld-table-free-info">
+                              <span className="handheld-table-status-dot free" />
+                              <span>Free</span>
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span className="handheld-table-selected-badge">✓ Selected</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
