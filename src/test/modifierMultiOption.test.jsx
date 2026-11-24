@@ -289,3 +289,91 @@ describe('ModifierModal — Variant Matrix multi-style tabbed selection (e.g. Gr
     expect(bulkItems[1].selectedModifiers.map(m => m.name)).toEqual(['Paste', 'Full']);
   });
 });
+
+describe('ModifierModal — Petpooja Style Variations & Sides workflow', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  const bhaajiPav = {
+    id: 'item_bhaaji_pav',
+    name: 'Bhaaji Pav',
+    price: 0,
+    modifierGroups: [
+      {
+        id: 'grp_variation',
+        name: 'Variation',
+        required: true,
+        maxSelect: 1,
+        options: [
+          { id: 'opt_oil', name: 'Oil', priceAdd: 300 },
+          { id: 'opt_butter', name: 'Butter', priceAdd: 400 },
+        ],
+      },
+      {
+        id: 'grp_sides',
+        name: 'Sides',
+        required: false,
+        maxSelect: 5,
+        options: [
+          { id: 'opt_onions', name: 'Onions', priceAdd: 25 },
+          { id: 'opt_coriander', name: 'Coriander Chutney', priceAdd: 25 },
+          { id: 'opt_curd', name: 'Curd', priceAdd: 25 },
+          { id: 'opt_pudina', name: 'Pudina Chutney', priceAdd: 25 },
+        ],
+      },
+    ],
+  };
+
+  it('selects Butter variation with Onions and Coriander Chutney sides accurately', () => {
+    const onConfirm = vi.fn();
+    render(
+      <ModifierModal
+        item={bhaajiPav}
+        currency="INR"
+        onConfirm={onConfirm}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Initial state: variation required
+    expect(screen.getByRole('button', { name: /Select Variation/i }).disabled).toBe(true);
+
+    // Select Butter variation (₹400)
+    fireEvent.click(screen.getByRole('button', { name: /Butter/i }));
+    expect(screen.getAllByText(/₹400\.00/).length).toBeGreaterThanOrEqual(1);
+
+    // Select Onions (+₹25) and Coriander Chutney (+₹25)
+    fireEvent.click(screen.getByRole('button', { name: /Onions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Coriander Chutney/i }));
+
+    // Total: 400 + 25 + 25 = ₹450.00
+    const confirmBtn = screen.getByRole('button', { name: /Add to Cart · ₹450\.00/i });
+    expect(confirmBtn.disabled).toBe(false);
+    fireEvent.click(confirmBtn);
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const [mods, flatPrice, qty] = onConfirm.mock.calls[0];
+    expect(mods.map(m => m.name)).toEqual(['Butter', 'Onions', 'Coriander Chutney']);
+    expect(qty).toBe(1);
+  });
+
+  it('filters sides via search addon item input', () => {
+    render(
+      <ModifierModal
+        item={bhaajiPav}
+        currency="INR"
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const searchInput = screen.getByPlaceholderText(/Search addon item/i);
+    fireEvent.change(searchInput, { target: { value: 'Pudina' } });
+
+    // Pudina Chutney should be visible, while Onions should be filtered out
+    expect(screen.getByRole('button', { name: /Pudina Chutney/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Onions/i })).toBeNull();
+  });
+});

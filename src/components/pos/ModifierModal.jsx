@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Check, ChevronRight, Plus, Minus, Hash } from 'lucide-react';
+import { X, Check, ChevronRight, Plus, Minus, Hash, Search } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { getItemVisuals } from '../../utils/itemVisuals';
@@ -713,24 +713,49 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
           )}
         </div>
 
-        <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
-          <button
-            className="btn btn-secondary"
-            onClick={onClose}
-            style={{ height: 50, padding: '0 24px', fontSize: 15, fontWeight: 700, borderRadius: 12 }}
-          >
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary btn-lg"
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-            style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
-          >
-            {canConfirm
-              ? `Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
-              : 'Select style & portion'}
-          </button>
+        <div className="modal-footer" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderTop: '1px solid var(--color-separator)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-label-tertiary)' }}>
+              Total
+            </span>
+            <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {formatCurrency(totalPrice, currency)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+              style={{ height: 46, padding: '0 20px', fontSize: 14.5, fontWeight: 700, borderRadius: 10 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              style={{
+                height: 46,
+                padding: '0 26px',
+                fontSize: 15,
+                fontWeight: 800,
+                borderRadius: 10,
+                background: canConfirm ? '#dc2626' : undefined,
+                borderColor: canConfirm ? '#dc2626' : undefined,
+                boxShadow: canConfirm ? '0 4px 14px rgba(220, 38, 38, 0.35)' : undefined,
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {canConfirm
+                ? `Save · Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
+                : 'Select style & portion'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -794,6 +819,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   const [optionQuantities, setOptionQuantities] = useState({});
   const [qty, setQty] = useState(1);
   const [keypadTarget, setKeypadTarget] = useState(null);
+  const [addonSearch, setAddonSearch] = useState('');
   const modalRef = useRef(null);
   useFocusTrap(modalRef, !!item);
 
@@ -804,12 +830,14 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
     setOptionQuantities({});
     setQty(1);
     setKeypadTarget(null);
+    setAddonSearch('');
   }
 
   if (!item) return null;
 
   const effectiveQty = Math.max(1, parseInt(qty, 10) || 1);
   const basePrice = item.price ?? 0;
+  const hasAddonGroups = modifierGroups.some(g => g.id !== multiQtyGroup?.id);
 
   const handleSelect = (group, option) => {
     const groupId = group.id;
@@ -931,8 +959,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 620, width: 'min(620px, 94vw)' }}>
-        <div className="modal-header" style={{ padding: '16px 20px' }}>
+      <div className="modal animate-slide-up" ref={modalRef} style={{ maxWidth: 640, width: 'min(640px, 95vw)' }}>
+        <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-separator)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {(() => {
               const visuals = getItemVisuals(item);
@@ -960,7 +988,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
               );
             })()}
             <div>
-              <h2 className="modal-title" style={{ fontSize: 19, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+              <h2 className="modal-title" style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: '-0.01em', color: 'var(--color-label)' }}>
                 {item.name}
               </h2>
               <div style={{ fontSize: 13, color: 'var(--color-label-secondary)', marginTop: 2 }}>
@@ -968,7 +996,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                   ? `${activeOptionEntries.map(e => `${e.qty} ${e.opt.name}`).join(' + ')} — ${totalItemCount} items`
                   : basePrice > 0
                     ? `Base Price: ${formatCurrency(basePrice, currency)}`
-                    : 'Select your portion / options'}
+                    : 'Select your variation & sides'}
               </div>
             </div>
           </div>
@@ -977,8 +1005,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {modifierGroups.map(group => {
+        <div className="modal-body" style={{ maxHeight: '62vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '18px 20px' }}>
+          {modifierGroups.map((group, groupIdx) => {
             const isMultiGroup = multiQtyGroup && group.id === multiQtyGroup.id;
             const groupSelections = selections[group.id] ?? [];
             const satisfied = isGroupSatisfied(group);
@@ -986,10 +1014,12 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
             if (isMultiGroup) {
               return (
-                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                      <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{group.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-label-secondary)' }}>
+                        {group.name || 'Variation'}
+                      </span>
                       {group.required && (
                         <span className={`badge ${satisfied ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
                           {satisfied ? `✓ ${totalItemCount} selected` : 'Required'}
@@ -1001,12 +1031,12 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-tertiary)' }}>
-                      Select one or more
+                    <span style={{ fontSize: 12, color: 'var(--color-label-tertiary)' }}>
+                      {maxSelect === 1 ? 'Choose 1' : 'Select one or more'}
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
                     {group.options?.map(opt => {
                       const hasOpt = Object.prototype.hasOwnProperty.call(optionQuantities, opt.id);
                       const currentQty = hasOpt ? Math.max(1, parseInt(optionQuantities[opt.id], 10) || 1) : 0;
@@ -1020,17 +1050,18 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           <div
                             key={opt.id}
                             style={{
-                              background: 'var(--color-accent-light)',
-                              border: '2px solid var(--color-accent)',
-                              borderRadius: 'var(--radius-lg)',
+                              background: '#dc2626',
+                              border: '2px solid #ef4444',
+                              borderRadius: 12,
                               padding: '12px 14px',
-                              minHeight: 86,
+                              minHeight: 84,
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              gap: 10,
-                              transition: 'all var(--duration-fast) var(--ease-out)',
-                              boxShadow: '0 4px 12px rgba(0,122,255,0.15)',
+                              gap: 8,
+                              boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)',
+                              color: '#ffffff',
+                              boxSizing: 'border-box'
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -1038,7 +1069,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                 <div style={{
                                   width: 20, height: 20,
                                   borderRadius: '50%',
-                                  background: 'var(--color-accent)',
+                                  background: 'rgba(255, 255, 255, 0.25)',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   flexShrink: 0
                                 }}>
@@ -1046,8 +1077,8 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                 </div>
                                 <span style={{
                                   fontSize: '15px',
-                                  fontWeight: 800,
-                                  color: 'var(--color-accent)',
+                                  fontWeight: 900,
+                                  color: '#ffffff',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap'
@@ -1055,7 +1086,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                   {opt.name}
                                 </span>
                               </div>
-                              <span style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--color-accent)', flexShrink: 0 }}>
+                              <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#ffffff', flexShrink: 0 }}>
                                 {priceLabel}
                               </span>
                             </div>
@@ -1066,7 +1097,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                             >
                               <button
                                 type="button"
-                                className="btn btn-secondary btn-icon"
+                                className="btn btn-icon"
                                 onClick={() => {
                                   hapticTap('light');
                                   setOptionQuantities(prev => {
@@ -1080,7 +1111,17 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                     return next;
                                   });
                                 }}
-                                style={{ width: 34, height: 34, borderRadius: 8, padding: 0, flexShrink: 0 }}
+                                style={{
+                                  width: 34,
+                                  height: 34,
+                                  borderRadius: 8,
+                                  padding: 0,
+                                  flexShrink: 0,
+                                  background: 'rgba(255, 255, 255, 0.25)',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  cursor: 'pointer'
+                                }}
                                 title={`Decrease ${opt.name} quantity`}
                                 aria-label={`Decrease ${opt.name} quantity`}
                               >
@@ -1105,9 +1146,9 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                   minWidth: 44,
                                   height: 34,
                                   borderRadius: 8,
-                                  border: '1.5px solid var(--color-accent)',
-                                  background: 'var(--color-bg)',
-                                  color: 'var(--color-label)',
+                                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                                  background: 'rgba(255, 255, 255, 0.15)',
+                                  color: '#ffffff',
                                   fontWeight: 900,
                                   fontSize: 15,
                                   display: 'flex',
@@ -1124,7 +1165,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
                               <button
                                 type="button"
-                                className="btn btn-secondary btn-icon"
+                                className="btn btn-icon"
                                 onClick={() => {
                                   hapticTap('light');
                                   setOptionQuantities(prev => ({
@@ -1132,7 +1173,17 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                                     [opt.id]: Math.min(999, (parseInt(prev[opt.id], 10) || 0) + 1)
                                   }));
                                 }}
-                                style={{ width: 34, height: 34, borderRadius: 8, padding: 0, flexShrink: 0 }}
+                                style={{
+                                  width: 34,
+                                  height: 34,
+                                  borderRadius: 8,
+                                  padding: 0,
+                                  flexShrink: 0,
+                                  background: 'rgba(255, 255, 255, 0.25)',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  cursor: 'pointer'
+                                }}
                                 title={`Increase ${opt.name} quantity`}
                                 aria-label={`Increase ${opt.name} quantity`}
                               >
@@ -1152,11 +1203,11 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                             setOptionQuantities(prev => ({ ...prev, [opt.id]: 1 }));
                           }}
                           style={{
-                            background: 'var(--color-bg-elevated)',
-                            border: '2px solid var(--color-separator-opaque)',
-                            borderRadius: 'var(--radius-lg)',
+                            background: 'var(--color-bg-secondary)',
+                            border: '1.5px solid var(--color-separator)',
+                            borderRadius: 12,
                             padding: '14px 16px',
-                            minHeight: 86,
+                            minHeight: 84,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
@@ -1166,30 +1217,31 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                             fontFamily: 'var(--font-family)',
                             touchAction: 'manipulation',
                             boxShadow: 'var(--shadow-sm)',
+                            boxSizing: 'border-box'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{
-                              width: 24, height: 24,
+                              width: 22, height: 22,
                               borderRadius: '50%',
-                              border: '1.5px solid var(--color-separator-opaque)',
-                              background: 'var(--color-bg-secondary)',
+                              border: '1.5px solid var(--color-separator)',
+                              background: 'var(--color-bg-elevated)',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               color: 'var(--color-label-secondary)',
                               flexShrink: 0
                             }}>
-                              <Plus size={13} strokeWidth={2.5} />
+                              <Plus size={12} strokeWidth={2.5} />
                             </div>
                             <span style={{
                               fontSize: '15px',
-                              fontWeight: 700,
+                              fontWeight: 800,
                               color: 'var(--color-label)'
                             }}>
                               {opt.name}
                             </span>
                           </div>
                           <span style={{
-                            fontSize: opt.priceAdd > 0 ? '14.5px' : '13px',
+                            fontSize: opt.priceAdd > 0 ? '14px' : '13px',
                             fontWeight: opt.priceAdd > 0 ? 800 : 600,
                             color: opt.priceAdd > 0 ? 'var(--color-label-secondary)' : 'var(--color-label-tertiary)'
                           }}>
@@ -1203,23 +1255,86 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
               );
             }
 
+            // Optional sides / add-ons / extras
+            const filteredOptions = (group.options ?? []).filter(opt =>
+              !addonSearch.trim() || opt.name.toLowerCase().includes(addonSearch.toLowerCase().trim())
+            );
+
             return (
-              <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Search addon item bar rendered right before the first addon group */}
+                {hasAddonGroups && (groupIdx === 0 || (multiQtyGroup && groupIdx === 1)) && (
+                  <div style={{ position: 'relative', marginTop: 2, marginBottom: 2 }}>
+                    <Search
+                      size={16}
+                      style={{
+                        position: 'absolute',
+                        left: 14,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--color-label-tertiary)',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={addonSearch}
+                      onChange={e => setAddonSearch(e.target.value)}
+                      placeholder="Search addon item..."
+                      style={{
+                        width: '100%',
+                        height: 42,
+                        padding: '0 36px 0 38px',
+                        borderRadius: 10,
+                        border: '1.5px solid var(--color-separator)',
+                        background: 'var(--color-bg-secondary)',
+                        color: 'var(--color-label)',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    {addonSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setAddonSearch('')}
+                        style={{
+                          position: 'absolute',
+                          right: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-label-tertiary)',
+                          cursor: 'pointer',
+                          padding: 4
+                        }}
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <span style={{ fontWeight: 'var(--weight-bold)', fontSize: 'var(--text-subhead)' }}>{group.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-label-secondary)' }}>
+                      {group.name}
+                    </span>
                     {group.required && (
                       <span className={`badge ${satisfied ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
                         {satisfied ? '✓ Selected' : 'Required'}
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: 'var(--text-caption2)', color: 'var(--color-label-tertiary)' }}>
-                    {maxSelect === 1 ? 'Choose 1' : `Choose up to ${maxSelect}`}
+                  <span style={{ fontSize: 12, color: 'var(--color-label-tertiary)' }}>
+                    {maxSelect === 1 ? 'Choose 1' : maxSelect ? `Choose up to ${maxSelect}` : 'Optional'}
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
-                  {group.options?.map(opt => {
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+                  {filteredOptions.map(opt => {
                     const isSelected = groupSelections.some(o => o.id === opt.id);
                     return (
                       <button
@@ -1227,54 +1342,79 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                         type="button"
                         onClick={() => handleSelect(group, opt)}
                         style={{
-                          background: isSelected ? 'var(--color-accent-light)' : 'var(--color-bg-elevated)',
-                          border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-separator-opaque)'}`,
-                          borderRadius: 'var(--radius-lg)',
-                          padding: '14px 18px',
-                          minHeight: 56,
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg-elevated)',
+                          borderTop: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
+                          borderRight: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
+                          borderBottom: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
+                          borderLeft: '4.5px solid #10b981',
+                          borderRadius: 10,
+                          padding: '12px 14px',
+                          minHeight: 66,
                           display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
                           alignItems: 'center',
-                          justifyContent: 'space-between',
                           cursor: 'pointer',
                           transition: 'all var(--duration-fast) var(--ease-out)',
-                          textAlign: 'left',
+                          textAlign: 'center',
                           fontFamily: 'var(--font-family)',
                           touchAction: 'manipulation',
-                          boxShadow: isSelected ? '0 4px 12px rgba(0,122,255,0.15)' : 'var(--shadow-sm)',
+                          position: 'relative',
+                          boxShadow: isSelected ? '0 4px 12px rgba(16, 185, 129, 0.22)' : 'var(--shadow-sm)',
+                          boxSizing: 'border-box'
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                        {isSelected && (
                           <div style={{
-                            width: 22, height: 22,
-                            borderRadius: maxSelect === 1 ? '50%' : 'var(--radius-xs)',
-                            border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-label-tertiary)'}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: isSelected ? 'var(--color-accent)' : 'transparent',
-                            transition: 'all var(--duration-fast)',
-                            flexShrink: 0
+                            position: 'absolute',
+                            top: 6,
+                            right: 6,
+                            width: 17,
+                            height: 17,
+                            borderRadius: '50%',
+                            background: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}>
-                            {isSelected && <Check size={13} color="#ffffff" strokeWidth={3} />}
+                            <Check size={11} color="#ffffff" strokeWidth={3} />
                           </div>
-                          <span style={{
-                            fontSize: '15px',
-                            fontWeight: isSelected ? 800 : 600,
-                            color: isSelected ? 'var(--color-accent)' : 'var(--color-label)'
-                          }}>
-                            {opt.name}
-                          </span>
-                        </div>
-                        {opt.priceAdd > 0 ? (
-                          <span style={{ fontSize: '14.5px', fontWeight: 800, color: isSelected ? 'var(--color-accent)' : 'var(--color-label-secondary)' }}>
-                            {basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '13px', color: 'var(--color-label-tertiary)' }}>
-                            {basePrice === 0 ? formatCurrency(0, currency) : 'Included'}
-                          </span>
                         )}
+                        <span style={{
+                          fontSize: '14.5px',
+                          fontWeight: isSelected ? 800 : 700,
+                          color: isSelected ? '#10b981' : 'var(--color-label)',
+                          marginBottom: 3
+                        }}>
+                          {opt.name}
+                        </span>
+                        <span style={{
+                          fontSize: '13px',
+                          fontWeight: 800,
+                          color: isSelected ? '#10b981' : 'var(--color-label-secondary)'
+                        }}>
+                          {opt.priceAdd > 0
+                            ? (basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`)
+                            : (basePrice === 0 ? formatCurrency(0, currency) : 'Included')}
+                        </span>
                       </button>
                     );
                   })}
+
+                  {filteredOptions.length === 0 && (
+                    <div style={{
+                      gridColumn: '1 / -1',
+                      padding: '14px',
+                      textAlign: 'center',
+                      fontSize: 13,
+                      color: 'var(--color-label-tertiary)',
+                      fontStyle: 'italic',
+                      background: 'var(--color-bg-secondary)',
+                      borderRadius: 8
+                    }}>
+                      No sides matching &quot;{addonSearch}&quot;
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -1402,24 +1542,49 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
           )}
         </div>
 
-        <div className="modal-footer" style={{ padding: '16px 20px', gap: 12 }}>
-          <button
-            className="btn btn-secondary"
-            onClick={onClose}
-            style={{ height: 50, padding: '0 24px', fontSize: 15, fontWeight: 700, borderRadius: 12 }}
-          >
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary btn-lg"
-            onClick={handleSubmit}
-            disabled={!isValid}
-            style={{ height: 50, padding: '0 28px', fontSize: 16, fontWeight: 800, borderRadius: 12, flex: 1 }}
-          >
-            {isValid
-              ? `Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
-              : `Select ${multiQtyGroup?.name ?? 'options'}`}
-          </button>
+        <div className="modal-footer" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderTop: '1px solid var(--color-separator)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-label-tertiary)' }}>
+              Total
+            </span>
+            <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--color-label)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {formatCurrency(totalPrice, currency)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+              style={{ height: 46, padding: '0 20px', fontSize: 14.5, fontWeight: 700, borderRadius: 10 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={handleSubmit}
+              disabled={!isValid}
+              style={{
+                height: 46,
+                padding: '0 26px',
+                fontSize: 15,
+                fontWeight: 800,
+                borderRadius: 10,
+                background: isValid ? '#dc2626' : undefined,
+                borderColor: isValid ? '#dc2626' : undefined,
+                boxShadow: isValid ? '0 4px 14px rgba(220, 38, 38, 0.35)' : undefined,
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {isValid
+                ? `Save · Add ${totalItemCount > 1 ? `${totalItemCount} ` : ''}to Cart · ${formatCurrency(totalPrice, currency)}`
+                : `Select ${multiQtyGroup?.name ?? 'options'}`}
+            </button>
+          </div>
         </div>
       </div>
 
