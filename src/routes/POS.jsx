@@ -317,6 +317,28 @@ export default function POS() {
     addItem(item);
   };
 
+  const handleDecreaseItem = (menuItem) => {
+    hapticTap('light');
+    const matching = items.filter(it => it.id === menuItem.id || it.menuItemId === menuItem.id);
+    if (matching.length === 0) return;
+    const target = matching[matching.length - 1];
+    if (target.qty > 1) {
+      updateQty(target.id, target.qty - 1, target.selectedModifiers);
+    } else {
+      removeItem(target.id, target.selectedModifiers);
+    }
+  };
+
+  const handleIncreaseItem = (menuItem) => {
+    hapticTap('light');
+    const hasModifiers = menuItem.modifierGroups && menuItem.modifierGroups.length > 0;
+    if (hasModifiers) {
+      setActiveModifierItem(menuItem);
+    } else {
+      handleAddItem(menuItem);
+    }
+  };
+
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const userRole = staffDoc?.role ?? 'admin';
@@ -1777,184 +1799,105 @@ export default function POS() {
               </div>
               {!isBistro && <div className="pos-bar-divider" />}
 
-              {/* Template 1 vs Template 2 Category Display */}
-              {isBistro ? (
-                /* Template 2: Vertical Left Sidebar Rail (Toast POS Chromatic Indexing) */
-                <div className="pos-category-scroll">
-                  {/* All Items Quick Toggle */}
-                  {(() => {
-                    const colors = getCategoryChromaticColors('all');
-                    const isActive = activeCat === 'all';
-                    return (
-                      <button
-                        id="cat-all"
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        className={`category-chip ${isActive ? 'active' : ''}`}
-                        onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                        title="View All Menu Items"
-                        style={{
-                          '--cat-stripe': colors.stripe,
-                          '--cat-active-bg': colors.activeBg,
-                          '--cat-active-text': colors.activeText,
-                        }}
-                      >
-                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
-                        <span className="category-chip-name">All Items</span>
-                      </button>
-                    );
-                  })()}
+              {/* Category Display (Horizontal Scrollable Chromatic Bar for Template 1, Vertical Rail for Template 2) */}
+              <div className="pos-category-scroll" role="tablist">
+                {/* All Items Quick Toggle */}
+                {(() => {
+                  const colors = getCategoryChromaticColors('all');
+                  const isActive = activeCat === 'all';
+                  return (
+                    <button
+                      id="cat-all"
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`category-chip ${isActive ? 'active' : ''}`}
+                      onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                      title="View All Menu Items"
+                      style={{
+                        '--cat-stripe': colors.stripe,
+                        '--cat-active-bg': colors.activeBg,
+                        '--cat-active-text': colors.activeText,
+                      }}
+                    >
+                      <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                      <span className="category-chip-name">All Items</span>
+                    </button>
+                  );
+                })()}
 
-                  {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
-                  {activeOffers.length > 0 && (() => {
-                    const colors = getCategoryChromaticColors('deals');
-                    const isActive = activeCat === 'deals';
-                    return (
-                      <button
-                        id="cat-deals-rail"
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        className={`category-chip ${isActive ? 'active' : ''}`}
-                        onClick={() => { hapticTap('light'); setActiveCat(isActive ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
-                        title="View All Promotional Deals & BOGO Items"
-                        style={{
-                          '--cat-stripe': colors.stripe,
-                          '--cat-active-bg': colors.activeBg,
-                          '--cat-active-text': colors.activeText,
-                        }}
-                      >
-                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
-                        <span className="category-chip-name">⚡ Offers</span>
-                      </button>
-                    );
-                  })()}
-
-                  {/* All Category Chips in Left Rail */}
-                  {categories.map((c, idx) => {
-                    const colors = getCategoryChromaticColors(c, idx);
-                    const isActive = activeCat === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        id={`cat-${c.id}`}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        className={`category-chip ${isActive ? 'active' : ''}`}
-                        onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
-                        style={{
-                          '--cat-stripe': colors.stripe,
-                          '--cat-active-bg': colors.activeBg,
-                          '--cat-active-text': colors.activeText,
-                        }}
-                      >
-                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
-                        <span className="category-chip-name">{c.name}</span>
-                      </button>
-                    );
-                  })}
-
-                  {/* Custom Item Chip */}
-                  {(() => {
-                    const colors = getCategoryChromaticColors('custom');
-                    return (
-                      <button
-                        type="button"
-                        id="add-custom-item-chip"
-                        className="category-chip category-chip--custom"
-                        onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
-                        title="Add off-menu daily special or custom priced item"
-                        style={{
-                          '--cat-stripe': colors.stripe,
-                          '--cat-active-bg': colors.activeBg,
-                          '--cat-active-text': colors.activeText,
-                        }}
-                      >
-                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
-                        <span className="category-chip-name">+ Custom Item</span>
-                      </button>
-                    );
-                  })()}
-                </div>
-              ) : (
-                /* Template 1: Horizontal Top Bar - Category Actions with Popup Launcher */
-                <div className="pos-category-actions">
-                  {/* All Items Quick Toggle */}
-                  <button
-                    id="cat-all"
-                    type="button"
-                    role="tab"
-                    aria-selected={activeCat === 'all'}
-                    className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                    title="View All Menu Items"
-                  >
-                    <span className="category-chip-name">All Items</span>
-                    <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
-                  </button>
-
-                  {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
-                  {activeOffers.length > 0 && (
+                {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
+                {activeOffers.length > 0 && (() => {
+                  const colors = getCategoryChromaticColors('deals');
+                  const isActive = activeCat === 'deals';
+                  return (
                     <button
                       id="cat-deals-rail"
                       type="button"
                       role="tab"
-                      aria-selected={activeCat === 'deals'}
-                      className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
-                      onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                      aria-selected={isActive}
+                      className={`category-chip ${isActive ? 'active' : ''}`}
+                      onClick={() => { hapticTap('light'); setActiveCat(isActive ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
                       title="View All Promotional Deals & BOGO Items"
-                      style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
+                      style={{
+                        '--cat-stripe': colors.stripe,
+                        '--cat-active-bg': colors.activeBg,
+                        '--cat-active-text': colors.activeText,
+                      }}
                     >
+                      <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
                       <span className="category-chip-name">⚡ Offers</span>
                     </button>
-                  )}
+                  );
+                })()}
 
-                  {/* Active Category Chip with 1-click Clear */}
-                  {activeCat !== 'all' && activeCat !== 'deals' && (() => {
-                    const currentCat = categories.find(c => c.id === activeCat);
-                    if (!currentCat) return null;
-                    return (
-                      <button
-                        key={currentCat.id}
-                        id={`cat-${currentCat.id}`}
-                        type="button"
-                        role="tab"
-                        aria-selected={true}
-                        className="category-chip active pos-active-cat-chip"
-                        onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
-                        title={`Active: ${currentCat.name} (click to switch category)`}
-                      >
-                        <span className="category-chip-name">{currentCat.name}</span>
-                        <span className="category-chip-count">{currentCat.items?.length || 0}</span>
-                        <span
-                          className="pos-active-cat-close"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            hapticTap('light');
-                            setActiveCat('all');
-                          }}
-                          title="Clear filter & show all items"
-                        >
-                          ×
-                        </span>
-                      </button>
-                    );
-                  })()}
+                {/* All Category Chips (Chromatic Toast POS Palette) */}
+                {categories.map((c, idx) => {
+                  const colors = getCategoryChromaticColors(c, idx);
+                  const isActive = activeCat === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      id={`cat-${c.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`category-chip ${isActive ? 'active' : ''}`}
+                      onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                      style={{
+                        '--cat-stripe': colors.stripe,
+                        '--cat-active-bg': colors.activeBg,
+                        '--cat-active-text': colors.activeText,
+                      }}
+                    >
+                      <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                      <span className="category-chip-name">{c.name}</span>
+                    </button>
+                  );
+                })}
 
-                  {/* Custom Item Chip */}
-                  <button
-                    type="button"
-                    id="add-custom-item-chip"
-                    className="category-chip category-chip--custom"
-                    onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
-                    title="Add off-menu daily special or custom priced item"
-                  >
-                    <span className="category-chip-name">+ Custom Item</span>
-                  </button>
-                </div>
-              )}
+                {/* Custom Item Chip */}
+                {(() => {
+                  const colors = getCategoryChromaticColors('custom');
+                  return (
+                    <button
+                      type="button"
+                      id="add-custom-item-chip"
+                      className="category-chip category-chip--custom"
+                      onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
+                      title="Add off-menu daily special or custom priced item"
+                      style={{
+                        '--cat-stripe': colors.stripe,
+                        '--cat-active-bg': colors.activeBg,
+                        '--cat-active-text': colors.activeText,
+                      }}
+                    >
+                      <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                      <span className="category-chip-name">+ Custom Item</span>
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
           )}
 
@@ -2146,6 +2089,9 @@ export default function POS() {
                         const qty = getItemQty(item);
                         const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
                         const isVegItem = checkIsVegItem(item);
+                        const itemCat = categories.find(c => c.id === (item.categoryId || item.categoryName));
+                        const catIndex = categories.findIndex(c => c.id === (item.categoryId || item.categoryName));
+                        const catColors = getCategoryChromaticColors(itemCat || item.categoryId || 'default', catIndex >= 0 ? catIndex : 0);
 
                         if (menuDensity === 'dense') {
                           const formattedPrice = getDisplayPrice(item, currency);
@@ -2157,6 +2103,7 @@ export default function POS() {
                               role="button"
                               tabIndex={0}
                               className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                              style={{ '--key-cat-stripe': catColors.stripe }}
                               onClick={() => {
                                 if (item.available === false) return;
                                 if (hasModifiers) setActiveModifierItem(item);
@@ -2181,11 +2128,7 @@ export default function POS() {
                                   )}
                                 </div>
                                 <div className="menu-key-badges-right">
-                                  {qty > 0 ? (
-                                    <span className="menu-key-qty-pill">
-                                      <Check size={10} strokeWidth={3} /> {qty}
-                                    </span>
-                                  ) : hasModifiers ? (
+                                  {hasModifiers ? (
                                     <span className="menu-key-pill menu-key-pill-mod">
                                       Options
                                     </span>
@@ -2201,19 +2144,39 @@ export default function POS() {
                                 </div>
                               </div>
 
-                              {/* Bottom Row: Price display & Subtle Tactile Action Button */}
+                              {/* Bottom Row: Price display & In-Card Stepper / Action Button */}
                               <div className="menu-key-footer">
                                 <div className="menu-key-price-wrap">
                                   {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
                                   <span className="menu-key-price">{formattedPrice.text}</span>
                                 </div>
-                                <span className={`menu-key-action-btn ${qty > 0 ? 'added' : ''}`} title={qty > 0 ? `${qty} in cart` : "Add to cart"}>
-                                  {qty > 0 ? (
-                                    <Check size={12} strokeWidth={2.8} />
-                                  ) : (
+                                {qty > 0 ? (
+                                  <div className="pos-card-stepper" onClick={e => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      className="pos-card-stepper-btn minus"
+                                      onClick={() => handleDecreaseItem(item)}
+                                      title="Decrease quantity"
+                                      aria-label="Decrease quantity"
+                                    >
+                                      <Minus size={11} strokeWidth={2.8} />
+                                    </button>
+                                    <span className="pos-card-stepper-qty">{qty}</span>
+                                    <button
+                                      type="button"
+                                      className="pos-card-stepper-btn plus"
+                                      onClick={() => handleIncreaseItem(item)}
+                                      title="Increase quantity"
+                                      aria-label="Increase quantity"
+                                    >
+                                      <Plus size={11} strokeWidth={2.8} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="menu-key-action-btn" title="Add to cart">
                                     <Plus size={13} strokeWidth={2.5} />
-                                  )}
-                                </span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );
@@ -2342,8 +2305,34 @@ export default function POS() {
                                     formatCurrency(item.price, currency)
                                   )}
                                 </span>
-                                {hasModifiers && (
+                                {qty > 0 ? (
+                                  <div className="pos-card-stepper" onClick={e => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      className="pos-card-stepper-btn minus"
+                                      onClick={() => handleDecreaseItem(item)}
+                                      title="Decrease quantity"
+                                      aria-label="Decrease quantity"
+                                    >
+                                      <Minus size={11} strokeWidth={2.8} />
+                                    </button>
+                                    <span className="pos-card-stepper-qty">{qty}</span>
+                                    <button
+                                      type="button"
+                                      className="pos-card-stepper-btn plus"
+                                      onClick={() => handleIncreaseItem(item)}
+                                      title="Increase quantity"
+                                      aria-label="Increase quantity"
+                                    >
+                                      <Plus size={11} strokeWidth={2.8} />
+                                    </button>
+                                  </div>
+                                ) : hasModifiers ? (
                                   <span className="menu-item-sizes-badge">Sizes</span>
+                                ) : (
+                                  <span className="menu-item-add-icon-btn">
+                                    <Plus size={13} strokeWidth={2.5} />
+                                  </span>
                                 )}
                               </div>
                             </div>

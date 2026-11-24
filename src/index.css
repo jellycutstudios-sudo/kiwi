@@ -26279,3 +26279,131 @@ html.dark .login-page .login-back-btn:hover,
   background: #e2e8f0 !important;
   color: #0f172a !important;
 }
+
+/* ── Speed Touch POS Ergonomics & In-Card Steppers ── */
+.pos-card-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #10b981;
+  border-radius: 20px;
+  padding: 2px 4px;
+  gap: 5px;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+  user-select: none;
+  touch-action: manipulation;
+  z-index: 5;
+}
+
+.pos-card-stepper-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.pos-card-stepper-btn:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.pos-card-stepper-btn:active {
+  transform: scale(0.88);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.pos-card-stepper-qty {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  min-width: 14px;
+  text-align: center;
+  line-height: 1;
+}
+
+[data-theme="dark"] .pos-card-stepper {
+  background: #059669;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.menu-item-add-icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-bg-secondary, #f1f5f9);
+  color: var(--color-label, #0f172a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-separator, rgba(0, 0, 0, 0.08));
+  transition: all 0.15s ease;
+}
+
+.menu-item-card:hover .menu-item-add-icon-btn {
+  background: #0f172a;
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+[data-theme="dark"] .menu-item-add-icon-btn {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .menu-item-card:hover .menu-item-add-icon-btn {
+  background: #ffffff;
+  color: #09090b;
+}
+
+/* Fast Key Chromatic Left Accent */
+.menu-key-card {
+  border-left: 4px solid var(--key-cat-stripe, #3b82f6) !important;
+}
+
+/* Mobile & Touch Screen Responsive POS Optimizations */
+@media (max-width: 768px) {
+  .pos-category-bar {
+    padding: 6px 10px !important;
+    gap: 8px !important;
+    min-height: 52px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  .pos-category-bar-pinned {
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  .pos-category-bar-pinned .pos-op-card {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 10px !important;
+    border-radius: 10px !important;
+    font-size: 12px !important;
+  }
+  .pos-category-bar-pinned .pos-op-card--categories {
+    display: none !important;
+  }
+  .pos-category-scroll {
+    gap: 8px !important;
+    padding: 0 4px !important;
+  }
+  .pos-category-bar .category-chip {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+  }
+  .pos-menu-content-area,
+  .menu-grid,
+  .menu-grid.dense {
+    padding-bottom: 110px !important;
+  }
+}
