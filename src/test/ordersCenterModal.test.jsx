@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ActiveOrdersModal from '../components/pos/ActiveOrdersModal';
+import ActiveOrdersModal, { isOrderUnpaid, isOrderPaid } from '../components/pos/ActiveOrdersModal';
 import { useOrderStore } from '../stores/orderStore';
 
 vi.mock('../utils/print', () => ({
@@ -166,5 +166,58 @@ describe('Orders Center & Kitchen Pass Redesign', () => {
     fireEvent.click(voidsTab);
 
     expect(screen.getByText(/Viewing.*voided\/cancelled ticket audits/i)).toBeInTheDocument();
+  });
+
+  it('correctly classifies unpaid vs paid checks across various POS paymentMethod conventions', () => {
+    expect(isOrderUnpaid({ paymentMethod: 'unpaid' })).toBe(true);
+    expect(isOrderUnpaid({ paymentMethod: 'Unpaid (Guest Check)' })).toBe(true);
+    expect(isOrderUnpaid({ paymentMethod: undefined })).toBe(true);
+    expect(isOrderUnpaid({ paymentMethod: null })).toBe(true);
+    expect(isOrderUnpaid({ paymentMethod: '' })).toBe(true);
+
+    expect(isOrderUnpaid({ paymentMethod: 'cash' })).toBe(false);
+    expect(isOrderUnpaid({ paymentMethod: 'card' })).toBe(false);
+    expect(isOrderUnpaid({ paymentMethod: 'upi' })).toBe(false);
+    expect(isOrderUnpaid({ paid: true, paymentMethod: 'unpaid' })).toBe(false);
+    expect(isOrderUnpaid({ isComplimentary: true })).toBe(false);
+
+    expect(isOrderPaid({ paymentMethod: 'cash' })).toBe(true);
+    expect(isOrderPaid({ paymentMethod: 'unpaid' })).toBe(false);
+  });
+
+  it('keeps served but unpaid orders in Open Orders queue marked as SERVED DUE with Quick Cash button', () => {
+    useOrderStore.setState({
+      activeOrders: [
+        {
+          id: 'order_served_unpaid',
+          token: 99,
+          type: 'dine-in',
+          tableName: 'T99',
+          status: 'completed', // Kitchen finished & served
+          total: 990,
+          paymentMethod: 'Unpaid (Guest Check)', // Bill printed or unpaid
+          items: [{ name: 'Spaghetti Carbonara', qty: 2, price: 495 }],
+          createdAt: new Date().toISOString()
+        }
+      ]
+    });
+
+    render(
+      <ActiveOrdersModal
+        isOpen={true}
+        onClose={vi.fn()}
+        restaurant={mockRestaurant}
+        currency="₹"
+        staffName="Cashier Sam"
+      />
+    );
+
+    // Order must NOT be lost or hidden; it must be in Open Orders
+    expect(screen.getByText(/Table T99/i)).toBeInTheDocument();
+    expect(screen.getByText(/₹990/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/SERVED DUE/i).length).toBeGreaterThan(0);
+
+    // Must offer settlement actions, not just a reprint
+    expect(screen.getByRole('button', { name: /^Quick Cash$/i })).toBeInTheDocument();
   });
 });

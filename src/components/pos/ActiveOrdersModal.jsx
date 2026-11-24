@@ -9,9 +9,20 @@ import { db } from '../../firebase';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
   Edit2, Bell, FileText, Globe, CreditCard, CheckCircle2, XCircle,
-  ChevronDown, ChevronUp, LayoutList, LayoutGrid, Eye, MessageCircle, AlertTriangle, Armchair
+  ChevronDown, ChevronUp, LayoutList, LayoutGrid, Eye, MessageCircle, AlertTriangle, AlertCircle, Armchair
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+export const isOrderUnpaid = (order) => {
+  if (!order) return false;
+  if (order.paid === true) return false;
+  if (order.isComplimentary) return false;
+  const pm = String(order.paymentMethod || '').toLowerCase().trim();
+  if (!pm || pm === 'unpaid' || pm.includes('unpaid')) return true;
+  return false;
+};
+
+export const isOrderPaid = (order) => !isOrderUnpaid(order);
 
 export default function ActiveOrdersModal({
   isOpen,
@@ -81,27 +92,37 @@ export default function ActiveOrdersModal({
     });
   }, [isOpen, restaurant?.id]);
 
-  // 1. Running Open Orders (exclude billed/cancelled/completed)
+  // 1. Running Open Orders (All active orders + any unpaid orders that require settlement)
   const runningOrders = useMemo(() => {
-    return (activeOrders || []).filter(o => 
-      o.status !== 'billed' && 
+    const active = (activeOrders || []).filter(o => 
       o.status !== 'cancelled' && 
-      o.status !== 'completed' && 
-      o.status !== 'void'
+      o.status !== 'void' &&
+      (o.status !== 'completed' || isOrderUnpaid(o))
     );
-  }, [activeOrders]);
 
-  // 2. Completed Orders today
+    // Safeguard: pull in any unpaid checks from today's history so no unpaid check is ever orphaned
+    const historyUnpaid = (historyOrders || []).filter(o => 
+      isOrderUnpaid(o) && 
+      o.status !== 'cancelled' && 
+      o.status !== 'void' && 
+      !active.some(a => a.id === o.id)
+    );
+
+    return [...active, ...historyUnpaid];
+  }, [activeOrders, historyOrders]);
+
+  // 2. Completed Orders today (ONLY genuinely paid & settled customer bills)
   const completedOrders = useMemo(() => {
-    return historyOrders.filter(o => 
-      (o.status === 'billed' || o.status === 'completed' || (o.paymentMethod && o.paymentMethod !== 'unpaid') || o.paid === true) &&
-      o.status !== 'cancelled' && o.status !== 'void'
+    return (historyOrders || []).filter(o => 
+      isOrderPaid(o) &&
+      o.status !== 'cancelled' && 
+      o.status !== 'void'
     );
   }, [historyOrders]);
 
   // 3. Voids / Cancelled orders today
   const voidOrders = useMemo(() => {
-    return historyOrders.filter(o => o.status === 'cancelled' || o.status === 'void');
+    return (historyOrders || []).filter(o => o.status === 'cancelled' || o.status === 'void');
   }, [historyOrders]);
 
   const readyCount = useMemo(() => {
@@ -200,6 +221,16 @@ export default function ActiveOrdersModal({
     setSettlingId(order.id);
     try {
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
+
+      // Optimistically update historyOrders locally so any open views instantly update
+      setHistoryOrders(prev => prev.map(o => o.id === order.id ? { 
+        ...o, 
+        paymentMethod: 'cash', 
+        paid: true, 
+        status: 'billed', 
+        paidAt: new Date().toISOString() 
+      } : o));
+
       // Auto-dispatch WhatsApp digital receipt if enabled and customer phone is present
       const custPhone = order.customerPhone || order.customer?.phone;
       const waConfig = restaurant?.whatsapp || restaurant?.settings?.whatsapp;
@@ -271,6 +302,10 @@ export default function ActiveOrdersModal({
   };
 
   const handleMarkComplete = async (order) => {
+    if (isOrderUnpaid(order)) {
+      toast.error(`Order #${order.token || order.id.slice(-4).toUpperCase()} is unpaid (${formatCurrency(order.total || 0, currency)}). Please settle payment first!`, { id: 'pos-action' });
+      return;
+    }
     try {
       await updateOrderStatus(restaurant.id, order.id, 'completed');
       toast.success(`Order completed ✓`, { id: 'pos-action' });
@@ -608,7 +643,7 @@ export default function ActiveOrdersModal({
                             const isDelivery = order.orderType === 'delivery';
                             const isTakeaway = order.type === 'takeaway' || order.type === 'pickup' || (isOnline && order.orderType === 'takeaway');
                             const isReady = order.status === 'ready';
-                            const isUnpaid = order.paymentMethod === 'unpaid';
+                            const isUnpaid = isOrderUnpaid(order);
                             const elapsedSec = getOrderElapsedSeconds(order, now);
                             const elapsedMins = Math.floor(elapsedSec / 60);
                             const itemsCount = (order.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
@@ -678,8 +713,8 @@ export default function ActiveOrdersModal({
                                       <span style={{ fontSize: 11, fontWeight: 700, color: elapsedMins > 25 ? '#ef4444' : (elapsedMins > 15 ? '#f59e0b' : '#10b981') }}>
                                         ⏱️ {elapsedMins}m
                                       </span>
-                                      <span className={`badge ${isReady ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: 9, padding: '1px 5px' }}>
-                                        {isReady ? 'READY' : 'In Kitchen'}
+                                      <span className={`badge ${isReady ? 'badge-green' : (order.status === 'completed' && isUnpaid ? 'badge-red' : 'badge-yellow')}`} style={{ fontSize: 9, padding: '1px 5px' }}>
+                                        {isReady ? 'READY' : (order.status === 'completed' && isUnpaid ? 'SERVED DUE' : 'In Kitchen')}
                                       </span>
                                       <span style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
                                         {itemsCount} items
@@ -748,6 +783,21 @@ export default function ActiveOrdersModal({
                                       }}>
                                         <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
                                         READY
+                                      </span>
+                                    ) : order.status === 'completed' && isUnpaid ? (
+                                      <span style={{
+                                        background: 'rgba(239, 68, 68, 0.15)',
+                                        color: '#f87171',
+                                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 3
+                                      }}>
+                                        <AlertCircle size={9} /> SERVED DUE
                                       </span>
                                     ) : (
                                       <span style={{
@@ -982,7 +1032,7 @@ export default function ActiveOrdersModal({
                         const isReady = order.status === 'ready';
                         const isPending = order.status === 'pending';
                         const isOnlinePending = isOnline && isPending;
-                        const isUnpaid = order.paymentMethod === 'unpaid';
+                        const isUnpaid = isOrderUnpaid(order);
                         const elapsedSec = getOrderElapsedSeconds(order, now);
                         const elapsedMins = Math.floor(elapsedSec / 60);
                         const itemsCount = (order.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
@@ -1044,6 +1094,23 @@ export default function ActiveOrdersModal({
                                     }}>
                                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
                                       READY
+                                    </span>
+                                  )}
+                                  {order.status === 'completed' && isUnpaid && (
+                                    <span style={{
+                                      background: 'rgba(239, 68, 68, 0.2)',
+                                      color: '#f87171',
+                                      border: '1px solid rgba(239, 68, 68, 0.5)',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      fontWeight: 800,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}>
+                                      <AlertCircle size={11} />
+                                      SERVED · DUE
                                     </span>
                                   )}
                                   {order.billPrinted && isUnpaid && (
@@ -1380,20 +1447,37 @@ export default function ActiveOrdersModal({
 
                             {/* 5. Payment Method */}
                             <td>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '2px 8px',
-                                borderRadius: 6,
-                                fontSize: 11,
-                                fontWeight: 800,
-                                background: method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : (method === 'UPI' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(56, 189, 248, 0.15)'),
-                                color: method === 'CASH' ? '#10b981' : (method === 'UPI' ? '#c084fc' : '#38bdf8'),
-                                border: `1px solid ${method === 'CASH' ? 'rgba(16, 185, 129, 0.35)' : (method === 'UPI' ? 'rgba(139, 92, 246, 0.35)' : 'rgba(56, 189, 248, 0.35)')}`
-                              }}>
-                                <Check size={11} strokeWidth={2.5} /> {method}
-                              </span>
+                              {isOrderUnpaid(order) ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  color: '#ef4444',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)'
+                                }}>
+                                  <AlertCircle size={11} /> UNPAID · DUE
+                                </span>
+                              ) : (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : (method === 'UPI' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(56, 189, 248, 0.15)'),
+                                  color: method === 'CASH' ? '#10b981' : (method === 'UPI' ? '#c084fc' : '#38bdf8'),
+                                  border: `1px solid ${method === 'CASH' ? 'rgba(16, 185, 129, 0.35)' : (method === 'UPI' ? 'rgba(139, 92, 246, 0.35)' : 'rgba(56, 189, 248, 0.35)')}`
+                                }}>
+                                  <Check size={11} strokeWidth={2.5} /> {method}
+                                </span>
+                              )}
                             </td>
 
                             {/* 6. Total Amount */}
@@ -1406,6 +1490,32 @@ export default function ActiveOrdersModal({
                             {/* 7. Action Buttons */}
                             <td style={{ textAlign: 'right' }}>
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                                {/* 1-Tap Cash Settle Rescue if check was somehow unsettled */}
+                                {isOrderUnpaid(order) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickCashSettle(order, false)}
+                                    disabled={settlingId === order.id}
+                                    style={{
+                                      height: 32,
+                                      fontSize: 11.5,
+                                      fontWeight: 800,
+                                      padding: '0 10px',
+                                      borderRadius: 6,
+                                      background: '#10b981',
+                                      border: 'none',
+                                      color: '#ffffff',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Settle this unpaid check with cash"
+                                  >
+                                    <Zap size={11} fill="#fff" /> Settle Cash
+                                  </button>
+                                )}
+
                                 {/* Re-Print Customer Receipt */}
                                 <button
                                   type="button"
