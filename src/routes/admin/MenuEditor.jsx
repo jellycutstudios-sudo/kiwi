@@ -2297,7 +2297,15 @@ export default function MenuEditor() {
                   </span>
                 </div>
               </div>
-              <button className="btn btn-secondary btn-icon" id="close-item-modal-btn" onClick={() => setShowItemForm(false)} title="Close"><X size={16}/></button>
+              <button
+                className="btn btn-secondary btn-icon"
+                id="close-item-modal-btn"
+                onClick={() => setShowItemForm(false)}
+                title="Close"
+                style={{ width: 42, height: 42, minWidth: 42, minHeight: 42, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >
+                <X size={18}/>
+              </button>
             </div>
             
             {/* Segmented Pill Tab Bar */}
@@ -2333,80 +2341,13 @@ export default function MenuEditor() {
               </div>
             </div>
 
-            {/* Tab 1: General Info */}
+            {/* Tab 1: General Info (Ergonomically Organized for Touch & POS Terminals) */}
             {activeTab === 'general' && (
-              <div className="modal-body" ref={modalBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
-                {/* Category & Subcategory Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: 2 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>Category</label>
-                    <select
-                      id="item-category-select"
-                      className="form-select"
-                      value={itemForm.categoryId || (categories[0]?.id ?? '')}
-                      onChange={e => setItemForm(f => ({ ...f, categoryId: e.target.value }))}
-                      style={{ height: 40, fontSize: '13px' }}
-                    >
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.emoji || '🍽️'} {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>
-                      Sub-Category (Optional)
-                    </label>
-                    <input
-                      id="item-subcategory-input"
-                      className="form-input"
-                      placeholder="e.g. Mocktails, Indian, etc."
-                      value={itemForm.subCategory || ''}
-                      onChange={e => setItemForm(f => ({ ...f, subCategory: e.target.value }))}
-                      list="existing-subcategories-list"
-                      style={{ height: 40, fontSize: '13px' }}
-                    />
-                    <datalist id="existing-subcategories-list">
-                      {existingSubCategories.map((sub, sIdx) => (
-                        <option key={sIdx} value={sub} />
-                      ))}
-                    </datalist>
-                    {existingSubCategories.length > 0 && (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-                        {existingSubCategories.map((sub, sIdx) => {
-                          const isSelected = (itemForm.subCategory || '').trim().toLowerCase() === sub.trim().toLowerCase();
-                          return (
-                            <button
-                              key={sIdx}
-                              type="button"
-                              onClick={() => setItemForm(f => ({ ...f, subCategory: isSelected ? '' : sub }))}
-                              style={{
-                                border: isSelected ? '1.5px solid var(--color-primary, #10b981)' : '1px solid rgba(255, 255, 255, 0.16)',
-                                background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#182032',
-                                color: isSelected ? '#10b981' : 'var(--color-label-secondary)',
-                                fontWeight: isSelected ? 700 : 500,
-                                fontSize: '11px',
-                                borderRadius: '6px',
-                                padding: '3px 8px',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              {isSelected ? '✓ ' : '+ '}{sub}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Row 1: Item Name & Sleek Status Pill */}
+              <div className="modal-body" ref={modalBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
+                {/* 1. Item Name Hero & Availability Toggle */}
                 <div className="form-group" style={{ margin: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>Item Name</label>
+                    <label className="form-label" style={{ fontWeight: 700, margin: 0, fontSize: '12.5px' }}>Item Name</label>
                     <button
                       type="button"
                       onClick={() => setItemForm(f => ({ ...f, available: !f.available }))}
@@ -2423,19 +2364,384 @@ export default function MenuEditor() {
                     placeholder="e.g. Grilled Chicken" 
                     value={itemForm.name} 
                     onChange={e => setItemForm(f=>({...f,name:e.target.value}))} 
-                    style={{ height: 42, fontSize: '14px' }}
+                    style={{ height: 46, fontSize: '15px', borderRadius: '10px' }}
                   />
                 </div>
 
-                {/* Waiter Local Language Display & AI Translator (Collapsible) */}
+                {/* 2. Core Essentials: Price & Category */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  {/* Price */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>
+                      Price ({restaurant?.currency ?? 'INR'})
+                    </label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <span style={{ position: 'absolute', left: 14, fontSize: '15px', fontWeight: 700, color: '#cbd5e1', pointerEvents: 'none' }}>
+                        {restaurant?.currency === 'INR' ? '₹' : (restaurant?.currency ?? '$')}
+                      </span>
+                      <input 
+                        id="item-price-input" 
+                        className="form-input" 
+                        type="number" 
+                        min={0} 
+                        step={0.01} 
+                        placeholder="0.00" 
+                        value={itemForm.price} 
+                        onChange={e => setItemForm(f=>({...f,price:e.target.value}))} 
+                        style={{ paddingLeft: 30, height: 46, fontSize: '15px', fontWeight: 600, borderRadius: '10px' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Category */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>Category</label>
+                    <select
+                      id="item-category-select"
+                      className="form-select"
+                      value={itemForm.categoryId || (categories[0]?.id ?? '')}
+                      onChange={e => setItemForm(f => ({ ...f, categoryId: e.target.value }))}
+                      style={{ height: 46, fontSize: '14px', borderRadius: '10px' }}
+                    >
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.emoji || '🍽️'} {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 3. Routing & Tagging: Kitchen Station & Sub-Category */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  {/* Kitchen Station */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label className="form-label" style={{ fontWeight: 700, margin: 0, fontSize: '12px' }}>Kitchen Station</label>
+                      {!isAddingCustomStation && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingCustomStation(true)}
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.28)',
+                            color: 'var(--color-accent, #10b981)',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            touchAction: 'manipulation'
+                          }}
+                        >
+                          + Custom
+                        </button>
+                      )}
+                    </div>
+                    {isAddingCustomStation ? (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={{ height: 46, padding: '0 12px', fontSize: '13.5px', flex: 1, borderRadius: '10px' }}
+                          placeholder="e.g. Pizza Oven, Bar"
+                          value={newCustomStation}
+                          onChange={e => setNewCustomStation(e.target.value)}
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCreateCustomStation();
+                            } else if (e.key === 'Escape') {
+                              setIsAddingCustomStation(false);
+                              setNewCustomStation('');
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{ height: 46, padding: '0 14px', flexShrink: 0, borderRadius: '10px' }}
+                          onClick={handleCreateCustomStation}
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ height: 46, padding: '0 10px', flexShrink: 0, borderRadius: '10px' }}
+                          onClick={() => {
+                            setIsAddingCustomStation(false);
+                            setNewCustomStation('');
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <select 
+                        id="item-station-select" 
+                        className="form-select" 
+                        value={itemForm.station ?? 'Kitchen'} 
+                        onChange={e => {
+                          if (e.target.value === '__add_custom__') {
+                            setIsAddingCustomStation(true);
+                          } else {
+                            setItemForm(f => ({ ...f, station: e.target.value }));
+                          }
+                        }}
+                        style={{ height: 46, padding: '0 12px', fontSize: '14px', borderRadius: '10px' }}
+                      >
+                        {availableStations.map(st => (
+                          <option key={st} value={st}>{st}</option>
+                        ))}
+                        <option value="__add_custom__">+ Add Custom Station...</option>
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Sub-Category (Optional) */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>
+                      Sub-Category (Optional)
+                    </label>
+                    <input
+                      id="item-subcategory-input"
+                      className="form-input"
+                      placeholder="e.g. Mocktails, Indian, etc."
+                      value={itemForm.subCategory || ''}
+                      onChange={e => setItemForm(f => ({ ...f, subCategory: e.target.value }))}
+                      list="existing-subcategories-list"
+                      style={{ height: 46, fontSize: '13.5px', borderRadius: '10px' }}
+                    />
+                    <datalist id="existing-subcategories-list">
+                      {existingSubCategories.map((sub, sIdx) => (
+                        <option key={sIdx} value={sub} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+
+                {/* Sub-Category Touch Chips (if predefined subcategories exist) */}
+                {existingSubCategories.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: -4 }}>
+                    {existingSubCategories.map((sub, sIdx) => {
+                      const isSelected = (itemForm.subCategory || '').trim().toLowerCase() === sub.trim().toLowerCase();
+                      return (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          onClick={() => setItemForm(f => ({ ...f, subCategory: isSelected ? '' : sub }))}
+                          style={{
+                            border: isSelected ? '1.5px solid var(--color-primary, #10b981)' : '1px solid rgba(255, 255, 255, 0.16)',
+                            background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#182032',
+                            color: isSelected ? '#10b981' : 'var(--color-label-secondary)',
+                            fontWeight: isSelected ? 700 : 600,
+                            fontSize: '12px',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            minHeight: '32px',
+                            cursor: 'pointer',
+                            touchAction: 'manipulation',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {isSelected ? '✓ ' : '+ '}{sub}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 4. Food Type (Dietary: Veg / Non-Veg Toggle Switch) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
+                      Food Type (Dietary)
+                    </label>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
+                      {itemForm.isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+                    </span>
+                  </div>
+
+                  <div
+                    id="item-dietary-toggle-card"
+                    onClick={() => setItemForm(f => ({ ...f, isVeg: !f.isVeg, dietary: !f.isVeg ? 'veg' : 'non-veg' }))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      touchAction: 'manipulation',
+                      background: itemForm.isVeg ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                      border: itemForm.isVeg ? '1.5px solid rgba(34, 197, 94, 0.45)' : '1.5px solid rgba(239, 68, 68, 0.45)',
+                      boxShadow: itemForm.isVeg ? '0 0 16px rgba(34, 197, 94, 0.12)' : '0 0 16px rgba(239, 68, 68, 0.12)',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span
+                        className={itemForm.isVeg ? 'food-badge-veg' : 'food-badge-nonveg'}
+                        style={{ width: 22, height: 22, flexShrink: 0 }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
+                          {itemForm.isVeg ? 'Vegetarian (Veg)' : 'Non-Vegetarian'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary, #94a3b8)' }}>
+                          {itemForm.isVeg ? 'Pure veg dish • Green dot shown to customers & kitchen' : 'Contains meat/egg • Red triangle shown to customers & kitchen'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
+                      <ToggleSwitch
+                        id="item-veg-toggle-switch"
+                        className="dietary-toggle-switch"
+                        size="md"
+                        checked={itemForm.isVeg}
+                        onChange={e => setItemForm(f => ({ ...f, isVeg: e.target.checked, dietary: e.target.checked ? 'veg' : 'non-veg' }))}
+                        title={itemForm.isVeg ? 'Switch to Non-Vegetarian' : 'Switch to Vegetarian'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Hidden buttons for backward compatibility with existing tests */}
+                  <button
+                    type="button"
+                    id="item-veg-toggle"
+                    style={{ display: 'none' }}
+                    onClick={() => setItemForm(f => ({ ...f, isVeg: true, dietary: 'veg' }))}
+                  />
+                  <button
+                    type="button"
+                    id="item-nonveg-toggle"
+                    style={{ display: 'none' }}
+                    onClick={() => setItemForm(f => ({ ...f, isVeg: false, dietary: 'non-veg' }))}
+                  />
+                </div>
+
+                {/* 5. Highlights & Badges Section (Touch-friendly 44px buttons) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
+                    Badges & Highlights
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setItemForm(f => ({ ...f, highMargin: !f.highMargin }))}
+                      className={`high-margin-chip ${itemForm.highMargin ? 'is-active' : ''}`}
+                      style={{ height: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', borderRadius: '10px', touchAction: 'manipulation' }}
+                    >
+                      <span style={{ fontSize: '15px' }}>⭐</span>
+                      <span>High Margin</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      id="item-bestseller-toggle"
+                      onClick={() => setItemForm(f => ({ ...f, isBestseller: !f.isBestseller }))}
+                      className={`bestseller-chip ${itemForm.isBestseller ? 'is-active' : ''}`}
+                      style={{ height: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', borderRadius: '10px', touchAction: 'manipulation' }}
+                    >
+                      <span style={{ fontSize: '15px' }}>🔥</span>
+                      <span>Bestseller</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 6. Photo & Emoji Card (Touch-Optimized) */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  background: 'var(--color-bg-secondary, #182032)',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))'
+                }}>
+                  {/* Photo Uploader (Left) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                    {itemForm.imageUrl ? (
+                      <div style={{ position: 'relative', width: 52, height: 52, borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--color-separator)', flexShrink: 0, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                        <img src={itemForm.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={() => setItemForm(f => ({ ...f, imageUrl: '' }))}
+                          style={{
+                            position: 'absolute', top: 3, right: 3,
+                            background: 'rgba(239, 68, 68, 0.95)', color: '#fff',
+                            border: 'none', borderRadius: '50%',
+                            width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, cursor: 'pointer', fontWeight: 'bold',
+                            touchAction: 'manipulation'
+                          }}
+                          title="Remove photo"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ width: 52, height: 52, borderRadius: '10px', border: '1.5px dashed var(--color-separator)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: 'var(--color-bg)', flexShrink: 0 }}>
+                        📷
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="item-image-file"
+                        onChange={handleImageChange}
+                        style={{ display: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => document.getElementById('item-image-file').click()}
+                        disabled={uploadingImage}
+                        style={{ height: 38, padding: '0 14px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: '8px', touchAction: 'manipulation' }}
+                      >
+                        <Camera size={14} />
+                        <span>{uploadingImage ? 'Optimizing...' : (itemForm.imageUrl ? 'Change Photo' : 'Upload Photo')}</span>
+                      </button>
+                      <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', lineHeight: 1 }}>
+                        Auto-compressed
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Vertical Divider */}
+                  <div style={{ width: 1, height: 40, background: 'var(--color-separator)', flexShrink: 0 }} />
+
+                  {/* Emoji input (Right) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>Emoji</span>
+                    <input 
+                      id="item-emoji-input" 
+                      className="form-input" 
+                      placeholder="🍽️" 
+                      value={itemForm.emoji} 
+                      onChange={e => setItemForm(f=>({...f,emoji:e.target.value}))} 
+                      style={{ width: 48, height: 44, textAlign: 'center', fontSize: 20, padding: '0 4px', borderRadius: '10px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* 7. Waiter Local Language Display & AI Translator (Collapsible) */}
                 <div 
                   className="pronunciation-script-card"
                   style={{ 
                     background: 'var(--color-bg-secondary, #182032)', 
                     border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))', 
-                    borderRadius: '10px', 
+                    borderRadius: '12px', 
                     overflow: 'hidden',
-                    marginTop: '-4px',
                     transition: 'border-color 0.15s ease'
                   }}
                 >
@@ -2446,9 +2752,11 @@ export default function MenuEditor() {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'space-between',
-                      padding: '8px 12px',
+                      padding: '10px 14px',
+                      minHeight: 44,
                       cursor: 'pointer',
                       userSelect: 'none',
+                      touchAction: 'manipulation',
                       background: showPronunciation ? 'var(--color-fill, rgba(255,255,255,0.02))' : 'transparent',
                       transition: 'background 0.15s ease'
                     }}
@@ -2469,8 +2777,8 @@ export default function MenuEditor() {
                         <ChevronDown size={14} />
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                        <Languages size={14} style={{ color: 'var(--color-accent)' }} />
-                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--color-label)' }}>
+                        <Languages size={15} style={{ color: 'var(--color-accent)' }} />
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)' }}>
                           Waiter Pronunciation Script
                         </span>
                       </div>
@@ -2521,20 +2829,22 @@ export default function MenuEditor() {
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px',
-                          padding: '3px 8px',
-                          fontSize: '11px',
+                          gap: '5px',
+                          padding: '4px 10px',
+                          minHeight: 32,
+                          fontSize: '11.5px',
                           fontWeight: 600,
                           color: 'var(--color-accent)',
                           background: 'rgba(16, 185, 129, 0.12)',
-                          borderRadius: '6px',
+                          borderRadius: '8px',
                           border: '1px solid rgba(16, 185, 129, 0.25)',
                           cursor: itemForm.name?.trim() ? 'pointer' : 'not-allowed',
-                          opacity: itemForm.name?.trim() ? 1 : 0.6
+                          opacity: itemForm.name?.trim() ? 1 : 0.6,
+                          touchAction: 'manipulation'
                         }}
                         title="Generate native phonetic transliterations using AI"
                       >
-                        <Sparkles size={11} className={isAiTranslating ? 'animate-spin' : ''} />
+                        <Sparkles size={12} className={isAiTranslating ? 'animate-spin' : ''} />
                         <span>{isAiTranslating ? 'Translating…' : '✨ AI Polish'}</span>
                       </button>
                     </div>
@@ -2542,15 +2852,15 @@ export default function MenuEditor() {
 
                   {showPronunciation && (
                     <div style={{ 
-                      padding: '8px 12px 10px 12px', 
+                      padding: '10px 14px 12px 14px', 
                       display: 'grid', 
                       gridTemplateColumns: '1fr 1fr', 
-                      gap: '8px', 
+                      gap: '10px', 
                       borderTop: '1px solid var(--color-separator-opaque, #2a2a2a)',
                       animation: 'fadeInAccordion 0.18s ease-out'
                     }}>
                       <div>
-                        <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
+                        <label style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
                           🌴 Malayalam (മലയാളം)
                         </label>
                         <input
@@ -2558,11 +2868,11 @@ export default function MenuEditor() {
                           placeholder={itemForm.name ? transliterateFood(itemForm.name, 'ml') : 'ഗാർലിക് ചിക്കൻ'}
                           value={itemForm.mlName || ''}
                           onChange={e => setItemForm(f => ({ ...f, mlName: e.target.value }))}
-                          style={{ height: 34, fontSize: '12.5px' }}
+                          style={{ height: 40, fontSize: '13px', borderRadius: '8px' }}
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
+                        <label style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
                           🇮🇳 Hindi (हिंदी)
                         </label>
                         <input
@@ -2570,308 +2880,25 @@ export default function MenuEditor() {
                           placeholder={itemForm.name ? transliterateFood(itemForm.name, 'hi') : 'गार्लिक चिकन'}
                           value={itemForm.hiName || ''}
                           onChange={e => setItemForm(f => ({ ...f, hiName: e.target.value }))}
-                          style={{ height: 34, fontSize: '12.5px' }}
+                          style={{ height: 40, fontSize: '13px', borderRadius: '8px' }}
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Row 2: Price & Kitchen Station */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      Price ({restaurant?.currency ?? 'INR'})
-                    </label>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <span style={{ position: 'absolute', left: 12, fontSize: '13px', fontWeight: 700, color: '#cbd5e1' }}>
-                        {restaurant?.currency === 'INR' ? '₹' : (restaurant?.currency ?? '$')}
-                      </span>
-                      <input 
-                        id="item-price-input" 
-                        className="form-input" 
-                        type="number" 
-                        min={0} 
-                        step={0.01} 
-                        placeholder="0.00" 
-                        value={itemForm.price} 
-                        onChange={e => setItemForm(f=>({...f,price:e.target.value}))} 
-                        style={{ paddingLeft: 26, height: 40 }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>Kitchen Station</label>
-                      {!isAddingCustomStation && (
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingCustomStation(true)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--color-accent)',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            padding: '0 2px'
-                          }}
-                        >
-                          + Custom
-                        </button>
-                      )}
-                    </div>
-                    {isAddingCustomStation ? (
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          className="form-input"
-                          style={{ height: 40, padding: '0 10px', fontSize: '13px', flex: 1 }}
-                          placeholder="e.g. Pizza Oven, Sushi Bar"
-                          value={newCustomStation}
-                          onChange={e => setNewCustomStation(e.target.value)}
-                          autoFocus
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleCreateCustomStation();
-                            } else if (e.key === 'Escape') {
-                              setIsAddingCustomStation(false);
-                              setNewCustomStation('');
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          style={{ height: 40, padding: '0 12px', flexShrink: 0 }}
-                          onClick={handleCreateCustomStation}
-                        >
-                          Add
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          style={{ height: 40, padding: '0 8px', flexShrink: 0 }}
-                          onClick={() => {
-                            setIsAddingCustomStation(false);
-                            setNewCustomStation('');
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <select 
-                        id="item-station-select" 
-                        className="form-select" 
-                        value={itemForm.station ?? 'Kitchen'} 
-                        onChange={e => {
-                          if (e.target.value === '__add_custom__') {
-                            setIsAddingCustomStation(true);
-                          } else {
-                            setItemForm(f => ({ ...f, station: e.target.value }));
-                          }
-                        }}
-                        style={{ height: 40, padding: '0 12px' }}
-                      >
-                        {availableStations.map(st => (
-                          <option key={st} value={st}>{st}</option>
-                        ))}
-                        <option value="__add_custom__">+ Add Custom Station...</option>
-                      </select>
-                    )}
-                  </div>
-                </div>
-
-                {/* Row 3: Photo & Icon Card */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  background: 'var(--color-bg-secondary, #182032)',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))'
-                }}>
-                  {/* Photo Uploader (Left) */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-                    {itemForm.imageUrl ? (
-                      <div style={{ position: 'relative', width: 44, height: 44, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-separator)', flexShrink: 0, boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                        <img src={itemForm.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button
-                          type="button"
-                          onClick={() => setItemForm(f => ({ ...f, imageUrl: '' }))}
-                          style={{
-                            position: 'absolute', top: 2, right: 2,
-                            background: 'rgba(239, 68, 68, 0.95)', color: '#fff',
-                            border: 'none', borderRadius: '50%',
-                            width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 8, cursor: 'pointer', fontWeight: 'bold'
-                          }}
-                          title="Remove photo"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ width: 44, height: 44, borderRadius: '8px', border: '1.5px dashed var(--color-separator)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'var(--color-bg)', flexShrink: 0 }}>
-                        📷
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        id="item-image-file"
-                        onChange={handleImageChange}
-                        style={{ display: 'none' }}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => document.getElementById('item-image-file').click()}
-                        disabled={uploadingImage}
-                        style={{ height: 28, padding: '0 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: '6px' }}
-                      >
-                        <Camera size={12} />
-                        <span>{uploadingImage ? 'Optimizing...' : (itemForm.imageUrl ? 'Change Photo' : 'Upload Photo')}</span>
-                      </button>
-                      <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', lineHeight: 1 }}>
-                        Auto-compressed
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Vertical Divider */}
-                  <div style={{ width: 1, height: 34, background: 'var(--color-separator)', flexShrink: 0 }} />
-
-                  {/* Emoji input (Right) */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>Emoji</span>
-                    <input 
-                      id="item-emoji-input" 
-                      className="form-input" 
-                      placeholder="🍽️" 
-                      value={itemForm.emoji} 
-                      onChange={e => setItemForm(f=>({...f,emoji:e.target.value}))} 
-                      style={{ width: 44, height: 34, textAlign: 'center', fontSize: 17, padding: '0 4px', borderRadius: '8px' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Food Type (Dietary: Veg / Non-Veg Toggle Switch) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
-                      Food Type (Dietary)
-                    </label>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
-                      {itemForm.isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
-                    </span>
-                  </div>
-
-                  <div
-                    id="item-dietary-toggle-card"
-                    onClick={() => setItemForm(f => ({ ...f, isVeg: !f.isVeg, dietary: !f.isVeg ? 'veg' : 'non-veg' }))}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      background: itemForm.isVeg ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      border: itemForm.isVeg ? '1.5px solid rgba(34, 197, 94, 0.45)' : '1.5px solid rgba(239, 68, 68, 0.45)',
-                      boxShadow: itemForm.isVeg ? '0 0 16px rgba(34, 197, 94, 0.12)' : '0 0 16px rgba(239, 68, 68, 0.12)',
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span
-                        className={itemForm.isVeg ? 'food-badge-veg' : 'food-badge-nonveg'}
-                        style={{ width: 20, height: 20, flexShrink: 0 }}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                        <span style={{ fontSize: '13.5px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
-                          {itemForm.isVeg ? 'Vegetarian (Veg)' : 'Non-Vegetarian'}
-                        </span>
-                        <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary, #94a3b8)' }}>
-                          {itemForm.isVeg ? 'Pure veg dish • Green dot shown to customers & kitchen' : 'Contains meat/egg • Red triangle shown to customers & kitchen'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
-                      <ToggleSwitch
-                        id="item-veg-toggle-switch"
-                        className="dietary-toggle-switch"
-                        size="md"
-                        checked={itemForm.isVeg}
-                        onChange={e => setItemForm(f => ({ ...f, isVeg: e.target.checked, dietary: e.target.checked ? 'veg' : 'non-veg' }))}
-                        title={itemForm.isVeg ? 'Switch to Non-Vegetarian' : 'Switch to Vegetarian'}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Hidden buttons for backward compatibility with existing tests */}
-                  <button
-                    type="button"
-                    id="item-veg-toggle"
-                    style={{ display: 'none' }}
-                    onClick={() => setItemForm(f => ({ ...f, isVeg: true, dietary: 'veg' }))}
-                  />
-                  <button
-                    type="button"
-                    id="item-nonveg-toggle"
-                    style={{ display: 'none' }}
-                    onClick={() => setItemForm(f => ({ ...f, isVeg: false, dietary: 'non-veg' }))}
-                  />
-                </div>
-
-                {/* Highlights & Badges Section */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label className="form-label" style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.4px', margin: 0 }}>
-                    Badges & Highlights
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setItemForm(f => ({ ...f, highMargin: !f.highMargin }))}
-                      className={`high-margin-chip ${itemForm.highMargin ? 'is-active' : ''}`}
-                      style={{ height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px', borderRadius: '8px' }}
-                    >
-                      <span style={{ fontSize: '13px' }}>⭐</span>
-                      <span>High Margin</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      id="item-bestseller-toggle"
-                      onClick={() => setItemForm(f => ({ ...f, isBestseller: !f.isBestseller }))}
-                      className={`bestseller-chip ${itemForm.isBestseller ? 'is-active' : ''}`}
-                      style={{ height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px', borderRadius: '8px' }}
-                    >
-                      <span style={{ fontSize: '13px' }}>🔥</span>
-                      <span>Bestseller</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Section 4: Collapsible Optional Details (SKU, Unit, Description) */}
+                {/* 8. Collapsible Optional Details (SKU, Tax, Unit, Description) */}
                 <div className="optional-details-wrapper">
                   <button
                     type="button"
                     id="toggle-optional-details-btn"
                     className="optional-details-toggle-btn"
                     onClick={() => setShowAdvancedDetails(!showAdvancedDetails)}
+                    style={{ minHeight: 44, padding: '10px 14px', touchAction: 'manipulation' }}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {showAdvancedDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      <span>{showAdvancedDetails ? 'Hide Optional Details' : 'Optional Details (SKU, Tax, Description)'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {showAdvancedDetails ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                      <span style={{ fontSize: '12px' }}>{showAdvancedDetails ? 'Hide Optional Details' : 'Optional Details (SKU, Tax, Description)'}</span>
                     </span>
                     {(itemForm.barcode || itemForm.description || itemForm.taxRate !== '' || (itemForm.unit && itemForm.unit !== 'pcs')) && (
                       <span className="optional-details-configured-badge">Configured</span>
@@ -2882,11 +2909,11 @@ export default function MenuEditor() {
                     <div className="optional-details-content">
                       {/* Tax Rate Override Row */}
                       <div className="form-group" style={{ margin: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 600, margin: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, margin: 0 }}>
                             Tax Rate Override (%)
                           </label>
-                          <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)' }}>
+                          <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)' }}>
                             {activeCatData?.taxRate != null 
                               ? `Inherits Category: ${activeCatData.taxRate}%` 
                               : `Inherits Store: ${restaurant?.taxConfig?.rate ?? 0}%`}
@@ -2902,35 +2929,35 @@ export default function MenuEditor() {
                           placeholder={`Inherit (${activeCatData?.taxRate ?? restaurant?.taxConfig?.rate ?? 0}%) or enter 0 for Zero-Rated`} 
                           value={itemForm.taxRate ?? ''} 
                           onChange={e => setItemForm(f=>({...f, taxRate: e.target.value}))} 
-                          style={{ height: 36, padding: '0 12px', fontSize: '13px' }}
+                          style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
                         />
-                        <span style={{ fontSize: '10px', color: 'var(--color-label-tertiary)', marginTop: '2px', display: 'block' }}>
+                        <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', marginTop: '4px', display: 'block' }}>
                           Leave blank to inherit category/store tax. Set to 0 for tax-exempt / zero-rated items.
                         </span>
                       </div>
 
                       {/* Barcode & Unit Row */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
                         <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>Barcode / SKU</label>
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Barcode / SKU</label>
                           <input 
                             id="item-barcode-input" 
                             className="form-input" 
                             placeholder="e.g. SKU-101" 
                             value={itemForm.barcode ?? ''} 
                             onChange={e => setItemForm(f=>({...f, barcode: e.target.value}))} 
-                            style={{ height: 36, padding: '0 12px', fontSize: '13px' }}
+                            style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
                           />
                         </div>
 
                         <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>Unit of Measure</label>
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Unit of Measure</label>
                           <select 
                             id="item-unit-select" 
                             className="form-select" 
                             value={itemForm.unit ?? 'pcs'} 
                             onChange={e => setItemForm(f=>({...f, unit: e.target.value}))}
-                            style={{ height: 36, padding: '0 12px', fontSize: '13px' }}
+                            style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
                           >
                             <option value="pcs">Pieces (pcs)</option>
                             <option value="kg">Kilogram (kg)</option>
@@ -2944,7 +2971,7 @@ export default function MenuEditor() {
 
                       {/* Description */}
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>Description</label>
+                        <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Description</label>
                         <textarea 
                           id="item-desc-input" 
                           className="form-input" 
@@ -2952,7 +2979,7 @@ export default function MenuEditor() {
                           value={itemForm.description} 
                           onChange={e => setItemForm(f=>({...f,description:e.target.value}))} 
                           rows={2}
-                          style={{ resize: 'none', padding: '6px 10px', height: 'auto', fontSize: '12px', fontFamily: 'inherit' }}
+                          style={{ resize: 'none', padding: '10px 12px', height: 'auto', fontSize: '13px', fontFamily: 'inherit', borderRadius: '10px' }}
                         />
                       </div>
                     </div>
@@ -3470,9 +3497,23 @@ export default function MenuEditor() {
             )}
 
             {/* Modal Footer (Sticky) */}
-            <div className="modal-footer">
-              <button className="btn btn-secondary" id="cancel-item-btn" onClick={() => setShowItemForm(false)}>Cancel</button>
-              <button className="btn btn-primary" id="save-item-btn" onClick={saveItem}>{editItem ? 'Save Changes' : 'Add Item'}</button>
+            <div className="modal-footer" style={{ padding: '14px 24px', gap: '12px' }}>
+              <button
+                className="btn btn-secondary"
+                id="cancel-item-btn"
+                onClick={() => setShowItemForm(false)}
+                style={{ height: 44, padding: '0 22px', fontSize: '13.5px', fontWeight: 600, borderRadius: '10px', touchAction: 'manipulation' }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                id="save-item-btn"
+                onClick={saveItem}
+                style={{ height: 44, padding: '0 26px', fontSize: '13.5px', fontWeight: 700, borderRadius: '10px', touchAction: 'manipulation' }}
+              >
+                {editItem ? 'Save Changes' : 'Add Item'}
+              </button>
             </div>
           </div>
         </div>

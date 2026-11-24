@@ -21615,19 +21615,23 @@ html.dark .btn-secondary:hover {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 10px 14px;
+  min-height: 42px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--color-label-secondary);
   background: transparent !important;
   border: 1px solid transparent !important;
-  border-radius: 8px;
+  border-radius: 9px;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   font-family: inherit;
   position: relative;
   outline: none !important;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .modal-tab-segmented-btn:hover:not(.active) {
@@ -21636,14 +21640,14 @@ html.dark .btn-secondary:hover {
 }
 
 .modal-tab-segmented-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .modal-tab-segmented-btn.active {
   color: #ffffff !important;
   background: #23273a !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
   font-weight: 700;
 }
 
@@ -21982,30 +21986,6 @@ html.dark .optional-details-toggle-btn:hover {
   color: var(--color-label-secondary);
 }
 
-/* Dark Theme Overrides for Unified Modal & Modifiers */
-[data-theme="dark"] .modal-unified-editor {
-  background: #13141f;
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .modal-unified-editor .modal-header,
-[data-theme="dark"] .modal-unified-editor .modal-tabs-segmented-wrapper,
-[data-theme="dark"] .modal-unified-editor .modal-footer {
-  background: #161724;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="dark"] .modal-unified-editor .modal-tabs-segmented {
-  background: #0f1018;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="dark"] .modal-tab-segmented-btn.active {
-  background: #1f2130;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
 
 [data-theme="dark"] .modifier-presets-ribbon {
   background: #161724;
@@ -22184,21 +22164,27 @@ html.dark .optional-details-toggle-btn:hover {
 .item-status-toggle-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 7px;
+  padding: 6px 14px;
+  min-height: 32px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid transparent;
   font-family: inherit;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.item-status-toggle-pill:active {
+  transform: scale(0.96);
 }
 
 .item-status-toggle-pill .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   transition: all 0.18s ease;
 }
@@ -22265,22 +22251,30 @@ html.dark .optional-details-toggle-btn:hover {
 .high-margin-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 11px;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--color-separator);
   background: var(--color-bg-elevated);
   color: var(--color-label-secondary);
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: inherit;
   white-space: nowrap;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .high-margin-chip:hover {
   background: var(--color-fill);
   color: var(--color-label);
+}
+.high-margin-chip:active {
+  transform: scale(0.97);
 }
 .high-margin-chip.is-active {
   background: rgba(245, 158, 11, 0.15);
@@ -22313,22 +22307,30 @@ html.dark .high-margin-chip.is-active {
 .bestseller-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 11px;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--color-separator);
   background: var(--color-bg-elevated);
   color: var(--color-label-secondary);
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: inherit;
   white-space: nowrap;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .bestseller-chip:hover {
   background: var(--color-fill);
   color: var(--color-label);
+}
+.bestseller-chip:active {
+  transform: scale(0.97);
 }
 .bestseller-chip.is-active {
   background: rgba(239, 68, 68, 0.14);
