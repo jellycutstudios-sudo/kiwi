@@ -23586,13 +23586,13 @@ html.dark .bestseller-chip.is-active {
 
 /* Handheld Topbar */
 .handheld-topbar {
-  height: 52px;
+  height: 46px;
   background: var(--color-bg-secondary, #111827);
   border-bottom: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 10px;
   gap: 8px;
   flex-shrink: 0;
 }
@@ -23600,16 +23600,17 @@ html.dark .bestseller-chip.is-active {
 .handheld-topbar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+  flex: 1;
 }
 
 .handheld-table-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 10px;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.28);
   color: #10b981;
@@ -23617,6 +23618,9 @@ html.dark .bestseller-chip.is-active {
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .handheld-table-badge.unassigned {
@@ -23633,10 +23637,10 @@ html.dark .bestseller-chip.is-active {
   font-size: 11px;
   color: var(--color-label-secondary, #94a3b8);
   background: var(--color-bg-tertiary, #1f2937);
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: 6px;
   white-space: nowrap;
-  max-width: 90px;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -23644,7 +23648,7 @@ html.dark .bestseller-chip.is-active {
 .handheld-topbar-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-shrink: 0;
 }
 
@@ -23655,8 +23659,8 @@ html.dark .bestseller-chip.is-active {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #ffffff;
   border: none;
-  padding: 5px 10px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 800;
   cursor: pointer;
@@ -23666,12 +23670,12 @@ html.dark .bestseller-chip.is-active {
 .handheld-lang-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background: var(--color-bg-tertiary, #1f2937);
   border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.12));
   color: var(--color-label-secondary, #94a3b8);
-  padding: 5px 8px;
-  border-radius: 8px;
+  padding: 4px 7px;
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -23688,12 +23692,12 @@ html.dark .bestseller-chip.is-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   background: var(--color-bg-tertiary, #1f2937);
   border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.12));
   color: var(--color-label-secondary, #94a3b8);
-  border-radius: 8px;
+  border-radius: 7px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -23705,27 +23709,28 @@ html.dark .bestseller-chip.is-active {
   background: var(--color-bg-tertiary, #1f2937);
   border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.1));
   color: var(--color-label-secondary, #94a3b8);
-  padding: 5px 8px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
 
-/* Filter Strip */
+/* Filter Strip (Compact Single Row) */
 .handheld-filter-strip {
-  padding: 8px 12px 6px;
+  padding: 6px 10px;
   background: var(--color-bg-secondary, #111827);
   border-bottom: 1px solid var(--color-separator, rgba(255, 255, 255, 0.06));
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .handheld-search-box {
   position: relative;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .handheld-search-icon {
@@ -23765,17 +23770,17 @@ html.dark .bestseller-chip.is-active {
   padding: 4px;
 }
 
-.handheld-dietary-row {
+.handheld-dietary-compact {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
-.handheld-dietary-row::-webkit-scrollbar { display: none; }
 
 .handheld-dietary-chip {
-  padding: 3px 9px;
-  border-radius: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 700;
   border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
@@ -23783,6 +23788,11 @@ html.dark .bestseller-chip.is-active {
   color: var(--color-label-secondary, #94a3b8);
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.handheld-dietary-chip:active {
+  transform: scale(0.96);
 }
 
 .handheld-dietary-chip.active {
@@ -23807,6 +23817,57 @@ html.dark .bestseller-chip.is-active {
   background: #f59e0b;
   color: #ffffff;
   border-color: #f59e0b;
+}
+
+/* Top Chromatic Category Tabs (Toast POS Standard) */
+.handheld-top-categories {
+  height: 44px;
+  background: var(--color-bg-secondary, #111827);
+  border-bottom: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+}
+.handheld-top-categories::-webkit-scrollbar { display: none; }
+
+.handheld-cat-tab {
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--color-bg-tertiary, #1f2937);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  color: var(--color-label-secondary, #94a3b8);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.handheld-cat-tab:active {
+  transform: scale(0.96);
+}
+
+.handheld-cat-tab-stripe {
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.handheld-cat-tab.active {
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 /* Menu Scroll Container */
@@ -24170,43 +24231,9 @@ html.dark .bestseller-chip.is-active {
   justify-content: center;
 }
 
-/* Bottom Thumb Categories Bar */
-.handheld-thumb-categories {
-  height: 44px;
-  background: var(--color-bg-secondary, #111827);
-  border-top: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
-}
-.handheld-thumb-categories::-webkit-scrollbar { display: none; }
-
-.handheld-category-pill {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 700;
-  background: var(--color-bg-tertiary, #1f2937);
-  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
-  color: var(--color-label-secondary, #94a3b8);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.handheld-category-pill.active {
-  background: var(--color-accent, #38bdf8);
-  color: #0f172a;
-  border-color: var(--color-accent, #38bdf8);
-}
-
-/* Bottom Action Bar */
+/* Bottom Action Bar (High-Speed Toast Go 2 Standard) */
 .handheld-bottom-action-bar {
-  height: 58px;
+  height: 56px;
   background: #0b1120;
   border-top: 1.5px solid var(--color-separator, rgba(255, 255, 255, 0.12));
   display: flex;
@@ -24215,7 +24242,7 @@ html.dark .bestseller-chip.is-active {
   padding: 0 12px;
   gap: 10px;
   flex-shrink: 0;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
 }
 
 .handheld-cart-summary-trigger {
@@ -24224,24 +24251,28 @@ html.dark .bestseller-chip.is-active {
   gap: 8px;
   cursor: pointer;
   user-select: none;
+  flex: 1;
+  min-width: 0;
 }
 
 .handheld-cart-count-badge {
-  width: 28px;
-  height: 28px;
+  height: 32px;
+  padding: 0 10px;
   border-radius: 8px;
-  background: var(--color-accent, #38bdf8);
-  color: #0f172a;
-  font-size: 12px;
+  background: #38bdf8;
+  color: #090d16;
+  font-size: 12.5px;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .handheld-cart-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .handheld-cart-total-label {
@@ -24250,6 +24281,9 @@ html.dark .bestseller-chip.is-active {
   color: var(--color-label-secondary, #94a3b8);
   font-weight: 700;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .handheld-cart-total-value {
@@ -24257,11 +24291,13 @@ html.dark .bestseller-chip.is-active {
   font-weight: 900;
   color: var(--color-label, #f8fafc);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .handheld-cart-caret {
   color: var(--color-label-secondary, #94a3b8);
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .handheld-cart-caret.open {
@@ -24271,26 +24307,39 @@ html.dark .bestseller-chip.is-active {
 .handheld-cart-main-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.handheld-fire-btn {
+.handheld-speed-fire-btn {
   height: 40px;
-  padding: 0 14px;
-  font-size: 12.5px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #ffffff;
+  font-size: 13.5px;
   font-weight: 800;
-  border-radius: 10px;
-  gap: 6px;
-}
-
-.handheld-more-btn {
-  height: 40px;
-  width: 40px;
-  padding: 0;
-  border-radius: 10px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.handheld-speed-fire-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.92);
+}
+
+.handheld-empty-cart-hint {
+  font-size: 11.5px;
+  color: var(--color-label-secondary, #64748b);
+  font-style: italic;
+  padding-right: 4px;
 }
 
 /* Bottom Sheets */

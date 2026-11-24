@@ -3,7 +3,7 @@ import {
   Search, X, Plus, Minus, Flame, 
   ChevronUp, ChevronDown, Printer, CreditCard, 
   Split, ArrowLeft, Trash2, SlidersHorizontal, FileText,
-  Languages, LayoutGrid, List, Check
+  Languages, LayoutGrid, List, Check, ShoppingCart
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useOrderStore } from '../../stores/orderStore';
@@ -11,6 +11,7 @@ import { useTableStore } from '../../stores/tableStore';
 import { hapticTap, playNotificationTone, vibrateDevice } from '../../utils/soundNotifications';
 import { localSyncChannel } from '../../utils/localSyncChannel';
 import { transliterateFood, SUPPORTED_WAITER_LANGUAGES } from '../../utils/foodTransliteration';
+import { getCategoryChromaticColors } from '../../utils/categoryColors';
 import toast from 'react-hot-toast';
 import ModifierModal from './ModifierModal';
 import TouchQuantityPadModal from './TouchQuantityPadModal';
@@ -191,6 +192,13 @@ export default function MobileWaiterHandheld({
     });
     return { all: tables.length, free, occupied };
   }, [tables, tableOrders]);
+
+  const currentFloor = useMemo(() => {
+    if (!tableId) return null;
+    const tbl = tables.find(t => t.id === tableId || t.name === tableName);
+    if (!tbl) return null;
+    return getTableFloor(tbl);
+  }, [tableId, tableName, tables, getTableFloor]);
 
   const filteredTables = useMemo(() => {
     return tables.filter(tbl => {
@@ -549,7 +557,7 @@ export default function MobileWaiterHandheld({
           >
             <span className="handheld-table-icon">🪑</span>
             <span className="handheld-table-name">
-              {tableId ? `Table ${tableName}` : 'Select Table'}
+              {tableId ? (currentFloor ? `${tableName} (${currentFloor})` : `Table ${tableName}`) : 'Select Table'}
             </span>
             <ChevronDown size={12} className="handheld-table-caret" />
           </button>
@@ -643,7 +651,7 @@ export default function MobileWaiterHandheld({
         </div>
       )}
 
-      {/* ── Quick Search & Dietary Filter Strip ─────────────────────── */}
+      {/* ── Compact Search & Dietary Filter Strip (Single Row) ─────── */}
       <div className="handheld-filter-strip">
         <div className="handheld-search-box">
           <Search size={14} className="handheld-search-icon" />
@@ -665,7 +673,7 @@ export default function MobileWaiterHandheld({
           )}
         </div>
 
-        <div className="handheld-dietary-row">
+        <div className="handheld-dietary-compact">
           <button
             type="button"
             className={`handheld-dietary-chip ${dietaryFilter === 'all' ? 'active' : ''}`}
@@ -677,6 +685,7 @@ export default function MobileWaiterHandheld({
             type="button"
             className={`handheld-dietary-chip veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
             onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+            title="Filter Veg dishes"
           >
             🌱 Veg
           </button>
@@ -684,31 +693,60 @@ export default function MobileWaiterHandheld({
             type="button"
             className={`handheld-dietary-chip nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
             onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+            title="Filter Non-Veg dishes"
           >
             🥩 Non-Veg
-          </button>
-          <button
-            type="button"
-            className={`handheld-dietary-chip popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-            onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-          >
-            🔥 Popular
           </button>
         </div>
       </div>
 
-      {/* ── Subcategory Pill Bar (Toast POS Standard) ─────────────────── */}
-      {availableSubCategories.length > 0 && (
-        <div className="pos-subcategory-bar" style={{ padding: '6px 12px', minHeight: 42 }}>
+      {/* ── Top Chromatic Category Rail / Carousel (Toast POS Standard) ─ */}
+      <nav className="handheld-top-categories" aria-label="Menu Categories">
+        <button
+          type="button"
+          className={`handheld-cat-tab ${activeCategory === 'all' ? 'active' : ''}`}
+          onClick={() => { hapticTap('light'); setActiveCategory('all'); }}
+          style={activeCategory === 'all' ? {
+            background: '#334155',
+            color: '#f8fafc',
+            borderColor: '#64748b'
+          } : undefined}
+        >
+          <span className="handheld-cat-tab-stripe" style={{ background: '#94a3b8' }} />
+          <span>All Items</span>
+        </button>
+
+        {categories.map((cat, idx) => {
+          const colors = getCategoryChromaticColors(cat, idx);
+          const isActive = activeCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              className={`handheld-cat-tab ${isActive ? 'active' : ''}`}
+              onClick={() => { hapticTap('light'); setActiveCategory(cat.id); }}
+              style={isActive ? {
+                background: colors.activeBg,
+                color: colors.activeText,
+                borderColor: colors.stripe
+              } : undefined}
+            >
+              <span className="handheld-cat-tab-stripe" style={{ background: colors.stripe }} />
+              <span>{cat.name}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ── Contextual Subcategory Pill Bar (When category selected) ──── */}
+      {availableSubCategories.length > 0 && activeCategory !== 'all' && (
+        <div className="pos-subcategory-bar" style={{ padding: '4px 10px', minHeight: 34 }}>
           <button
             type="button"
             className={`pos-subcat-pill ${activeSubCategory === 'all' ? 'active' : ''}`}
             onClick={() => { hapticTap('light'); setActiveSubCategory('all'); }}
           >
             <span>All</span>
-            <span className="pos-subcat-count">
-              {activeCategory === 'all' ? menuItems.length : menuItems.filter(i => i.categoryId === activeCategory).length}
-            </span>
           </button>
           {availableSubCategories.map(sub => (
             <button
@@ -718,7 +756,6 @@ export default function MobileWaiterHandheld({
               onClick={() => { hapticTap('light'); setActiveSubCategory(sub.name); }}
             >
               <span>{sub.name}</span>
-              <span className="pos-subcat-count">{sub.count}</span>
             </button>
           ))}
         </div>
@@ -760,6 +797,9 @@ export default function MobileWaiterHandheld({
               } else if (cartQty === 0) {
                 hapticTap('light');
                 addItem(item);
+              } else {
+                hapticTap('light');
+                updateQty(item.id, cartQty + 1);
               }
             };
 
@@ -940,40 +980,23 @@ export default function MobileWaiterHandheld({
         </div>
       </main>
 
-      {/* ── Thumb-Zone Bottom Category Bar ─────────────────────────── */}
-      <nav className="handheld-thumb-categories" aria-label="Menu Categories">
-        <button
-          type="button"
-          className={`handheld-category-pill ${activeCategory === 'all' ? 'active' : ''}`}
-          onClick={() => { hapticTap('light'); setActiveCategory('all'); }}
-        >
-          All Items
-        </button>
-        {categories.map(cat => (
-          <button
-            key={cat.id}
-            type="button"
-            className={`handheld-category-pill ${activeCategory === cat.id ? 'active' : ''}`}
-            onClick={() => { hapticTap('light'); setActiveCategory(cat.id); }}
-          >
-            {cat.name}
-          </button>
-        ))}
-      </nav>
-
-      {/* ── Bottom Floating Cart Action Bar ────────────────────────── */}
+      {/* ── High-Speed Bottom Action Bar (Toast Go 2 Standard) ──────── */}
       <footer className="handheld-bottom-action-bar">
         <div 
           className="handheld-cart-summary-trigger"
           onClick={() => { hapticTap('light'); setShowCartSheet(!showCartSheet); }}
           role="button"
           tabIndex={0}
+          title="View Cart & Actions"
         >
           <div className="handheld-cart-count-badge">
-            {cartSummary.count}
+            <ShoppingCart size={13} style={{ marginRight: 3 }} />
+            <span>{cartSummary.count}</span>
           </div>
           <div className="handheld-cart-text">
-            <span className="handheld-cart-total-label">Subtotal</span>
+            <span className="handheld-cart-total-label">
+              {tableId ? `Table ${tableName}` : 'Current Order'}
+            </span>
             <span className="handheld-cart-total-value">
               {formatCurrency(cartSummary.subtotal, currency)}
             </span>
@@ -982,11 +1005,12 @@ export default function MobileWaiterHandheld({
         </div>
 
         <div className="handheld-cart-main-actions">
-          {items.length > 0 && (
+          {items.length > 0 ? (
             <button
               type="button"
-              className="btn btn-primary handheld-fire-btn"
+              className="handheld-speed-fire-btn"
               onClick={handleSendKitchenClick}
+              title={isKitchenActive ? "Send Order to Kitchen (KOT)" : "Save Order to Table"}
             >
               {isKitchenActive ? (
                 <>
@@ -995,22 +1019,15 @@ export default function MobileWaiterHandheld({
                 </>
               ) : (
                 <>
-                  <Check size={15} strokeWidth={2.5} />
-                  <span>Save to Table</span>
+                  <Check size={15} strokeWidth={2.8} />
+                  <span>Save Order</span>
                 </>
               )}
             </button>
-          )}
-
-          {items.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary handheld-more-btn"
-              onClick={() => { hapticTap('light'); setShowCartSheet(true); }}
-              title="View Cart & Actions"
-            >
-              <SlidersHorizontal size={15} />
-            </button>
+          ) : (
+            <div className="handheld-empty-cart-hint">
+              Tap dishes to add
+            </div>
           )}
         </div>
       </footer>
