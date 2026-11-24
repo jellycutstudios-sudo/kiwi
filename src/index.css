@@ -26860,11 +26860,6 @@ html.dark .login-page .login-back-btn:hover,
               -1px 0 0 var(--key-cat-stripe, #3b82f6) !important;
 }
 
-/* Visual image card: colored accent bottom strip (3px) + left border on dark */
-.menu-item-card {
-  border-bottom: 3px solid var(--key-cat-stripe, #3b82f6);
-}
-
 [data-theme="dark"] .menu-key-card {
   background-image: linear-gradient(
     to right,
@@ -26883,8 +26878,31 @@ html.dark .login-page .login-back-btn:hover,
               inset 1px 0 0 var(--key-cat-stripe, #3b82f6) !important;
 }
 
+/* Visual image card: unified 4px left accent spine + crisp 2.5px photo divider hairline */
+.menu-item-card {
+  border-left: 4px solid var(--key-cat-stripe, #3b82f6) !important;
+}
+
+.menu-item-card .menu-item-img-wrap {
+  border-bottom: 2.5px solid var(--key-cat-stripe, #3b82f6);
+}
+
+.menu-item-card:hover {
+  box-shadow: 0 6px 18px -4px rgba(15, 23, 42, 0.12),
+              -1px 0 0 var(--key-cat-stripe, #3b82f6) !important;
+}
+
 [data-theme="dark"] .menu-item-card {
-  border-bottom: 3px solid var(--key-cat-stripe, #3b82f6);
+  border-left: 4px solid var(--key-cat-stripe, #3b82f6) !important;
+}
+
+[data-theme="dark"] .menu-item-card .menu-item-img-wrap {
+  border-bottom: 2.5px solid var(--key-cat-stripe, #3b82f6);
+}
+
+[data-theme="dark"] .menu-item-card:hover {
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7),
+              inset 1px 0 0 var(--key-cat-stripe, #3b82f6) !important;
 }
 
 /* Mobile & Touch Screen Responsive POS Optimizations */
