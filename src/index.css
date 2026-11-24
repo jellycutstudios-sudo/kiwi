@@ -21381,6 +21381,83 @@ html.dark .btn-secondary:hover {
   border-radius: 50%;
   display: inline-block;
 }
+/* ── Executive Dashboard Scope Pill Rail ── */
+.sales-scope-rail {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-bg-secondary, #1a202c);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sales-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--color-label-secondary, #94a3b8);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sales-scope-pill:hover {
+  color: var(--color-label, #ffffff);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sales-scope-pill.active {
+  background: var(--color-bg-elevated, #242b3d);
+  color: var(--color-label, #ffffff);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .sales-scope-pill.active {
+  background: #242938;
+  color: #ffffff;
+}
+
+.sales-scope-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.sales-scope-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: var(--color-label, #ffffff);
+  margin-left: 2px;
+}
+
+/* ── Sales Vitals 4-Card Grid ── */
+.sales-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1100px) {
+  .sales-vitals-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 580px) {
   .sales-vitals-grid {
     grid-template-columns: 1fr;
@@ -21505,6 +21582,175 @@ html.dark .btn-secondary:hover {
   border-radius: 50%;
   display: inline-block;
   margin-right: 4px;
+}
+
+/* ── Analytics Hub: 7-Day Area Chart & Payment Breakdown ── */
+.dashboard-analytics-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-chart-card {
+  background: var(--color-bg-elevated, #171b26);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .dashboard-chart-card {
+  background: #171b26;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-payment-card {
+  background: var(--color-bg-elevated, #171b26);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .dashboard-payment-card {
+  background: #171b26;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.payment-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+@media (max-width: 480px) {
+  .payment-tiles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.payment-mini-tile {
+  background: var(--color-bg-secondary, #1a202c);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .payment-mini-tile {
+  background: #12151e;
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+.payment-mini-tile:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ── Live Active Dining Cards & Views ── */
+.dining-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-bg-secondary, #1a202c);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  border-radius: 9px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.dining-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--color-label-secondary, #94a3b8);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dining-view-btn.active {
+  background: var(--color-bg-elevated, #242b3d);
+  color: var(--color-label, #ffffff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .dining-view-btn.active {
+  background: #242938;
+}
+
+.dining-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+  padding: 16px;
+}
+
+.dining-order-card {
+  background: var(--color-bg-secondary, #171b26);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-theme="dark"] .dining-order-card {
+  background: #141722;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dining-order-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Operational Growth & AI Tiles ── */
+.growth-tip-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-bg-secondary, #1a202c);
+  border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .growth-tip-tile {
+  background: #141722;
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+.growth-tip-tile:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--color-bg-elevated, #242b3d);
 }
 
 /* Table Management Screen */
