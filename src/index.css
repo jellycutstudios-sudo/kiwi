@@ -21612,80 +21612,66 @@ html.dark .form-label {
 }
 
 .modal-tabs-segmented-wrapper {
-  padding: 10px 22px 6px;
+  padding: 12px 22px 10px;
   background: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-separator);
   flex-shrink: 0;
 }
 
 .modal-tabs-segmented {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   background: var(--color-bg-secondary);
   padding: 4px;
   border-radius: 12px;
   gap: 4px;
   border: 1px solid var(--color-separator);
   position: relative;
-  isolation: isolate;
   user-select: none;
 }
 
-.modal-tabs-glider {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 16px) / 3);
-  border-radius: 8px;
-  background: var(--color-bg-elevated);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  transition: transform 0.28s cubic-bezier(0.18, 0.9, 0.28, 1.05);
-  pointer-events: none;
-  z-index: 0;
-  will-change: transform;
-}
-
-[data-theme="dark"] .modal-tabs-glider,
-html.dark .modal-tabs-glider {
-  background: #2b3147;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-}
-
 .modal-tab-segmented-btn {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-label-secondary);
   background: transparent !important;
-  border: none;
+  border: 1px solid transparent !important;
   border-radius: 8px;
   cursor: pointer;
-  transition: color 0.2s ease, transform 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   font-family: inherit;
   position: relative;
-  z-index: 1;
+  outline: none !important;
 }
 
-.modal-tab-segmented-btn:hover {
+.modal-tab-segmented-btn:hover:not(.active) {
   color: var(--color-label);
+  background: rgba(255, 255, 255, 0.05) !important;
 }
 
 .modal-tab-segmented-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .modal-tab-segmented-btn.active {
-  color: var(--color-label);
-  background: transparent !important;
-  box-shadow: none !important;
+  color: #ffffff !important;
+  background: #23273a !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  font-weight: 700;
+}
+
+[data-theme="light"] .modal-tab-segmented-btn.active {
+  color: #0f172a !important;
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .modal-tab-badge {
@@ -21693,23 +21679,39 @@ html.dark .modal-tabs-glider {
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--color-accent-light);
-  color: var(--color-accent);
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
 }
 
 .modal-unified-editor .modal-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 18px 22px;
+  padding: 20px 24px;
   overscroll-behavior: contain;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 .modal-unified-editor .modal-body::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: 6px;
+}
+
+.modal-unified-editor .modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-unified-editor .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+[data-theme="light"] .modal-unified-editor .modal-body {
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+
+[data-theme="light"] .modal-unified-editor .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .modal-unified-editor .modal-body > * {
@@ -21727,16 +21729,6 @@ html.dark .modal-tabs-glider {
   gap: 10px;
 }
 
-/* Modifier Quick Preset Ribbon */
-.modal-tab-segmented-btn:focus {
-  outline: none;
-}
-
-.modal-tab-segmented-btn:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
-}
-
 @media (max-width: 640px) {
   .modal-tabs-segmented-wrapper {
     padding: 8px 12px 6px;
@@ -21751,18 +21743,90 @@ html.dark .modal-tabs-glider {
 /* Modifier Quick Presets Section */
 .modifier-presets-grid {
   display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .modifier-presets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.modifier-preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justifyContent: center;
+  padding: 12px 14px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-separator);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.modifier-preset-card:hover {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-accent, #10b981);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.modifier-preset-card:active {
+  transform: scale(0.98);
+}
+
+[data-theme="dark"] .modifier-preset-card {
+  background: #181926;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .modifier-preset-card:hover {
+  background: #212336;
+  border-color: #10b981;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.18);
+}
+
+.preset-card-top {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  font-size: 13.5px;
   font-weight: 700;
-  font-size: 12px;
   color: var(--color-label);
 }
 
 .preset-card-desc {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-label-secondary);
-  margin-top: 2px;
-  line-height: 1.2;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+.modifier-empty-state {
+  padding: 28px 20px;
+  background: var(--color-bg-secondary);
+  border-radius: 14px;
+  border: 1.5px dashed var(--color-separator);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+[data-theme="dark"] .modifier-empty-state {
+  background: #141622;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .modifier-presets-ribbon {

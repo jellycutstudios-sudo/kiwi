@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
@@ -76,6 +76,14 @@ export default function MenuEditor() {
   const [inventory, setInventory] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  const modalBodyRef = useRef(null);
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+  };
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list' (default grid for tab/pos)
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -163,6 +171,7 @@ export default function MenuEditor() {
     setShowAdvancedDetails(false);
     setActiveTab('general');
     setShowItemForm(true);
+    setTimeout(() => { if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0; }, 0);
   };
 
   const openEditItemModal = (item) => {
@@ -196,6 +205,7 @@ export default function MenuEditor() {
     setShowAdvancedDetails(Boolean(item.barcode || item.description || item.taxRate != null || (item.unit && item.unit !== 'pcs')));
     setActiveTab('general');
     setShowItemForm(true);
+    setTimeout(() => { if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0; }, 0);
   };
 
   const moveCategory = async (fromIndex, direction) => {
@@ -2288,24 +2298,17 @@ export default function MenuEditor() {
             {/* Segmented Pill Tab Bar */}
             <div className="modal-tabs-segmented-wrapper">
               <div className="modal-tabs-segmented">
-                <div
-                  className="modal-tabs-glider"
-                  style={{
-                    transform: `translate3d(calc(${activeTab === 'general' ? 0 : activeTab === 'modifiers' ? 1 : 2} * (100% + 4px)), 0, 0)`
-                  }}
-                  aria-hidden="true"
-                />
                 <button
                   type="button"
                   className={`modal-tab-segmented-btn ${activeTab === 'general' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('general')}
+                  onClick={() => switchTab('general')}
                 >
                   General Info
                 </button>
                 <button
                   type="button"
                   className={`modal-tab-segmented-btn ${activeTab === 'modifiers' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('modifiers')}
+                  onClick={() => switchTab('modifiers')}
                 >
                   Portions & Add-ons
                   {(itemForm.modifierGroups?.length ?? 0) > 0 && (
@@ -2315,7 +2318,7 @@ export default function MenuEditor() {
                 <button
                   type="button"
                   className={`modal-tab-segmented-btn ${activeTab === 'recipe' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('recipe')}
+                  onClick={() => switchTab('recipe')}
                 >
                   Recipe & COGS
                   {(itemForm.recipe?.length ?? 0) > 0 && (
@@ -2327,9 +2330,9 @@ export default function MenuEditor() {
 
             {/* Tab 1: General Info */}
             {activeTab === 'general' && (
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
+              <div className="modal-body" ref={modalBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
                 {/* Category & Subcategory Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: 2 }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>Category</label>
                     <select
@@ -2853,7 +2856,7 @@ export default function MenuEditor() {
 
             {/* Tab 2: Portions & Add-ons */}
             {activeTab === 'modifiers' && (
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="modal-body" ref={modalBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {/* Header with Title + Expand/Collapse All + Add Group */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                   <div>
@@ -2888,41 +2891,41 @@ export default function MenuEditor() {
                 </div>
 
                 {/* Structured Quick Template Cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.4px' }}>
-                      ⚡ Quick Presets
+                    <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-label-secondary)', letterSpacing: '0.5px' }}>
+                      ⚡ 1-Click Quick Presets
                     </span>
-                    <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)' }}>1-click template add</span>
+                    <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>Tap to instantly add template</span>
                   </div>
                   <div className="modifier-presets-grid">
                     <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('portions')}>
                       <div className="preset-card-top">
-                        <span>🍗</span>
+                        <span style={{ fontSize: '18px' }}>🍗</span>
                         <span>Portions</span>
                       </div>
-                      <span className="preset-card-desc">Quarter / Half / Full</span>
+                      <span className="preset-card-desc">Quarter · Half · Full</span>
                     </button>
                     <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('sizes')}>
                       <div className="preset-card-top">
-                        <span>📏</span>
+                        <span style={{ fontSize: '18px' }}>📏</span>
                         <span>Sizes</span>
                       </div>
-                      <span className="preset-card-desc">Small / Med / Large</span>
+                      <span className="preset-card-desc">Small · Med · Large</span>
                     </button>
                     <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('spice')}>
                       <div className="preset-card-top">
-                        <span>🌶️</span>
+                        <span style={{ fontSize: '18px' }}>🌶️</span>
                         <span>Spice Level</span>
                       </div>
-                      <span className="preset-card-desc">Mild / Med / Hot</span>
+                      <span className="preset-card-desc">Mild · Med · Hot</span>
                     </button>
                     <button type="button" className="modifier-preset-card" onClick={() => addModifierPreset('addons')}>
                       <div className="preset-card-top">
-                        <span>🧀</span>
+                        <span style={{ fontSize: '18px' }}>🧀</span>
                         <span>Add-ons</span>
                       </div>
-                      <span className="preset-card-desc">Extras & Toppings</span>
+                      <span className="preset-card-desc">Extras & Sides</span>
                     </button>
                   </div>
                 </div>
@@ -3172,34 +3175,14 @@ export default function MenuEditor() {
                   })}
                   
                   {(!itemForm.modifierGroups || itemForm.modifierGroups.length === 0) && (
-                    <div style={{ 
-                      fontSize: 'var(--text-footnote)', 
-                      color: 'var(--color-label-tertiary)', 
-                      textAlign: 'center', 
-                      padding: 'var(--space-5) var(--space-4)',
-                      background: 'var(--color-bg-secondary)',
-                      borderRadius: 'var(--radius-lg)',
-                      border: '1.5px dashed var(--color-separator)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 'var(--space-2)'
-                    }}>
-                      <div style={{ fontSize: 26 }}>🍽️</div>
-                      <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--color-label)' }}>
+                    <div className="modifier-empty-state">
+                      <div style={{ fontSize: 28, marginBottom: 2 }}>🍽️</div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--color-label)' }}>
                         No Modifiers or Sizes Configured
                       </div>
-                      <span style={{ maxWidth: 320, lineHeight: 1.4, fontSize: 11.5, color: 'var(--color-label-secondary)' }}>
-                        Choose a quick preset above (Portions, Sizes, Spice Level) or create a custom modifier group below.
+                      <span style={{ maxWidth: 360, lineHeight: 1.45, fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                        This item sells as a standard single portion. Pick a quick preset above (Portions, Sizes, Add-ons) or tap Custom Group to offer extras.
                       </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => addModifierPreset('custom')}
-                        style={{ marginTop: 4, height: 32, padding: '0 14px', fontSize: '11.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                      >
-                        <Plus size={13} /> Create Custom Group
-                      </button>
                     </div>
                   )}
                 </div>
@@ -3208,7 +3191,7 @@ export default function MenuEditor() {
 
             {/* Tab 3: Recipe & COGS */}
             {activeTab === 'recipe' && (
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div className="modal-body" ref={modalBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-separator)', paddingBottom: 'var(--space-2)' }}>
                   <div>
                     <h3 style={{ margin: 0, fontWeight: 700, fontSize: '14.5px', color: 'var(--color-label)' }}>
