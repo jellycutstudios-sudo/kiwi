@@ -1802,7 +1802,6 @@ export default function POS() {
                       >
                         <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
                         <span className="category-chip-name">All Items</span>
-                        <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
                       </button>
                     );
                   })()}
@@ -1853,9 +1852,6 @@ export default function POS() {
                       >
                         <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
                         <span className="category-chip-name">{c.name}</span>
-                        {c.items?.length > 0 && (
-                          <span className="category-chip-count">{c.items.length}</span>
-                        )}
                       </button>
                     );
                   })}
