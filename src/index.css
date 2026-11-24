@@ -21042,11 +21042,11 @@ html.dark .modal-footer {
 
 [data-theme="dark"] .form-label,
 html.dark .form-label {
-  color: #cbd5e1;
+  color: #f1f5f9 !important;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 [data-theme="dark"] .form-input,
@@ -21059,17 +21059,18 @@ html.dark .form-select,
 html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html.dark select,
 html.dark textarea {
-  background-color: #080b12 !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+  background-color: #05080e !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.3) !important;
   color: #ffffff !important;
+  font-weight: 600;
   color-scheme: dark;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6) !important;
   transition: border-color var(--duration-fast), box-shadow var(--duration-fast), background-color var(--duration-fast);
 }
 
 [data-theme="dark"] .form-select,
 html.dark .form-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f1f5f9' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 14px 14px;
@@ -21086,8 +21087,8 @@ html.dark .form-select:hover,
 html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
 html.dark select:hover,
 html.dark textarea:hover {
-  border-color: rgba(255, 255, 255, 0.52) !important;
-  background-color: #0c1018 !important;
+  border-color: rgba(255, 255, 255, 0.65) !important;
+  background-color: #090d16 !important;
 }
 
 [data-theme="dark"] .form-input:focus,
@@ -21100,9 +21101,9 @@ html.dark .form-select:focus,
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
-  border-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22), inset 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-  background-color: #0b0f17 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.28), inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+  background-color: #070a12 !important;
   outline: none;
 }
 
@@ -21112,7 +21113,7 @@ html.dark textarea:focus {
 html.dark .form-input::placeholder,
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.55) !important;
 }
 
 /* Secondary Button on Dark */
@@ -21715,49 +21716,57 @@ html.dark .btn-secondary:hover {
 
 [data-theme="dark"] .modal-unified-editor,
 html.dark .modal-unified-editor {
-  background: #151a28;
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: #141926;
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="dark"] .modal-unified-editor .modal-header,
 html.dark .modal-unified-editor .modal-header {
-  background: #101420;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0b0e17;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.16);
 }
 
 [data-theme="dark"] .modal-tabs-segmented-wrapper,
 html.dark .modal-tabs-segmented-wrapper {
-  background: #101420;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0b0e17;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.16);
 }
 
 [data-theme="dark"] .modal-tabs-segmented,
 html.dark .modal-tabs-segmented {
-  background: #080b12;
-  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: #05070c;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="dark"] .modal-unified-editor .modal-body,
 html.dark .modal-unified-editor .modal-body {
-  background: #151a28;
+  background: #141926;
 }
 
 [data-theme="dark"] .modal-unified-editor .modal-footer,
 html.dark .modal-unified-editor .modal-footer {
-  background: #101420;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0b0e17;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.16);
+}
+
+[data-theme="dark"] .item-editor-media-deck,
+html.dark .item-editor-media-deck,
+[data-theme="dark"] .pronunciation-script-card,
+html.dark .pronunciation-script-card {
+  background: #0a0d15 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
 }
 
 [data-theme="dark"] .optional-details-wrapper,
 html.dark .optional-details-wrapper {
-  background: #0d101a;
-  border: 1.5px dashed rgba(255, 255, 255, 0.2);
+  background: #0a0d15;
+  border: 1.5px dashed rgba(255, 255, 255, 0.28);
 }
 
 [data-theme="dark"] .optional-details-toggle-btn:hover,
 html.dark .optional-details-toggle-btn:hover {
-  background: #182032;
+  background: #151c2a;
   color: #ffffff;
 }
 

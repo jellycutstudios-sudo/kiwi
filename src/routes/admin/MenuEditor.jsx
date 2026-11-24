@@ -2372,11 +2372,11 @@ export default function MenuEditor() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   {/* Price */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, margin: '0 0 6px 0', fontSize: '12px' }}>
+                    <label className="form-label" style={{ fontWeight: 800, margin: '0 0 6px 0', fontSize: '12px' }}>
                       Price ({restaurant?.currency ?? 'INR'})
                     </label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <span style={{ position: 'absolute', left: 14, fontSize: '15px', fontWeight: 700, color: '#cbd5e1', pointerEvents: 'none' }}>
+                      <span style={{ position: 'absolute', left: 14, fontSize: '16px', fontWeight: 800, color: '#38bdf8', pointerEvents: 'none' }}>
                         {restaurant?.currency === 'INR' ? '₹' : (restaurant?.currency ?? '$')}
                       </span>
                       <input 
@@ -2536,10 +2536,10 @@ export default function MenuEditor() {
                           type="button"
                           onClick={() => setItemForm(f => ({ ...f, subCategory: isSelected ? '' : sub }))}
                           style={{
-                            border: isSelected ? '1.5px solid var(--color-primary, #10b981)' : '1px solid rgba(255, 255, 255, 0.16)',
-                            background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#182032',
-                            color: isSelected ? '#10b981' : 'var(--color-label-secondary)',
-                            fontWeight: isSelected ? 700 : 600,
+                            border: isSelected ? '2px solid #10b981' : '1.5px solid rgba(255, 255, 255, 0.24)',
+                            background: isSelected ? 'rgba(16, 185, 129, 0.25)' : '#182030',
+                            color: isSelected ? '#34d399' : '#cbd5e1',
+                            fontWeight: isSelected ? 800 : 600,
                             fontSize: '12px',
                             borderRadius: '8px',
                             padding: '6px 12px',
@@ -2559,10 +2559,10 @@ export default function MenuEditor() {
                 {/* 4. Food Type (Dietary: Veg / Non-Veg Toggle Switch) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', color: '#f1f5f9', letterSpacing: '0.05em', margin: 0 }}>
                       Food Type (Dietary)
                     </label>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 800, color: itemForm.isVeg ? '#34d399' : '#f87171' }}>
                       {itemForm.isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
                     </span>
                   </div>
@@ -2579,9 +2579,9 @@ export default function MenuEditor() {
                       cursor: 'pointer',
                       userSelect: 'none',
                       touchAction: 'manipulation',
-                      background: itemForm.isVeg ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      border: itemForm.isVeg ? '1.5px solid rgba(34, 197, 94, 0.45)' : '1.5px solid rgba(239, 68, 68, 0.45)',
-                      boxShadow: itemForm.isVeg ? '0 0 16px rgba(34, 197, 94, 0.12)' : '0 0 16px rgba(239, 68, 68, 0.12)',
+                      background: itemForm.isVeg ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.16)',
+                      border: itemForm.isVeg ? '2px solid #10b981' : '2px solid #ef4444',
+                      boxShadow: itemForm.isVeg ? '0 0 16px rgba(16, 185, 129, 0.22)' : '0 0 16px rgba(239, 68, 68, 0.22)',
                       transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                     }}
                   >
@@ -2591,10 +2591,10 @@ export default function MenuEditor() {
                         style={{ width: 22, height: 22, flexShrink: 0 }}
                       />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 800, color: itemForm.isVeg ? '#34d399' : '#f87171' }}>
                           {itemForm.isVeg ? 'Vegetarian (Veg)' : 'Non-Vegetarian'}
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary, #94a3b8)' }}>
+                        <span style={{ fontSize: '11px', color: itemForm.isVeg ? '#a7f3d0' : '#fca5a5' }}>
                           {itemForm.isVeg ? 'Pure veg dish • Green dot shown to customers & kitchen' : 'Contains meat/egg • Red triangle shown to customers & kitchen'}
                         </span>
                       </div>
@@ -2629,7 +2629,7 @@ export default function MenuEditor() {
 
                 {/* 5. Highlights & Badges Section (Touch-friendly 44px buttons) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', color: '#f1f5f9', letterSpacing: '0.05em', margin: 0 }}>
                     Badges & Highlights
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -2656,17 +2656,20 @@ export default function MenuEditor() {
                   </div>
                 </div>
 
-                {/* 6. Photo & Emoji Card (Touch-Optimized) */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '14px',
-                  background: 'var(--color-bg-secondary, #182032)',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))'
-                }}>
+                {/* 6. Photo & Emoji Card (High-Contrast Deck) */}
+                <div
+                  className="item-editor-media-deck"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                    background: '#0a0d15',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '1.5px solid rgba(255, 255, 255, 0.22)'
+                  }}
+                >
                   {/* Photo Uploader (Left) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
                     {itemForm.imageUrl ? (
@@ -2689,7 +2692,7 @@ export default function MenuEditor() {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ width: 52, height: 52, borderRadius: '10px', border: '1.5px dashed var(--color-separator)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: 'var(--color-bg)', flexShrink: 0 }}>
+                      <div style={{ width: 52, height: 52, borderRadius: '10px', border: '1.5px dashed rgba(255, 255, 255, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: '#05070c', flexShrink: 0 }}>
                         📷
                       </div>
                     )}
@@ -2706,23 +2709,23 @@ export default function MenuEditor() {
                         className="btn btn-secondary btn-sm"
                         onClick={() => document.getElementById('item-image-file').click()}
                         disabled={uploadingImage}
-                        style={{ height: 38, padding: '0 14px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: '8px', touchAction: 'manipulation' }}
+                        style={{ height: 38, padding: '0 14px', fontSize: '12px', fontWeight: 700, background: '#232c40', color: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: '8px', touchAction: 'manipulation' }}
                       >
                         <Camera size={14} />
                         <span>{uploadingImage ? 'Optimizing...' : (itemForm.imageUrl ? 'Change Photo' : 'Upload Photo')}</span>
                       </button>
-                      <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', lineHeight: 1 }}>
+                      <span style={{ fontSize: '10.5px', color: '#94a3b8', lineHeight: 1 }}>
                         Auto-compressed
                       </span>
                     </div>
                   </div>
 
                   {/* Vertical Divider */}
-                  <div style={{ width: 1, height: 40, background: 'var(--color-separator)', flexShrink: 0 }} />
+                  <div style={{ width: 1, height: 40, background: 'rgba(255, 255, 255, 0.16)', flexShrink: 0 }} />
 
                   {/* Emoji input (Right) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>Emoji</span>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#f1f5f9' }}>Emoji</span>
                     <input 
                       id="item-emoji-input" 
                       className="form-input" 
@@ -2734,12 +2737,12 @@ export default function MenuEditor() {
                   </div>
                 </div>
 
-                {/* 7. Waiter Local Language Display & AI Translator (Collapsible) */}
+                {/* 7. Waiter Local Language Display & AI Translator (Collapsible Deck) */}
                 <div 
                   className="pronunciation-script-card"
                   style={{ 
-                    background: 'var(--color-bg-secondary, #182032)', 
-                    border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))', 
+                    background: '#0a0d15', 
+                    border: '1.5px solid rgba(255, 255, 255, 0.22)', 
                     borderRadius: '12px', 
                     overflow: 'hidden',
                     transition: 'border-color 0.15s ease'
@@ -2757,7 +2760,7 @@ export default function MenuEditor() {
                       cursor: 'pointer',
                       userSelect: 'none',
                       touchAction: 'manipulation',
-                      background: showPronunciation ? 'var(--color-fill, rgba(255,255,255,0.02))' : 'transparent',
+                      background: showPronunciation ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
                       transition: 'background 0.15s ease'
                     }}
                     role="button"
@@ -2770,15 +2773,15 @@ export default function MenuEditor() {
                         display: 'inline-flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
-                        color: 'var(--color-label-tertiary)', 
+                        color: '#94a3b8', 
                         transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
                         transform: showPronunciation ? 'rotate(180deg)' : 'rotate(0deg)' 
                       }}>
                         <ChevronDown size={14} />
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                        <Languages size={15} style={{ color: 'var(--color-accent)' }} />
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-label)' }}>
+                        <Languages size={15} style={{ color: '#38bdf8' }} />
+                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
                           Waiter Pronunciation Script
                         </span>
                       </div>
@@ -2786,11 +2789,12 @@ export default function MenuEditor() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                           <span style={{
                             fontSize: '9.5px',
-                            fontWeight: 700,
-                            padding: '1px 6px',
+                            fontWeight: 800,
+                            padding: '2px 8px',
                             borderRadius: '999px',
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: 'var(--color-accent, #10b981)',
+                            background: 'rgba(56, 189, 248, 0.2)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.45)',
                             letterSpacing: '0.02em',
                             flexShrink: 0
                           }}>
@@ -2799,7 +2803,7 @@ export default function MenuEditor() {
                           {!showPronunciation && (
                             <span style={{
                               fontSize: '11px',
-                              color: 'var(--color-label-tertiary)',
+                              color: '#cbd5e1',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap'
@@ -2810,7 +2814,7 @@ export default function MenuEditor() {
                         </div>
                       ) : (
                         !showPronunciation && (
-                          <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0 }}>
                             (Auto-generated)
                           </span>
                         )
@@ -2833,11 +2837,11 @@ export default function MenuEditor() {
                           padding: '4px 10px',
                           minHeight: 32,
                           fontSize: '11.5px',
-                          fontWeight: 600,
-                          color: 'var(--color-accent)',
-                          background: 'rgba(16, 185, 129, 0.12)',
+                          fontWeight: 700,
+                          color: '#38bdf8',
+                          background: 'rgba(56, 189, 248, 0.15)',
                           borderRadius: '8px',
-                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          border: '1px solid rgba(56, 189, 248, 0.35)',
                           cursor: itemForm.name?.trim() ? 'pointer' : 'not-allowed',
                           opacity: itemForm.name?.trim() ? 1 : 0.6,
                           touchAction: 'manipulation'
@@ -2856,11 +2860,11 @@ export default function MenuEditor() {
                       display: 'grid', 
                       gridTemplateColumns: '1fr 1fr', 
                       gap: '10px', 
-                      borderTop: '1px solid var(--color-separator-opaque, #2a2a2a)',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.14)',
                       animation: 'fadeInAccordion 0.18s ease-out'
                     }}>
                       <div>
-                        <label style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
+                        <label style={{ fontSize: '11px', color: '#cbd5e1', marginBottom: '4px', display: 'block', fontWeight: 700 }}>
                           🌴 Malayalam (മലയാളം)
                         </label>
                         <input
@@ -2872,7 +2876,7 @@ export default function MenuEditor() {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '11px', color: 'var(--color-label-secondary)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
+                        <label style={{ fontSize: '11px', color: '#cbd5e1', marginBottom: '4px', display: 'block', fontWeight: 700 }}>
                           🇮🇳 Hindi (हिंदी)
                         </label>
                         <input
@@ -2898,10 +2902,10 @@ export default function MenuEditor() {
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {showAdvancedDetails ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                      <span style={{ fontSize: '12px' }}>{showAdvancedDetails ? 'Hide Optional Details' : 'Optional Details (SKU, Tax, Description)'}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>{showAdvancedDetails ? 'Hide Optional Details' : 'Optional Details (SKU, Tax, Description)'}</span>
                     </span>
                     {(itemForm.barcode || itemForm.description || itemForm.taxRate !== '' || (itemForm.unit && itemForm.unit !== 'pcs')) && (
-                      <span className="optional-details-configured-badge">Configured</span>
+                      <span className="optional-details-configured-badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.45)', fontWeight: 800 }}>Configured</span>
                     )}
                   </button>
 
