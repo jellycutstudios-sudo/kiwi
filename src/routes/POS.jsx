@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
@@ -1168,6 +1168,51 @@ export default function POS() {
     return filtered;
   }, [categories, activeCat, activeSubCat, search, dietaryFilter, itemSalesMap, activeOffers]);
 
+  // Group displayItems into category sections when on "All Items" or multi-category views (Toast POS / Square standard)
+  const groupedDisplayItems = useMemo(() => {
+    const searchStr = typeof search === 'string' ? search.trim() : '';
+    const isMultiCategory = activeCat === 'all' || activeCat === 'deals' || Boolean(searchStr);
+    if (!isMultiCategory) {
+      return [{ category: null, index: -1, items: displayItems }];
+    }
+
+    const categoryMap = new Map();
+    categories.forEach((cat, idx) => {
+      categoryMap.set(cat.id, {
+        category: cat,
+        index: idx,
+        items: [],
+      });
+    });
+
+    const otherGroup = {
+      category: { id: 'other', name: 'Other Items' },
+      index: categories.length,
+      items: [],
+    };
+
+    displayItems.forEach(item => {
+      const catId = item.categoryId || item.categoryName;
+      if (categoryMap.has(catId)) {
+        categoryMap.get(catId).items.push(item);
+      } else {
+        otherGroup.items.push(item);
+      }
+    });
+
+    const groups = [];
+    categoryMap.forEach(group => {
+      if (group.items.length > 0) {
+        groups.push(group);
+      }
+    });
+    if (otherGroup.items.length > 0) {
+      groups.push(otherGroup);
+    }
+
+    return groups.length > 0 ? groups : [{ category: null, index: -1, items: displayItems }];
+  }, [categories, displayItems, activeCat, search]);
+
   // Order type buttons with modern Lucide icons
   const orderTypes = [
     {
@@ -2085,43 +2130,71 @@ export default function POS() {
                     )}
 
                     <div className={`menu-grid ${menuDensity === 'dense' ? 'dense' : ''}`}>
-                      {displayItems.map(item => {
-                        const qty = getItemQty(item);
-                        const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
-                        const isVegItem = checkIsVegItem(item);
-                        const itemCat = categories.find(c => c.id === (item.categoryId || item.categoryName));
-                        const catIndex = categories.findIndex(c => c.id === (item.categoryId || item.categoryName));
-                        const catColors = getCategoryChromaticColors(itemCat || item.categoryId || 'default', catIndex >= 0 ? catIndex : 0);
+                      {groupedDisplayItems.map(group => {
+                        const { category, index: groupIdx, items: groupItems } = group;
+                        const secColors = category ? getCategoryChromaticColors(category, groupIdx) : null;
 
-                        if (menuDensity === 'dense') {
-                          const formattedPrice = getDisplayPrice(item, currency);
+                        return (
+                          <Fragment key={category ? category.id : 'all-flat'}>
+                            {category && (
+                              <div
+                                id={`pos-category-section-${category.id}`}
+                                className="pos-category-section-divider"
+                                style={{ '--sec-color': secColors.stripe }}
+                              >
+                                <div className="pos-category-section-header-left">
+                                  <span className="pos-category-section-stripe" style={{ backgroundColor: secColors.stripe }} />
+                                  <span className="pos-category-section-title">{category.name}</span>
+                                  <span className="pos-category-section-badge">{groupItems.length}</span>
+                                </div>
+                                <div className="pos-category-section-line" />
+                              </div>
+                            )}
 
-                          return (
-                            <div
-                              key={item.id}
-                              id={`menu-item-${item.id}`}
-                              role="button"
-                              tabIndex={0}
-                              className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
-                              style={{ '--key-cat-stripe': catColors.stripe }}
-                              onClick={() => {
-                                if (item.available === false) return;
-                                if (hasModifiers) setActiveModifierItem(item);
-                                else handleAddItem(item);
-                              }}
-                              onKeyDown={e => {
-                                if (item.available === false) return;
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  if (hasModifiers) setActiveModifierItem(item);
-                                  else handleAddItem(item);
-                                }
-                              }}
-                            >
-                              {/* Top Meta Bar: Dietary Icon on left + Badges (Options / SubCategory / Bestseller) on right */}
-                              <div className="menu-key-header">
-                                <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-                                <div className="menu-key-badges-right">
+                            {groupItems.map(item => {
+                              const qty = getItemQty(item);
+                              const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
+                              const isVegItem = checkIsVegItem(item);
+                              const itemCat = categories.find(c => c.id === (item.categoryId || item.categoryName));
+                              const catIndex = categories.findIndex(c => c.id === (item.categoryId || item.categoryName));
+                              const catColors = getCategoryChromaticColors(itemCat || item.categoryId || 'default', catIndex >= 0 ? catIndex : 0);
+
+                              if (menuDensity === 'dense') {
+                                const formattedPrice = getDisplayPrice(item, currency);
+
+                                return (
+                                  <div
+                                    key={item.id}
+                                    id={`menu-item-${item.id}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                                    style={{ '--key-cat-stripe': catColors.stripe }}
+                                    onClick={() => {
+                                      if (item.available === false) return;
+                                      if (hasModifiers) setActiveModifierItem(item);
+                                      else handleAddItem(item);
+                                    }}
+                                    onKeyDown={e => {
+                                      if (item.available === false) return;
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        if (hasModifiers) setActiveModifierItem(item);
+                                        else handleAddItem(item);
+                                      }
+                                    }}
+                                  >
+                                    {/* Top Meta Bar: Dietary Icon on left + Badges (Options / SubCategory / Bestseller) on right */}
+                                    <div className="menu-key-header">
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                                        <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                                        {(activeCat === 'all' || activeCat === 'deals' || Boolean(search?.trim())) && (itemCat?.name || item.categoryName) && (
+                                          <span className="menu-key-cat-tag" style={{ color: catColors.stripe }}>
+                                            {itemCat?.name || item.categoryName}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="menu-key-badges-right">
                                   {item.subCategory && (
                                     <span className="item-subcat-badge">{item.subCategory}</span>
                                   )}
@@ -2282,6 +2355,11 @@ export default function POS() {
                             </div>
                             <div className="menu-item-body">
                               <div className="menu-item-name" title={item.name}>
+                                {(activeCat === 'all' || activeCat === 'deals' || Boolean(search?.trim())) && (itemCat?.name || item.categoryName) && (
+                                  <span className="menu-item-cat-tag" style={{ color: catColors.stripe }}>
+                                    {itemCat?.name || item.categoryName}
+                                  </span>
+                                )}
                                 <span className="menu-item-name-text">{item.name}</span>
                                 {item.subCategory && (
                                   <span className="item-subcat-badge">{item.subCategory}</span>
@@ -2344,7 +2422,10 @@ export default function POS() {
 
                         );
                       })}
-                    </div>
+                    </Fragment>
+                  );
+                })}
+              </div>
                   </>
                 )}
               </>
