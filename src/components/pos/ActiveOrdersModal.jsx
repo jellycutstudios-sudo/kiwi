@@ -3,11 +3,13 @@ import { useOrderStore } from '../../stores/orderStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { printReceipt } from '../../utils/print';
 import { sendWhatsAppReceipt } from '../../services/whatsappService';
-import { getOrderElapsedSeconds } from '../../utils/timezoneUtils';
+import { getOrderElapsedSeconds, getOrderTimestampMs } from '../../utils/timezoneUtils';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { 
   X, Printer, Check, ShoppingBag, Utensils, Clock, Zap, Search,
-  Edit2, Bell, FileText, Globe, CreditCard,
-  ChevronDown, ChevronUp, LayoutList, LayoutGrid
+  Edit2, Bell, FileText, Globe, CreditCard, CheckCircle2, XCircle,
+  ChevronDown, ChevronUp, LayoutList, LayoutGrid, Eye, MessageCircle, AlertTriangle, Armchair
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -26,11 +28,19 @@ export default function ActiveOrdersModal({
   const settleOrder = useOrderStore(s => s.settleOrder);
   const markBillPrinted = useOrderStore(s => s.markBillPrinted);
 
+  // Primary navigation: 'open' | 'completed' | 'voids'
+  const [activeTab, setActiveTab] = useState('open');
+  // View mode in Open Orders: 'table' (high density tabular) | 'cards' (visual grid)
+  const [viewMode, setViewMode] = useState('table');
   const [filterType, setFilterType] = useState(initialFilter);
   const [searchQuery, setSearchQuery] = useState('');
   const [settlingId, setSettlingId] = useState(null);
   const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
   const [layoutCols, setLayoutCols] = useState('2');
+
+  // History orders for Completed & Voids tabs
+  const [historyOrders, setHistoryOrders] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const toggleOrderExpand = (orderId) => {
     setExpandedOrderIds(prev => {
@@ -47,10 +57,52 @@ export default function ActiveOrdersModal({
     }
   }, [isOpen, initialFilter]);
 
-  // Filter running orders (exclude billed/cancelled)
+  // Fetch today's completed and void orders when modal opens
+  useEffect(() => {
+    if (!isOpen || !restaurant?.id) return;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const q = query(
+      collection(db, 'restaurants', restaurant.id, 'orders'),
+      where('createdAt', '>=', start),
+      orderBy('createdAt', 'desc'),
+      limit(250)
+    );
+
+    setHistoryLoading(true);
+    getDocs(q).then(snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setHistoryOrders(docs);
+    }).catch(err => {
+      console.warn('[ActiveOrdersModal] Failed to fetch history orders:', err);
+    }).finally(() => {
+      setHistoryLoading(false);
+    });
+  }, [isOpen, restaurant?.id]);
+
+  // 1. Running Open Orders (exclude billed/cancelled/completed)
   const runningOrders = useMemo(() => {
-    return (activeOrders || []).filter(o => o.status !== 'billed' && o.status !== 'cancelled');
+    return (activeOrders || []).filter(o => 
+      o.status !== 'billed' && 
+      o.status !== 'cancelled' && 
+      o.status !== 'completed' && 
+      o.status !== 'void'
+    );
   }, [activeOrders]);
+
+  // 2. Completed Orders today
+  const completedOrders = useMemo(() => {
+    return historyOrders.filter(o => 
+      (o.status === 'billed' || o.status === 'completed' || (o.paymentMethod && o.paymentMethod !== 'unpaid') || o.paid === true) &&
+      o.status !== 'cancelled' && o.status !== 'void'
+    );
+  }, [historyOrders]);
+
+  // 3. Voids / Cancelled orders today
+  const voidOrders = useMemo(() => {
+    return historyOrders.filter(o => o.status === 'cancelled' || o.status === 'void');
+  }, [historyOrders]);
 
   const readyCount = useMemo(() => {
     return runningOrders.filter(o => o.status === 'ready').length;
@@ -69,30 +121,61 @@ export default function ActiveOrdersModal({
     return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup' || (o.type === 'online' && o.orderType === 'takeaway')).length;
   }, [runningOrders]);
 
-  const filteredOrders = useMemo(() => {
-    return runningOrders.filter(o => {
-      const isOnline = o.type === 'online' || !!o.source || o.orderType === 'delivery';
-      const isTakeaway = o.type === 'takeaway' || o.type === 'pickup' || (isOnline && o.orderType === 'takeaway');
-      const isDineIn = o.type === 'dine-in';
-      const isReady = o.status === 'ready';
+  // Filtered dataset according to active tab and search
+  const displayedOrders = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
 
-      if (filterType === 'online' && !isOnline) return false;
-      if (filterType === 'takeaway' && !isTakeaway) return false;
-      if (filterType === 'dine-in' && !isDineIn) return false;
-      if (filterType === 'ready' && !isReady) return false;
+    if (activeTab === 'open') {
+      return runningOrders.filter(o => {
+        const isOnline = o.type === 'online' || !!o.source || o.orderType === 'delivery';
+        const isTakeaway = o.type === 'takeaway' || o.type === 'pickup' || (isOnline && o.orderType === 'takeaway');
+        const isDineIn = o.type === 'dine-in';
+        const isReady = o.status === 'ready';
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+        if (filterType === 'online' && !isOnline) return false;
+        if (filterType === 'takeaway' && !isTakeaway) return false;
+        if (filterType === 'dine-in' && !isDineIn) return false;
+        if (filterType === 'ready' && !isReady) return false;
+
+        if (q) {
+          const matchToken = o.token && String(o.token).includes(q);
+          const matchTable = o.tableName && o.tableName.toLowerCase().includes(q);
+          const matchCust = o.customerName && o.customerName.toLowerCase().includes(q);
+          const matchPhone = o.customerPhone && o.customerPhone.includes(q);
+          const matchId = o.id && o.id.toLowerCase().includes(q);
+          return matchToken || matchTable || matchCust || matchPhone || matchId;
+        }
+        return true;
+      });
+    }
+
+    if (activeTab === 'completed') {
+      return completedOrders.filter(o => {
+        if (!q) return true;
         const matchToken = o.token && String(o.token).includes(q);
         const matchTable = o.tableName && o.tableName.toLowerCase().includes(q);
         const matchCust = o.customerName && o.customerName.toLowerCase().includes(q);
         const matchPhone = o.customerPhone && o.customerPhone.includes(q);
+        const matchMethod = o.paymentMethod && o.paymentMethod.toLowerCase().includes(q);
         const matchId = o.id && o.id.toLowerCase().includes(q);
-        return matchToken || matchTable || matchCust || matchPhone || matchId;
-      }
-      return true;
-    });
-  }, [runningOrders, filterType, searchQuery]);
+        return matchToken || matchTable || matchCust || matchPhone || matchMethod || matchId;
+      });
+    }
+
+    if (activeTab === 'voids') {
+      return voidOrders.filter(o => {
+        if (!q) return true;
+        const matchToken = o.token && String(o.token).includes(q);
+        const matchTable = o.tableName && o.tableName.toLowerCase().includes(q);
+        const matchCust = o.customerName && o.customerName.toLowerCase().includes(q);
+        const matchReason = (o.cancelReason || o.voidReason || '').toLowerCase().includes(q);
+        const matchId = o.id && o.id.toLowerCase().includes(q);
+        return matchToken || matchTable || matchCust || matchReason || matchId;
+      });
+    }
+
+    return [];
+  }, [activeTab, runningOrders, completedOrders, voidOrders, filterType, searchQuery]);
 
   if (!isOpen) return null;
 
@@ -143,7 +226,6 @@ export default function ActiveOrdersModal({
 
       if (shouldPrint) {
         toast.success(`Paid via Cash ✓ Printing receipt`, { id: 'pos-action' });
-        // Background print paid receipt
         setTimeout(() => {
           printReceipt({
             restaurant,
@@ -163,6 +245,31 @@ export default function ActiveOrdersModal({
     }
   };
 
+  const handleWhatsAppResend = (order) => {
+    const custPhone = order.customerPhone || order.customer?.phone;
+    if (!custPhone) {
+      toast.error('No phone number attached to this order');
+      return;
+    }
+    sendWhatsAppReceipt({
+      restaurant,
+      orderId: order.id,
+      customerName: order.customerName || order.customer?.name || '',
+      customerPhone: custPhone,
+      items: order.items || [],
+      total: order.total,
+      currency: restaurant?.currency || 'INR',
+      paymentMethod: order.paymentMethod || 'cash',
+      token: order.token || null
+    }).then(waRes => {
+      if (waRes.ok) {
+        toast.success(`Receipt sent to +${waRes.phone}`, { icon: '📲' });
+      } else {
+        toast.error('WhatsApp dispatch failed');
+      }
+    }).catch(err => toast.error('Error: ' + err.message));
+  };
+
   const handleMarkComplete = async (order) => {
     try {
       await updateOrderStatus(restaurant.id, order.id, 'completed');
@@ -174,11 +281,17 @@ export default function ActiveOrdersModal({
 
   const now = Date.now();
 
+  const formatOrderTime = (order) => {
+    const ts = getOrderTimestampMs(order?.createdAt);
+    if (!ts) return '—';
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      backgroundColor: 'rgba(0, 0, 0, 0.72)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
       zIndex: 99990,
@@ -189,206 +302,226 @@ export default function ActiveOrdersModal({
       animation: 'fadeIn 0.2s ease',
     }}>
       <div style={{
-        background: 'var(--color-bg)',
-        borderRadius: 'var(--radius-xl)',
-        width: '980px',
-        maxWidth: 'min(980px, 95vw)',
-        height: 'min(780px, 92vh)',
-        minHeight: 'min(600px, 88vh)',
+        background: 'var(--color-bg, #0f172a)',
+        borderRadius: 'var(--radius-xl, 18px)',
+        width: '1100px',
+        maxWidth: 'min(1100px, 96vw)',
+        height: 'min(820px, 94vh)',
+        minHeight: 'min(620px, 88vh)',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: 'var(--shadow-xl)',
-        border: '1px solid var(--color-separator-opaque)',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)',
         overflow: 'hidden',
       }}>
         {/* Modal Header */}
         <div style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid var(--color-separator-opaque)',
+          padding: '14px 20px',
+          borderBottom: '1px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.1))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'var(--color-bg-secondary)',
+          background: 'var(--color-bg-secondary, #1e293b)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <FileText size={22} color="var(--color-accent, #38bdf8)" />
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'rgba(56, 189, 248, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-accent, #38bdf8)'
+            }}>
+              <FileText size={20} />
+            </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-label)' }}>
-                Running Orders & Kitchen Pass
+              <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: '#ffffff' }}>
+                Order Center &amp; Kitchen Pass
               </h2>
-              <p style={{ fontSize: 12, color: 'var(--color-label-secondary)', margin: '2px 0 0' }}>
-                Track takeaway prep status, 1-tap print customer bills, and settle payments
+              <p style={{ fontSize: 12, color: 'var(--color-label-secondary, #94a3b8)', margin: '2px 0 0' }}>
+                Track live orders, reprint completed customer receipts, and review void audit logs
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* View Switcher: 1-Col vs 2-Col Grid */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(0, 0, 0, 0.3)',
-              borderRadius: 8,
-              padding: 2,
-              border: '1px solid rgba(255, 255, 255, 0.12)'
-            }}>
-              <button
-                type="button"
-                onClick={() => setLayoutCols('1')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '5px 10px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: layoutCols === '1' ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-                  color: layoutCols === '1' ? '#ffffff' : 'var(--color-label-tertiary)',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                title="Single order per row (Full width)"
-              >
-                <LayoutList size={13} /> 1-Col
-              </button>
-              <button
-                type="button"
-                onClick={() => setLayoutCols('2')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '5px 10px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: layoutCols === '2' ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-                  color: layoutCols === '2' ? '#ffffff' : 'var(--color-label-tertiary)',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                title="2 orders per row (Grid view - Recommended)"
-              >
-                <LayoutGrid size={13} /> 2-Col
-              </button>
-            </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* View Switcher: Table vs Cards (only active on Open Orders) */}
+            {activeTab === 'open' && (
+              <div className="orders-view-switcher">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={`orders-view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                  title="Compact Table / List View"
+                >
+                  <LayoutList size={13} /> Table View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('cards')}
+                  className={`orders-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                  title="Visual Kitchen Cards"
+                >
+                  <LayoutGrid size={13} /> Cards View
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={onClose}
-              style={{ width: 36, height: 36, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 34, height: 34, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               aria-label="Close modal"
             >
-              <X size={20} />
+              <X size={19} />
             </button>
           </div>
         </div>
 
-        {/* Filter Pills & Search Bar (Touch-Optimized) */}
+        {/* 3 Main Top Navigation Tabs (Open Orders · Completed Orders · Voids) */}
+        <div className="orders-center-tabs">
+          <button
+            type="button"
+            className={`orders-center-tab ${activeTab === 'open' ? 'active' : ''}`}
+            onClick={() => setActiveTab('open')}
+          >
+            <Clock size={15} />
+            <span>Open Orders</span>
+            <span className="orders-tab-badge">{runningOrders.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`orders-center-tab ${activeTab === 'completed' ? 'active' : ''}`}
+            onClick={() => setActiveTab('completed')}
+          >
+            <CheckCircle2 size={15} />
+            <span>Completed Orders</span>
+            <span className="orders-tab-badge secondary">{completedOrders.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`orders-center-tab ${activeTab === 'voids' ? 'active' : ''}`}
+            onClick={() => setActiveTab('voids')}
+          >
+            <XCircle size={15} />
+            <span>Voids / Cancelled</span>
+            {voidOrders.length > 0 && <span className="orders-tab-badge danger">{voidOrders.length}</span>}
+          </button>
+        </div>
+
+        {/* Filter Pills & Quick Search Bar */}
         <div style={{
-          padding: '12px 20px',
-          borderBottom: '1px solid var(--color-separator-opaque)',
+          padding: '10px 20px',
+          borderBottom: '1px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.08))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 10,
-          background: 'var(--color-bg)',
+          background: 'var(--color-bg, #0f172a)',
         }}>
-          {/* Segmented Filter Pills */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilterType('all')}
-              style={{ fontWeight: 700, borderRadius: 20, height: 36, padding: '0 14px', fontSize: 12.5 }}
-            >
-              All ({runningOrders.length})
-            </button>
-            <button
-              type="button"
-              className={`btn ${filterType === 'ready' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilterType('ready')}
-              style={{
-                fontWeight: 700,
-                borderRadius: 20,
-                height: 36,
-                padding: '0 14px',
-                fontSize: 12.5,
-                background: filterType === 'ready' ? '#10b981' : (readyCount > 0 ? 'rgba(16, 185, 129, 0.15)' : undefined),
-                color: filterType === 'ready' ? '#fff' : (readyCount > 0 ? '#10b981' : undefined),
-                borderColor: readyCount > 0 ? 'rgba(16, 185, 129, 0.4)' : undefined,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <Bell size={14} /> Ready ({readyCount})
-            </button>
-            <button
-              type="button"
-              className={`btn ${filterType === 'online' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilterType('online')}
-              style={{
-                fontWeight: 700,
-                borderRadius: 20,
-                height: 36,
-                padding: '0 14px',
-                fontSize: 12.5,
-                background: filterType === 'online' ? '#8b5cf6' : (onlineCount > 0 ? 'rgba(139, 92, 246, 0.15)' : undefined),
-                color: filterType === 'online' ? '#fff' : (onlineCount > 0 ? '#8b5cf6' : undefined),
-                borderColor: onlineCount > 0 ? 'rgba(139, 92, 246, 0.4)' : undefined,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <Globe size={14} /> Online ({onlineCount})
-              {pendingOnlineCount > 0 && (
-                <span style={{
-                  background: '#ef4444',
-                  color: '#fff',
-                  borderRadius: 10,
-                  fontSize: 10.5,
-                  padding: '1px 6px',
-                  fontWeight: 800,
-                  marginLeft: 3
-                }}>
-                  {pendingOnlineCount} new
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              className={`btn ${filterType === 'takeaway' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilterType('takeaway')}
-              style={{ fontWeight: 700, borderRadius: 20, height: 36, padding: '0 14px', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <ShoppingBag size={14} /> Takeaway ({takeawayCount})
-            </button>
-            <button
-              type="button"
-              className={`btn ${filterType === 'dine-in' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilterType('dine-in')}
-              style={{ fontWeight: 700, borderRadius: 20, height: 36, padding: '0 14px', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <Utensils size={14} /> Dine In
-            </button>
-          </div>
+          {/* Channel Filters (Shown on Open Orders Tab) */}
+          {activeTab === 'open' ? (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilterType('all')}
+                style={{ fontWeight: 700, borderRadius: 20, height: 32, padding: '0 12px', fontSize: 12 }}
+              >
+                All ({runningOrders.length})
+              </button>
+              <button
+                type="button"
+                className={`btn ${filterType === 'ready' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilterType('ready')}
+                style={{
+                  fontWeight: 700,
+                  borderRadius: 20,
+                  height: 32,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  background: filterType === 'ready' ? '#10b981' : (readyCount > 0 ? 'rgba(16, 185, 129, 0.15)' : undefined),
+                  color: filterType === 'ready' ? '#fff' : (readyCount > 0 ? '#10b981' : undefined),
+                  borderColor: readyCount > 0 ? 'rgba(16, 185, 129, 0.4)' : undefined,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5
+                }}
+              >
+                <Bell size={13} /> Ready ({readyCount})
+              </button>
+              <button
+                type="button"
+                className={`btn ${filterType === 'online' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilterType('online')}
+                style={{
+                  fontWeight: 700,
+                  borderRadius: 20,
+                  height: 32,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  background: filterType === 'online' ? '#8b5cf6' : (onlineCount > 0 ? 'rgba(139, 92, 246, 0.15)' : undefined),
+                  color: filterType === 'online' ? '#fff' : (onlineCount > 0 ? '#8b5cf6' : undefined),
+                  borderColor: onlineCount > 0 ? 'rgba(139, 92, 246, 0.4)' : undefined,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5
+                }}
+              >
+                <Globe size={13} /> Online ({onlineCount})
+                {pendingOnlineCount > 0 && (
+                  <span style={{
+                    background: '#ef4444',
+                    color: '#fff',
+                    borderRadius: 10,
+                    fontSize: 10,
+                    padding: '1px 5px',
+                    fontWeight: 800,
+                    marginLeft: 2
+                  }}>
+                    {pendingOnlineCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                className={`btn ${filterType === 'takeaway' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilterType('takeaway')}
+                style={{ fontWeight: 700, borderRadius: 20, height: 32, padding: '0 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <ShoppingBag size={13} /> Takeaway ({takeawayCount})
+              </button>
+              <button
+                type="button"
+                className={`btn ${filterType === 'dine-in' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilterType('dine-in')}
+                style={{ fontWeight: 700, borderRadius: 20, height: 32, padding: '0 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Utensils size={13} /> Dine In
+              </button>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--color-label-secondary)', fontWeight: 600 }}>
+              {activeTab === 'completed' && `Viewing ${displayedOrders.length} finalized customer bills settled today`}
+              {activeTab === 'voids' && `Viewing ${displayedOrders.length} voided/cancelled ticket audits today`}
+            </div>
+          )}
 
           {/* Quick Search */}
-          <div style={{ position: 'relative', width: 230 }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)' }} />
+          <div style={{ position: 'relative', width: 240 }}>
+            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)' }} />
             <input
               type="text"
-              placeholder="Search token # or name..."
+              placeholder={activeTab === 'open' ? 'Search token #, table, name...' : 'Search order #, customer...'}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="form-input"
-              style={{ paddingLeft: 34, paddingRight: searchQuery ? 30 : 12, height: 36, fontSize: 13, borderRadius: 18 }}
+              style={{ paddingLeft: 32, paddingRight: searchQuery ? 28 : 10, height: 32, fontSize: 12.5, borderRadius: 16 }}
             />
             {searchQuery && (
               <button
@@ -401,7 +534,7 @@ export default function ActiveOrdersModal({
                   transform: 'translateY(-50%)',
                   background: 'none',
                   border: 'none',
-                  padding: 4,
+                  padding: 2,
                   cursor: 'pointer',
                   color: 'var(--color-label-tertiary)',
                   display: 'flex',
@@ -410,25 +543,15 @@ export default function ActiveOrdersModal({
                 }}
                 aria-label="Clear search"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
             )}
           </div>
         </div>
 
-        {/* Order List Body */}
-        <div style={{
-          padding: '16px 20px',
-          overflowY: 'auto',
-          flex: 1,
-          minHeight: 0,
-          display: filteredOrders.length === 0 ? 'flex' : (layoutCols === '2' ? 'grid' : 'flex'),
-          gridTemplateColumns: layoutCols === '2' ? 'repeat(auto-fill, minmax(440px, 1fr))' : undefined,
-          flexDirection: layoutCols === '2' ? undefined : 'column',
-          alignContent: 'start',
-          gap: 12
-        }}>
-          {filteredOrders.length === 0 ? (
+        {/* Order List / Table Body */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {displayedOrders.length === 0 ? (
             <div style={{
               textAlign: 'center',
               padding: '48px 20px',
@@ -440,372 +563,968 @@ export default function ActiveOrdersModal({
               flex: 1,
               gap: 10
             }}>
-              <FileText size={36} color="var(--color-label-tertiary)" />
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No active orders found</div>
-              <div style={{ fontSize: 12 }}>All kitchen orders have been served, settled, or completed!</div>
+              {activeTab === 'open' ? (
+                <>
+                  <FileText size={36} color="var(--color-label-tertiary)" />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No active orders found</div>
+                  <div style={{ fontSize: 12 }}>All kitchen orders have been served, settled, or completed!</div>
+                </>
+              ) : activeTab === 'completed' ? (
+                <>
+                  <CheckCircle2 size={36} color="#10b981" />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No completed orders yet today</div>
+                  <div style={{ fontSize: 12 }}>Settled guest checks will appear here for receipt re-printing.</div>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={36} color="#10b981" />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No voided orders today</div>
+                  <div style={{ fontSize: 12 }}>Clean service! No tickets have been cancelled or voided.</div>
+                </>
+              )}
             </div>
           ) : (
-            filteredOrders.map(order => {
-              const isOnline = order.type === 'online' || !!order.source || order.orderType === 'delivery';
-              const isDelivery = order.orderType === 'delivery';
-              const isTakeaway = order.type === 'takeaway' || order.type === 'pickup' || (isOnline && order.orderType === 'takeaway');
-              const isReady = order.status === 'ready';
-              const isPending = order.status === 'pending';
-              const isOnlinePending = isOnline && isPending;
-              const isUnpaid = order.paymentMethod === 'unpaid';
-              const elapsedSec = getOrderElapsedSeconds(order, now);
-              const elapsedMins = Math.floor(elapsedSec / 60);
-              const itemsCount = (order.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
-              const isExpanded = expandedOrderIds.has(order.id);
+            <>
+              {/* TAB 1: OPEN ORDERS */}
+              {activeTab === 'open' && (
+                <>
+                  {/* MODE A: HIGH DENSITY TABLE VIEW (Requested by User) */}
+                  {viewMode === 'table' && (
+                    <div className="orders-table-wrapper">
+                      <table className="orders-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: 60 }}>#</th>
+                            <th style={{ width: 120 }}>Time</th>
+                            <th style={{ minWidth: 140 }}>Order / Table</th>
+                            <th style={{ minWidth: 220 }}>Items Summary</th>
+                            <th style={{ width: 140 }}>Status</th>
+                            <th style={{ width: 100, textAlign: 'right' }}>Total</th>
+                            <th style={{ minWidth: 260, textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayedOrders.map((order, idx) => {
+                            const isOnline = order.type === 'online' || !!order.source || order.orderType === 'delivery';
+                            const isDelivery = order.orderType === 'delivery';
+                            const isTakeaway = order.type === 'takeaway' || order.type === 'pickup' || (isOnline && order.orderType === 'takeaway');
+                            const isReady = order.status === 'ready';
+                            const isUnpaid = order.paymentMethod === 'unpaid';
+                            const elapsedSec = getOrderElapsedSeconds(order, now);
+                            const elapsedMins = Math.floor(elapsedSec / 60);
+                            const itemsCount = (order.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
+                            const isExpanded = expandedOrderIds.has(order.id);
+                            const ticketNum = order.token ? `#${order.token}` : `#${order.id.slice(-4).toUpperCase()}`;
 
-              return (
-                <div
-                  key={order.id}
-                  style={{
-                    background: 'var(--color-card, #181b26)',
-                    borderRadius: 14,
-                    border: isOnlinePending ? '1.5px solid #a855f7' : (isReady ? '1.5px solid #10b981' : '1.5px solid rgba(255, 255, 255, 0.13)'),
-                    padding: layoutCols === '2' ? '12px 14px' : '13px 18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                    overflow: 'hidden',
-                    boxShadow: isOnlinePending ? '0 4px 18px rgba(168, 85, 247, 0.28)' : (isReady ? '0 4px 18px rgba(16, 185, 129, 0.22)' : '0 4px 14px rgba(0, 0, 0, 0.4)'),
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {/* Top Bar: Table/Order Title + Meta Info on Left, Bill Amount on Right */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 17, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.3px' }}>
-                          {order.tableName 
-                            ? `Table ${order.tableName}` 
-                            : (order.token 
-                                ? `Token #${order.token}` 
-                                : (isDelivery ? 'Delivery' : (isTakeaway ? 'Takeaway' : (isOnline ? 'Online Order' : 'Order'))))}
-                        </span>
-                        {isOnline && (
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 800,
-                            textTransform: 'uppercase',
-                            background: 'rgba(168, 85, 247, 0.2)',
-                            color: '#c084fc',
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            border: '1px solid rgba(168, 85, 247, 0.4)'
-                          }}>
-                            {order.source ? String(order.source).toUpperCase() : 'ONLINE'}
-                          </span>
-                        )}
-                        {isReady && (
-                          <span style={{
-                            background: 'rgba(16, 185, 129, 0.2)',
-                            color: '#34d399',
-                            border: '1px solid rgba(16, 185, 129, 0.5)',
-                            padding: '2px 7px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4
-                          }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
-                            READY
-                          </span>
-                        )}
-                        {order.billPrinted && isUnpaid && (
-                          <span style={{
-                            background: 'rgba(56, 189, 248, 0.12)',
-                            color: '#38bdf8',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
-                            padding: '2px 7px',
-                            borderRadius: 6,
-                            fontSize: 10.5,
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 3.5
-                          }} title={order.billPrintedAt ? `Bill printed at ${new Date(order.billPrintedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bill has been printed'}>
-                            <Printer size={10} /> Bill Printed
-                          </span>
-                        )}
-                        {!isUnpaid && (
-                          <span style={{
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#34d399',
-                            border: '1px solid rgba(16, 185, 129, 0.4)',
-                            padding: '2px 6px',
-                            borderRadius: 5,
-                            fontSize: 10.5,
-                            fontWeight: 800,
-                          }}>
-                            PAID
-                          </span>
-                        )}
-                      </div>
+                            return (
+                              <tr key={order.id}>
+                                {/* 1. Number */}
+                                <td>
+                                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 800, color: '#ffffff', fontSize: 13 }}>
+                                    {ticketNum}
+                                  </span>
+                                </td>
 
-                      {/* Clean Subtitle: items count + elapsed minutes */}
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
-                        <span>•</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: elapsedMins > 25 ? '#f87171' : (elapsedMins > 15 ? '#fbbf24' : '#94a3b8'), fontWeight: elapsedMins > 15 ? 700 : 500 }}>
-                          <Clock size={11} /> {elapsedMins}m
-                        </span>
-                        {order.customerName && (
-                          <>
-                            <span>•</span>
-                            <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{order.customerName}</span>
-                          </>
-                        )}
-                      </div>
+                                {/* 2. Time & Elapsed Timer */}
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                                      {formatOrderTime(order)}
+                                    </span>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      fontSize: 11,
+                                      fontWeight: elapsedMins > 15 ? 800 : 600,
+                                      color: elapsedMins > 25 ? '#ef4444' : (elapsedMins > 15 ? '#f59e0b' : '#10b981')
+                                    }}>
+                                      <Clock size={11} /> {elapsedMins}m
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* 3. Table / Guest */}
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                      <span style={{
+                                        fontWeight: 800,
+                                        fontSize: 13,
+                                        color: '#ffffff',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4
+                                      }}>
+                                        {order.tableName ? (
+                                          <><Armchair size={13} color="#10b981" /> Table {order.tableName}</>
+                                        ) : order.token ? (
+                                          `Token #${order.token}`
+                                        ) : (
+                                          isDelivery ? 'Delivery' : (isTakeaway ? 'Takeaway' : 'Order')
+                                        )}
+                                      </span>
+                                      <span className={`badge ${isOnline ? 'badge-purple' : isTakeaway ? 'badge-orange' : 'badge-blue'}`} style={{ fontSize: 9.5, padding: '1px 5px' }}>
+                                        {order.type || 'dine-in'}
+                                      </span>
+                                    </div>
+                                    {order.customerName && (
+                                      <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', fontWeight: 500 }}>
+                                        {order.customerName}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* 4. Items Summary */}
+                                <td>
+                                  <div 
+                                    onClick={() => toggleOrderExpand(order.id)} 
+                                    style={{ cursor: 'pointer' }}
+                                    title="Click to view full dish breakdown"
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span style={{ fontSize: 12, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                                        {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
+                                      </span>
+                                      <span style={{ color: 'var(--color-label-tertiary)' }}>
+                                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
+                                      {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                                    </span>
+
+                                    {/* Expanded Item Breakdown */}
+                                    {isExpanded && (
+                                      <div style={{
+                                        marginTop: 6,
+                                        padding: '6px 8px',
+                                        background: 'rgba(0, 0, 0, 0.35)',
+                                        borderRadius: 6,
+                                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 3
+                                      }}>
+                                        {(order.items || []).map((item, mIdx) => (
+                                          <div key={mIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+                                            <span><strong style={{ color: '#fff' }}>{item.qty}×</strong> {item.name}</span>
+                                            <span style={{ color: 'var(--color-label-secondary)' }}>{formatCurrency((item.price || 0) * (item.qty || 1), currency)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* 5. Status Badges */}
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                                    {isReady ? (
+                                      <span style={{
+                                        background: 'rgba(16, 185, 129, 0.2)',
+                                        color: '#34d399',
+                                        border: '1px solid rgba(16, 185, 129, 0.5)',
+                                        padding: '2px 7px',
+                                        borderRadius: 5,
+                                        fontSize: 10.5,
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4
+                                      }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
+                                        READY
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        background: 'rgba(245, 158, 11, 0.15)',
+                                        color: '#fbbf24',
+                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                        padding: '2px 7px',
+                                        borderRadius: 5,
+                                        fontSize: 10.5,
+                                        fontWeight: 700
+                                      }}>
+                                        In Kitchen
+                                      </span>
+                                    )}
+
+                                    {order.billPrinted && isUnpaid && (
+                                      <span style={{
+                                        background: 'rgba(56, 189, 248, 0.12)',
+                                        color: '#38bdf8',
+                                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 3
+                                      }}>
+                                        <Printer size={9} /> Bill Printed
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* 6. Total Amount */}
+                                <td style={{ textAlign: 'right' }}>
+                                  <span style={{ fontSize: 15, fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.2px' }}>
+                                    {formatCurrency(order.total ?? 0, currency)}
+                                  </span>
+                                </td>
+
+                                {/* 7. Touch-Friendly Action Buttons */}
+                                <td style={{ textAlign: 'right' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
+                                    {/* Resume / Edit */}
+                                    {onLoadOrderToCart && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onLoadOrderToCart(order);
+                                          onClose();
+                                        }}
+                                        style={{
+                                          height: 32,
+                                          fontSize: 11.5,
+                                          fontWeight: 700,
+                                          padding: '0 8px',
+                                          borderRadius: 6,
+                                          background: 'rgba(255, 255, 255, 0.08)',
+                                          border: '1px solid rgba(255, 255, 255, 0.18)',
+                                          color: '#ffffff',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4,
+                                          cursor: 'pointer'
+                                        }}
+                                        title="Resume / Edit order in cart"
+                                      >
+                                        <Edit2 size={11} /> Resume
+                                      </button>
+                                    )}
+
+                                    {/* Print Bill */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrint(order)}
+                                      style={{
+                                        height: 32,
+                                        fontSize: 11.5,
+                                        fontWeight: 700,
+                                        padding: '0 8px',
+                                        borderRadius: 6,
+                                        background: order.billPrinted ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.08)',
+                                        border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.18)',
+                                        color: order.billPrinted ? '#38bdf8' : '#e2e8f0',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        cursor: 'pointer'
+                                      }}
+                                      title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
+                                    >
+                                      <Printer size={11} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
+                                    </button>
+
+                                    {/* Settle (Card / Quick Cash) */}
+                                    {isUnpaid ? (
+                                      <>
+                                        {onOpenPayment && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              onLoadOrderToCart(order);
+                                              onClose();
+                                              onOpenPayment();
+                                            }}
+                                            style={{
+                                              height: 32,
+                                              fontSize: 11.5,
+                                              fontWeight: 700,
+                                              padding: '0 8px',
+                                              borderRadius: 6,
+                                              background: 'rgba(56, 189, 248, 0.12)',
+                                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                                              color: '#38bdf8',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: 4,
+                                              cursor: 'pointer'
+                                            }}
+                                            title="Card / UPI / Split Payment"
+                                          >
+                                            <CreditCard size={11} /> Card/UPI
+                                          </button>
+                                        )}
+
+                                        {/* Split Quick Cash Pill */}
+                                        <div style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'stretch',
+                                          borderRadius: 6,
+                                          overflow: 'hidden',
+                                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
+                                        }}>
+                                          <button
+                                            type="button"
+                                            aria-label="Quick Cash"
+                                            onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
+                                            disabled={settlingId === order.id}
+                                            style={{
+                                              height: 32,
+                                              fontSize: 11.5,
+                                              fontWeight: 800,
+                                              padding: '0 9px',
+                                              background: '#10b981',
+                                              border: 'none',
+                                              color: '#ffffff',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: 3,
+                                              cursor: 'pointer'
+                                            }}
+                                            title={order.billPrinted ? "Quick Cash (Bill already given — duplicate print skipped)" : "Quick Cash Settle & Print Receipt"}
+                                          >
+                                            <Zap size={11} fill="#fff" /> Quick Cash
+                                          </button>
+                                          <button
+                                            type="button"
+                                            aria-label="Print Receipt & Settle"
+                                            onClick={() => handleQuickCashSettle(order, true)}
+                                            disabled={settlingId === order.id}
+                                            style={{
+                                              height: 32,
+                                              padding: '0 7px',
+                                              background: '#059669',
+                                              border: 'none',
+                                              borderLeft: '1px solid rgba(255, 255, 255, 0.25)',
+                                              color: '#ffffff',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              cursor: 'pointer'
+                                            }}
+                                            title="Print receipt and settle"
+                                          >
+                                            <Printer size={11} />
+                                          </button>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMarkComplete(order)}
+                                        style={{
+                                          height: 32,
+                                          fontSize: 11.5,
+                                          fontWeight: 800,
+                                          padding: '0 10px',
+                                          borderRadius: 6,
+                                          background: 'var(--color-primary, #3b82f6)',
+                                          border: 'none',
+                                          color: '#ffffff',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4,
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <Check size={12} strokeWidth={2.5} /> Complete
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
+                  )}
 
-                    {/* Total Bill Amount: Large, Prominent at Top Right */}
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.3px' }}>
-                        {formatCurrency(order.total ?? 0, currency)}
-                      </span>
-                    </div>
-                  </div>
+                  {/* MODE B: VISUAL CARDS VIEW */}
+                  {viewMode === 'cards' && (
+                    <div style={{
+                      padding: '16px 20px',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))',
+                      alignContent: 'start',
+                      gap: 12
+                    }}>
+                      {displayedOrders.map(order => {
+                        const isOnline = order.type === 'online' || !!order.source || order.orderType === 'delivery';
+                        const isDelivery = order.orderType === 'delivery';
+                        const isTakeaway = order.type === 'takeaway' || order.type === 'pickup' || (isOnline && order.orderType === 'takeaway');
+                        const isReady = order.status === 'ready';
+                        const isPending = order.status === 'pending';
+                        const isOnlinePending = isOnline && isPending;
+                        const isUnpaid = order.paymentMethod === 'unpaid';
+                        const elapsedSec = getOrderElapsedSeconds(order, now);
+                        const elapsedMins = Math.floor(elapsedSec / 60);
+                        const itemsCount = (order.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
+                        const isExpanded = expandedOrderIds.has(order.id);
 
-                  {/* Items Preview Line (Minimal, Clean Text without heavy inset box) */}
-                  <div 
-                    onClick={() => toggleOrderExpand(order.id)}
-                    style={{
-                      cursor: 'pointer',
-                      padding: '2px 0',
-                      transition: 'opacity 0.15s ease'
-                    }}
-                    title="Tap to view item breakdown"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{
-                        fontSize: 12.5,
-                        color: '#cbd5e1',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        fontWeight: 500,
-                        flex: 1
-                      }}>
-                        {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
-                      </span>
-                      <span style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
-                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </span>
-                    </div>
-
-                    {/* Detailed Item List (when expanded on tap) */}
-                    {isExpanded && (
-                      <div style={{
-                        marginTop: 8,
-                        padding: '8px 10px',
-                        background: 'rgba(0, 0, 0, 0.25)',
-                        borderRadius: 8,
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 6
-                      }}>
-                        {(order.items || []).map((item, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 800, color: '#ffffff', background: 'rgba(255, 255, 255, 0.1)', padding: '1px 5px', borderRadius: 4 }}>
-                                {item.qty}×
-                              </span>
-                              <span style={{ color: '#ffffff', fontWeight: 600 }}>{item.name}</span>
-                              {item.selectedModifiers?.map((m, mIdx) => (
-                                <span key={mIdx} style={{ fontSize: 10.5, color: '#94a3b8' }}>
-                                  +{m.name}
-                                </span>
-                              ))}
-                            </div>
-                            <span style={{ fontWeight: 700, color: '#94a3b8' }}>
-                              {formatCurrency((item.price || 0) * (item.qty || 1), currency)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Buttons: 1 Single Clean Row (Zero wrapping, perfectly balanced) */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    paddingTop: 8,
-                    borderTop: '1px solid rgba(255, 255, 255, 0.08)'
-                  }}>
-                    {/* Left: Tools (Edit + Bill) */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                        {onLoadOrderToCart && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onLoadOrderToCart(order);
-                              onClose();
-                            }}
+                        return (
+                          <div
+                            key={order.id}
                             style={{
-                              height: 36,
-                              fontSize: 12,
-                              fontWeight: 700,
-                              gap: 4.5,
-                              padding: '0 9px',
-                              borderRadius: 8,
-                              background: 'rgba(255, 255, 255, 0.07)',
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
-                              color: '#e2e8f0',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              cursor: 'pointer'
-                            }}
-                            title="Edit order in cart"
-                          >
-                            <Edit2 size={12} /> Edit
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => handlePrint(order)}
-                          style={{
-                            height: 36,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            gap: 4.5,
-                            padding: '0 9px',
-                            borderRadius: 8,
-                            background: order.billPrinted ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.07)',
-                            border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.15)',
-                            color: order.billPrinted ? '#38bdf8' : '#e2e8f0',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            cursor: 'pointer'
-                          }}
-                          title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
-                        >
-                          <Printer size={12} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
-                        </button>
-                      </div>
-
-                      {/* Right: Settlement (Card / UPI + Unified Quick Cash Split Pill) */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                        {isUnpaid ? (
-                          <>
-                            {onOpenPayment && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onLoadOrderToCart(order);
-                                  onClose();
-                                  onOpenPayment();
-                                }}
-                                style={{
-                                  height: 36,
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  gap: 4.5,
-                                  padding: '0 9px',
-                                  borderRadius: 8,
-                                  background: 'rgba(56, 189, 248, 0.1)',
-                                  border: '1px solid rgba(56, 189, 248, 0.35)',
-                                  color: '#38bdf8',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  cursor: 'pointer'
-                                }}
-                                title="Card / UPI / Split Payment"
-                              >
-                                <CreditCard size={12} /> Card / UPI
-                              </button>
-                            )}
-
-                            {/* Unified Split Quick Cash Pill: Left side skips duplicate print if bill given; Right side forces print */}
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'stretch',
-                              borderRadius: 8,
+                              background: 'var(--color-card, #181b26)',
+                              borderRadius: 14,
+                              border: isOnlinePending ? '1.5px solid #a855f7' : (isReady ? '1.5px solid #10b981' : '1.5px solid rgba(255, 255, 255, 0.13)'),
+                              padding: '12px 14px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 10,
                               overflow: 'hidden',
-                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                            }}>
-                              <button
-                                type="button"
-                                aria-label="Quick Cash"
-                                onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
-                                disabled={settlingId === order.id}
-                                style={{
-                                  height: 36,
-                                  fontSize: 12.5,
-                                  fontWeight: 800,
-                                  gap: 4,
-                                  padding: '0 10px',
-                                  background: '#10b981',
-                                  border: 'none',
-                                  color: '#ffffff',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  cursor: 'pointer'
-                                }}
-                                title={order.billPrinted ? "Quick Cash (Bill already given — duplicate print skipped)" : "Quick Cash Settle & Print Receipt"}
-                              >
-                                <Zap size={12} fill="#fff" /> Quick Cash
-                              </button>
-                              <button
-                                type="button"
-                                aria-label="Print Receipt & Settle"
-                                onClick={() => handleQuickCashSettle(order, true)}
-                                disabled={settlingId === order.id}
-                                style={{
-                                  height: 36,
-                                  padding: '0 8px',
-                                  background: '#059669',
-                                  border: 'none',
-                                  borderLeft: '1px solid rgba(255, 255, 255, 0.25)',
-                                  color: '#ffffff',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  cursor: 'pointer'
-                                }}
-                                title="Print receipt and settle"
-                              >
-                                <Printer size={12} />
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleMarkComplete(order)}
-                            style={{
-                              height: 36,
-                              fontSize: 12.5,
-                              fontWeight: 800,
-                              gap: 5,
-                              padding: '0 14px',
-                              borderRadius: 8,
-                              background: 'var(--color-primary, #3b82f6)',
-                              border: 'none',
-                              color: '#ffffff',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              cursor: 'pointer'
+                              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+                              transition: 'all 0.15s ease',
                             }}
-                            title="Complete order"
                           >
-                            <Check size={13} strokeWidth={2.5} /> Complete
-                          </button>
-                        )}
-                      </div>
+                            {/* Top Bar: Table/Order Title + Meta Info on Left, Bill Amount on Right */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.3px' }}>
+                                    {order.tableName 
+                                      ? `Table ${order.tableName}` 
+                                      : (order.token 
+                                          ? `Token #${order.token}` 
+                                          : (isDelivery ? 'Delivery' : (isTakeaway ? 'Takeaway' : (isOnline ? 'Online Order' : 'Order'))))}
+                                  </span>
+                                  {isOnline && (
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontWeight: 800,
+                                      textTransform: 'uppercase',
+                                      background: 'rgba(168, 85, 247, 0.2)',
+                                      color: '#c084fc',
+                                      padding: '2px 6px',
+                                      borderRadius: 4,
+                                      border: '1px solid rgba(168, 85, 247, 0.4)'
+                                    }}>
+                                      {order.source ? String(order.source).toUpperCase() : 'ONLINE'}
+                                    </span>
+                                  )}
+                                  {isReady && (
+                                    <span style={{
+                                      background: 'rgba(16, 185, 129, 0.2)',
+                                      color: '#34d399',
+                                      border: '1px solid rgba(16, 185, 129, 0.5)',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      fontWeight: 800,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}>
+                                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
+                                      READY
+                                    </span>
+                                  )}
+                                  {order.billPrinted && isUnpaid && (
+                                    <span style={{
+                                      background: 'rgba(56, 189, 248, 0.12)',
+                                      color: '#38bdf8',
+                                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 10.5,
+                                      fontWeight: 700,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3.5
+                                    }}>
+                                      <Printer size={10} /> Bill Printed
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span>{itemsCount} items</span>
+                                  <span>•</span>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: elapsedMins > 25 ? '#f87171' : (elapsedMins > 15 ? '#fbbf24' : '#94a3b8'), fontWeight: elapsedMins > 15 ? 700 : 500 }}>
+                                    <Clock size={11} /> {elapsedMins}m
+                                  </span>
+                                  {order.customerName && (
+                                    <>
+                                      <span>•</span>
+                                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{order.customerName}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <span style={{ fontSize: 18, fontWeight: 900, color: '#38bdf8' }}>
+                                  {formatCurrency(order.total ?? 0, currency)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Items Preview Line */}
+                            <div 
+                              onClick={() => toggleOrderExpand(order.id)}
+                              style={{ cursor: 'pointer', padding: '2px 0' }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontSize: 12.5, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                  {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
+                                </span>
+                                <span style={{ color: '#64748b' }}>
+                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </span>
+                              </div>
+
+                              {isExpanded && (
+                                <div style={{
+                                  marginTop: 8,
+                                  padding: '8px 10px',
+                                  background: 'rgba(0, 0, 0, 0.25)',
+                                  borderRadius: 8,
+                                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 6
+                                }}>
+                                  {(order.items || []).map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                                      <span><strong>{item.qty}×</strong> {item.name}</span>
+                                      <span style={{ fontWeight: 700, color: '#94a3b8' }}>{formatCurrency((item.price || 0) * (item.qty || 1), currency)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {onLoadOrderToCart && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onLoadOrderToCart(order);
+                                      onClose();
+                                    }}
+                                    style={{
+                                      height: 34,
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      gap: 4.5,
+                                      padding: '0 9px',
+                                      borderRadius: 8,
+                                      background: 'rgba(255, 255, 255, 0.07)',
+                                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                                      color: '#e2e8f0',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <Edit2 size={12} /> Edit
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrint(order)}
+                                  style={{
+                                    height: 34,
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    gap: 4.5,
+                                    padding: '0 9px',
+                                    borderRadius: 8,
+                                    background: order.billPrinted ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.07)',
+                                    border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.15)',
+                                    color: order.billPrinted ? '#38bdf8' : '#e2e8f0',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Printer size={12} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
+                                </button>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {isUnpaid ? (
+                                  <>
+                                    {onOpenPayment && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onLoadOrderToCart(order);
+                                          onClose();
+                                          onOpenPayment();
+                                        }}
+                                        style={{
+                                          height: 34,
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          gap: 4.5,
+                                          padding: '0 9px',
+                                          borderRadius: 8,
+                                          background: 'rgba(56, 189, 248, 0.1)',
+                                          border: '1px solid rgba(56, 189, 248, 0.35)',
+                                          color: '#38bdf8',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <CreditCard size={12} /> Card / UPI
+                                      </button>
+                                    )}
+
+                                    <div style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'stretch',
+                                      borderRadius: 8,
+                                      overflow: 'hidden',
+                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                                    }}>
+                                      <button
+                                        type="button"
+                                        aria-label="Quick Cash"
+                                        onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
+                                        disabled={settlingId === order.id}
+                                        style={{
+                                          height: 34,
+                                          fontSize: 12,
+                                          fontWeight: 800,
+                                          gap: 4,
+                                          padding: '0 10px',
+                                          background: '#10b981',
+                                          border: 'none',
+                                          color: '#ffffff',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <Zap size={12} fill="#fff" /> Quick Cash
+                                      </button>
+                                      <button
+                                        type="button"
+                                        aria-label="Print Receipt & Settle"
+                                        onClick={() => handleQuickCashSettle(order, true)}
+                                        disabled={settlingId === order.id}
+                                        style={{
+                                          height: 34,
+                                          padding: '0 8px',
+                                          background: '#059669',
+                                          border: 'none',
+                                          borderLeft: '1px solid rgba(255, 255, 255, 0.25)',
+                                          color: '#ffffff',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <Printer size={12} />
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkComplete(order)}
+                                    style={{
+                                      height: 34,
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      gap: 5,
+                                      padding: '0 12px',
+                                      borderRadius: 8,
+                                      background: 'var(--color-primary, #3b82f6)',
+                                      border: 'none',
+                                      color: '#ffffff',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <Check size={13} strokeWidth={2.5} /> Complete
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                );
-            })
+                  )}
+                </>
+              )}
+
+              {/* TAB 2: COMPLETED ORDERS */}
+              {activeTab === 'completed' && (
+                <div className="orders-table-wrapper">
+                  <table className="orders-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 60 }}>#</th>
+                        <th style={{ width: 110 }}>Settled Time</th>
+                        <th style={{ minWidth: 150 }}>Table / Guest</th>
+                        <th style={{ minWidth: 220 }}>Items Breakdown</th>
+                        <th style={{ width: 120 }}>Payment</th>
+                        <th style={{ width: 110, textAlign: 'right' }}>Total Paid</th>
+                        <th style={{ minWidth: 220, textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedOrders.map(order => {
+                        const ticketNum = order.token ? `#${order.token}` : `#${order.id.slice(-4).toUpperCase()}`;
+                        const isExpanded = expandedOrderIds.has(order.id);
+                        const method = (order.paymentMethod || 'cash').toUpperCase();
+                        const itemsCount = (order.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
+                        const settleTime = order.paidAt || order.updatedAt || order.createdAt;
+
+                        return (
+                          <tr key={order.id}>
+                            {/* 1. Ticket # */}
+                            <td>
+                              <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 800, color: '#ffffff', fontSize: 13 }}>
+                                {ticketNum}
+                              </span>
+                            </td>
+
+                            {/* 2. Settled Time */}
+                            <td>
+                              <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                                {settleTime ? new Date(getOrderTimestampMs(settleTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                              </span>
+                            </td>
+
+                            {/* 3. Table / Guest */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <span style={{ fontWeight: 800, fontSize: 13, color: '#ffffff' }}>
+                                  {order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'Walk-in / Takeaway')}
+                                </span>
+                                {order.customerName && (
+                                  <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)' }}>
+                                    {order.customerName} {order.customerPhone ? `(${order.customerPhone})` : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* 4. Items */}
+                            <td>
+                              <div 
+                                onClick={() => toggleOrderExpand(order.id)} 
+                                style={{ cursor: 'pointer' }}
+                                title="Click to view full breakdown"
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontSize: 12, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                                    {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
+                                  </span>
+                                  <span style={{ color: 'var(--color-label-tertiary)' }}>
+                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
+                                  {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                                </span>
+
+                                {isExpanded && (
+                                  <div style={{
+                                    marginTop: 6,
+                                    padding: '6px 8px',
+                                    background: 'rgba(0, 0, 0, 0.35)',
+                                    borderRadius: 6,
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 3
+                                  }}>
+                                    {(order.items || []).map((item, mIdx) => (
+                                      <div key={mIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+                                        <span><strong style={{ color: '#fff' }}>{item.qty}×</strong> {item.name}</span>
+                                        <span style={{ color: 'var(--color-label-secondary)' }}>{formatCurrency((item.price || 0) * (item.qty || 1), currency)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* 5. Payment Method */}
+                            <td>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                fontSize: 11,
+                                fontWeight: 800,
+                                background: method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : (method === 'UPI' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(56, 189, 248, 0.15)'),
+                                color: method === 'CASH' ? '#10b981' : (method === 'UPI' ? '#c084fc' : '#38bdf8'),
+                                border: `1px solid ${method === 'CASH' ? 'rgba(16, 185, 129, 0.35)' : (method === 'UPI' ? 'rgba(139, 92, 246, 0.35)' : 'rgba(56, 189, 248, 0.35)')}`
+                              }}>
+                                <Check size={11} strokeWidth={2.5} /> {method}
+                              </span>
+                            </td>
+
+                            {/* 6. Total Amount */}
+                            <td style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: 15, fontWeight: 900, color: '#10b981' }}>
+                                {formatCurrency(order.total ?? 0, currency)}
+                              </span>
+                            </td>
+
+                            {/* 7. Action Buttons */}
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                                {/* Re-Print Customer Receipt */}
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrint(order)}
+                                  style={{
+                                    height: 32,
+                                    fontSize: 11.5,
+                                    fontWeight: 700,
+                                    padding: '0 9px',
+                                    borderRadius: 6,
+                                    background: 'rgba(255, 255, 255, 0.08)',
+                                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                                    color: '#ffffff',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Re-Print Settled Customer Receipt"
+                                >
+                                  <Printer size={12} /> Re-Print
+                                </button>
+
+                                {/* WhatsApp Resend */}
+                                {(order.customerPhone || order.customer?.phone) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleWhatsAppResend(order)}
+                                    style={{
+                                      height: 32,
+                                      fontSize: 11.5,
+                                      fontWeight: 700,
+                                      padding: '0 9px',
+                                      borderRadius: 6,
+                                      background: 'rgba(37, 211, 102, 0.15)',
+                                      border: '1px solid rgba(37, 211, 102, 0.4)',
+                                      color: '#25d366',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Send WhatsApp Digital Receipt"
+                                  >
+                                    <MessageCircle size={12} /> WhatsApp
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* TAB 3: VOIDS / CANCELLED ORDERS */}
+              {activeTab === 'voids' && (
+                <div className="orders-table-wrapper">
+                  <table className="orders-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 60 }}>#</th>
+                        <th style={{ width: 110 }}>Time Voided</th>
+                        <th style={{ minWidth: 140 }}>Table / Order</th>
+                        <th style={{ minWidth: 220 }}>Items Cancelled</th>
+                        <th style={{ minWidth: 160 }}>Void Reason</th>
+                        <th style={{ width: 110, textAlign: 'right' }}>Void Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedOrders.map(order => {
+                        const ticketNum = order.token ? `#${order.token}` : `#${order.id.slice(-4).toUpperCase()}`;
+                        const voidTime = order.cancelledAt || order.updatedAt || order.createdAt;
+
+                        return (
+                          <tr key={order.id}>
+                            {/* 1. Ticket # */}
+                            <td>
+                              <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 800, color: '#ef4444', fontSize: 13 }}>
+                                {ticketNum}
+                              </span>
+                            </td>
+
+                            {/* 2. Void Time */}
+                            <td>
+                              <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                                {voidTime ? new Date(getOrderTimestampMs(voidTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                              </span>
+                            </td>
+
+                            {/* 3. Table / Guest */}
+                            <td>
+                              <span style={{ fontWeight: 800, fontSize: 13, color: '#ffffff' }}>
+                                {order.tableName ? `Table ${order.tableName}` : (order.token ? `Token #${order.token}` : 'Order')}
+                              </span>
+                            </td>
+
+                            {/* 4. Items Cancelled */}
+                            <td>
+                              <span style={{ fontSize: 12, color: '#cbd5e1' }}>
+                                {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ') || 'No items listed'}
+                              </span>
+                            </td>
+
+                            {/* 5. Void Reason */}
+                            <td>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239, 68, 68, 0.35)'
+                              }}>
+                                <AlertTriangle size={11} /> {order.cancelReason || order.voidReason || 'Order Voided'}
+                              </span>
+                            </td>
+
+                            {/* 6. Amount */}
+                            <td style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: 14, fontWeight: 800, color: '#ef4444', textDecoration: 'line-through' }}>
+                                {formatCurrency(order.total ?? 0, currency)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
