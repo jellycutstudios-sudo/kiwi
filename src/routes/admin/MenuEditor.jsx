@@ -88,6 +88,7 @@ export default function MenuEditor() {
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+  const [showPronunciation, setShowPronunciation] = useState(false);
   const [isAddingCustomStation, setIsAddingCustomStation] = useState(false);
   const [newCustomStation, setNewCustomStation] = useState('');
   const [draggedCatIndex, setDraggedCatIndex] = useState(null);
@@ -169,6 +170,7 @@ export default function MenuEditor() {
       dietary: 'veg'
     });
     setShowAdvancedDetails(false);
+    setShowPronunciation(false);
     setActiveTab('general');
     setShowItemForm(true);
     setTimeout(() => { if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0; }, 0);
@@ -203,6 +205,7 @@ export default function MenuEditor() {
       dietary: item.dietary || (isVegDefault ? 'veg' : 'non-veg')
     });
     setShowAdvancedDetails(Boolean(item.barcode || item.description || item.taxRate != null || (item.unit && item.unit !== 'pcs')));
+    setShowPronunciation(false);
     setActiveTab('general');
     setShowItemForm(true);
     setTimeout(() => { if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0; }, 0);
@@ -365,6 +368,7 @@ export default function MenuEditor() {
       toast.error('Enter dish name first');
       return;
     }
+    setShowPronunciation(true);
     setIsAiTranslating(true);
     try {
       const res = await translateDishWithAI(itemForm.name, restaurant);
@@ -2422,66 +2426,154 @@ export default function MenuEditor() {
                   />
                 </div>
 
-                {/* Waiter Local Language Display & AI Translator */}
-                <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-separator-opaque, #333)', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '-4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Languages size={14} style={{ color: 'var(--color-accent)' }} />
-                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--color-label)' }}>
-                        Waiter Pronunciation Script
+                {/* Waiter Local Language Display & AI Translator (Collapsible) */}
+                <div 
+                  className="pronunciation-script-card"
+                  style={{ 
+                    background: 'var(--color-bg-secondary)', 
+                    border: '1px solid var(--color-separator-opaque, #333)', 
+                    borderRadius: '8px', 
+                    overflow: 'hidden',
+                    marginTop: '-4px',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                >
+                  <div 
+                    id="toggle-waiter-pronunciation-btn"
+                    onClick={() => setShowPronunciation(p => !p)}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      background: showPronunciation ? 'var(--color-fill, rgba(255,255,255,0.02))' : 'transparent',
+                      transition: 'background 0.15s ease'
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPronunciation(p => !p); } }}
+                    title={showPronunciation ? 'Click to collapse pronunciation script' : 'Click to expand pronunciation script'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                      <span style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        color: 'var(--color-label-tertiary)', 
+                        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
+                        transform: showPronunciation ? 'rotate(180deg)' : 'rotate(0deg)' 
+                      }}>
+                        <ChevronDown size={14} />
                       </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <Languages size={14} style={{ color: 'var(--color-accent)' }} />
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--color-label)' }}>
+                          Waiter Pronunciation Script
+                        </span>
+                      </div>
+                      {(itemForm.mlName || itemForm.hiName) ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          <span style={{
+                            fontSize: '9.5px',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '999px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: 'var(--color-accent, #10b981)',
+                            letterSpacing: '0.02em',
+                            flexShrink: 0
+                          }}>
+                            Configured
+                          </span>
+                          {!showPronunciation && (
+                            <span style={{
+                              fontSize: '11px',
+                              color: 'var(--color-label-tertiary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {[itemForm.mlName, itemForm.hiName].filter(Boolean).join(' • ')}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        !showPronunciation && (
+                          <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', flexShrink: 0 }}>
+                            (Auto-generated)
+                          </span>
+                        )
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleAiTranslateItem}
-                      disabled={isAiTranslating || !itemForm.name?.trim()}
-                      className="btn btn-ghost"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '2px 8px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: 'var(--color-accent)',
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        borderRadius: '6px',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        cursor: itemForm.name?.trim() ? 'pointer' : 'not-allowed',
-                        opacity: itemForm.name?.trim() ? 1 : 0.6
-                      }}
-                      title="Generate native phonetic transliterations using AI"
-                    >
-                      <Sparkles size={11} className={isAiTranslating ? 'animate-spin' : ''} />
-                      <span>{isAiTranslating ? 'Translating…' : '✨ AI Polish'}</span>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowPronunciation(true);
+                          handleAiTranslateItem();
+                        }}
+                        disabled={isAiTranslating || !itemForm.name?.trim()}
+                        className="btn btn-ghost"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'var(--color-accent)',
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          cursor: itemForm.name?.trim() ? 'pointer' : 'not-allowed',
+                          opacity: itemForm.name?.trim() ? 1 : 0.6
+                        }}
+                        title="Generate native phonetic transliterations using AI"
+                      >
+                        <Sparkles size={11} className={isAiTranslating ? 'animate-spin' : ''} />
+                        <span>{isAiTranslating ? 'Translating…' : '✨ AI Polish'}</span>
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div>
-                      <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
-                        🌴 Malayalam (മലയാളം)
-                      </label>
-                      <input
-                        className="form-input"
-                        placeholder={itemForm.name ? transliterateFood(itemForm.name, 'ml') : 'ഗാർലിക് ചിക്കൻ'}
-                        value={itemForm.mlName || ''}
-                        onChange={e => setItemForm(f => ({ ...f, mlName: e.target.value }))}
-                        style={{ height: 34, fontSize: '12.5px' }}
-                      />
+
+                  {showPronunciation && (
+                    <div style={{ 
+                      padding: '8px 12px 10px 12px', 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr', 
+                      gap: '8px', 
+                      borderTop: '1px solid var(--color-separator-opaque, #2a2a2a)',
+                      animation: 'fadeInAccordion 0.18s ease-out'
+                    }}>
+                      <div>
+                        <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
+                          🌴 Malayalam (മലയാളം)
+                        </label>
+                        <input
+                          className="form-input"
+                          placeholder={itemForm.name ? transliterateFood(itemForm.name, 'ml') : 'ഗാർലിക് ചിക്കൻ'}
+                          value={itemForm.mlName || ''}
+                          onChange={e => setItemForm(f => ({ ...f, mlName: e.target.value }))}
+                          style={{ height: 34, fontSize: '12.5px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
+                          🇮🇳 Hindi (हिंदी)
+                        </label>
+                        <input
+                          className="form-input"
+                          placeholder={itemForm.name ? transliterateFood(itemForm.name, 'hi') : 'गार्लिक चिकन'}
+                          value={itemForm.hiName || ''}
+                          onChange={e => setItemForm(f => ({ ...f, hiName: e.target.value }))}
+                          style={{ height: 34, fontSize: '12.5px' }}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: '10.5px', color: 'var(--color-label-secondary)', marginBottom: '2px', display: 'block', fontWeight: 600 }}>
-                        🇮🇳 Hindi (हिंदी)
-                      </label>
-                      <input
-                        className="form-input"
-                        placeholder={itemForm.name ? transliterateFood(itemForm.name, 'hi') : 'गार्लिक चिकन'}
-                        value={itemForm.hiName || ''}
-                        onChange={e => setItemForm(f => ({ ...f, hiName: e.target.value }))}
-                        style={{ height: 34, fontSize: '12.5px' }}
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Row 2: Price & Kitchen Station */}

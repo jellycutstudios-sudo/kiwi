@@ -286,4 +286,42 @@ describe('MenuEditor Enhancements: All Items, Global Search, and Category Reorde
     expect(sortedPrice[0].name).toBe('Bacon Burger');
     expect(sortedPrice[1].name).toBe('Cheeseburger Deluxe');
   });
+
+  it('collapses Waiter Pronunciation Script by default and toggles on click', async () => {
+    await act(async () => {
+      render(<MenuEditor />);
+    });
+
+    // Open Add Item modal
+    const addItemBtn = document.getElementById('add-item-btn');
+    await act(async () => {
+      fireEvent.click(addItemBtn);
+    });
+
+    // Header toggle should exist and be collapsed by default
+    const toggleBtn = document.getElementById('toggle-waiter-pronunciation-btn');
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Waiter Pronunciation Script');
+    // Inputs are not visible by default
+    expect(screen.queryByText('🌴 Malayalam (മലയാളം)')).toBeNull();
+    expect(screen.queryByText('🇮🇳 Hindi (हिंदी)')).toBeNull();
+
+    // Click to expand
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+
+    // Inputs should now be visible
+    expect(screen.getByText('🌴 Malayalam (മലയാളം)')).toBeTruthy();
+    expect(screen.getByText('🇮🇳 Hindi (हिंदी)')).toBeTruthy();
+
+    // Click again to collapse
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+
+    // Inputs are collapsed again
+    expect(screen.queryByText('🌴 Malayalam (മലയാളം)')).toBeNull();
+    expect(screen.queryByText('🇮🇳 Hindi (हिंदी)')).toBeNull();
+  });
 });
