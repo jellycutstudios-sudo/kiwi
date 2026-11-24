@@ -2382,13 +2382,13 @@ export default function MenuEditor() {
                               type="button"
                               onClick={() => setItemForm(f => ({ ...f, subCategory: isSelected ? '' : sub }))}
                               style={{
-                                border: isSelected ? '1px solid var(--color-primary, #10b981)' : '1px solid var(--color-separator)',
-                                background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'var(--color-bg-secondary)',
-                                color: isSelected ? 'var(--color-primary, #10b981)' : 'var(--color-label-secondary)',
-                                fontWeight: isSelected ? 600 : 400,
+                                border: isSelected ? '1.5px solid var(--color-primary, #10b981)' : '1px solid rgba(255, 255, 255, 0.16)',
+                                background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#182032',
+                                color: isSelected ? '#10b981' : 'var(--color-label-secondary)',
+                                fontWeight: isSelected ? 700 : 500,
                                 fontSize: '11px',
-                                borderRadius: '4px',
-                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                padding: '3px 8px',
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease'
                               }}
@@ -2430,9 +2430,9 @@ export default function MenuEditor() {
                 <div 
                   className="pronunciation-script-card"
                   style={{ 
-                    background: 'var(--color-bg-secondary)', 
-                    border: '1px solid var(--color-separator-opaque, #333)', 
-                    borderRadius: '8px', 
+                    background: 'var(--color-bg-secondary, #182032)', 
+                    border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))', 
+                    borderRadius: '10px', 
                     overflow: 'hidden',
                     marginTop: '-4px',
                     transition: 'border-color 0.15s ease'
@@ -2690,10 +2690,10 @@ export default function MenuEditor() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  background: 'var(--color-bg-secondary)',
+                  background: 'var(--color-bg-secondary, #182032)',
                   padding: '10px 14px',
                   borderRadius: '12px',
-                  border: '1px solid var(--color-separator)'
+                  border: '1.5px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.16))'
                 }}>
                   {/* Photo Uploader (Left) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
@@ -2763,7 +2763,7 @@ export default function MenuEditor() {
 
                 {/* Food Type (Dietary: Veg / Non-Veg) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="form-label" style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-tertiary)', letterSpacing: '0.4px', margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
                     Food Type (Dietary)
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -2772,23 +2772,26 @@ export default function MenuEditor() {
                       id="item-veg-toggle"
                       onClick={() => setItemForm(f => ({ ...f, isVeg: true, dietary: 'veg' }))}
                       style={{
-                        height: 38,
+                        height: 40,
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
                         fontSize: '13px',
-                        fontWeight: 600,
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
-                        border: itemForm.isVeg ? '1.5px solid #16a34a' : '1px solid var(--color-separator)',
-                        background: itemForm.isVeg ? 'rgba(22, 163, 74, 0.12)' : 'var(--color-bg-secondary)',
-                        color: itemForm.isVeg ? '#16a34a' : 'var(--color-label-secondary)'
+                        border: itemForm.isVeg ? '2px solid #22c55e' : '1.5px solid rgba(255, 255, 255, 0.14)',
+                        background: itemForm.isVeg ? 'rgba(34, 197, 94, 0.18)' : '#0d111a',
+                        color: itemForm.isVeg ? '#4ade80' : 'var(--color-label-tertiary, #94a3b8)',
+                        boxShadow: itemForm.isVeg ? '0 0 12px rgba(34, 197, 94, 0.22), inset 0 1px 2px rgba(0,0,0,0.2)' : 'none',
+                        opacity: itemForm.isVeg ? 1 : 0.65,
+                        fontWeight: itemForm.isVeg ? 700 : 500
                       }}
                     >
                       <span className="food-badge-veg" style={{ width: 14, height: 14 }} />
                       <span>Vegetarian (Veg)</span>
+                      {itemForm.isVeg && <span style={{ fontSize: '11px', fontWeight: 800, marginLeft: '2px' }}>✓</span>}
                     </button>
 
                     <button
@@ -2796,23 +2799,26 @@ export default function MenuEditor() {
                       id="item-nonveg-toggle"
                       onClick={() => setItemForm(f => ({ ...f, isVeg: false, dietary: 'non-veg' }))}
                       style={{
-                        height: 38,
+                        height: 40,
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
                         fontSize: '13px',
-                        fontWeight: 600,
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
-                        border: !itemForm.isVeg ? '1.5px solid #dc2626' : '1px solid var(--color-separator)',
-                        background: !itemForm.isVeg ? 'rgba(220, 38, 38, 0.12)' : 'var(--color-bg-secondary)',
-                        color: !itemForm.isVeg ? '#ef4444' : 'var(--color-label-secondary)'
+                        border: !itemForm.isVeg ? '2px solid #ef4444' : '1.5px solid rgba(255, 255, 255, 0.14)',
+                        background: !itemForm.isVeg ? 'rgba(239, 68, 68, 0.18)' : '#0d111a',
+                        color: !itemForm.isVeg ? '#f87171' : 'var(--color-label-tertiary, #94a3b8)',
+                        boxShadow: !itemForm.isVeg ? '0 0 12px rgba(239, 68, 68, 0.22), inset 0 1px 2px rgba(0,0,0,0.2)' : 'none',
+                        opacity: !itemForm.isVeg ? 1 : 0.65,
+                        fontWeight: !itemForm.isVeg ? 700 : 500
                       }}
                     >
                       <span className="food-badge-nonveg" style={{ width: 14, height: 14 }} />
                       <span>Non-Vegetarian</span>
+                      {!itemForm.isVeg && <span style={{ fontSize: '11px', fontWeight: 800, marginLeft: '2px' }}>✓</span>}
                     </button>
                   </div>
                 </div>
