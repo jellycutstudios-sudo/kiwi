@@ -2191,6 +2191,7 @@ export default function POS() {
                             role="button"
                             tabIndex={0}
                             className={`menu-item-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+                            style={{ '--key-cat-stripe': catColors.stripe }}
                             onClick={() => {
                               if (item.available === false) return;
                               if (hasModifiers) {

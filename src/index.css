@@ -26833,9 +26833,58 @@ html.dark .login-page .login-back-btn:hover,
   color: #09090b;
 }
 
-/* Fast Key Chromatic Left Accent */
+/* ─── Category Chromatic Identity System ────────────────────────────────────
+   Each card's left border and subtle background tint inherit the category's
+   chromatic color (--key-cat-stripe). This matches the left sidebar category
+   rail colors so staff can instantly associate card → category by color alone.
+   Approach: Toast POS / Lightspeed style — bold left accent + tinted bg.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Dense keypad card: bold left accent (4px) + subtle category tint */
 .menu-key-card {
   border-left: 4px solid var(--key-cat-stripe, #3b82f6) !important;
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--key-cat-stripe, #3b82f6) 7%, transparent) 0%,
+    transparent 50%
+  ) !important;
+}
+
+.menu-key-card:hover {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--key-cat-stripe, #3b82f6) 13%, transparent) 0%,
+    transparent 60%
+  ) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1),
+              -1px 0 0 var(--key-cat-stripe, #3b82f6) !important;
+}
+
+/* Visual image card: colored accent bottom strip (3px) + left border on dark */
+.menu-item-card {
+  border-bottom: 3px solid var(--key-cat-stripe, #3b82f6);
+}
+
+[data-theme="dark"] .menu-key-card {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--key-cat-stripe, #3b82f6) 10%, transparent) 0%,
+    transparent 55%
+  ) !important;
+}
+
+[data-theme="dark"] .menu-key-card:hover {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--key-cat-stripe, #3b82f6) 18%, transparent) 0%,
+    transparent 65%
+  ) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55),
+              inset 1px 0 0 var(--key-cat-stripe, #3b82f6) !important;
+}
+
+[data-theme="dark"] .menu-item-card {
+  border-bottom: 3px solid var(--key-cat-stripe, #3b82f6);
 }
 
 /* Mobile & Touch Screen Responsive POS Optimizations */
