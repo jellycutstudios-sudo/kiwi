@@ -13,6 +13,7 @@ import { translateDishWithAI, batchTranslateDishesWithAI } from '../../services/
 import { transliterateFood } from '../../utils/foodTransliteration';
 import { getItemVisuals } from '../../utils/itemVisuals';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
+import { getCategoryChromaticColors } from '../../utils/categoryColors';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -1122,35 +1123,44 @@ export default function MenuEditor() {
           </div>
           <div className="categories-list-container" style={{ padding: 'var(--space-2)' }}>
             {/* Pinned All Items in sidebar */}
-            <div
-              id="cat-sidebar-all"
-              className={`menu-editor-cat-item ${isAllItems ? 'active' : ''}`}
-              onClick={() => { setActiveCat('all'); setIsReorderMode(false); setMobileViewTab('items'); }}
-              style={{ borderBottom: '1px solid var(--color-separator-opaque)' }}
-            >
-              <div className="cat-item-icon-box" style={{ background: isAllItems ? 'var(--color-accent)' : 'var(--color-fill)', color: isAllItems ? '#ffffff' : 'inherit' }}>
-                <span>🍽️</span>
-              </div>
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="cat-item-name" style={{ fontWeight: 700 }}>
-                    All Items
-                  </span>
-                  {isAllItems && (
-                    <span className="badge badge-accent mobile-only" style={{ fontSize: '9.5px', padding: '1px 6px' }}>Active</span>
-                  )}
+            {(() => {
+              const allColors = getCategoryChromaticColors('all');
+              return (
+                <div
+                  id="cat-sidebar-all"
+                  className={`menu-editor-cat-item ${isAllItems ? 'active' : ''}`}
+                  onClick={() => { setActiveCat('all'); setIsReorderMode(false); setMobileViewTab('items'); }}
+                  style={{
+                    borderBottom: '1px solid var(--color-separator-opaque)',
+                    borderLeft: `4px solid ${allColors.stripe}`,
+                  }}
+                >
+                  <div className="cat-item-icon-box" style={{ background: isAllItems ? 'var(--color-accent)' : 'var(--color-fill)', color: isAllItems ? '#ffffff' : 'inherit' }}>
+                    <span>🍽️</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="cat-item-name" style={{ fontWeight: 700 }}>
+                        All Items
+                      </span>
+                      {isAllItems && (
+                        <span className="badge badge-accent mobile-only" style={{ fontSize: '9.5px', padding: '1px 6px' }}>Active</span>
+                      )}
+                    </div>
+                    <span className="cat-item-count">
+                      {allDishes.length} total {terms.items?.toLowerCase() || 'items'}
+                    </span>
+                  </div>
+                  <ChevronRight size={18} className="cat-item-chevron mobile-only" />
                 </div>
-                <span className="cat-item-count">
-                  {allDishes.length} total {terms.items?.toLowerCase() || 'items'}
-                </span>
-              </div>
-              <ChevronRight size={18} className="cat-item-chevron mobile-only" />
-            </div>
+              );
+            })()}
 
             {categories.map((c, index) => {
               const isSelected = !isAllItems && activeCatId === c.id;
               const isDragging = draggedCatIndex === index;
               const isOver = dragOverCatIndex === index;
+              const catColors = getCategoryChromaticColors(c, index);
               return (
                 <div
                   key={c.id}
@@ -1161,6 +1171,9 @@ export default function MenuEditor() {
                   onDrop={(e) => handleDrop(e, index)}
                   className={`menu-editor-cat-item ${isSelected ? 'active' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver ? 'drag-over' : ''}`}
                   onClick={() => { setActiveCat(c.id); setMobileViewTab('items'); }}
+                  style={{
+                    borderLeft: `4px solid ${catColors.stripe}`,
+                  }}
                 >
                   <span
                     className="cat-drag-handle"

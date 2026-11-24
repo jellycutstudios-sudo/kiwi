@@ -44,6 +44,7 @@ import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
 import { getItemVisuals } from '../utils/itemVisuals';
+import { getCategoryChromaticColors } from '../utils/categoryColors';
 
 const POS_CATEGORY_THEMES = [
   'pos-cat-theme-amber',
@@ -1778,66 +1779,108 @@ export default function POS() {
 
               {/* Template 1 vs Template 2 Category Display */}
               {isBistro ? (
-                /* Template 2: Vertical Left Sidebar - Direct Full Category List (No Popup) */
+                /* Template 2: Vertical Left Sidebar Rail (Toast POS Chromatic Indexing) */
                 <div className="pos-category-scroll">
                   {/* All Items Quick Toggle */}
-                  <button
-                    id="cat-all"
-                    type="button"
-                    role="tab"
-                    aria-selected={activeCat === 'all'}
-                    className={`category-chip ${activeCat === 'all' ? 'active' : ''}`}
-                    onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
-                    title="View All Menu Items"
-                  >
-                    <span className="category-chip-name">All Items</span>
-                    <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
-                  </button>
+                  {(() => {
+                    const colors = getCategoryChromaticColors('all');
+                    const isActive = activeCat === 'all';
+                    return (
+                      <button
+                        id="cat-all"
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`category-chip ${isActive ? 'active' : ''}`}
+                        onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                        title="View All Menu Items"
+                        style={{
+                          '--cat-stripe': colors.stripe,
+                          '--cat-active-bg': colors.activeBg,
+                          '--cat-active-text': colors.activeText,
+                        }}
+                      >
+                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                        <span className="category-chip-name">All Items</span>
+                        <span className="category-chip-count">{categories.reduce((acc, c) => acc + (c.items?.length || 0), 0)}</span>
+                      </button>
+                    );
+                  })()}
 
                   {/* Deals / Offers Quick Filter (Visible only when offers are active) */}
-                  {activeOffers.length > 0 && (
-                    <button
-                      id="cat-deals-rail"
-                      type="button"
-                      role="tab"
-                      aria-selected={activeCat === 'deals'}
-                      className={`category-chip ${activeCat === 'deals' ? 'active' : ''}`}
-                      onClick={() => { hapticTap('light'); setActiveCat(activeCat === 'deals' ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
-                      title="View All Promotional Deals & BOGO Items"
-                      style={activeCat === 'deals' ? { background: '#ef4444', borderColor: '#ef4444', color: '#fff' } : {}}
-                    >
-                      <span className="category-chip-name">⚡ Offers</span>
-                    </button>
-                  )}
+                  {activeOffers.length > 0 && (() => {
+                    const colors = getCategoryChromaticColors('deals');
+                    const isActive = activeCat === 'deals';
+                    return (
+                      <button
+                        id="cat-deals-rail"
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`category-chip ${isActive ? 'active' : ''}`}
+                        onClick={() => { hapticTap('light'); setActiveCat(isActive ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                        title="View All Promotional Deals & BOGO Items"
+                        style={{
+                          '--cat-stripe': colors.stripe,
+                          '--cat-active-bg': colors.activeBg,
+                          '--cat-active-text': colors.activeText,
+                        }}
+                      >
+                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                        <span className="category-chip-name">⚡ Offers</span>
+                      </button>
+                    );
+                  })()}
 
                   {/* All Category Chips in Left Rail */}
-                  {categories.map(c => (
-                    <button
-                      key={c.id}
-                      id={`cat-${c.id}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={activeCat === c.id}
-                      className={`category-chip ${activeCat === c.id ? 'active' : ''}`}
-                      onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
-                    >
-                      <span className="category-chip-name">{c.name}</span>
-                      {c.items?.length > 0 && (
-                        <span className="category-chip-count">{c.items.length}</span>
-                      )}
-                    </button>
-                  ))}
+                  {categories.map((c, idx) => {
+                    const colors = getCategoryChromaticColors(c, idx);
+                    const isActive = activeCat === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        id={`cat-${c.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`category-chip ${isActive ? 'active' : ''}`}
+                        onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                        style={{
+                          '--cat-stripe': colors.stripe,
+                          '--cat-active-bg': colors.activeBg,
+                          '--cat-active-text': colors.activeText,
+                        }}
+                      >
+                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                        <span className="category-chip-name">{c.name}</span>
+                        {c.items?.length > 0 && (
+                          <span className="category-chip-count">{c.items.length}</span>
+                        )}
+                      </button>
+                    );
+                  })}
 
                   {/* Custom Item Chip */}
-                  <button
-                    type="button"
-                    id="add-custom-item-chip"
-                    className="category-chip category-chip--custom"
-                    onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
-                    title="Add off-menu daily special or custom priced item"
-                  >
-                    <span className="category-chip-name">+ Custom Item</span>
-                  </button>
+                  {(() => {
+                    const colors = getCategoryChromaticColors('custom');
+                    return (
+                      <button
+                        type="button"
+                        id="add-custom-item-chip"
+                        className="category-chip category-chip--custom"
+                        onClick={() => { hapticTap('light'); setShowOpenItemModal(true); }}
+                        title="Add off-menu daily special or custom priced item"
+                        style={{
+                          '--cat-stripe': colors.stripe,
+                          '--cat-active-bg': colors.activeBg,
+                          '--cat-active-text': colors.activeText,
+                        }}
+                      >
+                        <span className="category-chip-accent-stripe" style={{ backgroundColor: colors.stripe }} />
+                        <span className="category-chip-name">+ Custom Item</span>
+                      </button>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Template 1: Horizontal Top Bar - Category Actions with Popup Launcher */

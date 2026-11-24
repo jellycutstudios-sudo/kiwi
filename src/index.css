@@ -2370,17 +2370,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 .pos-menu-panel.categories-left .pos-category-bar {
   flex-direction: column;
-  width: 215px;
-  min-width: 215px;
-  max-width: 215px;
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   border-bottom: none;
   border-right: 1px solid var(--color-separator);
   align-items: stretch;
-  padding: 12px 10px;
-  gap: 7px;
+  padding: 0 !important;
+  gap: 0 !important;
   flex-shrink: 0;
   background: var(--color-surface);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
@@ -2389,17 +2389,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 @media (max-width: 1200px) {
   .pos-menu-panel.categories-left .pos-category-bar {
-    width: 195px;
-    min-width: 195px;
-    max-width: 195px;
-    padding: 10px 8px;
-    gap: 6px;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
+    padding: 0 !important;
+    gap: 0 !important;
   }
   .pos-menu-panel.categories-left .pos-category-scroll {
-    gap: 5px !important;
+    gap: 0 !important;
   }
   .pos-menu-panel.categories-left .category-chip {
-    padding: 9px 12px !important;
+    padding: 12px 12px 12px 18px !important;
     min-height: 52px !important;
     height: auto !important;
   }
@@ -2440,7 +2440,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 [data-theme="dark"] .pos-menu-panel.categories-left .pos-category-bar {
-  background: #0d0f18;
+  background: #0d0f18 !important;
   border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-bottom: none;
   box-shadow: 4px 0 16px rgba(0, 0, 0, 0.35);
@@ -2454,7 +2454,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   width: 100%;
+  padding: 10px 10px 8px 10px;
   gap: 8px;
+  border-bottom: 1px solid var(--color-separator);
+  box-sizing: border-box;
 }
 
 .pos-menu-panel.categories-left .pos-category-bar-pinned .pos-op-card {
@@ -2476,11 +2479,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: none;
 }
 
+/* Toast POS Vertical Flush Category Rail */
 .pos-menu-panel.categories-left .pos-category-scroll {
   display: flex;
   flex-direction: column;
   width: 100%;
-  gap: 6px;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
   overflow-y: visible;
   overflow-x: hidden;
 }
@@ -2490,15 +2496,35 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  border-radius: var(--radius-md, 11px);
+  position: relative;
+  padding: 14px 14px 14px 20px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
   font-size: 15px;
   font-weight: 750;
   text-align: left;
-  min-height: 54px;
-  height: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  min-height: 56px !important;
+  height: auto !important;
+  box-shadow: none !important;
   box-sizing: border-box;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* 6px Chromatic Accent Stripe */
+.category-chip-accent-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: var(--cat-stripe, #64748b);
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* Remove emojis in Left Category Rail as requested */
@@ -2529,6 +2555,38 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
   margin-left: 6px;
   align-self: center;
+}
+
+/* Dark Theme Flush Category Blocks */
+[data-theme="dark"] .pos-menu-panel.categories-left .category-chip {
+  background: #141722 !important;
+  color: #f1f5f9 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .pos-menu-panel.categories-left .category-chip:hover:not(.active) {
+  background: #1c2030 !important;
+  color: #ffffff !important;
+}
+
+/* Chromatic Flood Active State (Toast POS Style) */
+[data-theme="dark"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active {
+  background: var(--cat-active-bg, #93a5ff) !important;
+  color: var(--cat-active-text, #0f172a) !important;
+  font-weight: 850 !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="dark"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active .category-chip-name {
+  color: var(--cat-active-text, #0f172a) !important;
+  font-weight: 850 !important;
+}
+
+[data-theme="dark"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active .category-chip-count {
+  background: rgba(0, 0, 0, 0.22) !important;
+  color: var(--cat-active-text, #0f172a) !important;
+  border: 1px solid rgba(0, 0, 0, 0.28) !important;
+  font-weight: 850 !important;
 }
 
 @media (max-width: 820px) {
@@ -21332,8 +21390,6 @@ html.dark .btn-secondary:hover {
 .dark .sales-scope-pill.active,
 [data-theme="dark"] .sales-scope-pill.active {
   background: #252a3d !important;
-  color: #ffffff !important;
-  height: 6px;
   border-radius: 50%;
   display: inline-block;
 }
@@ -24749,6 +24805,43 @@ html.dark .bestseller-chip.is-active {
   background: rgba(255, 255, 255, 0.2) !important;
   color: #ffffff !important;
   border-color: transparent !important;
+}
+
+/* Toast POS Chromatic Active & Block Rail Styling in Light Mode */
+:root:not([data-theme="dark"]) .pos-menu-panel.categories-left .pos-category-scroll .category-chip,
+[data-theme="light"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+:root:not([data-theme="dark"]) .pos-menu-panel.categories-left .pos-category-scroll .category-chip:hover:not(.active),
+[data-theme="light"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip:hover:not(.active) {
+  background: #f1f5f9 !important;
+}
+
+:root:not([data-theme="dark"]) .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active,
+[data-theme="light"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active {
+  background: var(--cat-active-bg, #0f172a) !important;
+  color: var(--cat-active-text, #ffffff) !important;
+  font-weight: 850 !important;
+}
+
+:root:not([data-theme="dark"]) .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active .category-chip-name,
+[data-theme="light"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active .category-chip-name {
+  color: var(--cat-active-text, #ffffff) !important;
+  font-weight: 850 !important;
+}
+
+:root:not([data-theme="dark"]) .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active .category-chip-count,
+[data-theme="light"] .pos-menu-panel.categories-left .pos-category-scroll .category-chip.active .category-chip-count {
+  background: rgba(0, 0, 0, 0.18) !important;
+  color: var(--cat-active-text, #ffffff) !important;
+  border: 1px solid rgba(0, 0, 0, 0.22) !important;
+  font-weight: 850 !important;
 }
 
 /* 4. Left Pinned Operation Pills */
