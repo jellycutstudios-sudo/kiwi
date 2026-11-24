@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, X, Plus, Minus, Flame, 
   ChevronUp, ChevronDown, Printer, CreditCard, 
@@ -151,6 +151,35 @@ export default function MobileWaiterHandheld({
   const [showTableSheet, setShowTableSheet] = useState(false);
   const [tableSearch, setTableSearch] = useState('');
   const [tableFilter, setTableFilter] = useState('all'); // 'all' | 'free' | 'occupied'
+  const [tableFloorFilter, setTableFloorFilter] = useState('all');
+
+  const getTableFloor = useCallback((tbl) => {
+    if (tbl.floor && tbl.floor.trim()) return tbl.floor.trim();
+    if (tbl.section && tbl.section.trim()) return tbl.section.trim();
+    const prefix = tbl.name ? tbl.name.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() : null;
+    if (prefix) {
+      if (prefix === 'G') return 'Garden';
+      if (prefix === 'R') return 'Rooftop';
+      if (prefix === 'B') return 'Bar';
+      if (prefix === 'T') return 'Main Dining';
+      return `${prefix}-Section`;
+    }
+    return 'Ground Floor';
+  }, []);
+
+  const allFloors = useMemo(() => {
+    const set = new Set();
+    if (restaurant?.floors && Array.isArray(restaurant.floors)) {
+      restaurant.floors.forEach(f => f && set.add(f.trim()));
+    }
+    tables.forEach(t => {
+      const fl = getTableFloor(t);
+      if (fl) set.add(fl);
+    });
+    const list = Array.from(set);
+    if (list.length === 0) list.push('Ground Floor');
+    return list;
+  }, [tables, restaurant?.floors, getTableFloor]);
 
   const tableCounts = useMemo(() => {
     let free = 0;
@@ -169,15 +198,34 @@ export default function MobileWaiterHandheld({
       const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
       if (tableFilter === 'free' && isOccupied) return false;
       if (tableFilter === 'occupied' && !isOccupied) return false;
+      const tblFloor = getTableFloor(tbl);
+      if (tableFloorFilter !== 'all' && tblFloor !== tableFloorFilter) return false;
       if (tableSearch.trim()) {
         const q = tableSearch.toLowerCase().trim();
         const rawName = (tbl.name || '').toLowerCase();
         const cleanName = rawName.replace(/^table\s+/i, '');
-        return rawName.includes(q) || cleanName.includes(q);
+        const floorMatch = tblFloor.toLowerCase().includes(q);
+        return rawName.includes(q) || cleanName.includes(q) || floorMatch;
       }
       return true;
     });
-  }, [tables, tableOrders, tableFilter, tableSearch]);
+  }, [tables, tableOrders, tableFilter, tableFloorFilter, tableSearch, getTableFloor]);
+
+  const tablesGroupedByFloor = useMemo(() => {
+    if (tableFloorFilter !== 'all' || allFloors.length <= 1) return null;
+    const map = new Map();
+    allFloors.forEach(f => {
+      map.set(f, []);
+    });
+    filteredTables.forEach(tbl => {
+      const fl = getTableFloor(tbl);
+      if (!map.has(fl)) map.set(fl, []);
+      map.get(fl).push(tbl);
+    });
+    return Array.from(map.entries())
+      .map(([floor, tbls]) => ({ floor, tables: tbls }))
+      .filter(g => g.tables.length > 0);
+  }, [filteredTables, tableFloorFilter, allFloors, getTableFloor]);
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [activeModifierItem, setActiveModifierItem] = useState(null);
   const [keypadItem, setKeypadItem] = useState(null);
@@ -1375,14 +1423,14 @@ export default function MobileWaiterHandheld({
               </div>
             </div>
 
-            {/* Quick Filter Bar (Search + Free / Occupied filter) */}
+            {/* Quick Filter Bar (Search + Floor / Zone filter + Free / Occupied filter) */}
             <div className="handheld-table-filter-bar">
               <div className="handheld-table-search-box">
                 <Search size={14} className="handheld-table-search-icon" />
                 <input
                   type="text"
                   className="handheld-table-search-input"
-                  placeholder="Search table (e.g. T3, G7)..."
+                  placeholder="Search table or area (e.g. T3, Garden)..."
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
                 />
@@ -1398,13 +1446,44 @@ export default function MobileWaiterHandheld({
                 )}
               </div>
 
+              {/* Floor / Dining Area Pills (Tier 1 Floor Navigation) */}
+              {allFloors.length > 1 && (
+                <div className="handheld-table-floor-pills">
+                  <button
+                    type="button"
+                    className={`handheld-floor-pill ${tableFloorFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => { hapticTap('light'); setTableFloorFilter('all'); }}
+                  >
+                    🏢 All Areas ({tableCounts.all})
+                  </button>
+                  {allFloors.map(floor => {
+                    const floorCount = tables.filter(t => getTableFloor(t) === floor).length;
+                    const floorIcon = floor.toLowerCase().includes('garden') || floor.toLowerCase().includes('outdoor') ? '🌿'
+                      : floor.toLowerCase().includes('roof') || floor.toLowerCase().includes('terrace') ? '🌅'
+                      : floor.toLowerCase().includes('bar') ? '🍸'
+                      : '📍';
+                    return (
+                      <button
+                        key={floor}
+                        type="button"
+                        className={`handheld-floor-pill ${tableFloorFilter === floor ? 'active' : ''}`}
+                        onClick={() => { hapticTap('light'); setTableFloorFilter(floor); }}
+                      >
+                        {floorIcon} {floor} ({floorCount})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Status Pills (All / Free / Occupied) */}
               <div className="handheld-table-status-pills">
                 <button
                   type="button"
                   className={`handheld-table-pill ${tableFilter === 'all' ? 'active' : ''}`}
                   onClick={() => { hapticTap('light'); setTableFilter('all'); }}
                 >
-                  All ({tableCounts.all})
+                  All Status
                 </button>
                 <button
                   type="button"
@@ -1427,57 +1506,96 @@ export default function MobileWaiterHandheld({
               {filteredTables.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--color-label-secondary)' }}>
                   <p style={{ fontWeight: 700, fontSize: 14 }}>No tables found</p>
-                  <p style={{ fontSize: 12, marginTop: 4 }}>Try clearing search or changing status filter</p>
+                  <p style={{ fontSize: 12, marginTop: 4 }}>Try clearing search or changing floor filter</p>
                 </div>
-              ) : (
-                <div className="handheld-table-grid">
-                  {filteredTables.map(tbl => {
-                    const activeOrder = tableOrders[tbl.id];
-                    const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
-                    const isCurrent = tbl.id === tableId;
-                    const readyItems = (activeOrder?.items || []).filter(i => i.status === 'ready');
-                    const hasFoodReady = activeOrder && (activeOrder.status === 'ready' || readyItems.length > 0);
-                    const cleanName = (tbl.name || '').replace(/^table\s+/i, '') || tbl.name;
+              ) : (() => {
+                const renderTableCard = (tbl) => {
+                  const activeOrder = tableOrders[tbl.id];
+                  const isOccupied = Boolean(activeOrder) || tbl.status === 'occupied';
+                  const isCurrent = tbl.id === tableId;
+                  const readyItems = (activeOrder?.items || []).filter(i => i.status === 'ready');
+                  const hasFoodReady = activeOrder && (activeOrder.status === 'ready' || readyItems.length > 0);
+                  const cleanName = (tbl.name || '').replace(/^table\s+/i, '') || tbl.name;
+                  const floorName = getTableFloor(tbl);
 
-                    return (
-                      <button
-                        key={tbl.id}
-                        type="button"
-                        className={`handheld-table-card ${hasFoodReady ? 'ready' : (isOccupied ? 'occupied' : 'free')} ${isCurrent ? 'current' : ''}`}
-                        onClick={() => handleSelectTable(tbl)}
-                      >
-                        <div className="handheld-table-card-top">
+                  return (
+                    <button
+                      key={tbl.id}
+                      type="button"
+                      className={`handheld-table-card ${hasFoodReady ? 'ready' : (isOccupied ? 'occupied' : 'free')} ${isCurrent ? 'current' : ''}`}
+                      onClick={() => handleSelectTable(tbl)}
+                    >
+                      <div className="handheld-table-card-top">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           <span className="handheld-table-card-title">{cleanName}</span>
-                          <span className="handheld-table-capacity-pill">{tbl.capacity || 2}p</span>
+                          {allFloors.length > 1 && (
+                            <span className="handheld-table-card-floor">{floorName}</span>
+                          )}
                         </div>
-                        
-                        <div className="handheld-table-card-meta">
-                          {hasFoodReady ? (
-                            <span className="handheld-table-ready-badge">
-                              🔔 READY
+                        <span className="handheld-table-capacity-pill">{tbl.capacity || 2}p</span>
+                      </div>
+                      
+                      <div className="handheld-table-card-meta">
+                        {hasFoodReady ? (
+                          <span className="handheld-table-ready-badge">
+                            🔔 READY
+                          </span>
+                        ) : isOccupied ? (
+                          <span className="handheld-table-occupied-info">
+                            <span className="handheld-table-status-dot occupied" />
+                            <span className="handheld-table-price">
+                              {activeOrder?.total ? formatCurrency(activeOrder.total, currency) : 'Occupied'}
                             </span>
-                          ) : isOccupied ? (
-                            <span className="handheld-table-occupied-info">
-                              <span className="handheld-table-status-dot occupied" />
-                              <span className="handheld-table-price">
-                                {activeOrder?.total ? formatCurrency(activeOrder.total, currency) : 'Occupied'}
+                          </span>
+                        ) : (
+                          <span className="handheld-table-free-info">
+                            <span className="handheld-table-status-dot free" />
+                            <span>Free</span>
+                          </span>
+                        )}
+                        {isCurrent && (
+                          <span className="handheld-table-selected-badge">✓ Selected</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                };
+
+                if (tablesGroupedByFloor && tablesGroupedByFloor.length > 1) {
+                  return (
+                    <div className="handheld-table-grouped-container">
+                      {tablesGroupedByFloor.map(group => {
+                        const groupFreeCount = group.tables.filter(t => !tableOrders[t.id] && t.status !== 'occupied').length;
+                        const floorIcon = group.floor.toLowerCase().includes('garden') || group.floor.toLowerCase().includes('outdoor') ? '🌿'
+                          : group.floor.toLowerCase().includes('roof') || group.floor.toLowerCase().includes('terrace') ? '🌅'
+                          : group.floor.toLowerCase().includes('bar') ? '🍸'
+                          : '📍';
+                        return (
+                          <div key={group.floor} className="handheld-table-floor-group">
+                            <div className="handheld-table-floor-header">
+                              <span className="handheld-table-floor-title">
+                                {floorIcon} {group.floor}
                               </span>
-                            </span>
-                          ) : (
-                            <span className="handheld-table-free-info">
-                              <span className="handheld-table-status-dot free" />
-                              <span>Free</span>
-                            </span>
-                          )}
-                          {isCurrent && (
-                            <span className="handheld-table-selected-badge">✓ Selected</span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                              <span className="handheld-table-floor-counts">
+                                {groupFreeCount} Free · {group.tables.length - groupFreeCount} Occ
+                              </span>
+                            </div>
+                            <div className="handheld-table-grid">
+                              {group.tables.map(tbl => renderTableCard(tbl))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="handheld-table-grid">
+                    {filteredTables.map(tbl => renderTableCard(tbl))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -24471,6 +24471,44 @@ html.dark .bestseller-chip.is-active {
   padding: 4px;
 }
 
+/* Floor / Dining Area Carousel Navigation */
+.handheld-table-floor-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.handheld-table-floor-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.handheld-floor-pill {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 750;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.handheld-floor-pill.active {
+  background: #ffffff;
+  color: #09090b;
+  border-color: #ffffff;
+  font-weight: 850;
+}
+
 .handheld-table-status-pills {
   display: flex;
   align-items: center;
@@ -24612,6 +24650,54 @@ html.dark .bestseller-chip.is-active {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.handheld-table-card-floor {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Floor-Grouped Section Presentation */
+.handheld-table-grouped-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.handheld-table-floor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.handheld-table-floor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 6px 6px;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.handheld-table-floor-title {
+  font-size: 13.5px;
+  font-weight: 850;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.handheld-table-floor-counts {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
 }
 
 .handheld-table-capacity-pill {
