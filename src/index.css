@@ -21332,13 +21332,6 @@ html.dark .btn-secondary:hover {
 [data-theme="dark"] .sales-scope-pill.active {
   background: #252a3d !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
-  font-weight: 700 !important;
-}
-
-.sales-scope-dot {
-  width: 6px;
   height: 6px;
   border-radius: 50%;
   display: inline-block;
@@ -22736,6 +22729,21 @@ html.dark .bestseller-chip.is-active {
 [data-theme="dark"] .toggle-slider:before {
   background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Dietary Toggle Switch Special Dual-Color Track (Red = Non-Veg, Green = Veg) */
+.dietary-toggle-switch .toggle-slider {
+  background-color: #ef4444 !important;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4), inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.dietary-toggle-switch .toggle-slider:before {
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.dietary-toggle-switch input:checked + .toggle-slider {
+  background-color: #10b981 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4), inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

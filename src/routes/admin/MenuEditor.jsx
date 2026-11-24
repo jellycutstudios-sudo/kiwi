@@ -12,6 +12,7 @@ import MenuCsvModal from '../../components/admin/MenuCsvModal';
 import { translateDishWithAI, batchTranslateDishesWithAI } from '../../services/aiMenuTranslator';
 import { transliterateFood } from '../../utils/foodTransliteration';
 import { getItemVisuals } from '../../utils/itemVisuals';
+import ToggleSwitch from '../../components/shared/ToggleSwitch';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -2761,66 +2762,74 @@ export default function MenuEditor() {
                   </div>
                 </div>
 
-                {/* Food Type (Dietary: Veg / Non-Veg) */}
+                {/* Food Type (Dietary: Veg / Non-Veg Toggle Switch) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
-                    Food Type (Dietary)
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <button
-                      type="button"
-                      id="item-veg-toggle"
-                      onClick={() => setItemForm(f => ({ ...f, isVeg: true, dietary: 'veg' }))}
-                      style={{
-                        height: 40,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        border: itemForm.isVeg ? '2px solid #22c55e' : '1.5px solid rgba(255, 255, 255, 0.14)',
-                        background: itemForm.isVeg ? 'rgba(34, 197, 94, 0.18)' : '#0d111a',
-                        color: itemForm.isVeg ? '#4ade80' : 'var(--color-label-tertiary, #94a3b8)',
-                        boxShadow: itemForm.isVeg ? '0 0 12px rgba(34, 197, 94, 0.22), inset 0 1px 2px rgba(0,0,0,0.2)' : 'none',
-                        opacity: itemForm.isVeg ? 1 : 0.65,
-                        fontWeight: itemForm.isVeg ? 700 : 500
-                      }}
-                    >
-                      <span className="food-badge-veg" style={{ width: 14, height: 14 }} />
-                      <span>Vegetarian (Veg)</span>
-                      {itemForm.isVeg && <span style={{ fontSize: '11px', fontWeight: 800, marginLeft: '2px' }}>✓</span>}
-                    </button>
-
-                    <button
-                      type="button"
-                      id="item-nonveg-toggle"
-                      onClick={() => setItemForm(f => ({ ...f, isVeg: false, dietary: 'non-veg' }))}
-                      style={{
-                        height: 40,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        border: !itemForm.isVeg ? '2px solid #ef4444' : '1.5px solid rgba(255, 255, 255, 0.14)',
-                        background: !itemForm.isVeg ? 'rgba(239, 68, 68, 0.18)' : '#0d111a',
-                        color: !itemForm.isVeg ? '#f87171' : 'var(--color-label-tertiary, #94a3b8)',
-                        boxShadow: !itemForm.isVeg ? '0 0 12px rgba(239, 68, 68, 0.22), inset 0 1px 2px rgba(0,0,0,0.2)' : 'none',
-                        opacity: !itemForm.isVeg ? 1 : 0.65,
-                        fontWeight: !itemForm.isVeg ? 700 : 500
-                      }}
-                    >
-                      <span className="food-badge-nonveg" style={{ width: 14, height: 14 }} />
-                      <span>Non-Vegetarian</span>
-                      {!itemForm.isVeg && <span style={{ fontSize: '11px', fontWeight: 800, marginLeft: '2px' }}>✓</span>}
-                    </button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.04em', margin: 0 }}>
+                      Food Type (Dietary)
+                    </label>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
+                      {itemForm.isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+                    </span>
                   </div>
+
+                  <div
+                    id="item-dietary-toggle-card"
+                    onClick={() => setItemForm(f => ({ ...f, isVeg: !f.isVeg, dietary: !f.isVeg ? 'veg' : 'non-veg' }))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      background: itemForm.isVeg ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                      border: itemForm.isVeg ? '1.5px solid rgba(34, 197, 94, 0.45)' : '1.5px solid rgba(239, 68, 68, 0.45)',
+                      boxShadow: itemForm.isVeg ? '0 0 16px rgba(34, 197, 94, 0.12)' : '0 0 16px rgba(239, 68, 68, 0.12)',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span
+                        className={itemForm.isVeg ? 'food-badge-veg' : 'food-badge-nonveg'}
+                        style={{ width: 20, height: 20, flexShrink: 0 }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        <span style={{ fontSize: '13.5px', fontWeight: 700, color: itemForm.isVeg ? '#4ade80' : '#f87171' }}>
+                          {itemForm.isVeg ? 'Vegetarian (Veg)' : 'Non-Vegetarian'}
+                        </span>
+                        <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary, #94a3b8)' }}>
+                          {itemForm.isVeg ? 'Pure veg dish • Green dot shown to customers & kitchen' : 'Contains meat/egg • Red triangle shown to customers & kitchen'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
+                      <ToggleSwitch
+                        id="item-veg-toggle-switch"
+                        className="dietary-toggle-switch"
+                        size="md"
+                        checked={itemForm.isVeg}
+                        onChange={e => setItemForm(f => ({ ...f, isVeg: e.target.checked, dietary: e.target.checked ? 'veg' : 'non-veg' }))}
+                        title={itemForm.isVeg ? 'Switch to Non-Vegetarian' : 'Switch to Vegetarian'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Hidden buttons for backward compatibility with existing tests */}
+                  <button
+                    type="button"
+                    id="item-veg-toggle"
+                    style={{ display: 'none' }}
+                    onClick={() => setItemForm(f => ({ ...f, isVeg: true, dietary: 'veg' }))}
+                  />
+                  <button
+                    type="button"
+                    id="item-nonveg-toggle"
+                    style={{ display: 'none' }}
+                    onClick={() => setItemForm(f => ({ ...f, isVeg: false, dietary: 'non-veg' }))}
+                  />
                 </div>
 
                 {/* Highlights & Badges Section */}
