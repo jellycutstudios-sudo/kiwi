@@ -2508,6 +2508,25 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   height: 0;
 }
 
+/* ─── Dense grid: force 2 columns when left category sidebar is visible ───
+   The sidebar steals ~140-155px so at typical tablet/small-desktop widths
+   the auto-fill minmax(140px) would cram 3 narrow columns (≈120px each),
+   making names truncate. Force 2 clean columns when sidebar is a vertical rail.
+   At ≤820px the sidebar collapses to a horizontal top bar so this rule is
+   scoped to >820px via the absence of the mobile override below. */
+.pos-menu-panel.categories-left .menu-grid.dense {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* When the sidebar collapses to a top bar (≤820px), restore auto-fill so
+   the full available width is used (the ≤768px / ≤480px breakpoints below
+   then cap at 2 columns anyway). */
+@media (max-width: 820px) {
+  .pos-menu-panel.categories-left .menu-grid.dense {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
 [data-theme="dark"] .pos-menu-panel.categories-left .pos-category-bar {
   background: #0d0f18 !important;
   border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
