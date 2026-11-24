@@ -21884,6 +21884,56 @@ html.dark .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* ── Responsive Minimization for All Devices ── */
+.orders-mobile-sub {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .orders-table th, 
+  .orders-table td {
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .orders-center-tabs {
+    padding: 0 10px;
+    gap: 4px;
+  }
+
+  .orders-center-tab {
+    padding: 10px 8px;
+    font-size: 12px;
+    gap: 5px;
+  }
+
+  /* Hide non-essential separate columns on mobile to ensure perfect minimal fit */
+  .orders-table th.col-time,
+  .orders-table td.col-time,
+  .orders-table th.col-items,
+  .orders-table td.col-items,
+  .orders-table th.col-status,
+  .orders-table td.col-status {
+    display: none !important;
+  }
+
+  .orders-mobile-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+  }
+
+  .orders-btn-card-upi {
+    display: none !important;
+  }
+
+  .orders-btn-bill {
+    padding: 0 5px !important;
+  }
+}
+
 /* Table Management Screen */
 [data-theme="dark"] .table-canvas-wrapper {
   background: #0c0d11;

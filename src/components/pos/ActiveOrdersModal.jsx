@@ -588,23 +588,22 @@ export default function ActiveOrdersModal({
               {/* TAB 1: OPEN ORDERS */}
               {activeTab === 'open' && (
                 <>
-                  {/* MODE A: HIGH DENSITY TABLE VIEW (Requested by User) */}
+                  {/* MODE A: STREAMLINED TABLE VIEW */}
                   {viewMode === 'table' && (
                     <div className="orders-table-wrapper">
                       <table className="orders-table">
                         <thead>
                           <tr>
-                            <th style={{ width: 60 }}>#</th>
-                            <th style={{ width: 120 }}>Time</th>
-                            <th style={{ minWidth: 140 }}>Order / Table</th>
-                            <th style={{ minWidth: 220 }}>Items Summary</th>
-                            <th style={{ width: 140 }}>Status</th>
-                            <th style={{ width: 100, textAlign: 'right' }}>Total</th>
-                            <th style={{ minWidth: 260, textAlign: 'right' }}>Actions</th>
+                            <th className="col-time" style={{ width: 65 }}>Time</th>
+                            <th style={{ minWidth: 120 }}>Order / Table</th>
+                            <th className="col-items" style={{ minWidth: 140 }}>Items Summary</th>
+                            <th className="col-status" style={{ width: 85 }}>Status</th>
+                            <th style={{ width: 80, textAlign: 'right' }}>Total</th>
+                            <th style={{ width: 270, textAlign: 'right' }}>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {displayedOrders.map((order, idx) => {
+                          {displayedOrders.map((order) => {
                             const isOnline = order.type === 'online' || !!order.source || order.orderType === 'delivery';
                             const isDelivery = order.orderType === 'delivery';
                             const isTakeaway = order.type === 'takeaway' || order.type === 'pickup' || (isOnline && order.orderType === 'takeaway');
@@ -618,36 +617,24 @@ export default function ActiveOrdersModal({
 
                             return (
                               <tr key={order.id}>
-                                {/* 1. Number */}
-                                <td>
-                                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 800, color: '#ffffff', fontSize: 13 }}>
-                                    {ticketNum}
+                                {/* 1. Time / Elapsed Timer */}
+                                <td className="col-time">
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    fontSize: 11.5,
+                                    fontWeight: elapsedMins > 15 ? 800 : 600,
+                                    color: elapsedMins > 25 ? '#ef4444' : (elapsedMins > 15 ? '#f59e0b' : '#10b981')
+                                  }} title={`Placed at ${formatOrderTime(order)}`}>
+                                    <Clock size={11} /> {elapsedMins}m
                                   </span>
                                 </td>
 
-                                {/* 2. Time & Elapsed Timer */}
+                                {/* 2. Order / Table */}
                                 <td>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
-                                      {formatOrderTime(order)}
-                                    </span>
-                                    <span style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 3,
-                                      fontSize: 11,
-                                      fontWeight: elapsedMins > 15 ? 800 : 600,
-                                      color: elapsedMins > 25 ? '#ef4444' : (elapsedMins > 15 ? '#f59e0b' : '#10b981')
-                                    }}>
-                                      <Clock size={11} /> {elapsedMins}m
-                                    </span>
-                                  </div>
-                                </td>
-
-                                {/* 3. Table / Guest */}
-                                <td>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                                       <span style={{
                                         fontWeight: 800,
                                         fontSize: 13,
@@ -664,34 +651,59 @@ export default function ActiveOrdersModal({
                                           isDelivery ? 'Delivery' : (isTakeaway ? 'Takeaway' : 'Order')
                                         )}
                                       </span>
-                                      <span className={`badge ${isOnline ? 'badge-purple' : isTakeaway ? 'badge-orange' : 'badge-blue'}`} style={{ fontSize: 9.5, padding: '1px 5px' }}>
-                                        {order.type || 'dine-in'}
+                                      <span style={{
+                                        fontFamily: 'var(--font-mono, monospace)',
+                                        fontSize: 10,
+                                        color: 'var(--color-label-tertiary, #94a3b8)',
+                                        background: 'rgba(255, 255, 255, 0.06)',
+                                        padding: '1px 4px',
+                                        borderRadius: 4
+                                      }}>
+                                        {ticketNum}
                                       </span>
+                                      {isOnline && (
+                                        <span className="badge badge-purple" style={{ fontSize: 9, padding: '1px 5px' }}>
+                                          {order.source || 'Online'}
+                                        </span>
+                                      )}
                                     </div>
                                     {order.customerName && (
-                                      <span style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', fontWeight: 500 }}>
+                                      <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
                                         {order.customerName}
                                       </span>
                                     )}
+
+                                    {/* Mobile-only compact subtitle with timer and status */}
+                                    <div className="orders-mobile-sub">
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: elapsedMins > 25 ? '#ef4444' : (elapsedMins > 15 ? '#f59e0b' : '#10b981') }}>
+                                        ⏱️ {elapsedMins}m
+                                      </span>
+                                      <span className={`badge ${isReady ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: 9, padding: '1px 5px' }}>
+                                        {isReady ? 'READY' : 'In Kitchen'}
+                                      </span>
+                                      <span style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
+                                        {itemsCount} items
+                                      </span>
+                                    </div>
                                   </div>
                                 </td>
 
-                                {/* 4. Items Summary */}
-                                <td>
+                                {/* 3. Items Summary */}
+                                <td className="col-items">
                                   <div 
                                     onClick={() => toggleOrderExpand(order.id)} 
                                     style={{ cursor: 'pointer' }}
                                     title="Click to view full dish breakdown"
                                   >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      <span style={{ fontSize: 12, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                      <span style={{ fontSize: 12, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
                                         {(order.items || []).map(i => `${i.qty > 1 ? `${i.qty}× ` : ''}${i.name}`).join(', ')}
                                       </span>
                                       <span style={{ color: 'var(--color-label-tertiary)' }}>
-                                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                       </span>
                                     </div>
-                                    <span style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
+                                    <span style={{ fontSize: 10, color: 'var(--color-label-tertiary)' }}>
                                       {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                                     </span>
 
@@ -718,23 +730,23 @@ export default function ActiveOrdersModal({
                                   </div>
                                 </td>
 
-                                {/* 5. Status Badges */}
-                                <td>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                                {/* 4. Status Badges */}
+                                <td className="col-status">
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
                                     {isReady ? (
                                       <span style={{
                                         background: 'rgba(16, 185, 129, 0.2)',
                                         color: '#34d399',
                                         border: '1px solid rgba(16, 185, 129, 0.5)',
-                                        padding: '2px 7px',
-                                        borderRadius: 5,
-                                        fontSize: 10.5,
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
                                         fontWeight: 800,
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 4
+                                        gap: 3
                                       }}>
-                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
+                                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
                                         READY
                                       </span>
                                     ) : (
@@ -742,9 +754,9 @@ export default function ActiveOrdersModal({
                                         background: 'rgba(245, 158, 11, 0.15)',
                                         color: '#fbbf24',
                                         border: '1px solid rgba(245, 158, 11, 0.4)',
-                                        padding: '2px 7px',
-                                        borderRadius: 5,
-                                        fontSize: 10.5,
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
                                         fontWeight: 700
                                       }}>
                                         In Kitchen
@@ -756,30 +768,30 @@ export default function ActiveOrdersModal({
                                         background: 'rgba(56, 189, 248, 0.12)',
                                         color: '#38bdf8',
                                         border: '1px solid rgba(56, 189, 248, 0.3)',
-                                        padding: '1px 6px',
+                                        padding: '1px 5px',
                                         borderRadius: 4,
-                                        fontSize: 10,
+                                        fontSize: 9.5,
                                         fontWeight: 700,
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 3
+                                        gap: 2.5
                                       }}>
-                                        <Printer size={9} /> Bill Printed
+                                        <Printer size={8} /> Bill Printed
                                       </span>
                                     )}
                                   </div>
                                 </td>
 
-                                {/* 6. Total Amount */}
+                                {/* 5. Total Amount */}
                                 <td style={{ textAlign: 'right' }}>
-                                  <span style={{ fontSize: 15, fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.2px' }}>
+                                  <span style={{ fontSize: 14.5, fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.2px' }}>
                                     {formatCurrency(order.total ?? 0, currency)}
                                   </span>
                                 </td>
 
-                                {/* 7. Touch-Friendly Action Buttons */}
+                                {/* 6. Compact Touch Actions (Zero Overflow) */}
                                 <td style={{ textAlign: 'right' }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                                     {/* Resume / Edit */}
                                     {onLoadOrderToCart && (
                                       <button
@@ -789,22 +801,23 @@ export default function ActiveOrdersModal({
                                           onClose();
                                         }}
                                         style={{
-                                          height: 32,
-                                          fontSize: 11.5,
+                                          height: 28,
+                                          fontSize: 11,
                                           fontWeight: 700,
-                                          padding: '0 8px',
+                                          padding: '0 7px',
                                           borderRadius: 6,
                                           background: 'rgba(255, 255, 255, 0.08)',
                                           border: '1px solid rgba(255, 255, 255, 0.18)',
                                           color: '#ffffff',
                                           display: 'inline-flex',
                                           alignItems: 'center',
-                                          gap: 4,
-                                          cursor: 'pointer'
+                                          gap: 3,
+                                          cursor: 'pointer',
+                                          whiteSpace: 'nowrap'
                                         }}
                                         title="Resume / Edit order in cart"
                                       >
-                                        <Edit2 size={11} /> Resume
+                                        <Edit2 size={10} /> Resume
                                       </button>
                                     )}
 
@@ -812,23 +825,25 @@ export default function ActiveOrdersModal({
                                     <button
                                       type="button"
                                       onClick={() => handlePrint(order)}
+                                      className="orders-btn-bill"
                                       style={{
-                                        height: 32,
-                                        fontSize: 11.5,
+                                        height: 28,
+                                        fontSize: 11,
                                         fontWeight: 700,
-                                        padding: '0 8px',
+                                        padding: '0 7px',
                                         borderRadius: 6,
                                         background: order.billPrinted ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.08)',
                                         border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.18)',
                                         color: order.billPrinted ? '#38bdf8' : '#e2e8f0',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 4,
-                                        cursor: 'pointer'
+                                        gap: 3,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
                                       }}
                                       title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
                                     >
-                                      <Printer size={11} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
+                                      <Printer size={10} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
                                     </button>
 
                                     {/* Settle (Card / Quick Cash) */}
@@ -837,28 +852,30 @@ export default function ActiveOrdersModal({
                                         {onOpenPayment && (
                                           <button
                                             type="button"
+                                            className="orders-btn-card-upi"
                                             onClick={() => {
                                               onLoadOrderToCart(order);
                                               onClose();
                                               onOpenPayment();
                                             }}
                                             style={{
-                                              height: 32,
-                                              fontSize: 11.5,
+                                              height: 28,
+                                              fontSize: 11,
                                               fontWeight: 700,
-                                              padding: '0 8px',
+                                              padding: '0 7px',
                                               borderRadius: 6,
                                               background: 'rgba(56, 189, 248, 0.12)',
                                               border: '1px solid rgba(56, 189, 248, 0.35)',
                                               color: '#38bdf8',
                                               display: 'inline-flex',
                                               alignItems: 'center',
-                                              gap: 4,
-                                              cursor: 'pointer'
+                                              gap: 3,
+                                              cursor: 'pointer',
+                                              whiteSpace: 'nowrap'
                                             }}
-                                            title="Card / UPI / Split Payment"
+                                            title="Card / UPI Payment"
                                           >
-                                            <CreditCard size={11} /> Card/UPI
+                                            <CreditCard size={10} /> Card
                                           </button>
                                         )}
 
@@ -868,7 +885,8 @@ export default function ActiveOrdersModal({
                                           alignItems: 'stretch',
                                           borderRadius: 6,
                                           overflow: 'hidden',
-                                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
+                                          boxShadow: '0 1px 4px rgba(16, 185, 129, 0.3)',
+                                          flexShrink: 0
                                         }}>
                                           <button
                                             type="button"
@@ -876,21 +894,22 @@ export default function ActiveOrdersModal({
                                             onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
                                             disabled={settlingId === order.id}
                                             style={{
-                                              height: 32,
-                                              fontSize: 11.5,
+                                              height: 28,
+                                              fontSize: 11,
                                               fontWeight: 800,
-                                              padding: '0 9px',
+                                              padding: '0 8px',
                                               background: '#10b981',
                                               border: 'none',
                                               color: '#ffffff',
                                               display: 'inline-flex',
                                               alignItems: 'center',
                                               gap: 3,
-                                              cursor: 'pointer'
+                                              cursor: 'pointer',
+                                              whiteSpace: 'nowrap'
                                             }}
-                                            title={order.billPrinted ? "Quick Cash (Bill already given — duplicate print skipped)" : "Quick Cash Settle & Print Receipt"}
+                                            title={order.billPrinted ? "Quick Cash (Duplicate print skipped)" : "Quick Cash Settle & Print"}
                                           >
-                                            <Zap size={11} fill="#fff" /> Quick Cash
+                                            <Zap size={10} fill="#fff" /> Quick Cash
                                           </button>
                                           <button
                                             type="button"
@@ -898,8 +917,8 @@ export default function ActiveOrdersModal({
                                             onClick={() => handleQuickCashSettle(order, true)}
                                             disabled={settlingId === order.id}
                                             style={{
-                                              height: 32,
-                                              padding: '0 7px',
+                                              height: 28,
+                                              padding: '0 6px',
                                               background: '#059669',
                                               border: 'none',
                                               borderLeft: '1px solid rgba(255, 255, 255, 0.25)',
@@ -911,7 +930,7 @@ export default function ActiveOrdersModal({
                                             }}
                                             title="Print receipt and settle"
                                           >
-                                            <Printer size={11} />
+                                            <Printer size={10} />
                                           </button>
                                         </div>
                                       </>
@@ -920,21 +939,21 @@ export default function ActiveOrdersModal({
                                         type="button"
                                         onClick={() => handleMarkComplete(order)}
                                         style={{
-                                          height: 32,
-                                          fontSize: 11.5,
+                                          height: 28,
+                                          fontSize: 11,
                                           fontWeight: 800,
-                                          padding: '0 10px',
+                                          padding: '0 9px',
                                           borderRadius: 6,
                                           background: 'var(--color-primary, #3b82f6)',
                                           border: 'none',
                                           color: '#ffffff',
                                           display: 'inline-flex',
                                           alignItems: 'center',
-                                          gap: 4,
+                                          gap: 3,
                                           cursor: 'pointer'
                                         }}
                                       >
-                                        <Check size={12} strokeWidth={2.5} /> Complete
+                                        <Check size={11} strokeWidth={2.5} /> Done
                                       </button>
                                     )}
                                   </div>
