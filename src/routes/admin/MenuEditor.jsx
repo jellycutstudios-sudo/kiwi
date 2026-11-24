@@ -205,7 +205,7 @@ export default function MenuEditor() {
       isVeg: isVegDefault,
       dietary: item.dietary || (isVegDefault ? 'veg' : 'non-veg')
     });
-    setShowAdvancedDetails(Boolean(item.barcode || item.description || item.taxRate != null || (item.unit && item.unit !== 'pcs')));
+    setShowAdvancedDetails(false);
     setShowPronunciation(false);
     setActiveTab('general');
     setShowItemForm(true);
@@ -2871,7 +2871,7 @@ export default function MenuEditor() {
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {showAdvancedDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      <span>{showAdvancedDetails ? 'Hide Optional Details' : 'More Details (SKU, Unit, Description)'}</span>
+                      <span>{showAdvancedDetails ? 'Hide Optional Details' : 'Optional Details (SKU, Tax, Description)'}</span>
                     </span>
                     {(itemForm.barcode || itemForm.description || itemForm.taxRate !== '' || (itemForm.unit && itemForm.unit !== 'pcs')) && (
                       <span className="optional-details-configured-badge">Configured</span>

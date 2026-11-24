@@ -324,4 +324,67 @@ describe('MenuEditor Enhancements: All Items, Global Search, and Category Reorde
     expect(screen.queryByText('🌴 Malayalam (മലയാളം)')).toBeNull();
     expect(screen.queryByText('🇮🇳 Hindi (हिंदी)')).toBeNull();
   });
+
+  it('collapses Optional Details by default when editing an item and toggles on click', async () => {
+    // Give item-1 description and barcode
+    useMenuStore.setState({
+      categories: [
+        {
+          id: 'cat-1',
+          name: 'Pasta & Mains',
+          emoji: '🍝',
+          order: 0,
+          items: [
+            {
+              id: 'item-1',
+              name: 'Spaghetti Carbonara',
+              price: 15,
+              description: 'Creamy pancetta pasta',
+              barcode: 'SKU-PASTA-1',
+              taxRate: 5,
+              available: true,
+            }
+          ]
+        }
+      ]
+    });
+
+    await act(async () => {
+      render(<MenuEditor />);
+    });
+
+    // Click on item card to edit
+    const itemCard = screen.getByText('Spaghetti Carbonara');
+    await act(async () => {
+      fireEvent.click(itemCard);
+    });
+
+    // Optional Details toggle button should exist
+    const toggleBtn = document.getElementById('toggle-optional-details-btn');
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Optional Details');
+    expect(toggleBtn.textContent).toContain('Configured');
+
+    // Tax rate input and description textarea should NOT be visible (collapsed by default)
+    expect(document.getElementById('item-tax-rate-input')).toBeNull();
+    expect(document.getElementById('item-desc-input')).toBeNull();
+
+    // Click to expand
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+
+    // Now inputs are visible
+    expect(document.getElementById('item-tax-rate-input')).toBeTruthy();
+    expect(document.getElementById('item-desc-input')).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Hide Optional Details');
+
+    // Click again to collapse
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+
+    expect(document.getElementById('item-tax-rate-input')).toBeNull();
+    expect(document.getElementById('item-desc-input')).toBeNull();
+  });
 });
