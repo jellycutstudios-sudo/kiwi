@@ -246,9 +246,9 @@ function getEffectiveVariantMatrix(item) {
 
 function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, onClose }) {
   const matrix = passedMatrix || getEffectiveVariantMatrix(item);
-  const styles  = matrix?.styleAxis  ?? [];
+  const styles = matrix?.styleAxis ?? [];
   const portions = matrix?.portionAxis ?? [];
-  const prices  = matrix?.prices ?? {};
+  const prices = matrix?.prices ?? {};
 
   const [selectedStyle, setSelectedStyle] = useState(styles[0] ?? null);
   // Map of "style|portion" -> quantity, e.g. { 'Gravy|Quarter': 2, 'Paste|Full': 1 }
@@ -278,7 +278,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
   const totalPrice = activeComboEntries.reduce((sum, e) => sum + (e.price * e.qty), 0);
 
   const canConfirm = totalItemCount > 0;
-  const styleColors = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4'];
+  const styleColors = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4'];
 
   // Single combo helper (only show QuantityBar when exactly 1 combo is active AND matches current tab)
   const singleCombo = activeComboEntries.length === 1 ? activeComboEntries[0] : null;
@@ -338,14 +338,14 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
   // Group summary text cleanly by style
   const summaryText = hasMultipleStyles
     ? styles
-        .map(s => {
-          const entries = activeComboEntries.filter(e => e.style === s);
-          if (!entries.length) return null;
-          const part = entries.map(e => `${e.qty > 1 ? `${e.qty} ` : ''}${e.portion}`).join(' + ');
-          return `${s} (${part})`;
-        })
-        .filter(Boolean)
-        .join(' + ')
+      .map(s => {
+        const entries = activeComboEntries.filter(e => e.style === s);
+        if (!entries.length) return null;
+        const part = entries.map(e => `${e.qty > 1 ? `${e.qty} ` : ''}${e.portion}`).join(' + ');
+        return `${s} (${part})`;
+      })
+      .filter(Boolean)
+      .join(' + ')
     : activeComboEntries.length > 0
       ? `${activeComboEntries[0].style} · ${activeComboEntries.map(e => `${e.qty > 1 ? `${e.qty} ` : ''}${e.portion}`).join(' + ')}`
       : '';
@@ -492,7 +492,7 @@ function VariantMatrixPicker({ item, matrix: passedMatrix, currency, onConfirm, 
                         </span>
                       </div>
 
-                      <div 
+                      <div
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}
                         onClick={e => e.stopPropagation()}
                       >
@@ -856,12 +856,12 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   // Active option entries in menu order for multiQtyGroup
   const activeOptionEntries = multiQtyGroup
     ? (multiQtyGroup.options ?? [])
-        .filter(opt => Object.prototype.hasOwnProperty.call(optionQuantities, opt.id))
-        .map(opt => {
-          const raw = optionQuantities[opt.id];
-          const numQty = Math.max(1, parseInt(raw, 10) || 1);
-          return { opt, rawQty: raw, qty: numQty };
-        })
+      .filter(opt => Object.prototype.hasOwnProperty.call(optionQuantities, opt.id))
+      .map(opt => {
+        const raw = optionQuantities[opt.id];
+        const numQty = Math.max(1, parseInt(raw, 10) || 1);
+        return { opt, rawQty: raw, qty: numQty };
+      })
     : [];
 
   const hasMultiQtySelections = multiQtyGroup && activeOptionEntries.length > 0;
@@ -873,9 +873,9 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
   const totalPrice = hasMultiQtySelections
     ? activeOptionEntries.reduce(
-        (sum, e) => sum + (basePrice + (e.opt.priceAdd ?? 0) + extraModifierTotal) * e.qty,
-        0
-      )
+      (sum, e) => sum + (basePrice + (e.opt.priceAdd ?? 0) + extraModifierTotal) * e.qty,
+      0
+    )
     : (basePrice + extraModifierTotal) * effectiveQty;
 
   const isGroupSatisfied = (group) => {

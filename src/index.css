@@ -26043,3 +26043,239 @@ html.dark .tm-prop-footer,
 
 
 
+
+/* ── Bulletproof Login Screen Palette Enforcement ── */
+.login-page,
+html.dark .login-page,
+[data-theme="dark"] .login-page,
+body.dark .login-page {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  color-scheme: light !important;
+}
+
+.login-page .login-form-card,
+html.dark .login-page .login-form-card,
+[data-theme="dark"] .login-page .login-form-card {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1) !important;
+  color: #0f172a !important;
+}
+
+.login-page .form-label,
+.login-page .login-form .form-label,
+html.dark .login-page .form-label,
+html.dark .login-page .login-form .form-label,
+[data-theme="dark"] .login-page .form-label,
+[data-theme="dark"] .login-page .login-form .form-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  margin-bottom: 6px !important;
+  letter-spacing: -0.1px !important;
+  text-transform: none !important;
+  display: block !important;
+}
+
+.login-page .form-input,
+.login-page input:not([type="checkbox"]):not([type="radio"]),
+html.dark .login-page .form-input,
+html.dark .login-page input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="dark"] .login-page .form-input,
+[data-theme="dark"] .login-page input:not([type="checkbox"]):not([type="radio"]) {
+  height: 52px !important;
+  padding: 0 16px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  color-scheme: light !important;
+  caret-color: #0f172a !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.login-page .form-input:hover,
+.login-page input:hover,
+html.dark .login-page .form-input:hover,
+html.dark .login-page input:hover,
+[data-theme="dark"] .login-page .form-input:hover,
+[data-theme="dark"] .login-page input:hover {
+  border-color: #94a3b8 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+.login-page .form-input:focus,
+.login-page input:focus,
+html.dark .login-page .form-input:focus,
+html.dark .login-page input:focus,
+[data-theme="dark"] .login-page .form-input:focus,
+[data-theme="dark"] .login-page input:focus {
+  border-color: #0f172a !important;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12) !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  outline: none !important;
+}
+
+.login-page .form-input::placeholder,
+.login-page input::placeholder,
+html.dark .login-page .form-input::placeholder,
+html.dark .login-page input::placeholder,
+[data-theme="dark"] .login-page .form-input::placeholder,
+[data-theme="dark"] .login-page input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: initial !important;
+}
+
+.login-page .login-mode-toggle,
+html.dark .login-page .login-mode-toggle,
+[data-theme="dark"] .login-page .login-mode-toggle {
+  background: #f1f5f9 !important;
+  border-radius: 14px !important;
+  padding: 4px !important;
+}
+
+.login-page .login-mode-btn,
+html.dark .login-page .login-mode-btn,
+[data-theme="dark"] .login-page .login-mode-btn {
+  color: #64748b !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.login-page .login-mode-btn:hover:not(.active),
+html.dark .login-page .login-mode-btn:hover:not(.active),
+[data-theme="dark"] .login-page .login-mode-btn:hover:not(.active) {
+  color: #0f172a !important;
+}
+
+.login-page .login-mode-btn.active,
+html.dark .login-page .login-mode-btn.active,
+[data-theme="dark"] .login-page .login-mode-btn.active {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.login-page .login-mode-btn:focus,
+.login-page .login-mode-btn:focus-visible,
+html.dark .login-page .login-mode-btn:focus,
+html.dark .login-page .login-mode-btn:focus-visible {
+  outline: none !important;
+}
+
+.login-page .password-toggle-btn,
+html.dark .login-page .password-toggle-btn,
+[data-theme="dark"] .login-page .password-toggle-btn {
+  color: #64748b !important;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.login-page .password-toggle-btn:hover,
+html.dark .login-page .password-toggle-btn:hover,
+[data-theme="dark"] .login-page .password-toggle-btn:hover {
+  color: #0f172a !important;
+}
+
+.login-page .login-submit-btn,
+html.dark .login-page .login-submit-btn,
+[data-theme="dark"] .login-page .login-submit-btn {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important;
+  border: none !important;
+}
+
+.login-page .login-submit-btn:hover:not(:disabled),
+html.dark .login-page .login-submit-btn:hover:not(:disabled),
+[data-theme="dark"] .login-page .login-submit-btn:hover:not(:disabled) {
+  background: #1e293b !important;
+  background-color: #1e293b !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22) !important;
+}
+
+.login-page .login-forgot-btn,
+html.dark .login-page .login-forgot-btn,
+[data-theme="dark"] .login-page .login-forgot-btn {
+  color: #64748b !important;
+  background: none !important;
+}
+
+.login-page .login-forgot-btn:hover,
+html.dark .login-page .login-forgot-btn:hover,
+[data-theme="dark"] .login-page .login-forgot-btn:hover {
+  color: #0f172a !important;
+}
+
+.login-page .pin-key,
+html.dark .login-page .pin-key,
+[data-theme="dark"] .login-page .pin-key {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.login-page .pin-key:hover:not(.empty),
+html.dark .login-page .pin-key:hover:not(.empty),
+[data-theme="dark"] .login-page .pin-key:hover:not(.empty) {
+  background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.login-page .pin-key:active:not(.empty),
+html.dark .login-page .pin-key:active:not(.empty),
+[data-theme="dark"] .login-page .pin-key:active:not(.empty) {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.login-page .pin-dot,
+html.dark .login-page .pin-dot,
+[data-theme="dark"] .login-page .pin-dot {
+  border: 2px solid #cbd5e1 !important;
+  background: transparent !important;
+}
+
+.login-page .pin-dot.filled,
+html.dark .login-page .pin-dot.filled,
+[data-theme="dark"] .login-page .pin-dot.filled {
+  background: #0f172a !important;
+  border-color: #0f172a !important;
+}
+
+.login-page .login-back-btn,
+html.dark .login-page .login-back-btn,
+[data-theme="dark"] .login-page .login-back-btn {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+.login-page .login-back-btn:hover,
+html.dark .login-page .login-back-btn:hover,
+[data-theme="dark"] .login-page .login-back-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
