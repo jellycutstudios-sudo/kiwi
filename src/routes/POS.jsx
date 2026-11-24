@@ -2118,16 +2118,13 @@ export default function POS() {
                                 }
                               }}
                             >
-                              {/* Header Row: Dietary Icon + Title on left, Status Badge on right */}
+                              {/* Top Meta Bar: Dietary Icon on left + Badges (Options / SubCategory / Bestseller) on right */}
                               <div className="menu-key-header">
-                                <div className="menu-key-title-wrap">
-                                  <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-                                  <span className="menu-key-name" title={item.name}>{item.name}</span>
+                                <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+                                <div className="menu-key-badges-right">
                                   {item.subCategory && (
                                     <span className="item-subcat-badge">{item.subCategory}</span>
                                   )}
-                                </div>
-                                <div className="menu-key-badges-right">
                                   {hasModifiers ? (
                                     <span className="menu-key-pill menu-key-pill-mod">
                                       Options
@@ -2142,6 +2139,11 @@ export default function POS() {
                                     </span>
                                   ) : null}
                                 </div>
+                              </div>
+
+                              {/* Title: Unconstrained full-width title area for clean, legible reading */}
+                              <div className="menu-key-title-wrap">
+                                <span className="menu-key-name" title={item.name}>{item.name}</span>
                               </div>
 
                               {/* Bottom Row: Price display & In-Card Stepper / Action Button */}
