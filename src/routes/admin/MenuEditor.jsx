@@ -2583,7 +2583,7 @@ export default function MenuEditor() {
                       Price ({restaurant?.currency ?? 'INR'})
                     </label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <span style={{ position: 'absolute', left: 12, fontSize: '13px', fontWeight: 600, color: 'var(--color-label-tertiary)' }}>
+                      <span style={{ position: 'absolute', left: 12, fontSize: '13px', fontWeight: 700, color: '#cbd5e1' }}>
                         {restaurant?.currency === 'INR' ? '₹' : (restaurant?.currency ?? '$')}
                       </span>
                       <input 
