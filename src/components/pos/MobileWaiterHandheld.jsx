@@ -3,9 +3,10 @@ import {
   Search, X, Plus, Minus, Flame, 
   ChevronUp, ChevronDown, Printer, CreditCard, 
   Split, ArrowLeft, Trash2, SlidersHorizontal, FileText,
-  Languages, LayoutGrid, List, Check, ShoppingCart
+  Languages, LayoutGrid, List, Check, ShoppingCart, LogOut
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
 import { useTableStore } from '../../stores/tableStore';
 import { hapticTap, playNotificationTone, vibrateDevice } from '../../utils/soundNotifications';
@@ -611,6 +612,19 @@ export default function MobileWaiterHandheld({
           >
             <ArrowLeft size={13} />
             <span>{isFloorStaff ? "Tables" : "POS"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="handheld-view-toggle-btn"
+            onClick={() => {
+              hapticTap('light');
+              useAuthStore.getState().signOut();
+            }}
+            title="Sign Out"
+            aria-label="Sign Out"
+          >
+            <LogOut size={14} />
           </button>
         </div>
       </header>

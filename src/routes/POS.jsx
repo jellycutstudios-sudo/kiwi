@@ -21,7 +21,7 @@ import {
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift,
-  MapPin
+  MapPin, Languages
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -43,6 +43,7 @@ import { usePosTemplate } from '../utils/posTemplate';
 import { useBusinessConfig } from '../hooks/useBusinessConfig';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
+import { transliterateFood, SUPPORTED_WAITER_LANGUAGES } from '../utils/foodTransliteration';
 import { getItemVisuals } from '../utils/itemVisuals';
 import { getCategoryChromaticColors } from '../utils/categoryColors';
 import { extractDietaryFromQuery, scoreMenuItemMatch } from '../utils/posSearch';
@@ -111,6 +112,7 @@ const fireClickIfNotHandled = (e, fn) => {
 
 const DenseMenuKeyCard = memo(function DenseMenuKeyCard({
   item,
+  displayName,
   qty,
   catColors,
   catName,
@@ -176,7 +178,7 @@ const DenseMenuKeyCard = memo(function DenseMenuKeyCard({
 
       {/* Title: Unconstrained full-width title area for clean, legible reading */}
       <div className="menu-key-title-wrap">
-        <span className="menu-key-name" title={item.name}>{item.name}</span>
+        <span className="menu-key-name" title={item.name}>{displayName || item.name}</span>
       </div>
 
       {/* Bottom Row: Price display & In-Card Stepper / Action Button */}
@@ -225,6 +227,7 @@ const DenseMenuKeyCard = memo(function DenseMenuKeyCard({
 
 const VisualMenuItemCard = memo(function VisualMenuItemCard({
   item,
+  displayName,
   qty,
   catColors,
   catName,
@@ -314,7 +317,7 @@ const VisualMenuItemCard = memo(function VisualMenuItemCard({
           </span>
         )}
         <div className="menu-item-name" title={item.name}>
-          <span className="menu-item-name-text">{item.name}</span>
+          <span className="menu-item-name-text">{displayName || item.name}</span>
           {item.subCategory && (
             <span className="item-subcat-badge">{item.subCategory}</span>
           )}
@@ -642,16 +645,31 @@ export default function POS() {
 
   const [handheldMode, setHandheldMode] = useState(() => {
     try {
-      const saved = localStorage.getItem('kiwi_handheld_mode');
-      if (saved !== null) return saved === 'true';
-      return typeof window !== 'undefined' && window.innerWidth <= 767;
+      return localStorage.getItem('kiwi_handheld_mode') === 'true';
     } catch {
       return false;
     }
   });
 
-  // Floor staff (waiters/servers/runners) are always locked into Waiter Mode
-  const isEffectiveHandheld = isFloorStaff || handheldMode;
+  // Unified POS for all roles (waiter/server/cashier/admin) — handheld only if explicitly opted in
+  const isEffectiveHandheld = handheldMode;
+
+  const [waiterLang, setWaiterLang] = useState(() => {
+    try {
+      return localStorage.getItem('kiwi_waiter_lang') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
+
+  const cycleWaiterLang = useCallback(() => {
+    hapticTap('light');
+    const idx = SUPPORTED_WAITER_LANGUAGES.findIndex(l => l.code === waiterLang);
+    const next = SUPPORTED_WAITER_LANGUAGES[(idx + 1) % SUPPORTED_WAITER_LANGUAGES.length];
+    setWaiterLang(next.code);
+    try { localStorage.setItem('kiwi_waiter_lang', next.code); } catch { }
+    toast.success(`Menu language: ${next.label}`, { id: 'pos-lang-toast', duration: 1500 });
+  }, [waiterLang]);
 
   // Battery conservation: Screen wake lock active on fixed counter POS; allowed to sleep on mobile handhelds
   useWakeLock(!isEffectiveHandheld);
@@ -2228,6 +2246,21 @@ export default function POS() {
                   <span className="pos-op-cat-count">{categories.length}</span>
                   <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
                 </button>
+
+                {/* Waiter / Staff Menu Language Switcher (English / Malayalam / Hindi) */}
+                <button
+                  type="button"
+                  className="pos-op-card"
+                  id="pos-waiter-lang-btn"
+                  onClick={cycleWaiterLang}
+                  title="Switch menu language (English / Malayalam / Hindi)"
+                  style={waiterLang !== 'en' ? { borderColor: 'var(--color-accent)', color: 'var(--color-accent)' } : undefined}
+                >
+                  <Languages size={14} className="pos-op-pill-icon" />
+                  <span className="pos-op-pill-title">
+                    {SUPPORTED_WAITER_LANGUAGES.find(l => l.code === waiterLang)?.native || 'EN'}
+                  </span>
+                </button>
               </div>
               {!isBistro && <div className="pos-bar-divider" />}
 
@@ -2561,12 +2594,19 @@ export default function POS() {
                                 extractDietaryFromQuery(search).cleanQuery &&
                                 catName
                               );
+                              const customNative = waiterLang !== 'en'
+                                ? (item[`${waiterLang}Name`] || item[`name_${waiterLang}`] || item[`name${waiterLang.toUpperCase()}`])
+                                : null;
+                              const displayName = waiterLang === 'en'
+                                ? item.name
+                                : (customNative || transliterateFood(item.name, waiterLang));
 
                               if (menuDensity === 'dense') {
                                 return (
                                   <DenseMenuKeyCard
                                     key={item.id}
                                     item={item}
+                                    displayName={displayName}
                                     qty={qty}
                                     catColors={catColors}
                                     catName={catName}
@@ -2585,6 +2625,7 @@ export default function POS() {
                                 <VisualMenuItemCard
                                   key={item.id}
                                   item={item}
+                                  displayName={displayName}
                                   qty={qty}
                                   catColors={catColors}
                                   catName={catName}
