@@ -130,17 +130,17 @@ const TAX_TYPES = [
 ];
 
 const TABS = [
-  { id: 'general',       label: 'General & Identity',      shortLabel: 'General',      icon: Store, keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
-  { id: 'security',      label: 'Security & Password',     shortLabel: 'Security',     icon: ShieldCheck, keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
-  { id: 'workflows',     label: 'Business Setup & Features', shortLabel: 'Setup & Features', icon: SlidersHorizontal, keywords: ['flow', 'preset', 'bill only', 'express', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void', 'modes', 'features', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'shift'] },
-  { id: 'kitchen',       label: 'Kitchen & KDS',           shortLabel: 'Kitchen',      icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
-  { id: 'tax-pay',       label: 'Payments, Card Machines & Taxes', shortLabel: 'Payment Machines & Taxes', icon: CreditCard, keywords: ['payment machine', 'card machine', 'edc', 'terminal', 'pos machine', 'swipe machine', 'paytm', 'pinelabs', 'razorpay', 'stripe', 'tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'upi', 'tally'] },
-  { id: 'receipts',      label: 'Receipt Designer',        shortLabel: 'Receipts',     icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
-  { id: 'promotions',    label: 'Offers, BOGO & Deals',    shortLabel: 'Offers & Deals', icon: Tag, keywords: ['offer', 'promo', 'bogo', 'coupon', 'happy hour', 'deal', 'discount', 'voucher'] },
-  { id: 'displays',      label: 'Digital Displays & TV',   shortLabel: 'Displays',     icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url', 'kiosk', 'self service', 'touch screen'] },
-  { id: 'online-del',    label: 'Online Store & Delivery', shortLabel: 'Online Store', icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
-  { id: 'hardware',      label: 'Peripherals & Printers',  shortLabel: 'Printers & Hardware', icon: Printer, keywords: ['printer', 'hardware', 'payment machine', 'edc', 'terminal', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
-  { id: 'notifications', label: 'Alerts & Reports',        shortLabel: 'Alerts',       icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
+  { id: 'general',       label: 'General',           shortLabel: 'General',          icon: Store, keywords: ['name', 'logo', 'id', 'address', 'phone', 'currency', 'tax id', 'gstin', 'fssai', 'version', 'update', 'vault', 'backup'] },
+  { id: 'security',      label: 'Security',          shortLabel: 'Security',         icon: ShieldCheck, keywords: ['password', 'security', 'admin', 'pin', 'reset', 'credentials', 'email', 'login', 'account', 'privacy', 'masking'] },
+  { id: 'workflows',     label: 'Features & POS',    shortLabel: 'Features & POS',   icon: SlidersHorizontal, keywords: ['flow', 'preset', 'bill only', 'express', 'qsr', 'dine in', 'tab', 'auto lock', 'pin', 'phone', 'prefix', 'order number', 'token', 'voice', 'rounding', 'split', 'tip', 'quick pay', 'speed dial', 'barcode', 'audit', 'void', 'modes', 'features', 'kds', 'online', 'delivery', 'reservations', 'inventory', 'payroll', 'customers', 'shift'] },
+  { id: 'kitchen',       label: 'Kitchen & KDS',     shortLabel: 'Kitchen',          icon: ChefHat, keywords: ['kitchen', 'kds', 'kot', 'station', 'stations', 'grill', 'fryer', 'bar', 'bakery', 'paper', 'buzzer', 'chime'] },
+  { id: 'tax-pay',       label: 'Payments & Tax',    shortLabel: 'Payments & Tax',   icon: CreditCard, keywords: ['payment machine', 'card machine', 'edc', 'terminal', 'pos machine', 'swipe machine', 'paytm', 'pinelabs', 'razorpay', 'stripe', 'tax', 'gst', 'vat', 'service charge', 'gratuity', 'calculator', 'cash', 'till', 'shift', 'drawer', 'upi', 'tally'] },
+  { id: 'receipts',      label: 'Receipt Layout',    shortLabel: 'Receipts',         icon: Receipt, keywords: ['receipt', 'thermal', 'print', 'logo', 'footer', 'header', 'designer', 'preview', 'paper'] },
+  { id: 'promotions',    label: 'Offers & Deals',    shortLabel: 'Offers & Deals',   icon: Tag, keywords: ['offer', 'promo', 'bogo', 'coupon', 'happy hour', 'deal', 'discount', 'voucher'] },
+  { id: 'displays',      label: 'TV & Kiosk',        shortLabel: 'Displays',         icon: Tv, keywords: ['display', 'tv', 'token queue', 'posters', 'slideshow', 'signage', 'screen', 'url', 'kiosk', 'self service', 'touch screen'] },
+  { id: 'online-del',    label: 'Online & Delivery', shortLabel: 'Online Store',     icon: Smartphone, keywords: ['online', 'delivery', 'pickup', 'slug', 'uber', 'swiggy', 'zomato', 'deliveroo', 'aggregators'] },
+  { id: 'hardware',      label: 'Printers',          shortLabel: 'Printers',         icon: Printer, keywords: ['printer', 'hardware', 'bluetooth', 'network', 'ip', 'serial', 'cash drawer', 'scanner', 'escpos'] },
+  { id: 'notifications', label: 'Alerts & Reports',  shortLabel: 'Alerts',           icon: Bell, keywords: ['notification', 'alert', 'sound', 'tone', 'email', 'closing report', 'z report', 'whatsapp'] },
 ];
 
 export default function Settings() {
@@ -1165,14 +1165,27 @@ export default function Settings() {
             <>
               {/* Basic Info */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Store Identity &amp; Profile</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Restaurant Details</h3>
                 <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
-                  <div className="form-group">
-                    <label className="form-label">Restaurant Name</label>
-                    <input id="settings-name" className="form-input" value={settings.name??''} onChange={e=>updateField('name',e.target.value)} />
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap:'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">Restaurant Name</label>
+                      <input id="settings-name" className="form-input" value={settings.name??''} onChange={e=>updateField('name',e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Staff Login ID</label>
+                      <input 
+                        id="settings-custom-id" 
+                        className="form-input" 
+                        placeholder="e.g. my-restaurant" 
+                        value={settings.customId??''} 
+                        onChange={e=>updateField('customId',e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))} 
+                      />
+                      <span className="text-secondary text-caption2">Short store code staff enter with their PIN (a–z, 0–9, -).</span>
+                    </div>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Restaurant Logo (POS Thermal Receipts &amp; Branding)</label>
+                    <label className="form-label">Logo</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
                       {(settings.receiptConfig?.thermalLogo || settings.receiptConfig?.logoUrl || settings.logo) ? (
                         <div style={{
@@ -1227,45 +1240,34 @@ export default function Settings() {
                           {uploadingLogo ? 'Converting...' : ((settings.receiptConfig?.logoUrl || settings.logo) ? 'Change Logo' : 'Upload Logo')}
                         </button>
                         <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
-                          Auto-dithered &amp; converted into 1-bit monochrome for thermal receipt printers.
+                          Shown on printed receipts and your online menu.
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Custom Restaurant ID (for Staff PIN Login)</label>
-                    <input 
-                      id="settings-custom-id" 
-                      className="form-input" 
-                      placeholder="e.g. my-restaurant" 
-                      value={settings.customId??''} 
-                      onChange={e=>updateField('customId',e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))} 
-                    />
-                    <span className="text-secondary text-caption2">A custom ID staff can use to log in. Only lowercase letters, numbers, hyphens, and underscores allowed.</span>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Address</label>
-                    <input id="settings-address" className="form-input" placeholder="Street, City" value={settings.address??''} onChange={e=>updateField('address',e.target.value)} />
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap:'var(--space-3)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap:'var(--space-3)' }}>
+                    <div className="form-group">
+                      <label className="form-label">Address</label>
+                      <input id="settings-address" className="form-input" placeholder="Street, City" value={settings.address??''} onChange={e=>updateField('address',e.target.value)} />
+                    </div>
                     <div className="form-group">
                       <label className="form-label">Phone</label>
-                      <input id="settings-phone" className="form-input" placeholder="+971 50 000 0000" value={settings.phone??''} onChange={e=>updateField('phone',e.target.value)} />
+                      <input id="settings-phone" className="form-input" placeholder="+91 98000 00000" value={settings.phone??''} onChange={e=>updateField('phone',e.target.value)} />
                     </div>
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--color-separator)', paddingTop: 'var(--space-3)', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap:'var(--space-3)' }}>
                     <div className="form-group">
                       <label className="form-label">Currency</label>
                       <select id="settings-currency" className="form-select" value={settings.currency??'INR'} onChange={e=>updateField('currency',e.target.value)}>
                         {CURRENCY_OPTIONS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
                       </select>
                     </div>
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap:'var(--space-3)' }}>
                     <div className="form-group">
                       <label className="form-label">GSTIN / Tax ID</label>
                       <input id="settings-gstin" className="form-input" placeholder="e.g. 27AAAAA0000A1Z5" value={settings.gstin??''} onChange={e=>updateField('gstin', e.target.value.toUpperCase())} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">FSSAI License No. (India)</label>
+                      <label className="form-label">FSSAI License</label>
                       <input id="settings-fssai" className="form-input" placeholder="e.g. 10012011000123" value={settings.fssai??''} onChange={e=>updateField('fssai', e.target.value)} />
                     </div>
                   </div>
@@ -1274,9 +1276,9 @@ export default function Settings() {
 
               {/* System Version & App Updates */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>System Version &amp; App Updates</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>App Updates</h3>
                 <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Manage software updates across all connected POS terminals, tablets, and mobile devices.
+                  Keep all POS terminals, tablets, and mobile devices on the latest version.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)', background: 'var(--color-bg-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator-opaque)' }}>
                   <div>
@@ -1663,7 +1665,7 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 className="text-title3" style={{ margin: 0 }}>Active Modules &amp; Capabilities</h3>
+                    <h3 className="text-title3" style={{ margin: 0 }}>POS Features</h3>
                     <span style={{
                       fontSize: '11px',
                       fontWeight: 'var(--weight-bold)',
@@ -1676,7 +1678,7 @@ export default function Settings() {
                     </span>
                   </div>
                   <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
-                    Enable or disable POS sidebar modules to match your venue format.
+                    Turn restaurant features on or off to match how your team works.
                   </p>
                 </div>
                 <button
@@ -2347,7 +2349,7 @@ export default function Settings() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <Zap size={18} color="var(--color-accent)" />
-                      <h3 className="text-title3" style={{ margin: 0, fontSize: '15px' }}>POS Terminal &amp; Checkout Experience</h3>
+                      <h3 className="text-title3" style={{ margin: 0, fontSize: '15px' }}>Checkout &amp; Cashier Flow</h3>
                       <span style={{
                         fontSize: '11px',
                         fontWeight: 700,
@@ -2362,7 +2364,7 @@ export default function Settings() {
                     </div>
                     {behaviorOpen && (
                       <p className="text-secondary text-footnote" style={{ margin: '4px 0 0' }}>
-                        Customize speed controls, tender shortcuts, receipt numbering, and cashier flow.
+                        Speed up billing, set quick payment shortcuts, and customize order numbering.
                       </p>
                     )}
                   </div>
@@ -2791,7 +2793,7 @@ export default function Settings() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                       <HardDrive size={18} color={settings.localStorageOnly ? '#38bdf8' : 'var(--color-accent)'} />
                       <h3 className="text-title3" style={{ margin: 0 }}>
-                        Complete Offline Mode (Air-Gapped)
+                        Offline-Only Mode
                       </h3>
                       {settings.localStorageOnly && (
                         <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
@@ -2800,7 +2802,7 @@ export default function Settings() {
                       )}
                     </div>
                     <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                      100% offline isolation. Orders, menu, shifts, tables, and settings operate entirely on this device and local LAN with zero cloud connection.
+                      Run everything locally on this device and LAN with zero internet or cloud sync.
                     </p>
                   </div>
                   <ToggleSwitch
@@ -2863,16 +2865,16 @@ export default function Settings() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                       <ShieldCheck size={18} color={settings.privateSalesMode ? '#10b981' : 'var(--color-accent)'} />
                       <h3 className="text-title3" style={{ margin: 0 }}>
-                        Private Sales Mode (Don't Sync Financials)
+                        Keep Sales Local Only
                       </h3>
                       {settings.privateSalesMode && (
                         <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                          Financials Shielded
+                          Sales Stay Local
                         </span>
                       )}
                     </div>
                     <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                      Operational sync stays connected (online orders, menu, multi-device tables, KDS), but <strong>sales transactions, revenue amounts, and drawer floats are never sent to the cloud</strong>. All financial records stay strictly local on this register.
+                      Sync menu, tables, and kitchen orders across devices, while <strong>sales totals and cash drawer records stay strictly on this device</strong>.
                     </p>
                   </div>
                   <ToggleSwitch
@@ -2975,10 +2977,10 @@ export default function Settings() {
                   <ShieldCheck size={20} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 700, color: 'var(--color-label-primary)' }}>
-                      100% Data Sovereignty Guarantee
+                      Your Data Stays Yours
                     </div>
                     <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2, lineHeight: 1.4 }}>
-                      Your sales, guest contacts, recipes, and margins belong strictly to your business — zero third-party telemetry or data resale.
+                      Your sales, guest contacts, and recipes belong strictly to your business — never shared or sold.
                     </div>
                   </div>
                 </div>
@@ -3544,7 +3546,7 @@ export default function Settings() {
             <>
               {/* Tax Config */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Tax Configuration</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-4)'}}>Tax (GST / VAT)</h3>
                 <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
                   <div className="form-group">
                     <label className="form-label">Tax Type</label>
@@ -3621,9 +3623,9 @@ export default function Settings() {
 
               {/* Service Charge & Gratuity */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Service Charge &amp; Gratuity</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Service Charge</h3>
                 <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Configure default service charge percentage automatically applied to dine-in bills.
+                  Optional percentage added automatically to dine-in bills.
                 </p>
                 <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-3)' }}>
@@ -3658,9 +3660,9 @@ export default function Settings() {
 
               {/* Cash Management Shift Mode */}
               <div className="card card-padded">
-                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Cash Drawer &amp; Till Management</h3>
+                <h3 className="text-title3" style={{marginBottom:'var(--space-2)'}}>Cash Drawer &amp; Shifts</h3>
                 <p className="text-secondary text-footnote" style={{marginBottom:'var(--space-4)'}}>
-                  Configure how cash shifts, float balance, and end-of-day counts are tracked across terminals.
+                  Choose whether all staff share one till or each cashier closes their own cash float.
                 </p>
                 <div className="form-group">
                   <label className="form-label">Cash Shift Mode</label>
@@ -3681,13 +3683,13 @@ export default function Settings() {
               {/* Multi-Provider Smart Payment Terminal & EDC Hardware */}
               <div className="card card-padded">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                  <h3 className="text-title3" style={{ margin: 0 }}>Smart Payment Terminal &amp; EDC Hardware</h3>
+                  <h3 className="text-title3" style={{ margin: 0 }}>Card Machines (EDC)</h3>
                   <span className={`badge ${settings.terminalConfig?.enabled ? 'badge-success' : 'badge-neutral'}`}>
                     {settings.terminalConfig?.enabled ? 'Hardware Active' : 'Manual Mode'}
                   </span>
                 </div>
                 <p className="text-secondary text-footnote" style={{ marginBottom: 'var(--space-4)' }}>
-                  Connect physical card swipe machines and Android EDC smart terminals to collect Debit/Credit cards and dynamic UPI QR payments with automatic POS reconciliation.
+                  Pair card swipe terminals and Android EDC devices to accept cards and dynamic UPI QR directly from POS.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -4405,9 +4407,9 @@ export default function Settings() {
                     <Bell size={20} />
                   </div>
                   <div>
-                    <h3 className="text-title3" style={{ margin: 0 }}>Kitchen & Service Live Alerts</h3>
+                    <h3 className="text-title3" style={{ margin: 0 }}>Kitchen &amp; Waiter Alerts</h3>
                     <p className="text-secondary text-footnote" style={{ margin: 0, marginTop: 2 }}>
-                      Configure sound alerts, tone presets, and waiter popups when kitchen marks food as ready.
+                      Choose alert sounds and popups when kitchen marks dishes ready.
                     </p>
                   </div>
                 </div>
@@ -5128,9 +5130,9 @@ export default function Settings() {
               <div className="card card-padded">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
                   <div>
-                    <h3 className="text-title3" style={{ marginBottom: '2px' }}>Printer & Hardware Peripherals</h3>
+                    <h3 className="text-title3" style={{ marginBottom: '2px' }}>Printers &amp; Cash Drawers</h3>
                     <p className="text-secondary text-footnote">
-                      Manage receipts and kitchen tickets by configuring and routing multiple ESC/POS thermal printers.
+                      Connect thermal receipt printers, kitchen printers, and cash drawers.
                     </p>
                   </div>
                   <button
