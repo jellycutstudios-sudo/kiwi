@@ -4510,10 +4510,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  grid-auto-rows: minmax(148px, auto);
-  gap: 10px;
-  padding: 10px 14px 44px;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  grid-auto-rows: minmax(156px, auto);
+  gap: 12px;
+  padding: 14px 16px 48px;
   background: var(--color-bg);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -5008,7 +5008,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 .menu-item-name-text {
   flex: 1;
   min-width: 0;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -13761,21 +13764,22 @@ body,
   .login-left { display: none; }
   .login-right { width: 100%; }
 
-  /* Optimized POS Terminal Grid on Tablet Screens (Fits 3 columns cleanly on iPad Mini) */
+  /* Optimized POS Terminal Grid on Tablet Screens (Fits 3 generous columns cleanly on iPad Mini / 1024px) */
   .menu-grid {
-    grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
-    grid-auto-rows: minmax(138px, auto);
-    gap: 8px;
-    padding: 10px 10px 40px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: auto;
+    gap: 10px;
+    padding: 12px 12px 44px;
   }
-  .menu-grid.dense {
-    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
-    grid-auto-rows: minmax(92px, auto);
-    gap: 8px;
-    padding: 10px 10px 40px;
+  .menu-grid.dense,
+  .pos-menu-panel.categories-left .menu-grid.dense {
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: auto;
+    gap: 10px;
+    padding: 12px 12px 44px;
   }
   .menu-item-img-wrap {
-    height: 74px;
+    height: 86px;
   }
   .menu-item-img-placeholder {
     font-size: 22px;
@@ -14253,9 +14257,10 @@ body,
     gap: 10px;
     padding: 12px 14px 90px; /* Space from screen edges and view-cart floating bar */
   }
-  .menu-grid.dense {
+  .menu-grid.dense,
+  .pos-menu-panel.categories-left .menu-grid.dense {
     grid-template-columns: repeat(2, 1fr);
-    grid-auto-rows: minmax(88px, auto);
+    grid-auto-rows: auto;
     gap: 10px;
     padding: 12px 14px 90px;
   }
