@@ -73,6 +73,8 @@ export default function MenuEditor() {
   const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '', subCategories: [] });
   const [newSubCatInput, setNewSubCatInput] = useState('');
   const [itemForm, setItemForm] = useState({ name: '', categoryId: '', subCategory: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
+  const [editingPriceItemId, setEditingPriceItemId] = useState(null);
+  const [editingPriceVal, setEditingPriceVal] = useState('');
   const [isAiTranslating, setIsAiTranslating] = useState(false);
   const [isBatchTranslating, setIsBatchTranslating] = useState(false);
   const [inventory, setInventory] = useState([]);
@@ -901,6 +903,37 @@ export default function MenuEditor() {
       }
     }
     toast.success(nextAvailable ? `${item.name} is now Available` : `${item.name} marked Out of Stock`);
+  };
+
+  const quickUpdatePrice = async (catId, item, rawVal) => {
+    setEditingPriceItemId(null);
+    const parsed = parseFloat(rawVal);
+    if (isNaN(parsed) || parsed < 0) return;
+    const rounded = Math.round(parsed * 100) / 100;
+    if (rounded === Number(item.price)) return;
+
+    const targetCatId = catId || item.categoryId || categories.find(c => (c.items || []).some(i => i.id === item.id))?.id;
+    if (!targetCatId) return;
+    const cat = categories.find(c => c.id === targetCatId);
+    if (!cat) return;
+
+    const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+    const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+    const items = cat.items.map(i => i.id === item.id ? { ...i, price: rounded } : i);
+    const updatedCats = categories.map(c => c.id === targetCatId ? { ...c, items } : c);
+    useMenuStore.getState().setCategories(updatedCats);
+    try {
+      localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
+    } catch {}
+
+    if (!isLocalOnly && isOnline) {
+      try {
+        await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', targetCatId), { items });
+      } catch (e) {
+        console.warn('[MenuEditor] Quick price update cloud sync deferred:', e?.message);
+      }
+    }
+    toast.success(`${item.name} updated to ${formatCurrency(rounded, restaurant?.currency ?? 'INR')}`);
   };
 
   const toggleBestseller = async (catId, item) => {
@@ -1851,23 +1884,11 @@ export default function MenuEditor() {
                           );
                         })()}
 
-                        {/* Top floating badges */}
+                        {/* Top floating badges — Clean 1-click Availability + active highlights only */}
                         <div className="menu-editor-card-top-badges">
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {item.highMargin && (
-                              <span className="menu-editor-pill-badge star" title="High Margin">⭐ Margin</span>
-                            )}
-                            {(item.isBestseller || item.bestseller) && (
-                              <span className="menu-editor-pill-badge" style={{ background: 'rgba(239, 68, 68, 0.14)', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.35)' }} title="Bestseller">🔥 Bestseller</span>
-                            )}
-                            {item.barcode && (
-                              <span className="menu-editor-pill-badge">🏷️ {item.barcode}</span>
-                            )}
-                          </div>
-
                           <button
                             type="button"
-                            className={`badge ${item.available !== false ? 'badge-green' : 'badge-gray'}`}
+                            className={`badge ${item.available !== false ? 'badge-green' : 'badge-red'}`}
                             style={{
                               cursor: 'pointer',
                               border: 'none',
@@ -1878,79 +1899,79 @@ export default function MenuEditor() {
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleAvailable(item.categoryId || activeCatId, item);
                             }}
-                            title="Tap to toggle availability"
+                            title="1-Click Toggle Availability (Available / Out of Stock)"
                           >
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.available !== false ? '#10b981' : '#94a3b8' }} />
-                            {item.available !== false ? 'Available' : 'Out of stock'}
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.available !== false ? '#34d399' : '#f87171' }} />
+                            {item.available !== false ? 'Available' : 'Out of Stock'}
                           </button>
 
-                          <button
-                            type="button"
-                            className={`badge ${item.isBestseller || item.bestseller ? 'badge-yellow' : 'badge-gray'}`}
-                            style={{
-                              cursor: 'pointer',
-                              border: 'none',
-                              backdropFilter: 'blur(6px)',
-                              padding: '3px 8px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleBestseller(item.categoryId || activeCatId, item);
-                            }}
-                            title={item.isBestseller || item.bestseller ? 'Remove Bestseller' : 'Mark as Bestseller'}
-                          >
-                            <span>🔥</span>
-                            <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
-                          </button>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            {item.highMargin && (
+                              <span className="menu-editor-pill-badge star" title="High Margin">⭐</span>
+                            )}
+                            {(item.isBestseller || item.bestseller) && (
+                              <button
+                                type="button"
+                                className="menu-editor-pill-badge"
+                                style={{
+                                  background: 'rgba(217, 119, 6, 0.9)',
+                                  color: '#fff',
+                                  border: '1px solid rgba(251, 191, 36, 0.5)',
+                                  cursor: 'pointer',
+                                  padding: '3px 7px'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleBestseller(item.categoryId || activeCatId, item);
+                                }}
+                                title="Bestseller (tap to remove)"
+                              >
+                                🔥 Best
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
 
                       {/* Content */}
                       <div className="menu-editor-card-body">
-                        {isAllItems && item.categoryName && (
-                          <div style={{ marginBottom: 4 }}>
-                            <button
-                              type="button"
-                              className="menu-editor-cat-badge"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveCat(item.categoryId);
-                              }}
-                              title={`Filter by ${item.categoryName}`}
-                            >
-                              <span>{item.categoryEmoji || '🍽️'}</span>
-                              <span>{item.categoryName}</span>
-                            </button>
-                          </div>
-                        )}
-
-                        {item.subCategory && (
-                          <div style={{ marginBottom: 4 }}>
-                            <span 
-                              style={{
-                                fontSize: '10px',
-                                fontWeight: 700,
-                                background: 'rgba(59, 130, 246, 0.12)',
-                                color: '#60a5fa',
-                                border: '1px solid rgba(59, 130, 246, 0.25)',
-                                padding: '1px 6px',
-                                borderRadius: '4px'
-                              }}
-                            >
-                              {item.subCategory}
-                            </span>
+                        {((isAllItems && item.categoryName) || item.subCategory) && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 5 }}>
+                            {isAllItems && item.categoryName && (
+                              <button
+                                type="button"
+                                className="menu-editor-cat-badge"
+                                style={{ margin: 0 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveCat(item.categoryId);
+                                }}
+                                title={`Filter by ${item.categoryName}`}
+                              >
+                                <span>{item.categoryName}</span>
+                              </button>
+                            )}
+                            {item.subCategory && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  background: 'rgba(59, 130, 246, 0.14)',
+                                  color: '#60a5fa',
+                                  border: '1px solid rgba(59, 130, 246, 0.28)',
+                                  padding: '2px 6px',
+                                  borderRadius: '5px'
+                                }}
+                              >
+                                {item.subCategory}
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -1977,17 +1998,72 @@ export default function MenuEditor() {
                       {/* Footer: Price & Actions */}
                       <div className="menu-editor-card-footer" onClick={(e) => e.stopPropagation()}>
                         <div className="menu-editor-card-price">
-                          {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
+                          {editingPriceItemId === item.id ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              autoFocus
+                              value={editingPriceVal}
+                              onChange={e => setEditingPriceVal(e.target.value)}
+                              onFocus={e => e.target.select()}
+                              onBlur={() => quickUpdatePrice(item.categoryId || activeCatId, item, editingPriceVal)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  quickUpdatePrice(item.categoryId || activeCatId, item, editingPriceVal);
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  setEditingPriceItemId(null);
+                                }
+                              }}
+                              aria-label={`Quick edit price for ${item.name}`}
+                              style={{
+                                width: 82,
+                                height: 28,
+                                padding: '0 6px',
+                                fontSize: 13.5,
+                                fontWeight: 800,
+                                borderRadius: 6,
+                                border: '1.5px solid #34d399',
+                                background: 'var(--color-bg)',
+                                color: '#34d399',
+                                outline: 'none'
+                              }}
+                            />
+                          ) : item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
                             (() => {
                               const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
                               const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
                               return `From ${formatCurrency(minPrice, restaurant?.currency ?? 'INR')}`;
                             })()
                           ) : (
-                            formatCurrency(item.price, restaurant?.currency ?? 'INR')
-                          )}
-                          {item.unit && item.unit !== 'pcs' && (
-                            <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPriceItemId(item.id);
+                                setEditingPriceVal(String(item.price ?? 0));
+                              }}
+                              title="Click to quick-edit price"
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                padding: '2px 4px',
+                                marginLeft: -4,
+                                borderRadius: 6,
+                                color: 'inherit',
+                                font: 'inherit',
+                                cursor: 'text',
+                                display: 'inline-flex',
+                                alignItems: 'baseline',
+                                gap: 2
+                              }}
+                            >
+                              <span>{formatCurrency(item.price, restaurant?.currency ?? 'INR')}</span>
+                              {item.unit && item.unit !== 'pcs' && (
+                                <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', fontWeight: 'normal' }}> /{item.unit}</span>
+                              )}
+                            </button>
                           )}
                         </div>
 
