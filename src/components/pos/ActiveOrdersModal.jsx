@@ -932,63 +932,33 @@ export default function ActiveOrdersModal({
                                           </button>
                                         )}
 
-                                        {/* Quick Cash + Print & Settle Actions */}
-                                        <div className="orders-split-cash-wrap" style={{
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: 6,
-                                          flexShrink: 0
-                                        }}>
-                                          <button
-                                            type="button"
-                                            aria-label="Quick Cash"
-                                            onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
-                                            disabled={settlingId === order.id}
-                                            style={{
-                                              height: 30,
-                                              fontSize: 11.5,
-                                              fontWeight: 700,
-                                              padding: '0 10px',
-                                              borderRadius: 8,
-                                              background: '#10b981',
-                                              border: '1px solid rgba(52, 211, 153, 0.4)',
-                                              color: '#ffffff',
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              gap: 4,
-                                              cursor: 'pointer',
-                                              whiteSpace: 'nowrap'
-                                            }}
-                                            title={order.billPrinted ? "Quick Cash (Duplicate print skipped)" : "Quick Cash Settle & Print"}
-                                          >
-                                            <Zap size={11} fill="#fff" /> Quick Cash
-                                          </button>
-                                          <button
-                                            type="button"
-                                            aria-label="Print Receipt & Settle"
-                                            onClick={() => handleQuickCashSettle(order, true)}
-                                            disabled={settlingId === order.id}
-                                            style={{
-                                              width: 30,
-                                              minWidth: 30,
-                                              height: 30,
-                                              padding: 0,
-                                              borderRadius: 8,
-                                              background: 'rgba(16, 185, 129, 0.14)',
-                                              border: '1px solid rgba(16, 185, 129, 0.38)',
-                                              color: '#10b981',
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              cursor: 'pointer',
-                                              flexShrink: 0
-                                            }}
-                                            title="Print receipt and settle"
-                                          >
-                                            <Printer size={13} />
-                                          </button>
-                                        </div>
+                                        {/* Single Clean Quick Cash Action */}
+                                        <button
+                                          type="button"
+                                          aria-label="Quick Cash"
+                                          onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
+                                          disabled={settlingId === order.id}
+                                          style={{
+                                            height: 30,
+                                            fontSize: 11.5,
+                                            fontWeight: 700,
+                                            padding: '0 12px',
+                                            borderRadius: 8,
+                                            background: '#10b981',
+                                            border: '1px solid rgba(52, 211, 153, 0.4)',
+                                            color: '#ffffff',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 4,
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                            flexShrink: 0
+                                          }}
+                                          title={order.billPrinted ? "Quick Cash (Duplicate print skipped)" : "Quick Cash Settle & Print"}
+                                        >
+                                          <Zap size={11} fill="#fff" /> Quick Cash
+                                        </button>
                                       </>
                                     ) : (
                                       <button

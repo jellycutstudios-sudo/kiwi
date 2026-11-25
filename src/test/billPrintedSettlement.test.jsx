@@ -84,9 +84,9 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
     // Compact bill button state
     expect(screen.getByText(/Bill ✓/i)).toBeInTheDocument();
 
-    // Unified Quick Cash pill button
+    // Unified Quick Cash button (no redundant duplicate printer button)
     expect(screen.getByRole('button', { name: /^Quick Cash$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Print Receipt & Settle/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Print Receipt & Settle/i })).not.toBeInTheDocument();
   });
 
   it('settles order without duplicate print when Quick Cash is tapped on an already-printed bill', async () => {
@@ -124,44 +124,6 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
 
     // Verify printReceipt was NOT called
     expect(printModule.printReceipt).not.toHaveBeenCalled();
-  });
-
-  it('forces receipt print when attached print icon on Quick Cash pill is tapped', async () => {
-    const settleOrderMock = vi.fn().mockResolvedValue(true);
-    useOrderStore.setState({
-      settleOrder: settleOrderMock,
-      activeOrders: [{
-        id: 'order_explicit_print',
-        tableName: 'Table 3',
-        type: 'dine-in',
-        status: 'pending',
-        total: 900,
-        paymentMethod: 'unpaid',
-        items: [{ name: 'Dal Makhani', qty: 2, price: 450 }],
-        billPrinted: true
-      }]
-    });
-
-    render(
-      <ActiveOrdersModal
-        isOpen={true}
-        onClose={vi.fn()}
-        restaurant={mockRestaurant}
-        currency="₹"
-        staffName="Cashier Sam"
-      />
-    );
-
-    const forcePrintBtn = screen.getByRole('button', { name: /Print Receipt & Settle/i });
-    fireEvent.click(forcePrintBtn);
-
-    await waitFor(() => {
-      expect(settleOrderMock).toHaveBeenCalledWith('rest_123', 'order_explicit_print', 'cash', 900);
-    });
-
-    await waitFor(() => {
-      expect(printModule.printReceipt).toHaveBeenCalled();
-    });
   });
 
   it('prints receipt when Quick Cash is tapped on an unprinted counter order', async () => {
