@@ -3794,24 +3794,29 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   margin-left: 4px;
 }
 
-/* POS Topbar Brand Logo Touch Button (Opens navigation on touch) */
+/* POS Topbar Brand Logo + Menu Drawer Button (Opens navigation on touch) */
 .pos-topbar-brand-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 38px;
-  min-height: 38px;
-  padding: 0 10px 0 6px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px 0 9px;
   border-radius: 10px;
   border: 1px solid var(--color-separator);
   background: var(--color-bg-secondary);
   color: var(--color-label);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: none;
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.pos-topbar-brand-menu-icon {
+  color: var(--color-label-secondary);
+  flex-shrink: 0;
 }
 
 .pos-topbar-brand-btn:hover {
@@ -3824,10 +3829,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-topbar-brand-logo {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  object-fit: contain;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   flex-shrink: 0;
 }
 
@@ -3837,16 +3845,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   letter-spacing: -0.2px;
   color: var(--color-label);
   white-space: nowrap;
-  max-width: 130px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Tablet screen width optimization: On tablets (<= 1100px), show logo icon only so search & dietary filters have generous room */
+/* Tablet screen width optimization: On tablets (<= 1100px), keep compact menu + circular emblem */
 @media (max-width: 1100px) {
   .pos-topbar-brand-btn {
-    padding: 0;
-    width: 38px;
+    padding: 0 8px;
+    width: auto;
+    gap: 6px;
     justify-content: center;
   }
   .pos-topbar-brand-name {
@@ -3857,11 +3866,12 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
     gap: 8px;
   }
   .pos-topbar-center {
-    gap: 6px;
+    gap: 8px;
   }
   .pos-search-wrapper {
+    flex: 0 1 175px;
     min-width: 120px;
-    max-width: 260px;
+    max-width: 190px;
   }
 }
 
@@ -3870,10 +3880,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   height: var(--topbar-height, 64px);
   min-height: var(--topbar-height, 64px);
-  padding: 12px 20px;
+  padding: 12px 18px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -3889,17 +3899,26 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .pos-search-wrapper {
-  flex: 1 1 200px;
-  min-width: 140px;
-  max-width: 380px;
+  flex: 0 1 215px;
+  min-width: 135px;
+  max-width: 225px;
   display: flex;
   align-items: center;
   position: relative;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: max-width 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .pos-search-wrapper:focus-within {
-  max-width: 460px;
+  flex: 0 1 270px;
+  max-width: 270px;
+}
+
+.pos-topbar-utility-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-separator);
+  margin: 0 2px;
+  flex-shrink: 0;
 }
 
 /* POS Topbar Dietary Segmented Control (Touch-friendly & Luminous) */

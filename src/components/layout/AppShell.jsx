@@ -325,7 +325,7 @@ export default function AppShell() {
             </button>
           )}
 
-          {/* Branded Logo Touch Button on POS — 1-tap opens navigation drawer */}
+          {/* Branded Logo + Menu Drawer Button on POS — 1-tap opens navigation drawer */}
           {isPOS && (
             <button
               type="button"
@@ -335,6 +335,7 @@ export default function AppShell() {
               title={`${restaurant?.name || 'Rupos'} — Tap to open navigation`}
               aria-label="Open navigation menu"
             >
+              <Menu size={16} strokeWidth={2.2} className="pos-topbar-brand-menu-icon" />
               <img
                 src={restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo || '/ricon.svg'}
                 alt={restaurant?.name || 'Rupos'}
@@ -464,7 +465,7 @@ export default function AppShell() {
                 </button>
               </div>
 
-              {/* View Controls: Cards vs Fast Keys + Fullscreen Focus */}
+              {/* Priority 2: Cashier Terminal Controls (View Switcher) */}
               <div className="pos-topbar-controls">
                 <div className="density-toggle" role="group" aria-label="Terminal view switcher">
                   <button
@@ -488,22 +489,12 @@ export default function AppShell() {
                     <Zap size={14} className="density-bolt-icon" />
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-icon density-expand-btn"
-                  onClick={() => setIsFocusMode(!isFocusMode)}
-                  title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
-                  aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
-                >
-                  {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
               </div>
             </div>
           )}
 
           <div className="top-bar-actions">
-            {/* Till Drawer Button on POS */}
+            {/* Priority 2: Till Drawer Button on POS (Cashier Shift Operation) */}
             {isPOS && (
               <button
                 type="button"
@@ -545,6 +536,22 @@ export default function AppShell() {
                     title="Shift active"
                   />
                 )}
+              </button>
+            )}
+
+            {/* Subtle visual divider between cashier operations and system utilities */}
+            {isPOS && <div className="pos-topbar-utility-divider" aria-hidden="true" />}
+
+            {/* Priority 3: Low-frequency System Utilities (Fullscreen Focus) */}
+            {isPOS && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-icon density-expand-btn"
+                onClick={() => setIsFocusMode(!isFocusMode)}
+                title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
+                aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFocusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
             )}
 
@@ -678,6 +685,7 @@ export default function AppShell() {
 
               // Clean state: online and 0 pending offline queue orders
               const isClean = isOnline && offlineQueue.length === 0;
+              const useQuietPosPill = isPOS && isClean;
 
               return (
                 <button
@@ -696,15 +704,15 @@ export default function AppShell() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    height: '38px',
-                    borderRadius: '10px',
+                    height: useQuietPosPill ? '34px' : '38px',
+                    borderRadius: useQuietPosPill ? 'var(--radius-sm)' : '10px',
                     fontSize: '11.5px',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    border: `1px solid ${borderColor}`,
-                    background: bgColor,
+                    border: `1px solid ${useQuietPosPill ? 'var(--color-separator)' : borderColor}`,
+                    background: useQuietPosPill ? 'var(--color-bg-secondary)' : bgColor,
                     color: textColor,
-                    transition: 'all 0.2s ease',
+                    transition: 'none',
                     flexShrink: 0
                   }}
                 >
