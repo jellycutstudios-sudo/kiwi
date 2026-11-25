@@ -59,7 +59,7 @@ describe('Orders Center & Kitchen Pass Redesign', () => {
     );
 
     expect(screen.getByRole('button', { name: /Open Orders/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Completed Orders/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Paid Bills/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Voids \/ Cancelled/i })).toBeInTheDocument();
   });
 
@@ -134,7 +134,7 @@ describe('Orders Center & Kitchen Pass Redesign', () => {
     expect(tableToggle).toBeInTheDocument();
   });
 
-  it('switches to Completed Orders tab smoothly', () => {
+  it('switches to Paid Bills tab smoothly', () => {
     render(
       <ActiveOrdersModal
         isOpen={true}
@@ -145,7 +145,7 @@ describe('Orders Center & Kitchen Pass Redesign', () => {
       />
     );
 
-    const completedTab = screen.getByRole('button', { name: /Completed Orders/i });
+    const completedTab = screen.getByRole('button', { name: /Paid Bills/i });
     fireEvent.click(completedTab);
 
     expect(screen.getByText(/Viewing.*finalized customer bills/i)).toBeInTheDocument();

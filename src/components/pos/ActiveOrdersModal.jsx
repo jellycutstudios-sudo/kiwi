@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useOrderStore } from '../../stores/orderStore';
+import { useOfflineQueueStore } from '../../stores/offlineQueueStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { printReceipt } from '../../utils/print';
 import { sendWhatsAppReceipt } from '../../services/whatsappService';
@@ -38,6 +39,7 @@ export default function ActiveOrdersModal({
   const updateOrderStatus = useOrderStore(s => s.updateOrderStatus);
   const settleOrder = useOrderStore(s => s.settleOrder);
   const markBillPrinted = useOrderStore(s => s.markBillPrinted);
+  const offlineQueue = useOfflineQueueStore(s => s.queue);
 
   // Primary navigation: 'open' | 'completed' | 'voids'
   const [activeTab, setActiveTab] = useState('open');
@@ -92,6 +94,35 @@ export default function ActiveOrdersModal({
     });
   }, [isOpen, restaurant?.id]);
 
+  // Merge Firestore today's history with today's offline-queued orders (for offline / localStorageOnly mode)
+  const mergedHistoryOrders = useMemo(() => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const startMs = startOfDay.getTime();
+
+    const byId = new Map();
+    (historyOrders || []).forEach(o => {
+      if (o?.id) byId.set(o.id, o);
+    });
+
+    (offlineQueue || []).forEach(o => {
+      if (!o?.id) return;
+      if (restaurant?.id && o.restaurantId && o.restaurantId !== restaurant.id) return;
+      const ts = getOrderTimestampMs(o.createdAt || o.offlineQueuedAt);
+      if (ts && ts < startMs) return;
+      if (!byId.has(o.id)) {
+        byId.set(o.id, {
+          ...o,
+          createdAt: o.createdAt || o.offlineQueuedAt || new Date().toISOString()
+        });
+      }
+    });
+
+    return Array.from(byId.values()).sort(
+      (a, b) => getOrderTimestampMs(b.createdAt) - getOrderTimestampMs(a.createdAt)
+    );
+  }, [historyOrders, offlineQueue, restaurant?.id]);
+
   // 1. Running Open Orders (All active orders + any unpaid orders that require settlement)
   const runningOrders = useMemo(() => {
     const active = (activeOrders || []).filter(o => 
@@ -101,7 +132,7 @@ export default function ActiveOrdersModal({
     );
 
     // Safeguard: pull in any unpaid checks from today's history so no unpaid check is ever orphaned
-    const historyUnpaid = (historyOrders || []).filter(o => 
+    const historyUnpaid = mergedHistoryOrders.filter(o => 
       isOrderUnpaid(o) && 
       o.status !== 'cancelled' && 
       o.status !== 'void' && 
@@ -109,21 +140,21 @@ export default function ActiveOrdersModal({
     );
 
     return [...active, ...historyUnpaid];
-  }, [activeOrders, historyOrders]);
+  }, [activeOrders, mergedHistoryOrders]);
 
-  // 2. Completed Orders today (ONLY genuinely paid & settled customer bills)
+  // 2. Paid Bills today (ONLY genuinely paid & settled customer bills)
   const completedOrders = useMemo(() => {
-    return (historyOrders || []).filter(o => 
+    return mergedHistoryOrders.filter(o => 
       isOrderPaid(o) &&
       o.status !== 'cancelled' && 
       o.status !== 'void'
     );
-  }, [historyOrders]);
+  }, [mergedHistoryOrders]);
 
   // 3. Voids / Cancelled orders today
   const voidOrders = useMemo(() => {
-    return (historyOrders || []).filter(o => o.status === 'cancelled' || o.status === 'void');
-  }, [historyOrders]);
+    return mergedHistoryOrders.filter(o => o.status === 'cancelled' || o.status === 'void');
+  }, [mergedHistoryOrders]);
 
   const readyCount = useMemo(() => {
     return runningOrders.filter(o => o.status === 'ready').length;
@@ -140,6 +171,10 @@ export default function ActiveOrdersModal({
 
   const takeawayCount = useMemo(() => {
     return runningOrders.filter(o => o.type === 'takeaway' || o.type === 'pickup' || (o.type === 'online' && o.orderType === 'takeaway')).length;
+  }, [runningOrders]);
+
+  const dineInCount = useMemo(() => {
+    return runningOrders.filter(o => o.type === 'dine-in').length;
   }, [runningOrders]);
 
   // Filtered dataset according to active tab and search
@@ -222,14 +257,15 @@ export default function ActiveOrdersModal({
     try {
       await settleOrder(restaurant.id, order.id, 'cash', order.total);
 
-      // Optimistically update historyOrders locally so any open views instantly update
-      setHistoryOrders(prev => prev.map(o => o.id === order.id ? { 
-        ...o, 
-        paymentMethod: 'cash', 
-        paid: true, 
-        status: 'billed', 
-        paidAt: new Date().toISOString() 
-      } : o));
+      // Upsert into historyOrders locally so Paid tab & count update immediately even for live orders
+      const settledOrder = {
+        ...order,
+        paymentMethod: 'cash',
+        paid: true,
+        status: 'billed',
+        paidAt: new Date().toISOString()
+      };
+      setHistoryOrders(prev => [settledOrder, ...prev.filter(o => o.id !== order.id)]);
 
       // Auto-dispatch WhatsApp digital receipt if enabled and customer phone is present
       const custPhone = order.customerPhone || order.customer?.phone;
@@ -434,7 +470,7 @@ export default function ActiveOrdersModal({
             onClick={() => setActiveTab('completed')}
           >
             <CheckCircle2 size={14} />
-            <span className="orders-tab-label-full">Completed Orders</span>
+            <span className="orders-tab-label-full">Paid Bills</span>
             <span className="orders-tab-label-short">Paid</span>
             <span className="orders-tab-badge secondary">{completedOrders.length}</span>
           </button>
@@ -464,7 +500,7 @@ export default function ActiveOrdersModal({
         }}>
           {/* Channel Filters (Shown on Open Orders Tab) */}
           {activeTab === 'open' ? (
-            <div className="orders-filter-pills" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div className="orders-filter-pills" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto' }}>
               <button
                 type="button"
                 className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-secondary'}`}
@@ -540,7 +576,7 @@ export default function ActiveOrdersModal({
                 onClick={() => setFilterType('dine-in')}
                 style={{ fontWeight: 700, borderRadius: 20, height: 32, padding: '0 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5 }}
               >
-                <Utensils size={13} /> Dine In
+                <Utensils size={13} /> Dine In ({dineInCount})
               </button>
             </div>
           ) : (
@@ -610,7 +646,7 @@ export default function ActiveOrdersModal({
               ) : activeTab === 'completed' ? (
                 <>
                   <CheckCircle2 size={36} color="#10b981" />
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No completed orders yet today</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-label)' }}>No paid bills yet today</div>
                   <div style={{ fontSize: 12 }}>Settled guest checks will appear here for receipt re-printing.</div>
                 </>
               ) : (

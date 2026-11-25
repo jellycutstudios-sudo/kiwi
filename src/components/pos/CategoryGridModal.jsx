@@ -61,7 +61,7 @@ export default function CategoryGridModal({
 
   return (
     <div
-      className="modal-overlay"
+      className="modal-overlay pos-cat-grid-overlay"
       style={{
         zIndex: 1200,
         display: 'flex',
@@ -93,6 +93,10 @@ export default function CategoryGridModal({
           boxShadow: '0 32px 100px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08)',
         }}
       >
+        {/* Subtle Mobile Bottom-Sheet Handle */}
+        <div className="pos-cat-sheet-handle" aria-hidden="true">
+          <span />
+        </div>
         {/* Modal Header */}
         <div
           className="pos-cat-grid-header"
@@ -243,24 +247,27 @@ export default function CategoryGridModal({
           }}
         >
           <div className="pos-cat-modal-grid">
-            {/* 1. All Items Master Card */}
+            {/* 1. All Items Full-Width Header Row */}
             <button
               type="button"
-              className={`pos-cat-modal-tile pos-cat-theme-emerald ${activeCat === 'all' ? 'active' : ''}`}
+              className={`pos-cat-modal-tile pos-cat-modal-tile--all ${activeCat === 'all' ? 'active' : ''}`}
               onClick={() => handleSelect('all')}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <span className="pos-cat-modal-dot" style={{ background: '#10b981' }} />
                 <span className="pos-cat-modal-title">All Items</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <span className="pos-cat-modal-count">{totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'}</span>
                 {activeCat === 'all' && (
                   <span className="pos-cat-modal-check">
                     <Check size={11} strokeWidth={3.5} />
                   </span>
                 )}
               </div>
-              <span className="pos-cat-modal-count">{totalItemsCount} items</span>
             </button>
 
-            {/* Category Cards - Color-Coded Cashier Themes */}
+            {/* 2. Organized Category Grid — Clean Uniform Cards with Subtle Color Dot */}
             {filteredCategories.map((c, idx) => {
               const isActive = activeCat === c.id;
               const itemCount = c.items?.length || 0;
@@ -277,37 +284,40 @@ export default function CategoryGridModal({
                   className={`pos-cat-modal-tile ${themeClass} ${isActive ? 'active' : ''}`}
                   onClick={() => handleSelect(c.id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
-                    <span className="pos-cat-modal-title">{c.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <span className="pos-cat-modal-dot" />
+                      <span className="pos-cat-modal-title">{c.name}</span>
+                    </div>
                     {isActive && (
                       <span className="pos-cat-modal-check">
                         <Check size={11} strokeWidth={3.5} />
                       </span>
                     )}
                   </div>
-                  <span className="pos-cat-modal-count">{itemCount} items</span>
+                  <span className="pos-cat-modal-count">{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>
                 </button>
               );
             })}
 
-            {/* Custom Item Tile */}
+            {/* 3. Full-Width Custom Item Action Bar */}
             {onOpenCustomItem && (
               <button
                 type="button"
-                className="pos-cat-modal-tile pos-cat-modal-tile--custom pos-cat-theme-amber"
+                className="pos-cat-modal-tile pos-cat-modal-tile--custom"
                 onClick={() => {
                   hapticTap('light');
                   onClose();
                   onOpenCustomItem();
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Plus size={16} strokeWidth={2.8} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                  <span className="pos-cat-modal-title" style={{ color: '#fbbf24' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={16} strokeWidth={2.5} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                  <span className="pos-cat-modal-title" style={{ color: '#f8fafc' }}>
                     Custom Item
                   </span>
                 </div>
-                <span className="pos-cat-modal-count" style={{ opacity: 0.75 }}>Off-menu</span>
+                <span className="pos-cat-modal-count pos-cat-modal-count--amber">Off-menu</span>
               </button>
             )}
           </div>

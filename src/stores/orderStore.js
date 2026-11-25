@@ -1717,7 +1717,7 @@ export const useOrderStore = create((set, get) => ({
   patchActiveOrder: (orderId, partial) => {
     const currentRestId = useAuthStore.getState().restaurant?.id;
     set(s => ({
-      activeOrders: ['billed', 'cancelled', 'completed'].includes(partial.status)
+      activeOrders: ['billed', 'cancelled', 'void', 'completed'].includes(partial.status)
         ? (s.activeOrders || []).filter(o => o.id !== orderId)
         : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o)
     }));
@@ -1783,7 +1783,7 @@ export const useOrderStore = create((set, get) => ({
 
     // 1. Immediately update active order status locally for zero UI lag
     set(s => ({
-      activeOrders: ['billed', 'cancelled'].includes(status)
+      activeOrders: ['billed', 'cancelled', 'void'].includes(status)
         ? (s.activeOrders || []).filter(o => o.id !== orderId)
         : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status } : o)
     }));
@@ -1793,7 +1793,7 @@ export const useOrderStore = create((set, get) => ({
       restaurantId
     });
 
-    if (status === 'cancelled') {
+    if (status === 'cancelled' || status === 'void') {
       localCancelledOrderIds.add(orderId);
     }
 
@@ -1810,8 +1810,8 @@ export const useOrderStore = create((set, get) => ({
       } catch {}
     }
 
-    // 3. If cancelling or completing an order on a table, free the table in tableStore
-    if (['cancelled', 'billed'].includes(status)) {
+    // 3. If cancelling, voiding, or completing an order on a table, free the table in tableStore
+    if (['cancelled', 'void', 'billed'].includes(status)) {
       if (targetOrder?.tableId) {
         try {
           useTableStore.getState().freeTable(restaurantId, targetOrder.tableId);
