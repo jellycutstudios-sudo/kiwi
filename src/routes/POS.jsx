@@ -308,12 +308,12 @@ const VisualMenuItemCard = memo(function VisualMenuItemCard({
         )}
       </div>
       <div className="menu-item-body">
+        {showCatTag && catName && (
+          <span className="menu-item-cat-tag" style={{ color: catColors.stripe }}>
+            {catName}
+          </span>
+        )}
         <div className="menu-item-name" title={item.name}>
-          {showCatTag && catName && (
-            <span className="menu-item-cat-tag" style={{ color: catColors.stripe }}>
-              {catName}
-            </span>
-          )}
           <span className="menu-item-name-text">{item.name}</span>
           {item.subCategory && (
             <span className="item-subcat-badge">{item.subCategory}</span>
@@ -2552,7 +2552,11 @@ export default function POS() {
                               const hasModifiers = meta ? meta.hasModifiers : Boolean(item.modifierGroups && item.modifierGroups.length > 0);
                               const isVegItem = meta ? meta.isVegItem : checkIsVegItem(item);
                               const formattedPrice = meta ? meta.formattedPrice : getDisplayPrice(item, currency);
-                              const showCatTag = Boolean((activeCat === 'all' || activeCat === 'deals' || (typeof search === 'string' && search.trim())) && catName);
+                              const showCatTag = Boolean(
+                                typeof search === 'string' &&
+                                extractDietaryFromQuery(search).cleanQuery &&
+                                catName
+                              );
 
                               if (menuDensity === 'dense') {
                                 return (
