@@ -13,7 +13,7 @@ import { translateDishWithAI, batchTranslateDishesWithAI } from '../../services/
 import { transliterateFood } from '../../utils/foodTransliteration';
 import { getItemVisuals } from '../../utils/itemVisuals';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
-import { getCategoryChromaticColors } from '../../utils/categoryColors';
+import { getCategoryChromaticColors, CHROMATIC_PALETTE } from '../../utils/categoryColors';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -70,7 +70,7 @@ export default function MenuEditor() {
   const [editingCat, setEditingCat] = useState(null);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [catForm, setCatForm] = useState({ name: '', emoji: '', taxRate: '', subCategories: [] });
+  const [catForm, setCatForm] = useState({ name: '', emoji: '', color: '', taxRate: '', subCategories: [] });
   const [newSubCatInput, setNewSubCatInput] = useState('');
   const [itemForm, setItemForm] = useState({ name: '', categoryId: '', subCategory: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
   const [editingPriceItemId, setEditingPriceItemId] = useState(null);
@@ -561,7 +561,7 @@ export default function MenuEditor() {
   const openAddCategory = () => {
     setEditingCat(null);
     setNewSubCatInput('');
-    setCatForm({ name: '', emoji: '', taxRate: '', subCategories: [] });
+    setCatForm({ name: '', emoji: '', color: '', taxRate: '', subCategories: [] });
     setShowCatForm(true);
   };
 
@@ -579,6 +579,7 @@ export default function MenuEditor() {
     setCatForm({
       name: cat.name || '',
       emoji: cat.emoji || '🍽️',
+      color: cat.color || '',
       taxRate: cat.taxRate != null ? String(cat.taxRate) : '',
       subCategories: Array.from(existingSubs)
     });
@@ -636,11 +637,14 @@ export default function MenuEditor() {
       .map(s => (typeof s === 'string' ? s.trim() : ''))
       .filter(Boolean);
 
+    const cleanColor = /^#[0-9A-Fa-f]{6}$/.test(catForm.color || '') ? catForm.color : null;
+
     if (editingCat) {
       const updatedCats = categories.map(c => c.id === editingCat.id ? {
         ...c,
         name: cleanName,
         emoji: catForm.emoji.trim() || '🍽️',
+        color: cleanColor,
         subCategories: cleanSubCategories,
         ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : { taxRate: undefined })
       } : c);
@@ -654,6 +658,7 @@ export default function MenuEditor() {
           const updatePayload = {
             name: catForm.name.trim(),
             emoji: catForm.emoji.trim() || '🍽️',
+            color: cleanColor,
             subCategories: cleanSubCategories,
           };
           if (parsedTaxRate !== null) {
@@ -673,6 +678,7 @@ export default function MenuEditor() {
         id: newCatId,
         name: catForm.name.trim(),
         emoji: catForm.emoji.trim() || '🍽️',
+        ...(cleanColor ? { color: cleanColor } : {}),
         subCategories: cleanSubCategories,
         ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {}),
         items: [],
@@ -688,6 +694,7 @@ export default function MenuEditor() {
           const docPayload = {
             name: catForm.name.trim(),
             emoji: catForm.emoji.trim() || '🍽️',
+            ...(cleanColor ? { color: cleanColor } : {}),
             subCategories: cleanSubCategories,
             items: [],
           };
@@ -2263,8 +2270,58 @@ export default function MenuEditor() {
                 <input id="cat-name-input" className="form-input" placeholder="e.g. Starters" value={catForm.name} onChange={e => setCatForm(f => ({...f, name:e.target.value}))} />
               </div>
               <div className="form-group">
-                <label className="form-label">Emoji</label>
-                <input id="cat-emoji-input" className="form-input" placeholder="e.g. 🥗" value={catForm.emoji} onChange={e => setCatForm(f => ({...f, emoji:e.target.value}))} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Category Color</label>
+                  <span style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
+                    {catForm.color ? 'Custom' : 'Auto Palette'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCatForm(f => ({ ...f, color: '' }))}
+                    style={{
+                      height: 30,
+                      padding: '0 10px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      border: !catForm.color ? '1.5px solid var(--color-accent)' : '1px solid var(--color-separator)',
+                      background: !catForm.color ? 'var(--color-accent-light)' : 'var(--color-bg-secondary)',
+                      color: !catForm.color ? 'var(--color-accent)' : 'var(--color-label-secondary)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Auto
+                  </button>
+                  {CHROMATIC_PALETTE.map(p => {
+                    const isPicked = (catForm.color || '').toLowerCase() === p.stripe.toLowerCase();
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setCatForm(f => ({ ...f, color: p.stripe }))}
+                        title={p.id}
+                        aria-label={`Select ${p.id} color`}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          background: p.stripe,
+                          border: isPicked ? '2.5px solid #ffffff' : '2px solid transparent',
+                          boxShadow: isPicked ? `0 0 0 2px ${p.stripe}` : 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        {isPicked && <Check size={14} color="#ffffff" strokeWidth={3} />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="form-group">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
