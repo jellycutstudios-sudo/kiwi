@@ -15952,19 +15952,81 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 [data-theme="dark"] .menu-editor-card {
-  background: #151622 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  background: #1a1f32 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
 [data-theme="dark"] .menu-editor-card:hover {
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+  background: #20263d !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65) !important;
+}
+
+[data-theme="dark"] .menu-editor-card-title {
+  color: #ffffff !important;
+  font-weight: 750;
+}
+
+[data-theme="dark"] .menu-editor-card-desc {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .menu-editor-cat-badge {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .menu-editor-card-footer {
-  background: #151622 !important;
-  border-top-color: rgba(255, 255, 255, 0.08) !important;
+  background: #151929 !important;
+  border-top-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .menu-editor-card-price {
+  color: #34d399 !important;
+  font-weight: 800;
+}
+
+[data-theme="dark"] .menu-editor-action-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .menu-editor-action-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .menu-editor-action-btn.delete {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(239, 68, 68, 0.38) !important;
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .menu-editor-action-btn.delete:hover {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+/* High-contrast frosted pills over bright food photography */
+.menu-editor-card-top-badges .badge-green {
+  background: rgba(6, 78, 59, 0.9) !important;
+  color: #6ee7b7 !important;
+  border: 1px solid rgba(52, 211, 153, 0.45) !important;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.menu-editor-card-top-badges .badge-red {
+  background: rgba(127, 29, 29, 0.92) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(248, 113, 113, 0.45) !important;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 /* Menu Item Reordering Toolbar & Card Arrangement Styles */
