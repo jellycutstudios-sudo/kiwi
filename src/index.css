@@ -22384,6 +22384,10 @@ html.dark .btn-secondary:hover {
   display: none;
 }
 
+.orders-tab-label-short {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .orders-table th, 
   .orders-table td {
@@ -22406,21 +22410,26 @@ html.dark .btn-secondary:hover {
   }
 
   .orders-center-tabs {
-    padding: 0 10px;
-    gap: 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .orders-center-tabs::-webkit-scrollbar {
-    display: none;
+    padding: 0 8px;
+    gap: 4px;
+    overflow-x: visible;
   }
 
   .orders-center-tab {
-    padding: 10px 8px;
-    font-size: 11.5px;
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 10px 4px;
+    font-size: 12px;
     gap: 5px;
-    flex-shrink: 0;
     white-space: nowrap;
+  }
+
+  .orders-tab-label-full {
+    display: none;
+  }
+
+  .orders-tab-label-short {
+    display: inline;
   }
 
   .orders-filter-bar {
@@ -22429,19 +22438,23 @@ html.dark .btn-secondary:hover {
   }
 
   .orders-filter-pills {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
+    flex-wrap: wrap !important;
     width: 100%;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    gap: 6px !important;
   }
-  .orders-filter-pills::-webkit-scrollbar {
-    display: none;
-  }
+
   .orders-filter-pills > button {
     flex-shrink: 0;
     white-space: nowrap;
-    height: 34px !important;
+    height: 36px !important;
+  }
+
+  .orders-search-wrap {
+    width: 100% !important;
+  }
+
+  .orders-search-wrap .form-input {
+    height: 38px !important;
   }
 
   /* Hide non-essential separate columns & convert each table row into a 2-row touch card */
@@ -22492,12 +22505,33 @@ html.dark .btn-secondary:hover {
     gap: 8px !important;
   }
 
-  .orders-table tbody td:last-child button {
+  .orders-table tbody td:last-child > div > button {
     flex: 1 1 0 !important;
-    height: 36px !important;
+    height: 40px !important;
     justify-content: center !important;
     border-radius: 9px !important;
-    font-size: 12px !important;
+    font-size: 12.5px !important;
+  }
+
+  .orders-table tbody td:last-child .orders-split-cash-wrap {
+    flex: 1.5 1 0 !important;
+    border-radius: 9px !important;
+  }
+
+  .orders-table tbody td:last-child .orders-split-cash-wrap button {
+    height: 40px !important;
+    border-radius: 0 !important;
+    font-size: 12.5px !important;
+  }
+
+  .orders-table tbody td:last-child .orders-split-cash-wrap button:first-child {
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+  }
+
+  .orders-table tbody td:last-child .orders-split-cash-wrap button:last-child {
+    flex: 0 0 38px !important;
+    padding: 0 !important;
   }
 
   .orders-mobile-sub {

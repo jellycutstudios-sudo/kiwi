@@ -422,8 +422,9 @@ export default function ActiveOrdersModal({
             className={`orders-center-tab ${activeTab === 'open' ? 'active' : ''}`}
             onClick={() => setActiveTab('open')}
           >
-            <Clock size={15} />
-            <span>Open Orders</span>
+            <Clock size={14} />
+            <span className="orders-tab-label-full">Open Orders</span>
+            <span className="orders-tab-label-short">Open</span>
             <span className="orders-tab-badge">{runningOrders.length}</span>
           </button>
 
@@ -432,8 +433,9 @@ export default function ActiveOrdersModal({
             className={`orders-center-tab ${activeTab === 'completed' ? 'active' : ''}`}
             onClick={() => setActiveTab('completed')}
           >
-            <CheckCircle2 size={15} />
-            <span>Completed Orders</span>
+            <CheckCircle2 size={14} />
+            <span className="orders-tab-label-full">Completed Orders</span>
+            <span className="orders-tab-label-short">Paid</span>
             <span className="orders-tab-badge secondary">{completedOrders.length}</span>
           </button>
 
@@ -442,8 +444,9 @@ export default function ActiveOrdersModal({
             className={`orders-center-tab ${activeTab === 'voids' ? 'active' : ''}`}
             onClick={() => setActiveTab('voids')}
           >
-            <XCircle size={15} />
-            <span>Voids / Cancelled</span>
+            <XCircle size={14} />
+            <span className="orders-tab-label-full">Voids / Cancelled</span>
+            <span className="orders-tab-label-short">Voids</span>
             {voidOrders.length > 0 && <span className="orders-tab-badge danger">{voidOrders.length}</span>}
           </button>
         </div>
@@ -548,7 +551,7 @@ export default function ActiveOrdersModal({
           )}
 
           {/* Quick Search */}
-          <div style={{ position: 'relative', width: 240 }}>
+          <div className="orders-search-wrap" style={{ position: 'relative', width: 240 }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-label-tertiary)' }} />
             <input
               type="text"
@@ -711,13 +714,13 @@ export default function ActiveOrdersModal({
                                     {/* Mobile-only compact subtitle with timer and status */}
                                     <div className="orders-mobile-sub">
                                       <span style={{ fontSize: 11, fontWeight: 700, color: elapsedMins > 25 ? '#ef4444' : (elapsedMins > 15 ? '#f59e0b' : '#10b981') }}>
-                                        ⏱️ {elapsedMins}m
+                                        ⏱️ {elapsedMins >= 60 ? `${Math.floor(elapsedMins / 60)}h ${elapsedMins % 60}m` : `${elapsedMins}m`}
                                       </span>
-                                      <span className={`badge ${isReady ? 'badge-green' : (order.status === 'completed' && isUnpaid ? 'badge-red' : 'badge-yellow')}`} style={{ fontSize: 9, padding: '1px 5px' }}>
+                                      <span className={`badge ${isReady ? 'badge-green' : (order.status === 'completed' && isUnpaid ? 'badge-red' : 'badge-yellow')}`} style={{ fontSize: 10, padding: '1px 6px' }}>
                                         {isReady ? 'READY' : (order.status === 'completed' && isUnpaid ? 'SERVED DUE' : 'In Kitchen')}
                                       </span>
-                                      <span style={{ fontSize: 10.5, color: 'var(--color-label-tertiary)' }}>
-                                        {itemsCount} items
+                                      <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                                        {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                                       </span>
                                     </div>
                                   </div>
@@ -930,12 +933,12 @@ export default function ActiveOrdersModal({
                                         )}
 
                                         {/* Split Quick Cash Pill */}
-                                        <div style={{
+                                        <div className="orders-split-cash-wrap" style={{
                                           display: 'inline-flex',
                                           alignItems: 'stretch',
-                                          borderRadius: 6,
+                                          borderRadius: 9,
                                           overflow: 'hidden',
-                                          boxShadow: '0 1px 4px rgba(16, 185, 129, 0.3)',
+                                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
                                           flexShrink: 0
                                         }}>
                                           <button
