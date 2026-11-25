@@ -27353,3 +27353,69 @@ html.dark .login-page .login-back-btn:hover,
     padding-bottom: 110px !important;
   }
 }
+
+/* ─── POS Cart: Clean Flush List View (Toast / Square Ticket Standard) ─── */
+.cart-items {
+  padding: 2px 0 16px !important;
+  gap: 0 !important;
+}
+
+.cart-course-section,
+.cart-course-cards {
+  gap: 0 !important;
+}
+
+.cart-course-header {
+  padding: 6px 14px 4px !important;
+}
+
+.cart-item-card,
+[data-theme="dark"] .cart-item-card,
+:root:not([data-theme="dark"]) .cart-item-card,
+[data-theme="light"] .cart-item-card {
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 8px 14px !important;
+  gap: 4px !important;
+  transition: none !important;
+}
+
+[data-theme="dark"] .cart-item-card {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+.cart-item-card:hover,
+:root:not([data-theme="dark"]) .cart-item-card:hover,
+[data-theme="light"] .cart-item-card:hover {
+  background: rgba(15, 23, 42, 0.03) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .cart-item-card:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.cart-item-card-bottom {
+  margin-top: 0 !important;
+}
+
+.cart-item-card-name {
+  font-size: 13px !important;
+}
+
+.cart-stepper {
+  height: 28px !important;
+}
+
+.cart-stepper-btn {
+  width: 26px !important;
+  height: 26px !important;
+}
