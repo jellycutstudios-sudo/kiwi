@@ -16540,11 +16540,11 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   /* View Mode Switcher Button (Cards vs Keys) in Dock */
   .pos-mobile-dock-view-btn,
   .pos-mobile-dock-btn {
-    height: 48px !important;
-    width: 48px !important;
-    min-width: 48px !important;
+    height: 50px !important;
+    width: 50px !important;
+    min-width: 50px !important;
     padding: 0 !important;
-    border-radius: 24px !important;
+    border-radius: 25px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -16587,14 +16587,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
   }
 
-  /* Dietary Segmented Control Group in Dock - Icon Only */
+  /* Dietary Segmented Control Group in Dock - 44px+ Touch Targets */
   .pos-mobile-dietary-group {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 3px !important;
+    gap: 4px !important;
     padding: 3px !important;
-    border-radius: 24px !important;
-    height: 48px !important;
+    border-radius: 25px !important;
+    height: 50px !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
     border: 1px solid rgba(0, 0, 0, 0.12) !important;
@@ -16609,11 +16609,11 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 
   .pos-mobile-dietary-btn {
-    width: 42px !important;
-    min-width: 42px !important;
-    height: 42px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
     padding: 0 !important;
-    border-radius: 21px !important;
+    border-radius: 22px !important;
     border: 1px solid transparent !important;
     background: transparent !important;
     display: inline-flex !important;
@@ -16638,12 +16638,12 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
   /* Popular Flame Button in Dietary Group */
   .pos-mobile-dietary-btn.popular {
-    width: 42px !important;
-    height: 42px !important;
-    min-width: 42px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
     padding: 0 !important;
     justify-content: center !important;
-    border-radius: 21px !important;
+    border-radius: 22px !important;
   }
 
   /* Active Dietary States with Soft Luminous Accents */
@@ -16698,9 +16698,9 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     left: auto !important;
     top: auto !important;
     margin: 0 !important;
-    height: 48px !important;
-    border-radius: 24px !important;
-    padding: 0 16px !important;
+    height: 50px !important;
+    border-radius: 25px !important;
+    padding: 0 18px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
