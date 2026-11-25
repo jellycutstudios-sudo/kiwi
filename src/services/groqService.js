@@ -136,6 +136,7 @@ export async function askGroqAdvisor({
   let apiKey = getEffectiveGroqApiKey(restaurant);
   const primaryModel = sanitizeGroqModel(model);
   const currency = restaurant?.currency || 'INR';
+  const currencySymbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : `${currency} `;
   const restName = restaurant?.name || 'the restaurant';
 
   const systemPrompt = `
@@ -155,8 +156,8 @@ CRITICAL PRODUCT GROUNDING RULES (NEVER VIOLATE):
    - If a specific sub-category has no items listed, pick another real item from their "Top Bestsellers" or "All Active Dishes".
 
 2. EXACT CURRENCY:
-   - The restaurant's official currency is "${currency}".
-   - ALWAYS quote prices or financial gains using "${currency}" (e.g. "${currency} 25", "${currency} 150").
+   - The restaurant's currency symbol is "${currencySymbol}".
+   - ALWAYS format prices cleanly using "${currencySymbol}" (e.g. "${currencySymbol}250", "${currencySymbol}1,440").
    - NEVER say "rupees" unless the currency is INR or ₹. Never say "dollars" unless the currency is USD or $.
 
 3. NATURAL WAITSTAFF UPSELLING SCRIPTS:
@@ -168,9 +169,10 @@ CRITICAL PRODUCT GROUNDING RULES (NEVER VIOLATE):
      • Sweet Close: Suggest one of their real desserts or beverages to round off the meal.
 
 4. KEEP RESPONSES SIMPLE & FOCUSED:
+   - Use plain, easy-to-read restaurant English—say "Average Bill" instead of "AOV" and keep tips short and practical.
    - Keep answers simple, direct, and concise. Avoid walls of text or overwhelming data dumps. Answer strictly what the user asked.
    - If the user greets you casually ("hi", "hello", "hey"), give a warm, brief 1-2 sentence reply. Do NOT dump sales numbers unless asked.
-   - If asked about sales or revenue, give a clean 3-4 bullet breakdown with their real numbers (Revenue, Orders, AOV, Top Dish), plus 1 actionable takeaway.
+   - If asked about sales or revenue, give a clean 3-4 bullet breakdown with their real numbers (Revenue, Orders, Average Bill, Top Dish), plus 1 short takeaway.
 
 5. OFF-TOPIC / CASUAL QUESTIONS (e.g. weather, life advice, jokes, dating):
    - Never give a dry robotic "I don't have access to weather" or "I am only a bot" disclaimer!

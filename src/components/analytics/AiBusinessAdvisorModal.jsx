@@ -5,7 +5,7 @@ import {
   Lightbulb, TrendingUp, Clock, Flame, Copy, CheckCheck,
   ChevronDown, ChevronUp, PanelLeftClose, PanelLeft, Plus,
   ArrowLeft, UtensilsCrossed, Users, Percent, Zap, ShieldCheck,
-  ArrowUpRight, ArrowRight, Bot, Trash2
+  ArrowUpRight, ArrowRight, Bot, Trash2, MessageCircle, Mail
 } from 'lucide-react';
 import { analyzeBusinessData, generateCompactDigest } from '../../utils/localBusinessAnalyzer';
 import {
@@ -721,7 +721,7 @@ export default function AiBusinessAdvisorModal({
               <div className="ai-hero-welcome">
                 <div className="ai-hero-icon-wrap">
                   <div className="ai-hero-icon">
-                    <img src="/ricon.svg" alt="DineOS" style={{ width: 24, height: 32, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+                    <img src="/ricon.svg" alt="DineOS" style={{ width: 17, height: 22, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                   </div>
                   <div className="ai-hero-icon-glow" />
                 </div>
@@ -793,7 +793,7 @@ export default function AiBusinessAdvisorModal({
               return (
                 <div key={m.id} className="ai-assistant-row">
                   <div className="ai-assistant-avatar">
-                    <img src="/ricon.svg" alt="DineOS" style={{ width: 15, height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+                    <img src="/ricon.svg" alt="DineOS" style={{ width: 11, height: 15, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                   </div>
                   <div className="ai-assistant-body">
                     <div className="ai-assistant-meta">
@@ -838,6 +838,32 @@ export default function AiBusinessAdvisorModal({
                           </>
                         )}
                       </button>
+
+                      <button
+                        type="button"
+                        className="ai-copy-btn ai-share-wa-btn"
+                        onClick={() => {
+                          const shareBody = `*${restaurant?.name || 'Restaurant'} — DineOS Advisor*\n\n${cleanText}`;
+                          window.open(`https://wa.me/?text=${encodeURIComponent(shareBody)}`, '_blank', 'noopener,noreferrer');
+                        }}
+                        title="Share to WhatsApp"
+                      >
+                        <MessageCircle size={13} />
+                        <span>WhatsApp</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ai-copy-btn"
+                        onClick={() => {
+                          const subject = `${restaurant?.name || 'Restaurant'} — DineOS Advisor Report`;
+                          window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(cleanText)}`;
+                        }}
+                        title="Share via Email"
+                      >
+                        <Mail size={13} />
+                        <span>Email</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -848,7 +874,7 @@ export default function AiBusinessAdvisorModal({
             {isAiLoading && (
               <div className="ai-assistant-row">
                 <div className="ai-assistant-avatar">
-                  <img src="/ricon.svg" alt="DineOS" style={{ width: 15, height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+                  <img src="/ricon.svg" alt="DineOS" style={{ width: 11, height: 15, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                 </div>
                 <div className="ai-assistant-body">
                   <div className="ai-typing-container">
