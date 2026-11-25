@@ -4408,7 +4408,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   }
 
   /* Hide unneeded top bar options on mobile POS to prevent clutter */
-  .pos-top-bar .pos-topbar-theme-toggle {
+  .pos-top-bar .pos-topbar-theme-toggle,
+  .pos-top-bar .pos-topbar-utility-divider,
+  .pos-top-bar .network-outbox-status-btn.is-clean-online {
     display: none !important;
   }
   .pos-top-bar .pos-topbar-bell:not(.has-unread) {
@@ -4417,7 +4419,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
   /* Spacious, comfortable POS top bar on mobile */
   .top-bar.pos-top-bar {
-    padding: 0 10px;
+    padding: 0 12px;
     gap: 8px;
     height: 54px;
   }
@@ -27210,32 +27212,46 @@ html.dark .login-page .login-back-btn:hover,
 
 /* Mobile & Touch Screen Responsive POS Optimizations */
 @media (max-width: 768px) {
-  .pos-category-bar {
-    padding: 6px 10px !important;
+  .pos-category-bar,
+  .pos-menu-panel.categories-left .pos-category-bar {
+    padding: 8px 12px !important;
     gap: 8px !important;
-    min-height: 52px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
     overflow: hidden !important;
+    box-sizing: border-box !important;
   }
-  .pos-category-bar-pinned {
+  .pos-category-bar-pinned,
+  .pos-menu-panel.categories-left .pos-category-bar-pinned {
     width: 100% !important;
-    gap: 6px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    gap: 8px !important;
     flex-shrink: 0 !important;
     justify-content: space-between !important;
+    align-items: center !important;
   }
-  .pos-category-bar-pinned .pos-op-card {
+  .pos-category-bar-pinned .pos-op-card,
+  .pos-menu-panel.categories-left .pos-category-bar-pinned .pos-op-card {
     height: 38px !important;
     min-height: 38px !important;
+    max-height: 38px !important;
     padding: 0 10px !important;
     border-radius: 10px !important;
     font-size: 12px !important;
     flex: 1 1 0 !important;
     min-width: 0 !important;
     justify-content: center !important;
+    box-sizing: border-box !important;
   }
   .pos-category-bar-pinned .pos-op-card--categories,
   .pos-op-card--mobile-only {
     display: inline-flex !important;
-    flex: 1.25 1 0 !important;
+    flex: 1.2 1 0 !important;
+  }
+  .pos-subcategory-bar {
+    padding: 8px 12px !important;
   }
   .pos-category-bar-pinned .pos-op-pill-title {
     white-space: nowrap;

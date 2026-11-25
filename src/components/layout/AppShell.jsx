@@ -416,7 +416,7 @@ export default function AppShell() {
                   autoCorrect="off"
                   spellCheck={false}
                   className="form-input pos-search-input"
-                  placeholder="Search menu or code... (/)"
+                  placeholder="Search menu..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={e => {
