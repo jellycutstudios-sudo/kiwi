@@ -1616,11 +1616,11 @@ export default function Settings() {
                         color: settings.allowCashierDashboard ? '#10b981' : '#94a3b8', 
                         border: settings.allowCashierDashboard ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(100, 116, 139, 0.3)' 
                       }}>
-                        {settings.allowCashierDashboard ? 'Cashiers Can View Sales' : 'Hidden from Cashiers (Recommended)'}
+                        {settings.allowCashierDashboard ? 'Cashiers Can View Sales' : 'POS Only (Recommended)'}
                       </span>
                     </div>
                     <p className="text-secondary text-footnote" style={{ margin: 0, lineHeight: 1.5 }}>
-                      When turned off, cashiers land directly on the POS register and cannot see total daily sales, revenue charts, or managerial analytics. Keep this off to protect confidential business figures.
+                      When off, cashiers open straight to the POS register and can&apos;t view sales reports or revenue.
                     </p>
                   </div>
                   <ToggleSwitch

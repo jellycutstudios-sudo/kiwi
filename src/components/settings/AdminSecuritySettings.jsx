@@ -16,7 +16,6 @@ import {
   Lock,
   CheckCircle,
   AlertCircle,
-  ShieldAlert,
   Sparkles,
   ExternalLink,
 } from 'lucide-react';
@@ -120,36 +119,36 @@ export default function AdminSecuritySettings() {
       <div
         className="settings-card"
         style={{
-          borderLeft: '4px solid var(--color-accent)',
           background: 'var(--color-bg-elevated)',
+          padding: '14px 18px',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-              <ShieldCheck size={20} color="var(--color-accent)" />
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>
-                Admin Account & Security
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
+              <ShieldCheck size={18} color="var(--color-accent)" />
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
+                Owner Account
               </h3>
             </div>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-label-secondary)' }}>
-              Manage your administrator account credentials and password security.
+            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--color-label-secondary)' }}>
+              Manage your owner password and email recovery.
             </p>
           </div>
 
           <div
             style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
+              padding: '6px 12px',
+              borderRadius: '8px',
               background: 'var(--color-bg-secondary)',
               border: '1px solid var(--color-separator)',
               fontSize: '12px',
             }}
           >
-            <div style={{ color: 'var(--color-label-secondary)', fontSize: '10.5px', textTransform: 'uppercase', fontWeight: 700 }}>
-              Logged In As
+            <div style={{ color: 'var(--color-label-secondary)', fontSize: '11px', fontWeight: 600 }}>
+              Signed in as
             </div>
-            <div style={{ fontWeight: 700, color: 'var(--color-label)', marginTop: '2px' }}>
+            <div style={{ fontWeight: 700, color: 'var(--color-label)', marginTop: '1px' }}>
               {adminEmail || 'Admin Session'}
             </div>
           </div>
@@ -164,12 +163,12 @@ export default function AdminSecuritySettings() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <KeyRound size={18} color="var(--color-accent)" />
             <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
-              Change Admin Password
+              Change Password
             </h4>
           </div>
 
           <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
-            Enter your current password, then specify a new secure password. This updates your credentials immediately with zero downtime.
+            Update the owner login password for this account.
           </p>
 
           {!isEmailAdmin && (
@@ -315,6 +314,11 @@ export default function AdminSecuritySettings() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
+                background: (!canSubmit || isUpdating || !isEmailAdmin) ? 'rgba(148, 163, 184, 0.14)' : 'var(--color-accent)',
+                color: (!canSubmit || isUpdating || !isEmailAdmin) ? 'var(--color-label-secondary)' : '#ffffff',
+                border: (!canSubmit || isUpdating || !isEmailAdmin) ? '1px solid var(--color-separator)' : '1px solid var(--color-accent)',
+                cursor: (!canSubmit || isUpdating || !isEmailAdmin) ? 'not-allowed' : 'pointer',
+                opacity: 1,
               }}
             >
               <Lock size={15} />
@@ -329,12 +333,12 @@ export default function AdminSecuritySettings() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={18} color="var(--color-blue, #3b82f6)" />
               <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
-                1-Click Password Reset Email
+                Reset via Email
               </h4>
             </div>
 
             <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--color-label-secondary)', lineHeight: 1.4 }}>
-              Forgot your current password or prefer a safe link? We will send a secure, single-use password reset link to your admin email address.
+              Send a single-use password reset link to your owner email.
             </p>
 
             <div
@@ -397,23 +401,18 @@ export default function AdminSecuritySettings() {
             </button>
           </div>
 
-          {/* Quick Staff PIN Distinction Explainer */}
+          {/* Quick Staff PIN Link */}
           <div className="settings-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={16} color="var(--color-accent)" />
               <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>
-                Admin Password vs. Staff PIN
+                Staff Access &amp; PINs
               </h4>
             </div>
 
-            <div style={{ fontSize: '12px', color: 'var(--color-label-secondary)', lineHeight: 1.45, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div>
-                <strong>Admin Password:</strong> Used to access this management dashboard, financial reports, and settings. Never share this with cashiers or waitstaff.
-              </div>
-              <div>
-                <strong>Staff & Cashier PIN:</strong> 4-digit PIN for swift order taking, drawer kicks, and terminal switching at the counter.
-              </div>
-            </div>
+            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--color-label-secondary)', lineHeight: 1.45 }}>
+              Each cashier and waiter signs in with their own 4-digit PIN at the register—keep your owner password private.
+            </p>
 
             <Link
               to="/admin/staff"
@@ -427,40 +426,11 @@ export default function AdminSecuritySettings() {
                 textDecoration: 'none',
               }}
             >
-              <span>Manage Staff 4-Digit PINs</span>
+              <span>Manage Staff PINs</span>
               <ExternalLink size={12} />
             </Link>
           </div>
         </div>
-      </div>
-
-      {/* Security Best Practices Card */}
-      <div
-        className="settings-card"
-        style={{
-          background: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-separator)',
-          padding: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <ShieldAlert size={17} color="var(--color-accent)" />
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>
-            How to Keep Your Account Truly Unbreakable (Zero Cost)
-          </h4>
-        </div>
-
-        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12.5px', color: 'var(--color-label-secondary)', lineHeight: 1.6 }}>
-          <li>
-            <strong>Enable 2-Step Verification (2FA) on your email provider (e.g. Gmail):</strong> Since password reset links are sent to your email, protecting your Gmail account with 2FA prevents any unauthorized reset attempts even if someone gains access to your local computer.
-          </li>
-          <li>
-            <strong>Use Unique Passwords:</strong> Avoid reusing passwords from other restaurant delivery apps or social accounts.
-          </li>
-          <li>
-            <strong>Keep Individual Staff PINs:</strong> Create distinct 4-digit PINs for each cashier or waiter so that managerial actions (voiding, refunds) are logged to the specific staff member.
-          </li>
-        </ul>
       </div>
     </div>
   );
