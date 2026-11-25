@@ -22514,23 +22514,26 @@ html.dark .btn-secondary:hover {
   }
 
   .orders-table tbody td:last-child .orders-split-cash-wrap {
-    flex: 1.5 1 0 !important;
-    border-radius: 9px !important;
+    flex: 1.6 1 0 !important;
+    gap: 6px !important;
   }
 
   .orders-table tbody td:last-child .orders-split-cash-wrap button {
     height: 40px !important;
-    border-radius: 0 !important;
+    border-radius: 9px !important;
     font-size: 12.5px !important;
   }
 
   .orders-table tbody td:last-child .orders-split-cash-wrap button:first-child {
     flex: 1 1 auto !important;
     justify-content: center !important;
+    padding: 0 10px !important;
   }
 
   .orders-table tbody td:last-child .orders-split-cash-wrap button:last-child {
-    flex: 0 0 38px !important;
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
     padding: 0 !important;
   }
 

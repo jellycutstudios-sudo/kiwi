@@ -932,13 +932,11 @@ export default function ActiveOrdersModal({
                                           </button>
                                         )}
 
-                                        {/* Split Quick Cash Pill */}
+                                        {/* Quick Cash + Print & Settle Actions */}
                                         <div className="orders-split-cash-wrap" style={{
                                           display: 'inline-flex',
-                                          alignItems: 'stretch',
-                                          borderRadius: 9,
-                                          overflow: 'hidden',
-                                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
+                                          alignItems: 'center',
+                                          gap: 6,
                                           flexShrink: 0
                                         }}>
                                           <button
@@ -947,22 +945,24 @@ export default function ActiveOrdersModal({
                                             onClick={() => handleQuickCashSettle(order, !order.billPrinted)}
                                             disabled={settlingId === order.id}
                                             style={{
-                                              height: 28,
-                                              fontSize: 11,
-                                              fontWeight: 800,
-                                              padding: '0 8px',
+                                              height: 30,
+                                              fontSize: 11.5,
+                                              fontWeight: 700,
+                                              padding: '0 10px',
+                                              borderRadius: 8,
                                               background: '#10b981',
-                                              border: 'none',
+                                              border: '1px solid rgba(52, 211, 153, 0.4)',
                                               color: '#ffffff',
                                               display: 'inline-flex',
                                               alignItems: 'center',
-                                              gap: 3,
+                                              justifyContent: 'center',
+                                              gap: 4,
                                               cursor: 'pointer',
                                               whiteSpace: 'nowrap'
                                             }}
                                             title={order.billPrinted ? "Quick Cash (Duplicate print skipped)" : "Quick Cash Settle & Print"}
                                           >
-                                            <Zap size={10} fill="#fff" /> Quick Cash
+                                            <Zap size={11} fill="#fff" /> Quick Cash
                                           </button>
                                           <button
                                             type="button"
@@ -970,20 +970,23 @@ export default function ActiveOrdersModal({
                                             onClick={() => handleQuickCashSettle(order, true)}
                                             disabled={settlingId === order.id}
                                             style={{
-                                              height: 28,
-                                              padding: '0 6px',
-                                              background: '#059669',
-                                              border: 'none',
-                                              borderLeft: '1px solid rgba(255, 255, 255, 0.25)',
-                                              color: '#ffffff',
+                                              width: 30,
+                                              minWidth: 30,
+                                              height: 30,
+                                              padding: 0,
+                                              borderRadius: 8,
+                                              background: 'rgba(16, 185, 129, 0.14)',
+                                              border: '1px solid rgba(16, 185, 129, 0.38)',
+                                              color: '#10b981',
                                               display: 'inline-flex',
                                               alignItems: 'center',
                                               justifyContent: 'center',
-                                              cursor: 'pointer'
+                                              cursor: 'pointer',
+                                              flexShrink: 0
                                             }}
                                             title="Print receipt and settle"
                                           >
-                                            <Printer size={10} />
+                                            <Printer size={13} />
                                           </button>
                                         </div>
                                       </>
