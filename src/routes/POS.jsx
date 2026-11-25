@@ -45,6 +45,7 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { hapticTap } from '../utils/soundNotifications';
 import { getItemVisuals } from '../utils/itemVisuals';
 import { getCategoryChromaticColors } from '../utils/categoryColors';
+import { extractDietaryFromQuery, scoreMenuItemMatch } from '../utils/posSearch';
 
 const POS_CATEGORY_THEMES = [
   'pos-cat-theme-amber',
@@ -811,6 +812,25 @@ export default function POS() {
     };
   }, [showOrderTypeMenu]);
 
+  // Rush-hour Search Shortcuts: "/" or Ctrl/Cmd+K focuses search; Enter adds top match & clears
+  useEffect(() => {
+    const handleGlobalSearchShortcut = (e) => {
+      const tag = e.target?.tagName?.toLowerCase();
+      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable;
+
+      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isTyping)) {
+        const input = document.getElementById('menu-search-input');
+        if (input) {
+          e.preventDefault();
+          input.focus();
+          input.select();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalSearchShortcut);
+    return () => window.removeEventListener('keydown', handleGlobalSearchShortcut);
+  }, []);
+
   const [openFloatCash, setOpenFloatCash] = useState('0.00');
   const [checkingShift, setCheckingShift] = useState(true);
   const [openShiftError, setOpenShiftError] = useState(null);
@@ -1381,29 +1401,26 @@ export default function POS() {
 
     let filtered = rawItems;
     let effectiveDietary = dietaryFilter;
+    let cleanSearchQuery = '';
 
     if (searchStr) {
-      let query = searchStr.toLowerCase();
-
-      // Dynamic smart dietary tag extraction from search query
-      if (/\b(non[\s-]?veg|nv)\b/i.test(query)) {
-        effectiveDietary = 'non-veg';
-        query = query.replace(/\b(non[\s-]?veg|nv)\b/gi, '').trim();
-      } else if (/\b(pure[\s-]?veg|vegetarian|veg)\b/i.test(query)) {
-        effectiveDietary = 'veg';
-        query = query.replace(/\b(pure[\s-]?veg|vegetarian|veg)\b/gi, '').trim();
-      } else if (/\b(bestseller|popular|favorite|trending)\b/i.test(query)) {
-        effectiveDietary = 'bestseller';
-        query = query.replace(/\b(bestseller|popular|favorite|trending)\b/gi, '').trim();
+      const extracted = extractDietaryFromQuery(searchStr);
+      if (extracted.effectiveDietary) {
+        effectiveDietary = extracted.effectiveDietary;
       }
+      cleanSearchQuery = extracted.cleanQuery;
 
-      if (query) {
-        filtered = filtered.filter(i =>
-          i.name?.toLowerCase().includes(query) ||
-          i.code?.toLowerCase().includes(query) ||
-          i.sku?.toLowerCase().includes(query) ||
-          i.categoryName?.toLowerCase().includes(query)
-        );
+      if (cleanSearchQuery) {
+        const scored = [];
+        for (let i = 0; i < filtered.length; i++) {
+          const item = filtered[i];
+          const score = scoreMenuItemMatch(item, cleanSearchQuery, itemSalesMap);
+          if (score > 0) {
+            scored.push({ item, score });
+          }
+        }
+        scored.sort((a, b) => b.score - a.score);
+        filtered = scored.map(s => s.item);
       }
     }
 
@@ -1463,9 +1480,28 @@ export default function POS() {
     return filtered;
   }, [categories, activeCat, activeSubCat, search, dietaryFilter, itemSalesMap, activeOffers]);
 
+  // Pressing Enter/Go in POS search adds the #1 matched item (or opens modifiers) and clears search
+  useEffect(() => {
+    const handleSearchEnter = () => {
+      const topItem = displayItems[0];
+      if (!topItem || topItem.available === false) return;
+      const hasModifiers = Boolean(topItem.modifierGroups && topItem.modifierGroups.length > 0);
+      handleActivateCard(topItem, hasModifiers);
+      setSearch('');
+    };
+    window.addEventListener('kiwi:pos-search-enter', handleSearchEnter);
+    return () => window.removeEventListener('kiwi:pos-search-enter', handleSearchEnter);
+  }, [displayItems, handleActivateCard, setSearch]);
+
   // Group displayItems into category sections when on "All Items" or multi-category views (Toast POS / Square standard)
+  // When an active text query is typed, keep results sorted by relevance so the #1 match is immediately at the top-left!
   const groupedDisplayItems = useMemo(() => {
     const searchStr = typeof search === 'string' ? search.trim() : '';
+    const { cleanQuery } = extractDietaryFromQuery(searchStr);
+    if (cleanQuery) {
+      return [{ category: { id: 'search-results', name: 'Top Matches' }, index: 0, items: displayItems }];
+    }
+
     const isMultiCategory = activeCat === 'all' || activeCat === 'deals' || Boolean(searchStr);
     if (!isMultiCategory) {
       return [{ category: null, index: -1, items: displayItems }];

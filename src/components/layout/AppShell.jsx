@@ -405,26 +405,48 @@ export default function AppShell() {
                 </button>
               )}
 
-              {/* Search Bar - Generous room & smooth expansion */}
+              {/* Search Bar - Compact & Touch-Optimized */}
               <div className="pos-search-wrapper">
                 <Search size={14} className="pos-search-icon" />
                 <input
+                  type="search"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="form-input pos-search-input"
-                  placeholder="Search menu..."
+                  placeholder="Search menu or code... (/)"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setSearch('');
+                      e.currentTarget.blur();
+                    } else if (e.key === 'Enter' && search.trim()) {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent('kiwi:pos-search-enter'));
+                    }
+                  }}
                   id="menu-search-input"
                   aria-label="Search menu"
                 />
                 {search && (
                   <button
                     type="button"
+                    onPointerDown={(e) => {
+                      if (e.pointerType !== 'touch' && e.button === 0) {
+                        e.preventDefault();
+                        setSearch('');
+                      }
+                    }}
                     onClick={() => setSearch('')}
                     className="pos-search-clear-btn"
-                    title="Clear search"
+                    title="Clear search (Esc)"
                     aria-label="Clear search"
                   >
-                    <X size={13} />
+                    <X size={15} />
                   </button>
                 )}
               </div>
