@@ -27667,10 +27667,12 @@ html.dark .login-page .login-back-btn:hover,
     font-size: 13px !important;
     border-radius: 10px !important;
   }
-  .pos-menu-content-area,
+  .pos-menu-content-area {
+    padding-bottom: 0 !important;
+  }
   .menu-grid,
   .menu-grid.dense {
-    padding-bottom: 110px !important;
+    padding-bottom: 84px !important;
   }
 }
 

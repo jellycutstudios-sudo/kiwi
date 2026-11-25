@@ -27,8 +27,8 @@ describe('POS Touch Ergonomics & Speed Screen System', () => {
     expect(css).toContain('border-left: 4px solid var(--key-cat-stripe, #3b82f6) !important');
   });
 
-  it('provides generous bottom clearance on mobile so food cards never get occluded by the dock', () => {
-    expect(css).toMatch(/\.pos-menu-content-area,\s*\n?\s*\.menu-grid,\s*\n?\s*\.menu-grid\.dense\s*\{[^}]*padding-bottom:\s*110px !important;/);
+  it('provides generous bottom clearance on scrollable menu grids without shrinking the wrapper', () => {
+    expect(css).toMatch(/\.menu-grid,\s*\n?\s*\.menu-grid\.dense\s*\{[^}]*padding-bottom:\s*84px !important;/);
   });
 
   it('styles tactile in-card stepper buttons with high-contrast emerald and white', () => {
