@@ -21392,6 +21392,44 @@ html.dark textarea::placeholder {
   color: rgba(255, 255, 255, 0.55) !important;
 }
 
+/* Keep Login / Auth light inputs immune to global [data-theme="dark"] hover/focus overrides */
+.login-page .form-input,
+.login-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="dark"] .login-page .form-input,
+[data-theme="dark"] .login-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  background-color: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  color-scheme: light;
+  box-shadow: none !important;
+}
+
+.login-page .form-input:hover,
+.login-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
+[data-theme="dark"] .login-page .form-input:hover,
+[data-theme="dark"] .login-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover {
+  background-color: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.login-page .form-input:focus,
+.login-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+[data-theme="dark"] .login-page .form-input:focus,
+[data-theme="dark"] .login-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus {
+  background-color: #ffffff !important;
+  border-color: #0f172a !important;
+  color: #0f172a !important;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.14) !important;
+}
+
+.login-page .form-input::placeholder,
+.login-page input::placeholder,
+[data-theme="dark"] .login-page .form-input::placeholder,
+[data-theme="dark"] .login-page input::placeholder {
+  color: #64748b !important;
+}
+
 /* Secondary Button on Dark */
 [data-theme="dark"] .btn-secondary,
 html.dark .btn-secondary {
