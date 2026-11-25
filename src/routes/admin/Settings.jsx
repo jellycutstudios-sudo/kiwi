@@ -228,6 +228,35 @@ export default function Settings() {
   };
 
   const [searchQuery, setSearchQuery] = useState('');
+  // Collapsible accordion state for Setup & Features tab (mobile starts collapsed; desktop opens layout + core)
+  const [openWorkflowSections, setOpenWorkflowSections] = useState(() => {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth > 768;
+    return isDesktop ? { layout: true, core: true } : {};
+  });
+
+  const isWorkflowSectionOpen = (id, matchTerms = []) => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      if (matchTerms.some(t => String(t).toLowerCase().includes(q))) return true;
+    }
+    return Boolean(openWorkflowSections[id]);
+  };
+
+  const toggleWorkflowSection = (id) => {
+    setOpenWorkflowSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const allWorkflowSectionIds = ['layout', 'core', 'kitchen', 'channels', 'displays', 'privacy', 'backoffice', 'pos-behavior', 'offline-vault'];
+  const anyWorkflowSectionOpen = allWorkflowSectionIds.some(id => Boolean(openWorkflowSections[id]));
+  const toggleAllWorkflowSections = () => {
+    if (anyWorkflowSectionOpen) {
+      setOpenWorkflowSections({});
+    } else {
+      const next = {};
+      allWorkflowSectionIds.forEach(id => { next[id] = true; });
+      setOpenWorkflowSections(next);
+    }
+  };
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [storageStatus, setStorageStatus] = useState(null);
   const { hasUpdate, isUpdating, applyUpdate, checkForUpdates } = useUpdateStore();
@@ -1650,6 +1679,23 @@ export default function Settings() {
                     Enable or disable POS sidebar modules to match your venue format.
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={toggleAllWorkflowSections}
+                  style={{
+                    padding: '5px 11px',
+                    borderRadius: 'var(--radius-full)',
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-label-secondary)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {anyWorkflowSectionOpen ? 'Collapse All' : 'Expand All'}
+                </button>
               </div>
 
               {/* Plan Tier Enforcement Notice if on Just Billing */}
@@ -1790,12 +1836,29 @@ export default function Settings() {
               {/* POS Terminal Layout Template Card */}
               {(() => {
                 const activePosTemplate = settings?.posTemplate || getEffectivePosTemplate(restaurant);
+                const layoutOpen = isWorkflowSectionOpen('layout', ['layout', 'template', 'modern grid', 'left category sidebar', 'hybrid category']);
                 return (
-                  <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <h3 className="text-title3" style={{ margin: 0 }}>POS Layout Template</h3>
+                  <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: layoutOpen ? 'var(--space-3)' : 0, padding: '14px 16px' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkflowSection('layout')}
+                      aria-expanded={layoutOpen}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        gap: 'var(--space-2)'
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h3 className="text-title3" style={{ margin: 0, fontSize: '15px' }}>POS Layout Template</h3>
                           <span style={{
                             fontSize: '11px',
                             fontWeight: 'var(--weight-bold)',
@@ -1807,13 +1870,25 @@ export default function Settings() {
                             {activePosTemplate === POS_TEMPLATES.CATEGORY_FIRST ? 'Hybrid Category Cards' : activePosTemplate === POS_TEMPLATES.BISTRO_SIDEBAR ? 'Left Category Sidebar' : 'Modern Grid'}
                           </span>
                         </div>
-                        <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
-                          Select the cashier ordering layout for your POS terminals.
-                        </p>
+                        {layoutOpen && (
+                          <p className="text-secondary text-footnote" style={{ marginTop: '3px', marginBottom: 0 }}>
+                            Select the cashier ordering layout for your POS terminals.
+                          </p>
+                        )}
                       </div>
-                    </div>
+                      <ChevronDown
+                        size={18}
+                        style={{
+                          flexShrink: 0,
+                          color: 'var(--color-label-secondary)',
+                          transform: layoutOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 140ms ease'
+                        }}
+                      />
+                    </button>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-3)', marginTop: 4 }}>
+                    {layoutOpen && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-3)', marginTop: 4 }}>
                       {/* Option 1: Modern Grid */}
                       <div
                         id="template-option-modern-grid"
@@ -2009,32 +2084,63 @@ export default function Settings() {
                         </p>
                       </div>
                     </div>
+                    )}
                   </div>
                 );
               })()}
 
-              {/* The 6 Modular Pillars */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                {MODULE_PILLARS.map(pillar => (
-                  <div key={pillar.id} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {/* Pillar Title & Badge */}
-                    <div style={{
+              {/* The 6 Modular Pillars (Collapsible Accordions + Compact Rows) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {MODULE_PILLARS.map(pillar => {
+                  const pillarTerms = [
+                    pillar.title,
+                    pillar.badge,
+                    ...pillar.keys.flatMap(k => {
+                      const mod = MODES.find(x => x.key === k);
+                      return mod ? [mod.label, mod.desc, mod.key] : [k];
+                    })
+                  ];
+                  const pillarOpen = isWorkflowSectionOpen(pillar.id, pillarTerms);
+                  const activeCount = pillar.keys.filter(k => (settings.modes ?? []).includes(k)).length;
+                  return (
+                  <div
+                    key={pillar.id}
+                    style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      borderBottom: '1px solid var(--color-separator)',
-                      paddingBottom: '10px',
-                      flexWrap: 'wrap',
-                      gap: 8
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h4 style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-label-primary)', margin: 0 }}>
+                      flexDirection: 'column',
+                      border: '1px solid var(--color-separator)',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--color-bg)',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Collapsible Pillar Header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkflowSection(pillar.id)}
+                      aria-expanded={pillarOpen}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        background: pillarOpen ? 'var(--color-bg-secondary)' : 'transparent',
+                        border: 'none',
+                        borderBottom: pillarOpen ? '1px solid var(--color-separator)' : 'none',
+                        padding: '11px 14px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        gap: 8
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
+                        <h4 style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label-primary)', margin: 0 }}>
                           {pillar.title}
                         </h4>
                         <span style={{
-                          fontSize: '10px',
+                          fontSize: '11px',
                           fontWeight: 700,
-                          letterSpacing: '0.04em',
+                          letterSpacing: '0.03em',
                           textTransform: 'uppercase',
                           padding: '1px 6px',
                           borderRadius: '4px',
@@ -2045,13 +2151,28 @@ export default function Settings() {
                           {pillar.badge}
                         </span>
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-label-tertiary)' }}>
-                        {pillar.keys.filter(k => (settings.modes ?? []).includes(k)).length} / {pillar.keys.length} active
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: activeCount > 0 ? 'var(--color-accent)' : 'var(--color-label-tertiary)'
+                        }}>
+                          {activeCount} / {pillar.keys.length} active
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          style={{
+                            color: 'var(--color-label-secondary)',
+                            transform: pillarOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 140ms ease'
+                          }}
+                        />
                       </div>
-                    </div>
+                    </button>
 
-                    {/* Cards Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+                    {/* Compact Module Rows Grid */}
+                    {pillarOpen && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px', padding: '10px 12px' }}>
                       {pillar.keys.map(key => {
                         const m = MODES.find(x => x.key === key);
                         if (!m) return null;
@@ -2084,14 +2205,14 @@ export default function Settings() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '16px 18px',
+                              padding: '10px 14px',
                               border: `1.5px solid ${active ? 'var(--color-accent)' : 'var(--color-separator)'}`,
-                              borderRadius: 'var(--radius-lg)',
+                              borderRadius: 'var(--radius-md, 10px)',
                               background: active ? 'var(--color-accent-light)' : 'var(--color-bg)',
-                              boxShadow: active ? '0 2px 8px rgba(0, 0, 0, 0.08)' : '0 1px 3px rgba(0, 0, 0, 0.03)',
+                              boxShadow: active ? '0 1px 4px rgba(0, 0, 0, 0.06)' : 'none',
                               transition: 'all var(--duration-fast)',
-                              gap: '16px',
-                              minHeight: '74px',
+                              gap: '12px',
+                              minHeight: '54px',
                               boxSizing: 'border-box',
                               opacity: isFeatureLocked ? 0.75 : 1,
                               cursor: isFeatureLocked ? 'not-allowed' : 'pointer'
@@ -2194,20 +2315,70 @@ export default function Settings() {
                         );
                       })}
                     </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-              {/* 2. Unified POS Terminal & Checkout Experience */}
-              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                  <Zap size={18} color="var(--color-accent)" />
-                  <h3 className="text-title3" style={{ margin: 0 }}>POS Terminal &amp; Checkout Experience</h3>
-                </div>
-                <p className="text-secondary text-footnote" style={{ margin: 0 }}>
-                  Customize speed controls, tender shortcuts, receipt numbering, and cashier flow.
-                </p>
+              {/* 2. Unified POS Terminal & Checkout Experience (Collapsible Accordion) */}
+              {(() => {
+                const behaviorOpen = isWorkflowSectionOpen('pos-behavior', ['checkout', 'quick pay', 'cashier', 'speed', 'token', 'receipt', 'phone', 'split', 'tender']);
+                return (
+              <div className="card card-padded" style={{ display: 'flex', flexDirection: 'column', gap: behaviorOpen ? 'var(--space-4)' : 0, padding: '14px 16px' }}>
+                <button
+                  type="button"
+                  onClick={() => toggleWorkflowSection('pos-behavior')}
+                  aria-expanded={behaviorOpen}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    gap: 'var(--space-2)'
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Zap size={18} color="var(--color-accent)" />
+                      <h3 className="text-title3" style={{ margin: 0, fontSize: '15px' }}>POS Terminal &amp; Checkout Experience</h3>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        background: 'var(--color-bg-secondary)',
+                        border: '1px solid var(--color-separator)',
+                        color: 'var(--color-label-secondary)'
+                      }}>
+                        Speed &amp; Cashier Flow
+                      </span>
+                    </div>
+                    {behaviorOpen && (
+                      <p className="text-secondary text-footnote" style={{ margin: '4px 0 0' }}>
+                        Customize speed controls, tender shortcuts, receipt numbering, and cashier flow.
+                      </p>
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    style={{
+                      flexShrink: 0,
+                      color: 'var(--color-label-secondary)',
+                      transform: behaviorOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 140ms ease'
+                    }}
+                  />
+                </button>
+
+                {behaviorOpen && (
+                <>
 
                 {/* Sub-section: Cashier Speed Controls */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -2466,7 +2637,11 @@ export default function Settings() {
                     </div>
                   </div>
                 )}
+                </>
+                )}
               </div>
+                );
+              })()}
 
               {/* Business Advisor (Groq Engine) Card */}
               <div style={{
@@ -2548,7 +2723,11 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* 4. Local-Only Storage Mode & Data Vault (Zero-Cloud Air-Gapped) */}
+              {/* 4. Local-Only Storage Mode & Data Vault (Zero-Cloud Air-Gapped, Collapsible Accordion) */}
+              {(() => {
+                const offlineOpen = isWorkflowSectionOpen('offline-vault', ['offline', 'air-gapped', 'local storage', 'private sales', 'financials', 'data sovereignty', 'vault']);
+                const vaultBadge = settings.localStorageOnly ? 'Offline Only' : settings.privateSalesMode ? 'Private Sales' : 'Cloud Sync';
+                return (
               <div 
                 className="card card-padded"
                 style={{ 
@@ -2557,9 +2736,55 @@ export default function Settings() {
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 'var(--space-4)'
+                  gap: offlineOpen ? 'var(--space-4)' : 0,
+                  padding: '14px 16px'
                 }}
               >
+                <button
+                  type="button"
+                  onClick={() => toggleWorkflowSection('offline-vault')}
+                  aria-expanded={offlineOpen}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    gap: 'var(--space-2)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+                    <HardDrive size={18} color={settings.localStorageOnly ? '#38bdf8' : 'var(--color-accent)'} />
+                    <h3 className="text-title3" style={{ margin: 0, fontSize: '15px' }}>Offline &amp; Privacy Storage</h3>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: settings.localStorageOnly ? 'rgba(56, 189, 248, 0.15)' : settings.privateSalesMode ? 'rgba(16, 185, 129, 0.15)' : 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-separator)',
+                      color: settings.localStorageOnly ? '#38bdf8' : settings.privateSalesMode ? '#10b981' : 'var(--color-label-secondary)'
+                    }}>
+                      {vaultBadge}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    style={{
+                      flexShrink: 0,
+                      color: 'var(--color-label-secondary)',
+                      transform: offlineOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 140ms ease'
+                    }}
+                  />
+                </button>
+
+                {offlineOpen && (
+                <>
                 {/* Mode 1: Complete Air-Gapped Offline Mode */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                   <div style={{ flex: '1 1 260px', minWidth: 0 }}>
@@ -2757,7 +2982,11 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
+                </>
+                )}
               </div>
+                );
+              })()}
           </>
         )}
 
