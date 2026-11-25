@@ -376,4 +376,53 @@ describe('ModifierModal — Petpooja Style Variations & Sides workflow', () => {
     expect(screen.getByRole('button', { name: /Pudina Chutney/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Onions/i })).toBeNull();
   });
+
+  it('supports adding multiple quantities of the same extra (e.g. 2x Cheese)', () => {
+    const onConfirm = vi.fn();
+    const wingsItem = {
+      id: 'wings-1',
+      name: 'Buffalo Wings',
+      price: 350,
+      modifierGroups: [
+        {
+          id: 'addons-1',
+          name: 'Add-ons & Extras',
+          required: false,
+          maxSelect: 5,
+          options: [
+            { id: 'mayo', name: 'Mayo', priceAdd: 10 },
+            { id: 'cheese', name: 'Cheese', priceAdd: 15 },
+            { id: 'ketchup', name: 'Ketchup', priceAdd: 5 },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <ModifierModal
+        item={wingsItem}
+        currency="INR"
+        onConfirm={onConfirm}
+        onClose={vi.fn()}
+      />
+    );
+
+    // 1 tap selects Cheese (1x = +₹15)
+    fireEvent.click(screen.getByRole('button', { name: /Cheese/i }));
+    // Tap + stepper to make it 2x Cheese (+₹30)
+    fireEvent.click(screen.getByRole('button', { name: /Increase Cheese/i }));
+    // Also select 1x Mayo (+₹10)
+    fireEvent.click(screen.getByRole('button', { name: /Mayo/i }));
+
+    // Total: 350 + 30 + 10 = ₹390.00
+    const confirmBtn = screen.getByRole('button', { name: /Add to Cart · ₹390\.00/i });
+    fireEvent.click(confirmBtn);
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const [mods] = onConfirm.mock.calls[0];
+    expect(mods).toEqual([
+      expect.objectContaining({ id: 'cheese', name: '2× Cheese', qty: 2, priceAdd: 30 }),
+      expect.objectContaining({ id: 'mayo', name: 'Mayo', priceAdd: 10 }),
+    ]);
+  });
 });

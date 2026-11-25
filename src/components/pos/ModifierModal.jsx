@@ -839,10 +839,44 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
       if (exists) {
         updated = current.filter(o => o.id !== option.id);
       } else {
-        updated = current.length < maxSelect
-          ? [...current, option]
-          : [...current.slice(1), option];
+        const totalQty = current.reduce((s, o) => s + (o.qty ?? 1), 0);
+        if (totalQty < maxSelect) {
+          updated = [...current, { ...option, qty: 1 }];
+        } else {
+          // At maxSelect cap: replace oldest entry with 1x of the new option
+          updated = [...current.slice(1), { ...option, qty: 1 }];
+        }
       }
+    }
+    setSelections(prev => ({ ...prev, [groupId]: updated }));
+  };
+
+  const handleAdjustOptionQty = (group, option, delta) => {
+    hapticTap('light');
+    const groupId = group.id;
+    const current = selections[groupId] ?? [];
+    const maxSelect = group.maxSelect ?? 1;
+    const existing = current.find(o => o.id === option.id);
+
+    if (!existing) {
+      if (delta > 0) handleSelect(group, option);
+      return;
+    }
+
+    const currentOptQty = existing.qty ?? 1;
+    const nextOptQty = currentOptQty + delta;
+
+    let updated;
+    if (nextOptQty <= 0) {
+      updated = current.filter(o => o.id !== option.id);
+    } else {
+      const totalOtherQty = current
+        .filter(o => o.id !== option.id)
+        .reduce((s, o) => s + (o.qty ?? 1), 0);
+      if (delta > 0 && totalOtherQty + nextOptQty > maxSelect) {
+        return; // Respect group maxSelect cap
+      }
+      updated = current.map(o => o.id === option.id ? { ...o, qty: nextOptQty } : o);
     }
     setSelections(prev => ({ ...prev, [groupId]: updated }));
   };
@@ -850,7 +884,7 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
   // Extra modifiers from groups other than multiQtyGroup
   const extraModifierTotal = Object.entries(selections).reduce((sum, [groupId, opts]) => {
     if (multiQtyGroup && groupId === multiQtyGroup.id) return sum;
-    return sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0), 0);
+    return sum + opts.reduce((s, o) => s + (o.priceAdd ?? 0) * (o.qty ?? 1), 0);
   }, 0);
 
   // Active option entries in menu order for multiQtyGroup
@@ -895,13 +929,27 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
       if (multiQtyGroup && groupId === multiQtyGroup.id) return;
       const group = modifierGroups.find(g => g.id === groupId);
       opts.forEach(opt => {
-        extraModifiers.push({
-          modifierGroupId: groupId,
-          modifierGroupName: group?.name ?? '',
-          id: opt.id,
-          name: opt.name,
-          priceAdd: opt.priceAdd ?? 0,
-        });
+        const optQty = opt.qty ?? 1;
+        const unitAdd = opt.priceAdd ?? 0;
+        extraModifiers.push(
+          optQty > 1
+            ? {
+                modifierGroupId: groupId,
+                modifierGroupName: group?.name ?? '',
+                id: opt.id,
+                name: `${optQty}× ${opt.name}`,
+                baseName: opt.name,
+                qty: optQty,
+                priceAdd: unitAdd * optQty,
+              }
+            : {
+                modifierGroupId: groupId,
+                modifierGroupName: group?.name ?? '',
+                id: opt.id,
+                name: opt.name,
+                priceAdd: unitAdd,
+              }
+        );
       });
     });
 
@@ -1320,19 +1368,32 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
                   {filteredOptions.map(opt => {
-                    const isSelected = groupSelections.some(o => o.id === opt.id);
+                    const selectedOpt = groupSelections.find(o => o.id === opt.id);
+                    const isSelected = Boolean(selectedOpt);
+                    const optQty = selectedOpt?.qty ?? 1;
+                    const groupTotalQty = groupSelections.reduce((s, o) => s + (o.qty ?? 1), 0);
+                    const isMultiAddon = maxSelect > 1;
+                    const unitAdd = opt.priceAdd ?? 0;
+                    const displayAdd = isSelected ? unitAdd * optQty : unitAdd;
                     return (
-                      <button
+                      <div
                         key={opt.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => handleSelect(group, opt)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelect(group, opt);
+                          }
+                        }}
                         style={{
                           background: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg-elevated)',
                           border: `1.5px solid ${isSelected ? '#10b981' : 'var(--color-separator)'}`,
                           borderLeft: isSelected ? '4.5px solid #10b981' : '1.5px solid var(--color-separator)',
                           borderRadius: 10,
-                          padding: '12px 14px',
-                          minHeight: 66,
+                          padding: isSelected && isMultiAddon ? '10px 10px 8px' : '12px 14px',
+                          minHeight: isMultiAddon ? 76 : 66,
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'center',
@@ -1344,10 +1405,11 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           touchAction: 'manipulation',
                           position: 'relative',
                           boxShadow: isSelected ? '0 4px 12px rgba(16, 185, 129, 0.22)' : 'var(--shadow-sm)',
-                          boxSizing: 'border-box'
+                          boxSizing: 'border-box',
+                          userSelect: 'none'
                         }}
                       >
-                        {isSelected && (
+                        {isSelected && !isMultiAddon && (
                           <div style={{
                             position: 'absolute',
                             top: 6,
@@ -1367,20 +1429,89 @@ function ClassicModifierPicker({ item, currency, onConfirm, onClose }) {
                           fontSize: '14.5px',
                           fontWeight: isSelected ? 800 : 700,
                           color: isSelected ? '#10b981' : 'var(--color-label)',
-                          marginBottom: 3
+                          marginBottom: 2
                         }}>
-                          {opt.name}
+                          {isSelected && optQty > 1 ? `${optQty}× ${opt.name}` : opt.name}
                         </span>
                         <span style={{
-                          fontSize: '13px',
+                          fontSize: '12.5px',
                           fontWeight: 800,
                           color: isSelected ? '#10b981' : 'var(--color-label-secondary)'
                         }}>
-                          {opt.priceAdd > 0
-                            ? (basePrice === 0 ? formatCurrency(opt.priceAdd, currency) : `+${formatCurrency(opt.priceAdd, currency)}`)
+                          {unitAdd > 0
+                            ? (basePrice === 0 ? formatCurrency(displayAdd, currency) : `+${formatCurrency(displayAdd, currency)}`)
                             : (basePrice === 0 ? formatCurrency(0, currency) : 'Included')}
                         </span>
-                      </button>
+
+                        {isSelected && isMultiAddon && (
+                          <div
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              marginTop: 7,
+                              padding: '2px 4px',
+                              borderRadius: 16,
+                              background: 'rgba(16, 185, 129, 0.18)',
+                              border: '1px solid rgba(16, 185, 129, 0.4)'
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustOptionQty(group, opt, -1)}
+                              aria-label={`Decrease ${opt.name}`}
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                border: 'none',
+                                background: '#10b981',
+                                color: '#ffffff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                padding: 0,
+                                touchAction: 'manipulation'
+                              }}
+                            >
+                              <Minus size={12} strokeWidth={2.8} />
+                            </button>
+                            <span style={{
+                              minWidth: 16,
+                              fontSize: 12.5,
+                              fontWeight: 800,
+                              color: '#10b981',
+                              textAlign: 'center'
+                            }}>
+                              {optQty}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustOptionQty(group, opt, 1)}
+                              disabled={groupTotalQty >= maxSelect}
+                              aria-label={`Increase ${opt.name}`}
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                border: 'none',
+                                background: groupTotalQty >= maxSelect ? 'rgba(16, 185, 129, 0.35)' : '#10b981',
+                                color: '#ffffff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: groupTotalQty >= maxSelect ? 'not-allowed' : 'pointer',
+                                padding: 0,
+                                touchAction: 'manipulation'
+                              }}
+                            >
+                              <Plus size={12} strokeWidth={2.8} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
 

@@ -4144,7 +4144,7 @@ export default function POS() {
                 const entryMods = entry.selectedModifiers || [];
                 const entryPrice = entry.flatPrice;
                 const entryQty = Math.max(1, parseInt(entry.qty, 10) || 1);
-                const customId = activeModifierItem.id + '-' + entryMods.map(m => m.id).sort().join('-');
+                const customId = activeModifierItem.id + '-' + entryMods.map(m => (m.qty > 1 ? `${m.id}x${m.qty}` : m.id)).sort().join('-');
                 const cartItem = {
                   ...activeModifierItem,
                   id: customId,
@@ -4169,7 +4169,7 @@ export default function POS() {
             const unitPrice = isVariant
               ? flatPrice
               : (activeModifierItem.price + modifierTotal);
-            const customId = activeModifierItem.id + '-' + selectedModifiers.map(m => m.id).sort().join('-');
+            const customId = activeModifierItem.id + '-' + selectedModifiers.map(m => (m.qty > 1 ? `${m.id}x${m.qty}` : m.id)).sort().join('-');
             const itemQty = Math.max(1, parseInt(qty, 10) || 1);
             const cartItem = {
               ...activeModifierItem,
