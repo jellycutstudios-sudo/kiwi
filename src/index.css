@@ -4778,7 +4778,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   position: relative;
-  height: 100%;
+  min-height: 154px;
+  align-self: stretch;
   text-align: left;
   user-select: none;
   touch-action: manipulation;
@@ -13781,6 +13782,9 @@ body,
   .menu-item-img-wrap {
     height: 86px;
   }
+  .menu-item-card {
+    min-height: 150px;
+  }
   .menu-item-img-placeholder {
     font-size: 22px;
   }
@@ -14265,7 +14269,6 @@ body,
     padding: 12px 14px 90px;
   }
   .menu-item-card {
-    height: 100%;
     min-height: 138px;
     border-radius: 12px;
   }
@@ -14336,7 +14339,6 @@ body,
     padding: 8px 10px 90px;
   }
   .menu-item-card {
-    height: 100%;
     min-height: 136px;
     border-radius: 12px;
   }
