@@ -25,7 +25,7 @@ export function getEffectivePosTemplate(restaurant) {
     }
   }
   // 3. Default fallback
-  return POS_TEMPLATES.MODERN_GRID;
+  return POS_TEMPLATES.BISTRO_SIDEBAR;
 }
 
 export function usePosTemplate() {
@@ -80,7 +80,7 @@ export function usePosTemplate() {
       [POS_TEMPLATES.BISTRO_SIDEBAR]: 'Template 2: Left Category Sidebar',
       [POS_TEMPLATES.CATEGORY_FIRST]: 'Template 3: Hybrid Category Cards'
     };
-    const templateName = templateNames[newTemplate] || 'Modern Grid';
+    const templateName = templateNames[newTemplate] || 'Template 2: Left Category Sidebar';
     toast.success(`Active POS template: ${templateName}`, { id: 'pos-template-switch', duration: 2500 });
   };
 

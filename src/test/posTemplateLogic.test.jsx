@@ -40,9 +40,9 @@ describe('POS Template Architecture & State Sync Logic', () => {
   });
 
   describe('getEffectivePosTemplate fallback hierarchy', () => {
-    it('defaults to MODERN_GRID when neither restaurant doc nor localStorage is set', () => {
+    it('defaults to BISTRO_SIDEBAR when neither restaurant doc nor localStorage is set', () => {
       const template = getEffectivePosTemplate(null);
-      expect(template).toBe(POS_TEMPLATES.MODERN_GRID);
+      expect(template).toBe(POS_TEMPLATES.BISTRO_SIDEBAR);
     });
 
     it('prioritizes restaurant.posTemplate over localStorage', () => {
@@ -62,31 +62,31 @@ describe('POS Template Architecture & State Sync Logic', () => {
     it('ignores unknown/invalid template values in localStorage and falls back to default', () => {
       mockLocalStorage.setItem('dineos_pos_template', 'corrupted_layout_name');
       const template = getEffectivePosTemplate({});
-      expect(template).toBe(POS_TEMPLATES.MODERN_GRID);
+      expect(template).toBe(POS_TEMPLATES.BISTRO_SIDEBAR);
     });
   });
 
   describe('usePosTemplate hook reactive synchronization', () => {
     it('reactively switches when dineos:pos-template-changed event fires across components', () => {
       const { result } = renderHook(() => usePosTemplate());
-      expect(result.current.template).toBe(POS_TEMPLATES.MODERN_GRID);
-      expect(result.current.isModern).toBe(true);
+      expect(result.current.template).toBe(POS_TEMPLATES.BISTRO_SIDEBAR);
+      expect(result.current.isBistro).toBe(true);
 
       act(() => {
         window.dispatchEvent(new CustomEvent('dineos:pos-template-changed', {
-          detail: { template: POS_TEMPLATES.BISTRO_SIDEBAR }
+          detail: { template: POS_TEMPLATES.MODERN_GRID }
         }));
       });
 
-      expect(result.current.template).toBe(POS_TEMPLATES.BISTRO_SIDEBAR);
-      expect(result.current.isBistro).toBe(true);
-      expect(result.current.isModern).toBe(false);
+      expect(result.current.template).toBe(POS_TEMPLATES.MODERN_GRID);
+      expect(result.current.isModern).toBe(true);
+      expect(result.current.isBistro).toBe(false);
       expect(result.current.isCategoryFirst).toBe(false);
     });
 
     it('reactively syncs when restaurant.posTemplate updates in authStore', () => {
       const { result } = renderHook(() => usePosTemplate());
-      expect(result.current.template).toBe(POS_TEMPLATES.MODERN_GRID);
+      expect(result.current.template).toBe(POS_TEMPLATES.BISTRO_SIDEBAR);
 
       act(() => {
         useAuthStore.setState({
