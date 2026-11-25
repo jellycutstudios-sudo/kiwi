@@ -21326,12 +21326,12 @@ html.dark .form-label {
 
 [data-theme="dark"] .form-input,
 [data-theme="dark"] .form-select,
-[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.ai-prompt-input),
 [data-theme="dark"] select,
 [data-theme="dark"] textarea,
 html.dark .form-input,
 html.dark .form-select,
-html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.ai-prompt-input),
 html.dark select,
 html.dark textarea {
   background-color: #05080e !important;
@@ -21354,12 +21354,12 @@ html.dark .form-select {
 
 [data-theme="dark"] .form-input:hover,
 [data-theme="dark"] .form-select:hover,
-[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.ai-prompt-input):hover,
 [data-theme="dark"] select:hover,
 [data-theme="dark"] textarea:hover,
 html.dark .form-input:hover,
 html.dark .form-select:hover,
-html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.ai-prompt-input):hover,
 html.dark select:hover,
 html.dark textarea:hover {
   border-color: rgba(255, 255, 255, 0.65) !important;
@@ -21368,12 +21368,12 @@ html.dark textarea:hover {
 
 [data-theme="dark"] .form-input:focus,
 [data-theme="dark"] .form-select:focus,
-[data-theme="dark"] input:focus,
+[data-theme="dark"] input:not(.ai-prompt-input):focus,
 [data-theme="dark"] select:focus,
 [data-theme="dark"] textarea:focus,
 html.dark .form-input:focus,
 html.dark .form-select:focus,
-html.dark input:focus,
+html.dark input:not(.ai-prompt-input):focus,
 html.dark select:focus,
 html.dark textarea:focus {
   border-color: #ffffff !important;
