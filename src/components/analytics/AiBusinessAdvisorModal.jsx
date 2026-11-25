@@ -571,7 +571,7 @@ export default function AiBusinessAdvisorModal({
                   {selectedModel === 'plan-b-local' ? (
                     <ShieldCheck size={14} color="#34d399" />
                   ) : (
-                    <Sparkles size={14} color="#34d399" />
+                    <img src="/ricon.svg" alt="" style={{ width: 12, height: 15, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                   )}
                   <span className="ai-model-pill-text">DineOS AI · {currentModelObj.name}</span>
                   <ChevronDown size={13} />
@@ -721,7 +721,7 @@ export default function AiBusinessAdvisorModal({
               <div className="ai-hero-welcome">
                 <div className="ai-hero-icon-wrap">
                   <div className="ai-hero-icon">
-                    <Sparkles size={28} />
+                    <img src="/ricon.svg" alt="DineOS" style={{ width: 24, height: 32, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                   </div>
                   <div className="ai-hero-icon-glow" />
                 </div>
@@ -793,7 +793,7 @@ export default function AiBusinessAdvisorModal({
               return (
                 <div key={m.id} className="ai-assistant-row">
                   <div className="ai-assistant-avatar">
-                    <Sparkles size={17} />
+                    <img src="/ricon.svg" alt="DineOS" style={{ width: 15, height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                   </div>
                   <div className="ai-assistant-body">
                     <div className="ai-assistant-meta">
@@ -848,7 +848,7 @@ export default function AiBusinessAdvisorModal({
             {isAiLoading && (
               <div className="ai-assistant-row">
                 <div className="ai-assistant-avatar">
-                  <Sparkles size={18} />
+                  <img src="/ricon.svg" alt="DineOS" style={{ width: 15, height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                 </div>
                 <div className="ai-assistant-body">
                   <div className="ai-typing-container">
@@ -888,7 +888,7 @@ export default function AiBusinessAdvisorModal({
 
             {/* Floating Capsule Bar */}
             <div className="ai-floating-capsule">
-              <Sparkles size={16} className="ai-input-sparkle-icon" />
+              <img src="/ricon.svg" alt="" className="ai-input-sparkle-icon" style={{ width: 13, height: 17, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
               <input
                 ref={inputRef}
                 type="text"
