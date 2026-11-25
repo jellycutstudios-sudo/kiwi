@@ -27210,6 +27210,44 @@ html.dark .login-page .login-back-btn:hover,
   display: none !important;
 }
 
+.pos-cat-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 12px;
+}
+
+.pos-cat-modal-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 76px;
+  padding: 12px 14px;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+  .pos-cat-modal-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .pos-cat-modal-tile {
+    min-height: 62px !important;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+  }
+  .pos-cat-modal-title {
+    font-size: 13.5px !important;
+    line-height: 1.2 !important;
+  }
+  .pos-cat-modal-count {
+    font-size: 11px !important;
+    padding: 2px 7px !important;
+  }
+}
+
 /* Mobile & Touch Screen Responsive POS Optimizations */
 @media (max-width: 768px) {
   .pos-category-bar,

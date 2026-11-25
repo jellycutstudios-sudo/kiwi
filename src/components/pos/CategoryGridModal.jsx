@@ -97,22 +97,22 @@ export default function CategoryGridModal({
         <div
           className="pos-cat-grid-header"
           style={{
-            padding: '20px 28px',
+            padding: '14px 18px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-            gap: '16px',
+            gap: '10px',
             flexWrap: 'wrap',
             background: 'rgba(255, 255, 255, 0.02)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '11px',
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
                 background: 'rgba(16, 185, 129, 0.16)',
                 border: '1px solid rgba(16, 185, 129, 0.4)',
                 color: '#34d399',
@@ -122,49 +122,38 @@ export default function CategoryGridModal({
                 flexShrink: 0,
               }}
             >
-              <LayoutGrid size={22} strokeWidth={2.4} />
+              <LayoutGrid size={18} strokeWidth={2.4} />
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: '19px',
-                    fontWeight: 800,
-                    color: '#ffffff',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  All Menu Categories
-                </h3>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 750,
-                    padding: '2px 9px',
-                    borderRadius: '999px',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: '#94a3b8',
-                  }}
-                >
-                  {categories.length}
-                </span>
-              </div>
-              <p
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3
                 style={{
-                  margin: '3px 0 0 0',
-                  fontSize: '13px',
+                  margin: 0,
+                  fontSize: '17px',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Categories
+              </h3>
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 750,
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  background: 'rgba(255, 255, 255, 0.1)',
                   color: '#94a3b8',
                 }}
               >
-                1-tap jump to any category · Never scroll horizontally
-              </p>
+                {categories.length}
+              </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Quick search input */}
-            {categories.length > 5 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Quick search input (shown when > 10 categories) */}
+            {categories.length > 10 && (
               <div
                 style={{
                   position: 'relative',
@@ -173,23 +162,23 @@ export default function CategoryGridModal({
                 }}
               >
                 <Search
-                  size={15}
+                  size={14}
                   style={{
                     position: 'absolute',
-                    left: '12px',
+                    left: '10px',
                     color: '#94a3b8',
                     pointerEvents: 'none',
                   }}
                 />
                 <input
                   type="text"
-                  placeholder="Find category..."
+                  placeholder="Find..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    height: '36px',
-                    width: '190px',
-                    padding: '0 30px 0 34px',
+                    height: '34px',
+                    width: '130px',
+                    padding: '0 26px 0 30px',
                     fontSize: '13px',
                     borderRadius: '9px',
                     border: '1px solid rgba(255, 255, 255, 0.14)',
@@ -204,7 +193,7 @@ export default function CategoryGridModal({
                     onClick={() => setSearch('')}
                     style={{
                       position: 'absolute',
-                      right: '8px',
+                      right: '6px',
                       background: 'transparent',
                       border: 'none',
                       color: '#94a3b8',
@@ -213,7 +202,7 @@ export default function CategoryGridModal({
                     }}
                     title="Clear search"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 )}
               </div>
@@ -233,6 +222,7 @@ export default function CategoryGridModal({
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.12)',
                 color: '#ffffff',
+                touchAction: 'manipulation',
               }}
               title="Close (Esc)"
               aria-label="Close"
@@ -242,48 +232,32 @@ export default function CategoryGridModal({
           </div>
         </div>
 
-        {/* Modal Body: High-Contrast Premium Tiles Grid */}
+        {/* Modal Body: High-Contrast Compact Tiles Grid (Fits all categories without scrolling) */}
         <div
           className="pos-cat-grid-body"
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '22px 28px',
+            padding: '14px 16px 18px',
             overscrollBehavior: 'contain',
           }}
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
-              gap: '14px',
-            }}
-          >
+          <div className="pos-cat-modal-grid">
             {/* 1. All Items Master Card */}
             <button
               type="button"
               className={`pos-cat-modal-tile pos-cat-theme-emerald ${activeCat === 'all' ? 'active' : ''}`}
               onClick={() => handleSelect('all')}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                <span className="pos-cat-modal-title">
-                  All Items
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
+                <span className="pos-cat-modal-title">All Items</span>
                 {activeCat === 'all' && (
                   <span className="pos-cat-modal-check">
-                    <Check size={12} strokeWidth={3.5} />
+                    <Check size={11} strokeWidth={3.5} />
                   </span>
                 )}
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
-                <span className="pos-cat-modal-count">
-                  {totalItemsCount} items
-                </span>
-                <span className="pos-cat-modal-action-hint">
-                  {activeCat === 'all' ? 'Active' : 'Whole Menu'}
-                </span>
-              </div>
+              <span className="pos-cat-modal-count">{totalItemsCount} items</span>
             </button>
 
             {/* Category Cards - Color-Coded Cashier Themes */}
@@ -303,25 +277,15 @@ export default function CategoryGridModal({
                   className={`pos-cat-modal-tile ${themeClass} ${isActive ? 'active' : ''}`}
                   onClick={() => handleSelect(c.id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                    <span className="pos-cat-modal-title">
-                      {c.name}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
+                    <span className="pos-cat-modal-title">{c.name}</span>
                     {isActive && (
                       <span className="pos-cat-modal-check">
-                        <Check size={12} strokeWidth={3.5} />
+                        <Check size={11} strokeWidth={3.5} />
                       </span>
                     )}
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
-                    <span className="pos-cat-modal-count">
-                      {itemCount} item{itemCount !== 1 ? 's' : ''}
-                    </span>
-                    <span className="pos-cat-modal-action-hint">
-                      {isActive ? 'Active' : 'Tap to open'}
-                    </span>
-                  </div>
+                  <span className="pos-cat-modal-count">{itemCount} items</span>
                 </button>
               );
             })}
@@ -337,59 +301,30 @@ export default function CategoryGridModal({
                   onOpenCustomItem();
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Plus size={18} strokeWidth={2.8} style={{ color: '#f59e0b' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={16} strokeWidth={2.8} style={{ color: '#f59e0b', flexShrink: 0 }} />
                   <span className="pos-cat-modal-title" style={{ color: '#fbbf24' }}>
                     Custom Item
                   </span>
                 </div>
-                <div style={{ marginTop: '14px' }}>
-                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
-                    Punch off-menu special
-                  </span>
-                </div>
+                <span className="pos-cat-modal-count" style={{ opacity: 0.75 }}>Off-menu</span>
               </button>
             )}
           </div>
 
           {filteredCategories.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
-              <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>No categories found matching "{search}"</p>
+            <div style={{ textAlign: 'center', padding: '36px 16px', color: '#94a3b8' }}>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>No categories matching "{search}"</p>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setSearch('')}
-                style={{ marginTop: '12px', borderRadius: '8px' }}
+                style={{ marginTop: '10px', borderRadius: '8px' }}
               >
-                Clear Search
+                Clear
               </button>
             </div>
           )}
-        </div>
-
-        {/* Modal Footer */}
-        <div
-          className="pos-cat-grid-footer"
-          style={{
-            padding: '14px 28px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
-          <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-            Tip: Tapping any category card selects it and closes this view automatically.
-          </span>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={onClose}
-            style={{ borderRadius: '8px', padding: '0 20px', height: '34px', fontSize: '13px' }}
-          >
-            Close (Esc)
-          </button>
         </div>
       </div>
     </div>
