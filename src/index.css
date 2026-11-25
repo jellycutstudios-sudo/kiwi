@@ -2,12 +2,11 @@
    DineOS Design System — Clay Design Language
    ============================================================ */
 
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
-@import '@fontsource/inter/800.css';
-@import '@fontsource/inter/900.css';
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
 
 /* --- CSS Custom Properties (Clay Design Tokens) --- */
 :root {
@@ -185,7 +184,7 @@
   /* ===================================================
      TYPOGRAPHY
      =================================================== */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Size scale */
@@ -794,7 +793,7 @@ ul, ol { list-style: none; }
     gap: 2.5px;
   }
   .sidebar-section-label {
-    font-size: 10px;
+    font-size: 11px;
     padding: 3px 6px 1px;
     margin-top: 2px;
   }
@@ -1004,7 +1003,7 @@ ul, ol { list-style: none; }
 }
 
 .sidebar-user-role {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-label-secondary);
   display: flex;
   align-items: center;
@@ -1432,7 +1431,7 @@ ul, ol { list-style: none; }
 }
 
 .advisor-btn-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1.5px 5px;
   border-radius: 5px;
@@ -2421,7 +2420,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .item-subcat-badge {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1.5px 5.5px;
   border-radius: 4px;
@@ -4631,7 +4630,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-key-pill {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1.5px 6px;
   border-radius: 6px;
@@ -4660,7 +4659,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-key-qty-pill {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 750;
   background: #10b981;
   color: #ffffff;
@@ -4888,7 +4887,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-monogram {
-  font-family: var(--font-family, 'Inter', sans-serif);
+  font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-size: 24px;
   font-weight: 850;
   letter-spacing: -0.01em;
@@ -4996,7 +4995,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-name {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--color-label);
   line-height: 1.25;
@@ -5019,7 +5018,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-sizes-badge {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   color: #047857;
   background: #ecfdf5;
@@ -5037,8 +5036,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-price {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: #0f172a;
   display: flex;
   align-items: center;
@@ -5064,7 +5064,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .menu-item-from-prefix {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -5453,7 +5453,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .summary-chip-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   opacity: 0.85;
   margin-left: 2px;
@@ -5548,7 +5548,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-label-tertiary);
   background: none;
@@ -5641,7 +5641,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .till-tab-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 6px;
@@ -5728,7 +5728,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .till-stat-label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-label-tertiary);
   text-transform: uppercase;
@@ -6174,14 +6174,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 700;
 }
 .cart-unified-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: #64748b;
   margin-left: auto;
   flex-shrink: 0;
 }
 .cart-unified-points-chip {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 800;
   background: rgba(16, 185, 129, 0.2);
   color: #047857;
@@ -6576,7 +6576,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cart-table-badge-active {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   color: #10b981;
   background: rgba(16, 185, 129, 0.15);
@@ -6587,7 +6587,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cart-table-badge-choose {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--color-label-tertiary, #94a3b8);
   font-weight: 500;
 }
@@ -6728,7 +6728,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -6746,7 +6746,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cart-course-count {
-  font-size: 9.5px;
+  font-size: 11px;
   color: var(--color-label-tertiary);
   font-weight: 500;
 }
@@ -6958,7 +6958,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 5px;
@@ -7004,7 +7004,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border: 1px solid var(--color-separator);
   border-radius: 6px;
   padding: 2px 7px 2px 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   height: 22px;
@@ -7061,7 +7061,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cart-course-popover-title {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -7143,7 +7143,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cart-modifier-chip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
   color: #0369a1;
@@ -7162,7 +7162,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 /* Quick Order Note Presets */
 .cart-note-preset-chip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 4px;
@@ -7282,7 +7282,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   border-radius: 6px;
   background: #fffbeb;
   border: 1px solid #fde68a;
-  font-size: 10.5px;
+  font-size: 11px;
   color: #92400e;
   margin: 0 var(--space-4) 4px;
 }
@@ -7335,7 +7335,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
   height: 22px;
@@ -7416,7 +7416,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
   height: 22px;
@@ -7447,7 +7447,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .cart-discount-preset-btn {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 3px 6px;
   border-radius: 6px;
@@ -8016,7 +8016,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
     font-size: 11.5px;
   }
   .tile-hint {
-    font-size: 9.5px;
+    font-size: 11px;
   }
   .pos-empty-dispatch {
     padding: 6px 10px;
@@ -8298,7 +8298,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .table-capacity {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-label-secondary);
   display: flex;
@@ -8373,7 +8373,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .tm-settle-desc {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -8802,7 +8802,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 .tm-floor-badge {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1.5px 6.5px;
   border-radius: 999px;
@@ -8931,7 +8931,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 .tm-pill-count {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   opacity: 0.8;
 }
@@ -8959,7 +8959,7 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 .tm-pill-dot--reserved {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
 }
 
@@ -10722,7 +10722,7 @@ html.dark .tm-segmented-glider {
 }
 
 .tm-chair-more {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--color-label-tertiary, #94a3b8);
   margin-left: 2px;
@@ -10750,7 +10750,7 @@ html.dark .tm-segmented-glider {
 }
 
 .tm-card-start-hint {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-label-tertiary, #94a3b8);
 }
@@ -10780,7 +10780,7 @@ html.dark .tm-segmented-glider {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1.5px 5px;
   border-radius: 999px;
@@ -10790,7 +10790,7 @@ html.dark .tm-segmented-glider {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--color-label-secondary, #64748b);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -10805,7 +10805,7 @@ html.dark .tm-segmented-glider {
   color: #d97706;
   padding: 1px 5px;
   border-radius: 4px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   max-width: 110px;
   overflow: hidden;
@@ -10815,7 +10815,7 @@ html.dark .tm-segmented-glider {
 
 .tm-card-large-tag {
   margin-top: 4px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -10833,7 +10833,7 @@ html.dark .tm-segmented-glider {
   gap: 3.5px;
   padding: 2.5px 7px;
   border-radius: 999px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -10888,7 +10888,7 @@ html.dark .tm-segmented-glider {
     gap: 6px;
   }
   .tm-floor-badge {
-    font-size: 10px;
+    font-size: 11px;
     padding: 1.5px 6px;
   }
   .tm-filter-pills {
@@ -11059,7 +11059,7 @@ html.dark .tm-segmented-glider {
 .handheld-ready-tag {
   background: #ffffff;
   color: #065f46;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 900;
   padding: 1px 5px;
   border-radius: 4px;
@@ -11146,7 +11146,7 @@ html.dark .tm-segmented-glider {
 }
 
 .tm-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   padding: 3px 8px;
   border-radius: 999px;
@@ -11262,7 +11262,7 @@ html.dark .tm-segmented-glider {
 }
 
 .tm-card-items-chip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--color-label-secondary);
   background: rgba(255, 255, 255, 0.08);
@@ -11619,7 +11619,7 @@ html.dark .tm-segmented-glider {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-label-tertiary);
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-separator);
@@ -11638,7 +11638,7 @@ html.dark .tm-segmented-glider {
   bottom: -22px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   background: var(--color-label);
@@ -11732,7 +11732,7 @@ html.dark .tm-segmented-glider {
 
 .tm-popover-order-id {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-label-tertiary);
   font-weight: 500;
 }
@@ -11811,7 +11811,7 @@ html.dark .tm-segmented-glider {
 }
 
 .tm-step-label {
-  font-size: 9px;
+  font-size: 11px;
   text-transform: capitalize;
   font-weight: 600;
   color: var(--color-label-tertiary);
@@ -11846,7 +11846,7 @@ html.dark .tm-segmented-glider {
 }
 
 .tm-settle-label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -12410,7 +12410,7 @@ html.dark .tm-segmented-glider {
 }
 
 .kds-station-count {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 9999px;
@@ -13803,7 +13803,7 @@ body,
   .menu-item-qty-badge {
     top: 5px;
     right: 5px;
-    font-size: 10px;
+    font-size: 11px;
     min-width: 18px;
     height: 18px;
   }
@@ -14119,7 +14119,7 @@ body,
   .cart-course-btn {
     height: 19px;
     padding: 0 5px;
-    font-size: 9.5px;
+    font-size: 11px;
     border-radius: 5px;
   }
   .cart-item-card-remove {
@@ -14226,7 +14226,7 @@ body,
   }
   .cart-addon-btn {
     padding: 2px 8px;
-    font-size: 10.5px;
+    font-size: 11px;
     height: 24px;
   }
 
@@ -14824,7 +14824,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .settings-nav-badge {
-  font-size: 10px;
+  font-size: 11px;
   padding: 1px 6px;
   border-radius: 6px;
   background: var(--color-accent);
@@ -15847,7 +15847,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .menu-editor-pill-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 3px 6px;
   border-radius: 6px;
@@ -15901,7 +15901,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .menu-editor-card-modifiers span {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-accent);
   background: var(--color-accent-light);
@@ -16542,7 +16542,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 
   .mobile-cart-caret {
-    font-size: 9px;
+    font-size: 11px;
     opacity: 0.95;
     margin-left: 1px;
   }
@@ -17031,7 +17031,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 .dh-tab-badge {
   background: var(--color-primary, #10b981);
   color: #ffffff;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   padding: 2px 7px;
   border-radius: 999px;
@@ -17264,7 +17264,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .dh-region-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 999px;
@@ -17344,7 +17344,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .dh-metric-item-label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-label-secondary);
@@ -17412,7 +17412,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .dh-feature-chip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 6px;
@@ -18163,7 +18163,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .staff-role-scope-chip {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 4px;
@@ -18682,7 +18682,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .table-3d-status-pill {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 750;
   padding: 2px 7px;
   border-radius: 6px;
@@ -18755,14 +18755,14 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 999px;
 }
 
 .table-3d-items-sub {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-label-secondary, #64748b);
   max-width: 90%;
@@ -19156,7 +19156,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 .table-compact-status-badge {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -19731,7 +19731,7 @@ html.dark .settings-nav-item.active .settings-nav-icon {
   }
 
   .table-compact-capacity {
-    font-size: 10px !important;
+    font-size: 11px !important;
   }
 
   .table-select-status-pills {
@@ -20270,8 +20270,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 
 [data-theme="dark"] .menu-item-name {
   color: #ffffff !important;
-  font-weight: 750;
-  font-size: 12.5px;
+  font-weight: 700;
+  font-size: 13.5px;
   letter-spacing: -0.01em;
   line-height: 1.25;
   text-shadow: none !important;
@@ -20280,7 +20280,8 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 [data-theme="dark"] .menu-item-price {
   color: #f8fafc !important;
   font-weight: 800;
-  font-size: 13.5px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
   line-height: 1.25;
   text-shadow: none !important;
   letter-spacing: -0.2px;
@@ -20297,11 +20298,11 @@ html.dark .settings-nav-item.active .settings-nav-icon {
     justify-content: flex-start !important;
   }
   [data-theme="dark"] .menu-item-name {
-    font-size: 12.5px !important;
-    line-height: 1.35 !important;
+    font-size: 13px !important;
+    line-height: 1.3 !important;
   }
   [data-theme="dark"] .menu-item-price {
-    font-size: 13px !important;
+    font-size: 13.5px !important;
     line-height: 1.3 !important;
   }
 }
@@ -21699,7 +21700,7 @@ html.dark .btn-secondary:hover {
 }
 
 .sales-vital-tagline {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -21757,7 +21758,7 @@ html.dark .btn-secondary:hover {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-label-secondary, #94a3b8);
 }
@@ -22406,7 +22407,7 @@ html.dark .btn-secondary:hover {
 }
 
 .modal-tab-badge {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 999px;
@@ -22724,7 +22725,7 @@ html.dark .optional-details-toggle-btn:hover {
 }
 
 .modifier-type-badge {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 6px;
@@ -23161,7 +23162,7 @@ html.dark .bestseller-chip.is-active {
   color: var(--color-label);
 }
 .optional-details-configured-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 999px;
@@ -23558,7 +23559,7 @@ html.dark .bestseller-chip.is-active {
   gap: 3px;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   background: rgba(56, 189, 248, 0.12);
   color: #38bdf8;
@@ -23656,7 +23657,7 @@ html.dark .bestseller-chip.is-active {
   min-width: 90px;
 }
 .split-stat-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -23922,7 +23923,7 @@ html.dark .bestseller-chip.is-active {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 9999px;
@@ -23983,7 +23984,7 @@ html.dark .bestseller-chip.is-active {
   color: var(--color-label, #f8fafc);
 }
 .check-item-mods {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-label-secondary, #94a3b8);
 }
 .check-item-price {
@@ -24138,7 +24139,7 @@ html.dark .bestseller-chip.is-active {
   gap: 4px;
   padding: 8px 4px;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   border: 1px solid var(--color-separator, rgba(255, 255, 255, 0.08));
   cursor: pointer;
@@ -24859,7 +24860,7 @@ html.dark .bestseller-chip.is-active {
 }
 
 .handheld-item-pill {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 4px;
@@ -24916,7 +24917,7 @@ html.dark .bestseller-chip.is-active {
 }
 
 .handheld-item-mod-btn {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   padding: 4px 7px;
   border-radius: 6px;
@@ -25052,7 +25053,7 @@ html.dark .bestseller-chip.is-active {
 }
 
 .handheld-cart-total-label {
-  font-size: 9.5px;
+  font-size: 11px;
   text-transform: uppercase;
   color: var(--color-label-secondary, #94a3b8);
   font-weight: 700;
@@ -25478,7 +25479,7 @@ html.dark .bestseller-chip.is-active {
 }
 
 .handheld-table-card-floor {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   color: #94a3b8;
   letter-spacing: 0.01em;
@@ -25566,7 +25567,7 @@ html.dark .bestseller-chip.is-active {
 }
 
 .handheld-table-ready-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   background: #10b981;
   color: #000;
@@ -25575,7 +25576,7 @@ html.dark .bestseller-chip.is-active {
 }
 
 .handheld-table-selected-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.16);
@@ -26436,7 +26437,7 @@ html.dark .tm-prop-header,
 }
 
 .tm-prop-preview-label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -27216,7 +27217,7 @@ html.dark .login-page .login-back-btn:hover,
 }
 
 .menu-key-cat-tag {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -27230,7 +27231,7 @@ html.dark .login-page .login-back-btn:hover,
 }
 
 .menu-item-cat-tag {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
