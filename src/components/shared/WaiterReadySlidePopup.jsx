@@ -7,12 +7,26 @@ import { Check, Utensils, X, ShoppingBag, ChevronLeft, ChevronRight, ChevronDown
 import { printReceipt } from '../../utils/print';
 import toast from 'react-hot-toast';
 
+function getElapsedWaitInfo(order) {
+  const ts = order?.readyAt || order?.updatedAt || order?.createdAt;
+  if (!ts) return { mins: 0, label: 'Just now', urgency: 'normal' };
+  const ms = typeof ts?.toMillis === 'function'
+    ? ts.toMillis()
+    : (typeof ts?.seconds === 'number' ? ts.seconds * 1000 : Number(ts));
+  if (!ms || isNaN(ms)) return { mins: 0, label: 'Just now', urgency: 'normal' };
+  const mins = Math.max(0, Math.floor((Date.now() - ms) / 60000));
+  const label = mins < 1 ? '<1m' : `${mins}m`;
+  const urgency = mins >= 6 ? 'urgent' : (mins >= 3 ? 'warn' : 'normal');
+  return { mins, label, urgency };
+}
+
 /**
  * Ultra-clean Ambient Food-Ready Pass Banner (Dynamic Island / Capsule Style)
  * 
  * Clean, organized, zero-clutter horizontal pill:
- * [ Icon ] [ Table G9  READY  < 1/2 > ]    [ v ] [ ✓ Mark Served ] [ ✕ ]
+ * [ Icon ] [ Table G9  READY  < 1/5 ▾ > ]    [ v ] [ ✓ Mark Served ] [ ✕ ]
  *          [ 3 items · Mojito, Fries... ]
+ * Tapping "1/5 ▾" expands the full multi-order Pass Queue when 2+ orders are ready.
  */
 export default function WaiterReadySlidePopup() {
   const location = useLocation();
@@ -37,7 +51,9 @@ export default function WaiterReadySlidePopup() {
   const [acknowledgedOrderIds, setAcknowledgedOrderIds] = useState(() => new Set());
   const [currentOrder, setCurrentOrder] = useState(null);
   const [isServing, setIsServing] = useState(false);
+  const [servingOrderId, setServingOrderId] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
   const currentOrderIdRef = useRef(null);
   const notifiedOrderIdsRef = useRef(new Set());
 
@@ -174,12 +190,28 @@ export default function WaiterReadySlidePopup() {
     setAcknowledgedOrderIds(prev => new Set([...prev, orderId]));
     setCurrentOrder(null);
     setIsServing(false);
+    setServingOrderId(null);
     setIsExpanded(false);
   }, []);
+
+  const handleDismissAll = useCallback(() => {
+    currentOrderIdRef.current = null;
+    setAcknowledgedOrderIds(prev => {
+      const next = new Set(prev);
+      readyOrdersList.forEach(o => next.add(o.id));
+      return next;
+    });
+    setCurrentOrder(null);
+    setIsServing(false);
+    setServingOrderId(null);
+    setIsExpanded(false);
+    setIsQueueOpen(false);
+  }, [readyOrdersList]);
 
   const handleMarkServed = useCallback(async (order) => {
     if (!restaurant?.id || !order?.id || isServing) return;
     setIsServing(true);
+    setServingOrderId(order.id);
     if (isVibrateEnabled) vibrateDevice([150]);
 
     const isTakeaway = order.type === 'takeaway' || order.type === 'delivery' || order.type === 'pickup';
@@ -197,8 +229,25 @@ export default function WaiterReadySlidePopup() {
       console.error('Failed to mark served:', err);
       toast.error('Failed to update status');
       setIsServing(false);
+      setServingOrderId(null);
     }
   }, [restaurant?.id, updateOrderStatus, isVibrateEnabled, handleDismiss, isServing]);
+
+  const handleServeAll = useCallback(async () => {
+    if (!restaurant?.id || readyOrdersList.length === 0 || isServing) return;
+    setIsServing(true);
+    if (isVibrateEnabled) vibrateDevice([150]);
+
+    try {
+      await Promise.all(readyOrdersList.map(o => updateOrderStatus(restaurant.id, o.id, 'served')));
+      toast.success(`All ${readyOrdersList.length} ready orders marked served! ✓`, { duration: 2500 });
+      handleDismissAll();
+    } catch (err) {
+      console.error('Failed to serve all:', err);
+      toast.error('Failed to update some orders');
+      setIsServing(false);
+    }
+  }, [restaurant?.id, readyOrdersList, updateOrderStatus, isVibrateEnabled, handleDismissAll, isServing]);
 
   const handleSelectTableOnMap = useCallback((order) => {
     if (!order?.tableId) return;
@@ -340,7 +389,7 @@ export default function WaiterReadySlidePopup() {
                   READY
                 </span>
 
-                {/* Clean Micro Pager */}
+                {/* Clean Micro Pager + 1-Tap Pass Queue Toggle */}
                 {readyOrdersList.length > 1 && (
                   <div 
                     onClick={(e) => e.stopPropagation()}
@@ -348,12 +397,13 @@ export default function WaiterReadySlidePopup() {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 2,
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: isQueueOpen ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.1)',
+                      border: isQueueOpen ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
                       borderRadius: 12,
                       padding: '2px 6px',
                       fontSize: 10.5,
                       fontWeight: 700,
-                      color: '#cbd5e1',
+                      color: isQueueOpen ? '#6ee7b7' : '#cbd5e1',
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
                     }}
@@ -362,16 +412,41 @@ export default function WaiterReadySlidePopup() {
                       type="button"
                       onClick={handleSwitchPrevOrder}
                       title="Previous order"
-                      style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0, display: 'flex' }}
+                      aria-label="Previous ready order"
+                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
                     >
                       <ChevronLeft size={13} />
                     </button>
-                    <span style={{ padding: '0 3px' }}>{currentIndex + 1}/{readyOrdersList.length}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsQueueOpen(prev => !prev);
+                        setIsExpanded(false);
+                      }}
+                      title={`View all ${readyOrdersList.length} ready orders`}
+                      aria-label={`View all ${readyOrdersList.length} ready orders`}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <span>{currentIndex + 1}/{readyOrdersList.length}</span>
+                      {isQueueOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                    </button>
                     <button
                       type="button"
                       onClick={handleSwitchNextOrder}
                       title="Next order"
-                      style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0, display: 'flex' }}
+                      aria-label="Next ready order"
+                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
                     >
                       <ChevronRight size={13} />
                     </button>
@@ -403,7 +478,10 @@ export default function WaiterReadySlidePopup() {
             {(currentOrder.items || []).length > 0 && (
               <button
                 type="button"
-                onClick={() => setIsExpanded(prev => !prev)}
+                onClick={() => {
+                setIsQueueOpen(false);
+                setIsExpanded(prev => !prev);
+              }}
                 title={isExpanded ? "Collapse items" : "View items"}
                 style={{
                   width: 34,
@@ -452,7 +530,10 @@ export default function WaiterReadySlidePopup() {
           {(currentOrder.items || []).length > 0 && (
             <button
               type="button"
-              onClick={() => setIsExpanded(prev => !prev)}
+              onClick={() => {
+                setIsQueueOpen(false);
+                setIsExpanded(prev => !prev);
+              }}
               className="waiter-ready-desktop-only"
               title={isExpanded ? "Collapse items" : "View items"}
               style={{
@@ -564,8 +645,160 @@ export default function WaiterReadySlidePopup() {
           </button>
         </div>
 
+        {/* ── Multi-Order Pass Queue Drawer (when 2+ orders are ready) ── */}
+        {isQueueOpen && readyOrdersList.length > 1 && (
+          <div className="waiter-ready-tray-wrap" role="region" aria-label="Ready orders queue">
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.42)',
+              borderRadius: 12,
+              padding: '6px',
+              maxHeight: 220,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}>
+              {readyOrdersList.map((ord) => {
+                const ordTakeaway = ord.type === 'takeaway' || ord.type === 'delivery' || ord.type === 'pickup';
+                const ordTitle = ord.tableName
+                  ? `Table ${ord.tableName}`
+                  : (ord.token ? `Token #${ord.token}` : 'Takeaway');
+                const ordCount = (ord.items || []).reduce((s, it) => s + (it.qty || 1), 0);
+                const ordSummary = (ord.items || []).map(it => `${it.qty > 1 ? `${it.qty}× ` : ''}${it.name}`).slice(0, 2).join(', ');
+                const isSelected = ord.id === currentOrder.id;
+                const wait = getElapsedWaitInfo(ord);
+                const isRowServing = isServing && servingOrderId === ord.id;
+
+                return (
+                  <div
+                    key={ord.id}
+                    onClick={() => {
+                      currentOrderIdRef.current = ord.id;
+                      setCurrentOrder(ord);
+                      setIsQueueOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      background: isSelected ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.04)',
+                      border: isSelected ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.06)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                      <span style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: ordTakeaway ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                        color: ordTakeaway ? '#fbbf24' : '#34d399',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        {ordTakeaway ? <ShoppingBag size={12} /> : <Utensils size={12} />}
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, color: '#ffffff' }}>{ordTitle}</span>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 750,
+                            padding: '1px 5px',
+                            borderRadius: 4,
+                            background: wait.urgency === 'urgent'
+                              ? 'rgba(239, 68, 68, 0.22)'
+                              : (wait.urgency === 'warn' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(255, 255, 255, 0.08)'),
+                            color: wait.urgency === 'urgent'
+                              ? '#fca5a5'
+                              : (wait.urgency === 'warn' ? '#fcd34d' : '#94a3b8'),
+                          }}>
+                            {wait.label}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ordCount} item{ordCount !== 1 ? 's' : ''}{ordSummary ? ` · ${ordSummary}` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isServing}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkServed(ord);
+                      }}
+                      style={{
+                        height: 28,
+                        padding: '0 10px',
+                        borderRadius: 14,
+                        border: 'none',
+                        background: ordTakeaway ? '#d97706' : '#059669',
+                        color: '#ffffff',
+                        fontSize: 11,
+                        fontWeight: 800,
+                        cursor: isServing ? 'default' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        flexShrink: 0,
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      <Check size={12} strokeWidth={3} />
+                      <span>{isRowServing ? '...' : (ordTakeaway ? 'Hand Over' : 'Served')}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, padding: '0 4px' }}>
+              <button
+                type="button"
+                onClick={handleDismissAll}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                }}
+              >
+                Dismiss All
+              </button>
+              <button
+                type="button"
+                disabled={isServing}
+                onClick={handleServeAll}
+                style={{
+                  height: 28,
+                  padding: '0 12px',
+                  borderRadius: 14,
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  background: 'rgba(16, 185, 129, 0.16)',
+                  color: '#6ee7b7',
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  cursor: isServing ? 'default' : 'pointer',
+                }}
+              >
+                Serve All ({readyOrdersList.length})
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Expandable Quick Peek Items Tray ── */}
-        {isExpanded && (
+        {isExpanded && !isQueueOpen && (
           <div className="waiter-ready-tray-wrap">
             <div style={{
               background: 'rgba(0, 0, 0, 0.4)',
