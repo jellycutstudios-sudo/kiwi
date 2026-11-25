@@ -2209,21 +2209,25 @@ export default function POS() {
                   </button>
                 )}
 
-                {/* Pinned Category Grid Launcher (Option A: Instant Big Categories Popup - Template 1 Only) */}
-                {!isBistro && (
-                  <button
-                    type="button"
-                    className="pos-op-card pos-op-card--categories"
-                    id="pos-pinned-categories-btn"
-                    onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
-                    title="Browse all categories in full grid (Instant Access)"
-                  >
-                    <LayoutGrid size={15} className="pos-op-pill-icon" />
-                    <span className="pos-op-pill-title">Categories</span>
-                    <span className="pos-op-cat-count">{categories.length}</span>
-                    <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
-                  </button>
-                )}
+                {/* Pinned Category Grid Launcher (Desktop Template 1 + Mobile Popup Opener for all templates) */}
+                <button
+                  type="button"
+                  className={`pos-op-card pos-op-card--categories ${isBistro ? 'pos-op-card--mobile-only' : ''}`}
+                  id="pos-pinned-categories-btn"
+                  onClick={() => { hapticTap('light'); setShowCategoryModal(true); }}
+                  title="Browse all categories in full grid (Instant Access)"
+                >
+                  <LayoutGrid size={15} className="pos-op-pill-icon" />
+                  <span className="pos-op-pill-title">
+                    {activeCat === 'all'
+                      ? 'All Items'
+                      : activeCat === 'deals'
+                        ? '⚡ Offers'
+                        : (categories.find(c => c.id === activeCat)?.name || 'Categories')}
+                  </span>
+                  <span className="pos-op-cat-count">{categories.length}</span>
+                  <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
+                </button>
               </div>
               {!isBistro && <div className="pos-bar-divider" />}
 

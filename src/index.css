@@ -27115,18 +27115,23 @@ html.dark .login-page .login-back-btn:hover,
   margin-right: 4px;
 }
 
+.pos-op-card--mobile-only {
+  display: none !important;
+}
+
 /* Mobile & Touch Screen Responsive POS Optimizations */
 @media (max-width: 768px) {
   .pos-category-bar {
     padding: 6px 10px !important;
     gap: 8px !important;
     min-height: 52px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow: hidden !important;
   }
   .pos-category-bar-pinned {
+    width: 100% !important;
     gap: 6px !important;
     flex-shrink: 0 !important;
+    justify-content: space-between !important;
   }
   .pos-category-bar-pinned .pos-op-card {
     height: 38px !important;
@@ -27134,13 +27139,25 @@ html.dark .login-page .login-back-btn:hover,
     padding: 0 10px !important;
     border-radius: 10px !important;
     font-size: 12px !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    justify-content: center !important;
   }
-  .pos-category-bar-pinned .pos-op-card--categories {
+  .pos-category-bar-pinned .pos-op-card--categories,
+  .pos-op-card--mobile-only {
+    display: inline-flex !important;
+    flex: 1.25 1 0 !important;
+  }
+  .pos-category-bar-pinned .pos-op-pill-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pos-category-bar .pos-category-scroll,
+  .pos-menu-panel.categories-left .pos-category-scroll,
+  .pos-category-bar .pos-bar-divider,
+  .pos-menu-panel.categories-left .pos-bar-divider {
     display: none !important;
-  }
-  .pos-category-scroll {
-    gap: 8px !important;
-    padding: 0 4px !important;
   }
   .pos-category-bar .category-chip {
     height: 38px !important;
