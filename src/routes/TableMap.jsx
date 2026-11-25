@@ -936,25 +936,24 @@ export default function TableMap() {
             title="Return to POS Menu & Cart"
             id="tablemap-back-to-pos-btn"
             style={{
-              height: 34,
-              padding: '0 14px',
+              height: 36,
+              padding: '0 12px',
               borderRadius: 10,
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 7,
-              fontWeight: 800,
+              gap: 6,
+              fontWeight: 700,
               fontSize: 13,
-              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.18) 0%, rgba(14, 116, 144, 0.28) 100%)',
-              border: '1.5px solid rgba(56, 189, 248, 0.45)',
-              color: '#38bdf8',
+              background: 'rgba(148, 163, 184, 0.12)',
+              border: '1px solid rgba(148, 163, 184, 0.24)',
+              color: 'var(--color-label)',
               cursor: 'pointer',
               flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
-              transition: 'all 0.15s ease'
+              transition: 'background-color 0.12s ease, border-color 0.12s ease'
             }}
           >
-            <ArrowLeft size={15} strokeWidth={2.5} />
-            <span>POS Menu</span>
+            <ArrowLeft size={14} strokeWidth={2.2} />
+            <span>POS</span>
           </button>
 
           <div className="tm-toolbar-divider" />
@@ -1117,15 +1116,25 @@ export default function TableMap() {
 
           {/* Management tools for manager/owner */}
           {canEditLayout && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm tm-add-table-btn"
                 onClick={handleAddTable}
                 title="Add a new table"
-                style={{ height: 32, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 12px' }}
+                style={{
+                  height: 36,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  gap: 5,
+                  padding: '0 12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(52, 211, 153, 0.4)',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.22)'
+                }}
               >
-                <Plus size={13} strokeWidth={2.5} />
+                <Plus size={14} strokeWidth={2.5} />
                 <span>Add Table</span>
               </button>
               <button
@@ -1133,7 +1142,7 @@ export default function TableMap() {
                 className="btn btn-secondary btn-sm"
                 onClick={handleOpenBulkModal}
                 title="Bulk generate multiple tables"
-                style={{ height: 32, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 10px' }}
+                style={{ height: 36, fontSize: 12.5, fontWeight: 600, gap: 5, padding: '0 10px' }}
               >
                 <Wand2 size={13} />
                 <span>Bulk</span>
@@ -1144,9 +1153,9 @@ export default function TableMap() {
                 onClick={handlePrintAllQRs}
                 disabled={tables.length === 0}
                 title="Print all table QR codes"
-                style={{ height: 32, fontSize: 12, fontWeight: 700, gap: 5, padding: '0 10px' }}
+                style={{ height: 36, fontSize: 12.5, fontWeight: 600, gap: 5, padding: '0 10px' }}
               >
-                <Printer size={13} />
+                <Printer size={14} />
               </button>
             </div>
           )}

@@ -8681,10 +8681,11 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 .tm-controls-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 280px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 .tm-controls-left::-webkit-scrollbar {
@@ -8695,7 +8696,22 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .tm-controls-left {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .tm-controls-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .tm-controls-right .tm-toolbar-divider {
+    display: none;
+  }
 }
 
 .tm-toolbar-divider {
@@ -8790,8 +8806,8 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
   background: #ffffff !important;
   color: #09090b !important;
   border: 1px solid #ffffff !important;
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.22) !important;
-  font-weight: 850 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28) !important;
+  font-weight: 700 !important;
 }
 
 .tm-floor-name {
