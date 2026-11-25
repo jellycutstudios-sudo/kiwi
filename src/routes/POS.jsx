@@ -4289,21 +4289,19 @@ export default function POS() {
         />
       )}
 
-      {/* Instant All Categories Grid Modal (Option A - Template 1 Only) */}
-      {!isBistro && (
-        <CategoryGridModal
-          isOpen={showCategoryModal}
-          onClose={() => setShowCategoryModal(false)}
-          categories={categories}
-          activeCat={activeCat}
-          onSelectCategory={(catId) => {
-            setActiveCat(catId);
-            setCatFirstOverview(false);
-            setSearch('');
-          }}
-          onOpenCustomItem={() => setShowOpenItemModal(true)}
-        />
-      )}
+      {/* Instant All Categories Grid Modal (Desktop Template 1 + Mobile Popup for all templates) */}
+      <CategoryGridModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        categories={categories}
+        activeCat={activeCat}
+        onSelectCategory={(catId) => {
+          setActiveCat(catId);
+          setCatFirstOverview(false);
+          setSearch('');
+        }}
+        onOpenCustomItem={() => setShowOpenItemModal(true)}
+      />
 
       {/* Active Kitchen & Takeaway Orders Modal */}
       {showActiveOrdersModal && (
