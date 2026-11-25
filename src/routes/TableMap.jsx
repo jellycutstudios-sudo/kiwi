@@ -1201,66 +1201,75 @@ export default function TableMap() {
         </div>
       </div>
 
-      {/* Mobile Floor Options Modal (rendered outside .tm-controls-bar backdrop-filter) */}
+      {/* Mobile Floor Options Bottom Sheet (rendered outside .tm-controls-bar backdrop-filter) */}
       {showMobileMoreMenu && (
         <div
-          className="modal-overlay"
-          style={{ zIndex: 1200, padding: 16 }}
+          className="modal-overlay tm-mobile-sheet-overlay"
+          style={{ zIndex: 1200 }}
           onClick={() => setShowMobileMoreMenu(false)}
         >
           <div
-            className="tm-mobile-more-popover"
+            className="tm-mobile-more-popover tm-mobile-sheet"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="tm-sheet-handle" />
             <div className="tm-mobile-section-modal-header">
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Floor Options</h3>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Floor Options</h3>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="tm-sheet-close-btn"
                 onClick={() => setShowMobileMoreMenu(false)}
                 aria-label="Close"
-                style={{ width: 32, height: 32, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
             {floorMetrics.liveRevenue > 0 && (
               <div className="tm-mobile-more-rev">
-                <span>Active Dining</span>
-                <strong>{formatCurrency(floorMetrics.liveRevenue, currency)}</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="tm-rev-live-dot" />
+                  <span>Active Dining</span>
+                </div>
+                <strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>
+                  {formatCurrency(floorMetrics.liveRevenue, currency)}
+                </strong>
               </div>
             )}
 
             <div className="tm-mobile-more-section-label">Table Status</div>
-            <div className="tm-mobile-status-grid">
+            <div className="tm-mobile-status-segmented">
               <button
                 type="button"
-                className={`tm-pill ${statusFilter === 'all' ? 'tm-pill--active tm-pill--all' : ''}`}
+                className={`tm-seg-btn ${statusFilter === 'all' ? 'active' : ''}`}
                 onClick={() => { setStatusFilter('all'); setShowMobileMoreMenu(false); }}
               >
-                All ({floorTables.length})
+                <span>All</span>
+                <span className="tm-seg-count">{floorTables.length}</span>
               </button>
               <button
                 type="button"
-                className={`tm-pill ${statusFilter === 'free' ? 'tm-pill--active tm-pill--free' : ''}`}
+                className={`tm-seg-btn ${statusFilter === 'free' ? 'active free' : ''}`}
                 onClick={() => { setStatusFilter(statusFilter === 'free' ? 'all' : 'free'); setShowMobileMoreMenu(false); }}
               >
-                Free ({floorMetrics.free})
+                <span>Free</span>
+                <span className="tm-seg-count">{floorMetrics.free}</span>
               </button>
               <button
                 type="button"
-                className={`tm-pill ${statusFilter === 'occupied' ? 'tm-pill--active tm-pill--occupied' : ''}`}
+                className={`tm-seg-btn ${statusFilter === 'occupied' ? 'active occupied' : ''}`}
                 onClick={() => { setStatusFilter(statusFilter === 'occupied' ? 'all' : 'occupied'); setShowMobileMoreMenu(false); }}
               >
-                Seated ({floorMetrics.occupied})
+                <span>Seated</span>
+                <span className="tm-seg-count">{floorMetrics.occupied}</span>
               </button>
               {floorMetrics.reserved > 0 && (
                 <button
                   type="button"
-                  className={`tm-pill ${statusFilter === 'reserved' ? 'tm-pill--active tm-pill--reserved' : ''}`}
+                  className={`tm-seg-btn ${statusFilter === 'reserved' ? 'active reserved' : ''}`}
                   onClick={() => { setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved'); setShowMobileMoreMenu(false); }}
                 >
-                  Reserved ({floorMetrics.reserved})
+                  <span>Res.</span>
+                  <span className="tm-seg-count">{floorMetrics.reserved}</span>
                 </button>
               )}
             </div>
@@ -1314,30 +1323,25 @@ export default function TableMap() {
         </div>
       )}
 
-      {/* Mobile 1-Tap Section Picker Modal */}
+      {/* Mobile 1-Tap Section Picker Bottom Sheet */}
       {showMobileSectionModal && (
         <div
-          className="modal-overlay"
-          style={{ zIndex: 1200, padding: 16 }}
+          className="modal-overlay tm-mobile-sheet-overlay"
+          style={{ zIndex: 1200 }}
           onClick={() => setShowMobileSectionModal(false)}
         >
           <div
-            className="tm-mobile-section-modal"
+            className="tm-mobile-section-modal tm-mobile-sheet"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="tm-sheet-handle" />
             <div className="tm-mobile-section-modal-header">
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Floor Sections</h3>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-label-secondary)' }}>
-                  Tap any room to jump straight to its tables
-                </p>
-              </div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Floor Sections</h3>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="tm-sheet-close-btn"
                 onClick={() => setShowMobileSectionModal(false)}
                 aria-label="Close"
-                style={{ width: 34, height: 34, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <X size={16} />
               </button>
@@ -1353,11 +1357,14 @@ export default function TableMap() {
                     setShowMobileSectionModal(false);
                   }}
                 >
-                  <div>
-                    <div className="tm-mobile-section-item-title">All Sections</div>
-                    <div className="tm-mobile-section-item-sub">{tables.length} tables total</div>
+                  <div className="tm-mobile-section-item-left">
+                    <span className="tm-section-dot all" />
+                    <span className="tm-mobile-section-item-title">All Sections</span>
                   </div>
-                  {activeFloor === 'all' && <Check size={16} color="#10b981" />}
+                  <div className="tm-mobile-section-item-right">
+                    <span className="tm-section-count-pill">{tables.length}</span>
+                    {activeFloor === 'all' && <Check size={16} color="#10b981" strokeWidth={2.5} />}
+                  </div>
                 </button>
               )}
 
@@ -1374,11 +1381,14 @@ export default function TableMap() {
                       setShowMobileSectionModal(false);
                     }}
                   >
-                    <div>
-                      <div className="tm-mobile-section-item-title">{floor}</div>
-                      <div className="tm-mobile-section-item-sub">{floorCount} {floorCount === 1 ? 'table' : 'tables'}</div>
+                    <div className="tm-mobile-section-item-left">
+                      <span className="tm-section-dot" />
+                      <span className="tm-mobile-section-item-title">{floor}</span>
                     </div>
-                    {isSelected && <Check size={16} color="#10b981" />}
+                    <div className="tm-mobile-section-item-right">
+                      <span className="tm-section-count-pill">{floorCount}</span>
+                      {isSelected && <Check size={16} color="#10b981" strokeWidth={2.5} />}
+                    </div>
                   </button>
                 );
               })}
