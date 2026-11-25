@@ -15,7 +15,7 @@ import {
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
   Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
-  ArrowLeft, Bell
+  ArrowLeft, Bell, ChevronDown, MoreHorizontal, Check
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
@@ -131,6 +131,8 @@ export default function TableMap() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [showMobileSectionModal, setShowMobileSectionModal] = useState(false);
+  const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
   // View mode: 'grid' (fast, clutter-free operations; mode === 'map' && activeFloor === 'all' guard retained for tests)
@@ -956,7 +958,26 @@ export default function TableMap() {
             <span>POS</span>
           </button>
 
-          <div className="tm-toolbar-divider" />
+          {/* Mobile 1-Tap Section Picker Button (replaces horizontal scroll rail on phones) */}
+          <button
+            type="button"
+            className="tm-mobile-section-btn"
+            onClick={() => {
+              setShowMobileMoreMenu(false);
+              setShowMobileSectionModal(true);
+            }}
+            aria-label="Choose floor section"
+          >
+            <span className="tm-mobile-section-label">
+              {activeFloor === 'all' ? 'All Sections' : activeFloor}
+            </span>
+            <span className="tm-floor-badge">
+              {activeFloor === 'all' ? tables.length : tables.filter(t => (t.floor || 'Ground Floor') === activeFloor).length}
+            </span>
+            <ChevronDown size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+          </button>
+
+          <div className="tm-toolbar-divider tm-desktop-only" />
 
           {/* Floor Navigation Tabs */}
           <div className="tm-floor-tabs-group" role="tablist" aria-label="Floors">
@@ -1063,10 +1084,10 @@ export default function TableMap() {
 
         {/* Right Side: Live Revenue, Search, View Switcher & Edit Mode */}
         <div className="tm-controls-right">
-          {/* Live Active Dining Revenue Badge */}
+          {/* Live Active Dining Revenue Badge (Desktop) */}
           {floorMetrics.liveRevenue > 0 && (
             <div
-              className="tm-revenue-badge"
+              className="tm-revenue-badge tm-desktop-only"
               title={`Active dining sales on ${activeFloor}`}
             >
               <TrendingUp size={12} className="tm-revenue-icon" />
@@ -1112,11 +1133,11 @@ export default function TableMap() {
             )}
           </div>
 
-          <div className="tm-toolbar-divider" />
+          <div className="tm-toolbar-divider tm-desktop-only" />
 
-          {/* Management tools for manager/owner */}
+          {/* Management tools for manager/owner (Desktop) */}
           {canEditLayout && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div className="tm-desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-primary btn-sm tm-add-table-btn"
@@ -1160,12 +1181,209 @@ export default function TableMap() {
             </div>
           )}
 
-          {/* Theme Toggle Button */}
-          <div style={{ marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}>
+          {/* Theme Toggle Button (Desktop) */}
+          <div className="tm-desktop-only" style={{ marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}>
             <ThemeToggle />
+          </div>
+
+          {/* Mobile Overflow Manage Menu Button */}
+          <div className="tm-mobile-more-wrap">
+            <button
+              type="button"
+              className="tm-mobile-more-btn"
+              onClick={() => setShowMobileMoreMenu(v => !v)}
+              aria-label="Table filters and options"
+              aria-expanded={showMobileMoreMenu}
+            >
+              <MoreHorizontal size={17} />
+            </button>
+
+            {showMobileMoreMenu && (
+              <>
+                <div
+                  className="tm-mobile-popover-backdrop"
+                  onClick={() => setShowMobileMoreMenu(false)}
+                />
+                <div className="tm-mobile-more-popover">
+                  {floorMetrics.liveRevenue > 0 && (
+                    <div className="tm-mobile-more-rev">
+                      <span>Active Dining</span>
+                      <strong>{formatCurrency(floorMetrics.liveRevenue, currency)}</strong>
+                    </div>
+                  )}
+
+                  <div className="tm-mobile-more-section-label">Table Status</div>
+                  <div className="tm-mobile-status-grid">
+                    <button
+                      type="button"
+                      className={`tm-pill ${statusFilter === 'all' ? 'tm-pill--active tm-pill--all' : ''}`}
+                      onClick={() => { setStatusFilter('all'); setShowMobileMoreMenu(false); }}
+                    >
+                      All ({floorTables.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`tm-pill ${statusFilter === 'free' ? 'tm-pill--active tm-pill--free' : ''}`}
+                      onClick={() => { setStatusFilter(statusFilter === 'free' ? 'all' : 'free'); setShowMobileMoreMenu(false); }}
+                    >
+                      Free ({floorMetrics.free})
+                    </button>
+                    <button
+                      type="button"
+                      className={`tm-pill ${statusFilter === 'occupied' ? 'tm-pill--active tm-pill--occupied' : ''}`}
+                      onClick={() => { setStatusFilter(statusFilter === 'occupied' ? 'all' : 'occupied'); setShowMobileMoreMenu(false); }}
+                    >
+                      Seated ({floorMetrics.occupied})
+                    </button>
+                    {floorMetrics.reserved > 0 && (
+                      <button
+                        type="button"
+                        className={`tm-pill ${statusFilter === 'reserved' ? 'tm-pill--active tm-pill--reserved' : ''}`}
+                        onClick={() => { setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved'); setShowMobileMoreMenu(false); }}
+                      >
+                        Reserved ({floorMetrics.reserved})
+                      </button>
+                    )}
+                  </div>
+
+                  {canEditLayout && (
+                    <>
+                      <div className="tm-mobile-more-section-label">Manage Floor</div>
+                      <div className="tm-mobile-more-actions">
+                        <button
+                          type="button"
+                          className="tm-mobile-action-row"
+                          onClick={() => { setShowMobileMoreMenu(false); handleAddTable(); }}
+                        >
+                          <Plus size={15} color="#10b981" />
+                          <span>Add Table</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="tm-mobile-action-row"
+                          onClick={() => { setShowMobileMoreMenu(false); handleAddFloor(); }}
+                        >
+                          <Building2 size={15} />
+                          <span>Add Room / Section</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="tm-mobile-action-row"
+                          onClick={() => { setShowMobileMoreMenu(false); handleOpenBulkModal(); }}
+                        >
+                          <Wand2 size={15} />
+                          <span>Bulk Generate Tables</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="tm-mobile-action-row"
+                          disabled={tables.length === 0}
+                          onClick={() => { setShowMobileMoreMenu(false); handlePrintAllQRs(); }}
+                        >
+                          <Printer size={15} />
+                          <span>Print All QR Codes</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="tm-mobile-more-theme-row">
+                    <span>Appearance</span>
+                    <ThemeToggle />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Mobile 1-Tap Section Picker Modal */}
+      {showMobileSectionModal && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 1200, padding: 16 }}
+          onClick={() => setShowMobileSectionModal(false)}
+        >
+          <div
+            className="tm-mobile-section-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="tm-mobile-section-modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Floor Sections</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                  Tap any room to jump straight to its tables
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowMobileSectionModal(false)}
+                aria-label="Close"
+                style={{ width: 34, height: 34, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="tm-mobile-section-list">
+              {allFloors.length > 1 && (
+                <button
+                  type="button"
+                  className={`tm-mobile-section-item ${activeFloor === 'all' ? 'active' : ''}`}
+                  onClick={() => {
+                    handleFloorTabClick('all');
+                    setShowMobileSectionModal(false);
+                  }}
+                >
+                  <div>
+                    <div className="tm-mobile-section-item-title">All Sections</div>
+                    <div className="tm-mobile-section-item-sub">{tables.length} tables total</div>
+                  </div>
+                  {activeFloor === 'all' && <Check size={16} color="#10b981" />}
+                </button>
+              )}
+
+              {allFloors.map(floor => {
+                const floorCount = tables.filter(t => (t.floor || 'Ground Floor') === floor).length;
+                const isSelected = activeFloor === floor;
+                return (
+                  <button
+                    key={floor}
+                    type="button"
+                    className={`tm-mobile-section-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => {
+                      handleFloorTabClick(floor);
+                      setShowMobileSectionModal(false);
+                    }}
+                  >
+                    <div>
+                      <div className="tm-mobile-section-item-title">{floor}</div>
+                      <div className="tm-mobile-section-item-sub">{floorCount} {floorCount === 1 ? 'table' : 'tables'}</div>
+                    </div>
+                    {isSelected && <Check size={16} color="#10b981" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {canEditLayout && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: '100%', minHeight: 42, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4 }}
+                onClick={() => {
+                  setShowMobileSectionModal(false);
+                  handleAddFloor();
+                }}
+              >
+                <Plus size={15} /> Add New Room
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ═══ VIEW MODE: QUICK GRID (TOUCH & SMALL DEVICE OPTIMIZED) ═══ */}
       {viewMode === 'grid' && (
