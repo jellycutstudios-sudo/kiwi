@@ -389,68 +389,38 @@ export default function WaiterReadySlidePopup() {
                   READY
                 </span>
 
-                {/* Clean Micro Pager + 1-Tap Pass Queue Toggle */}
+                {/* Single Touch-Friendly Queue Pill (replaces tiny < 1/5 > arrows) */}
                 {readyOrdersList.length > 1 && (
-                  <div 
-                    onClick={(e) => e.stopPropagation()}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsQueueOpen(prev => !prev);
+                      setIsExpanded(false);
+                    }}
+                    title={`View all ${readyOrdersList.length} ready orders`}
+                    aria-label={`View all ${readyOrdersList.length} ready orders`}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 2,
-                      background: isQueueOpen ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.1)',
-                      border: isQueueOpen ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
-                      borderRadius: 12,
-                      padding: '2px 6px',
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      color: isQueueOpen ? '#6ee7b7' : '#cbd5e1',
+                      gap: 4,
+                      height: 28,
+                      padding: '0 10px',
+                      borderRadius: 14,
+                      background: isQueueOpen ? 'rgba(16, 185, 129, 0.24)' : 'rgba(255, 255, 255, 0.12)',
+                      border: isQueueOpen ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(255, 255, 255, 0.16)',
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      color: isQueueOpen ? '#6ee7b7' : '#e2e8f0',
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
+                      cursor: 'pointer',
+                      touchAction: 'manipulation',
                     }}
                   >
-                    <button
-                      type="button"
-                      onClick={handleSwitchPrevOrder}
-                      title="Previous order"
-                      aria-label="Previous ready order"
-                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
-                    >
-                      <ChevronLeft size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsQueueOpen(prev => !prev);
-                        setIsExpanded(false);
-                      }}
-                      title={`View all ${readyOrdersList.length} ready orders`}
-                      aria-label={`View all ${readyOrdersList.length} ready orders`}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                        padding: '0 4px',
-                        fontSize: 10.5,
-                        fontWeight: 800,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 2,
-                      }}
-                    >
-                      <span>{currentIndex + 1}/{readyOrdersList.length}</span>
-                      {isQueueOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSwitchNextOrder}
-                      title="Next order"
-                      aria-label="Next ready order"
-                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
-                    >
-                      <ChevronRight size={13} />
-                    </button>
-                  </div>
+                    <span>{currentIndex + 1}/{readyOrdersList.length}</span>
+                    {isQueueOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
                 )}
               </div>
 
@@ -554,34 +524,6 @@ export default function WaiterReadySlidePopup() {
             </button>
           )}
 
-          {/* Bill Button */}
-          <button
-            type="button"
-            onClick={(e) => handlePrintReceipt(currentOrder, e)}
-            className="waiter-ready-bill-btn"
-            title="Print Customer Bill / Receipt"
-            style={{
-              height: 40,
-              padding: '0 14px',
-              borderRadius: 20,
-              background: 'rgba(255, 255, 255, 0.12)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              color: '#ffffff',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-              touchAction: 'manipulation',
-            }}
-          >
-            <Printer size={15} />
-            <span>Bill</span>
-          </button>
-
           {/* Primary Action Button: "Mark Served" or "Hand Over" */}
           <button
             type="button"
@@ -590,22 +532,22 @@ export default function WaiterReadySlidePopup() {
             id="food-ready-serve-btn"
             className="waiter-ready-serve-btn"
             style={{
-              height: 40,
-              padding: '0 16px',
-              borderRadius: 20,
+              height: 42,
+              padding: '0 18px',
+              borderRadius: 21,
               background: isTakeaway
                 ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
                 : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               border: 'none',
               color: '#ffffff',
-              fontSize: 13,
-              fontWeight: 700,
+              fontSize: 13.5,
+              fontWeight: 800,
               cursor: isServing ? 'default' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               boxShadow: isTakeaway ? '0 3px 12px rgba(245, 158, 11, 0.4)' : '0 3px 12px rgba(16, 185, 129, 0.4)',
-              transition: 'all 0.15s ease',
+              transition: 'none',
               whiteSpace: 'nowrap',
               touchAction: 'manipulation',
             }}
@@ -682,11 +624,13 @@ export default function WaiterReadySlidePopup() {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 10,
-                      padding: '7px 9px',
-                      borderRadius: 9,
+                      minHeight: 52,
+                      padding: '9px 10px',
+                      borderRadius: 10,
                       background: isSelected ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.04)',
                       border: isSelected ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.06)',
                       cursor: 'pointer',
+                      touchAction: 'manipulation',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
@@ -735,23 +679,23 @@ export default function WaiterReadySlidePopup() {
                         handleMarkServed(ord);
                       }}
                       style={{
-                        height: 28,
-                        padding: '0 10px',
-                        borderRadius: 14,
+                        height: 36,
+                        padding: '0 14px',
+                        borderRadius: 18,
                         border: 'none',
                         background: ordTakeaway ? '#d97706' : '#059669',
                         color: '#ffffff',
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 800,
                         cursor: isServing ? 'default' : 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 4,
+                        gap: 5,
                         flexShrink: 0,
                         touchAction: 'manipulation',
                       }}
                     >
-                      <Check size={12} strokeWidth={3} />
+                      <Check size={13} strokeWidth={3} />
                       <span>{isRowServing ? '...' : (ordTakeaway ? 'Hand Over' : 'Served')}</span>
                     </button>
                   </div>
@@ -759,18 +703,21 @@ export default function WaiterReadySlidePopup() {
               })}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, padding: '0 4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, padding: '0 4px', gap: 8 }}>
               <button
                 type="button"
                 onClick={handleDismissAll}
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: 11.5,
+                  height: 36,
+                  padding: '0 12px',
+                  borderRadius: 18,
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#cbd5e1',
+                  fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  padding: '4px 6px',
+                  touchAction: 'manipulation',
                 }}
               >
                 Dismiss All
@@ -780,15 +727,16 @@ export default function WaiterReadySlidePopup() {
                 disabled={isServing}
                 onClick={handleServeAll}
                 style={{
-                  height: 28,
-                  padding: '0 12px',
-                  borderRadius: 14,
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  background: 'rgba(16, 185, 129, 0.16)',
+                  height: 36,
+                  padding: '0 16px',
+                  borderRadius: 18,
+                  border: '1px solid rgba(16, 185, 129, 0.45)',
+                  background: 'rgba(16, 185, 129, 0.2)',
                   color: '#6ee7b7',
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: 800,
                   cursor: isServing ? 'default' : 'pointer',
+                  touchAction: 'manipulation',
                 }}
               >
                 Serve All ({readyOrdersList.length})
@@ -833,16 +781,36 @@ export default function WaiterReadySlidePopup() {
               ))}
             </div>
 
-            {/* Footer attribution */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, fontSize: 10.5, color: '#94a3b8', padding: '0 4px' }}>
+            {/* Footer attribution + secondary Bill print */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#94a3b8', padding: '0 4px' }}>
               <span>
                 {currentOrder.assignedWaiterName
                   ? `Server: ${currentOrder.assignedWaiterName}`
                   : (currentOrder.staffName ? `Punched by: ${currentOrder.staffName}` : (isTakeaway ? 'Takeaway Counter' : 'Open Floor'))}
+                {currentOrder.token ? ` · Token #${currentOrder.token}` : ''}
               </span>
-              {currentOrder.token && (
-                <span>Token #{currentOrder.token}</span>
-              )}
+              <button
+                type="button"
+                onClick={(e) => handlePrintReceipt(currentOrder, e)}
+                style={{
+                  height: 28,
+                  padding: '0 10px',
+                  borderRadius: 14,
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.18)',
+                  color: '#ffffff',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  touchAction: 'manipulation',
+                }}
+              >
+                <Printer size={12} />
+                <span>Print Bill</span>
+              </button>
             </div>
           </div>
         )}
