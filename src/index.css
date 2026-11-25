@@ -18241,8 +18241,32 @@ html.dark .settings-nav-item.active .settings-nav-icon {
 }
 
 /* POS Terminal Fullscreen Focus Mode */
-.pos-focus-mode .sidebar {
+.pos-focus-mode .sidebar:not(.mobile-open) {
   display: none !important;
+}
+.pos-focus-mode .sidebar.mobile-open {
+  display: flex !important;
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(280px, 86vw) !important;
+  transform: translateX(0) !important;
+  z-index: calc(var(--z-overlay) + 10) !important;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.55);
+}
+.pos-focus-mode .mobile-sidebar-overlay {
+  display: block !important;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-overlay);
+  cursor: pointer;
+  touch-action: manipulation;
 }
 .pos-focus-mode .main-content {
   margin-left: 0 !important;
