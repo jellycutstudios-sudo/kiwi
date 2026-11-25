@@ -1197,121 +1197,122 @@ export default function TableMap() {
             >
               <MoreHorizontal size={17} />
             </button>
-
-            {showMobileMoreMenu && (
-              <div
-                className="modal-overlay"
-                style={{ zIndex: 1200, padding: 16 }}
-                onClick={() => setShowMobileMoreMenu(false)}
-              >
-                <div
-                  className="tm-mobile-more-popover"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="tm-mobile-section-modal-header">
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Floor Options</h3>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setShowMobileMoreMenu(false)}
-                      aria-label="Close"
-                      style={{ width: 32, height: 32, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                  {floorMetrics.liveRevenue > 0 && (
-                    <div className="tm-mobile-more-rev">
-                      <span>Active Dining</span>
-                      <strong>{formatCurrency(floorMetrics.liveRevenue, currency)}</strong>
-                    </div>
-                  )}
-
-                  <div className="tm-mobile-more-section-label">Table Status</div>
-                  <div className="tm-mobile-status-grid">
-                    <button
-                      type="button"
-                      className={`tm-pill ${statusFilter === 'all' ? 'tm-pill--active tm-pill--all' : ''}`}
-                      onClick={() => { setStatusFilter('all'); setShowMobileMoreMenu(false); }}
-                    >
-                      All ({floorTables.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`tm-pill ${statusFilter === 'free' ? 'tm-pill--active tm-pill--free' : ''}`}
-                      onClick={() => { setStatusFilter(statusFilter === 'free' ? 'all' : 'free'); setShowMobileMoreMenu(false); }}
-                    >
-                      Free ({floorMetrics.free})
-                    </button>
-                    <button
-                      type="button"
-                      className={`tm-pill ${statusFilter === 'occupied' ? 'tm-pill--active tm-pill--occupied' : ''}`}
-                      onClick={() => { setStatusFilter(statusFilter === 'occupied' ? 'all' : 'occupied'); setShowMobileMoreMenu(false); }}
-                    >
-                      Seated ({floorMetrics.occupied})
-                    </button>
-                    {floorMetrics.reserved > 0 && (
-                      <button
-                        type="button"
-                        className={`tm-pill ${statusFilter === 'reserved' ? 'tm-pill--active tm-pill--reserved' : ''}`}
-                        onClick={() => { setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved'); setShowMobileMoreMenu(false); }}
-                      >
-                        Reserved ({floorMetrics.reserved})
-                      </button>
-                    )}
-                  </div>
-
-                  {canEditLayout && (
-                    <>
-                      <div className="tm-mobile-more-section-label">Manage Floor</div>
-                      <div className="tm-mobile-more-actions">
-                        <button
-                          type="button"
-                          className="tm-mobile-action-row"
-                          onClick={() => { setShowMobileMoreMenu(false); handleAddTable(); }}
-                        >
-                          <Plus size={15} color="#10b981" />
-                          <span>Add Table</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="tm-mobile-action-row"
-                          onClick={() => { setShowMobileMoreMenu(false); handleAddFloor(); }}
-                        >
-                          <Building2 size={15} />
-                          <span>Add Room / Section</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="tm-mobile-action-row"
-                          onClick={() => { setShowMobileMoreMenu(false); handleOpenBulkModal(); }}
-                        >
-                          <Wand2 size={15} />
-                          <span>Bulk Generate Tables</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="tm-mobile-action-row"
-                          disabled={tables.length === 0}
-                          onClick={() => { setShowMobileMoreMenu(false); handlePrintAllQRs(); }}
-                        >
-                          <Printer size={15} />
-                          <span>Print All QR Codes</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="tm-mobile-more-theme-row">
-                    <span>Appearance</span>
-                    <ThemeToggle />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Mobile Floor Options Modal (rendered outside .tm-controls-bar backdrop-filter) */}
+      {showMobileMoreMenu && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 1200, padding: 16 }}
+          onClick={() => setShowMobileMoreMenu(false)}
+        >
+          <div
+            className="tm-mobile-more-popover"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="tm-mobile-section-modal-header">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Floor Options</h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowMobileMoreMenu(false)}
+                aria-label="Close"
+                style={{ width: 32, height: 32, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            {floorMetrics.liveRevenue > 0 && (
+              <div className="tm-mobile-more-rev">
+                <span>Active Dining</span>
+                <strong>{formatCurrency(floorMetrics.liveRevenue, currency)}</strong>
+              </div>
+            )}
+
+            <div className="tm-mobile-more-section-label">Table Status</div>
+            <div className="tm-mobile-status-grid">
+              <button
+                type="button"
+                className={`tm-pill ${statusFilter === 'all' ? 'tm-pill--active tm-pill--all' : ''}`}
+                onClick={() => { setStatusFilter('all'); setShowMobileMoreMenu(false); }}
+              >
+                All ({floorTables.length})
+              </button>
+              <button
+                type="button"
+                className={`tm-pill ${statusFilter === 'free' ? 'tm-pill--active tm-pill--free' : ''}`}
+                onClick={() => { setStatusFilter(statusFilter === 'free' ? 'all' : 'free'); setShowMobileMoreMenu(false); }}
+              >
+                Free ({floorMetrics.free})
+              </button>
+              <button
+                type="button"
+                className={`tm-pill ${statusFilter === 'occupied' ? 'tm-pill--active tm-pill--occupied' : ''}`}
+                onClick={() => { setStatusFilter(statusFilter === 'occupied' ? 'all' : 'occupied'); setShowMobileMoreMenu(false); }}
+              >
+                Seated ({floorMetrics.occupied})
+              </button>
+              {floorMetrics.reserved > 0 && (
+                <button
+                  type="button"
+                  className={`tm-pill ${statusFilter === 'reserved' ? 'tm-pill--active tm-pill--reserved' : ''}`}
+                  onClick={() => { setStatusFilter(statusFilter === 'reserved' ? 'all' : 'reserved'); setShowMobileMoreMenu(false); }}
+                >
+                  Reserved ({floorMetrics.reserved})
+                </button>
+              )}
+            </div>
+
+            {canEditLayout && (
+              <>
+                <div className="tm-mobile-more-section-label">Manage Floor</div>
+                <div className="tm-mobile-more-actions">
+                  <button
+                    type="button"
+                    className="tm-mobile-action-row"
+                    onClick={() => { setShowMobileMoreMenu(false); handleAddTable(); }}
+                  >
+                    <Plus size={15} color="#10b981" />
+                    <span>Add Table</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tm-mobile-action-row"
+                    onClick={() => { setShowMobileMoreMenu(false); handleAddFloor(); }}
+                  >
+                    <Building2 size={15} />
+                    <span>Add Room / Section</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tm-mobile-action-row"
+                    onClick={() => { setShowMobileMoreMenu(false); handleOpenBulkModal(); }}
+                  >
+                    <Wand2 size={15} />
+                    <span>Bulk Generate Tables</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tm-mobile-action-row"
+                    disabled={tables.length === 0}
+                    onClick={() => { setShowMobileMoreMenu(false); handlePrintAllQRs(); }}
+                  >
+                    <Printer size={15} />
+                    <span>Print All QR Codes</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div className="tm-mobile-more-theme-row">
+              <span>Appearance</span>
+              <ThemeToggle />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile 1-Tap Section Picker Modal */}
       {showMobileSectionModal && (
