@@ -22045,32 +22045,121 @@ html.dark .btn-secondary:hover {
 }
 
 @media (max-width: 640px) {
+  .orders-modal-subtitle,
+  .orders-view-label {
+    display: none !important;
+  }
+
+  .orders-modal-title {
+    font-size: 15.5px !important;
+  }
+
+  .orders-view-btn {
+    padding: 6px 9px !important;
+  }
+
   .orders-center-tabs {
     padding: 0 10px;
-    gap: 4px;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .orders-center-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .orders-center-tab {
     padding: 10px 8px;
-    font-size: 12px;
+    font-size: 11.5px;
     gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
-  /* Hide non-essential separate columns on mobile to ensure perfect minimal fit */
-  .orders-table th.col-time,
+  .orders-filter-bar {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+
+  .orders-filter-pills {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    width: 100%;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .orders-filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+  .orders-filter-pills > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+    height: 34px !important;
+  }
+
+  /* Hide non-essential separate columns & convert each table row into a 2-row touch card */
+  .orders-table thead {
+    display: none !important;
+  }
+
+  .orders-table tbody,
+  .orders-table {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .orders-table tbody tr {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 14px !important;
+    gap: 8px 10px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
   .orders-table td.col-time,
-  .orders-table th.col-items,
   .orders-table td.col-items,
-  .orders-table th.col-status,
   .orders-table td.col-status {
     display: none !important;
+  }
+
+  .orders-table tbody td {
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .orders-table tbody td:first-child {
+    flex: 1 1 60% !important;
+    min-width: 0 !important;
+  }
+
+  .orders-table tbody td:last-child {
+    flex: 1 0 100% !important;
+    padding-top: 4px !important;
+  }
+
+  .orders-table tbody td:last-child > div {
+    width: 100% !important;
+    justify-content: stretch !important;
+    gap: 8px !important;
+  }
+
+  .orders-table tbody td:last-child button {
+    flex: 1 1 0 !important;
+    height: 36px !important;
+    justify-content: center !important;
+    border-radius: 9px !important;
+    font-size: 12px !important;
   }
 
   .orders-mobile-sub {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    margin-top: 3px;
+    margin-top: 4px;
+    white-space: nowrap;
   }
 
   .orders-btn-card-upi {
@@ -22078,7 +22167,7 @@ html.dark .btn-secondary:hover {
   }
 
   .orders-btn-bill {
-    padding: 0 5px !important;
+    padding: 0 8px !important;
   }
 }
 

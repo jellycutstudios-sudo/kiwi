@@ -371,16 +371,16 @@ export default function ActiveOrdersModal({
               <FileText size={20} />
             </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: '#ffffff' }}>
+              <h2 className="orders-modal-title" style={{ fontSize: 17, fontWeight: 800, margin: 0, color: '#ffffff' }}>
                 Order Center &amp; Kitchen Pass
               </h2>
-              <p style={{ fontSize: 12, color: 'var(--color-label-secondary, #94a3b8)', margin: '2px 0 0' }}>
+              <p className="orders-modal-subtitle" style={{ fontSize: 12, color: 'var(--color-label-secondary, #94a3b8)', margin: '2px 0 0' }}>
                 Track live orders, reprint completed customer receipts, and review void audit logs
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* View Switcher: Table vs Cards (only active on Open Orders) */}
             {activeTab === 'open' && (
               <div className="orders-view-switcher">
@@ -390,7 +390,7 @@ export default function ActiveOrdersModal({
                   className={`orders-view-btn ${viewMode === 'table' ? 'active' : ''}`}
                   title="Compact Table / List View"
                 >
-                  <LayoutList size={13} /> Table View
+                  <LayoutList size={14} /> <span className="orders-view-label">Table View</span>
                 </button>
                 <button
                   type="button"
@@ -398,7 +398,7 @@ export default function ActiveOrdersModal({
                   className={`orders-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
                   title="Visual Kitchen Cards"
                 >
-                  <LayoutGrid size={13} /> Cards View
+                  <LayoutGrid size={14} /> <span className="orders-view-label">Cards View</span>
                 </button>
               </div>
             )}
@@ -449,7 +449,7 @@ export default function ActiveOrdersModal({
         </div>
 
         {/* Filter Pills & Quick Search Bar */}
-        <div style={{
+        <div className="orders-filter-bar" style={{
           padding: '10px 20px',
           borderBottom: '1px solid var(--color-separator-opaque, rgba(255, 255, 255, 0.08))',
           display: 'flex',
@@ -461,7 +461,7 @@ export default function ActiveOrdersModal({
         }}>
           {/* Channel Filters (Shown on Open Orders Tab) */}
           {activeTab === 'open' ? (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div className="orders-filter-pills" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-secondary'}`}
