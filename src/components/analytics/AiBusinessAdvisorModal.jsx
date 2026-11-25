@@ -388,7 +388,7 @@ export default function AiBusinessAdvisorModal({
           }
         ]);
         setIsAiLoading(false);
-      }, 250);
+      }, 480);
       return;
     }
 
@@ -518,16 +518,37 @@ export default function AiBusinessAdvisorModal({
 
           <div className="ai-sidebar-brand-status">
             <span>{restaurant.name || 'DineOS POS'}</span>
-            <span className="ai-status-active">
-              <Zap size={11} /> Ready
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setTempKeyInput(apiKey);
+                  setShowKeyConfig(!showKeyConfig);
+                }}
+                title="Configure Groq Cloud API Key"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}
+              >
+                <Key size={13} />
+              </button>
+              <span className="ai-status-active">
+                <Zap size={11} /> Ready
+              </span>
+            </div>
           </div>
         </div>
       </aside>
 
       {/* Main Conversational Workspace */}
       <main className="ai-main-workspace">
-        {/* Top Header Navigation */}
+        {/* Minimal Top Header Navigation */}
         <header className="ai-workspace-nav">
           <div className="ai-nav-left">
             <button
@@ -540,11 +561,6 @@ export default function AiBusinessAdvisorModal({
             </button>
 
             <div className="ai-nav-title-group">
-              <div className="ai-brand-badge">
-                <Sparkles size={14} className="ai-sparkle-spin" />
-                <h2 className="ai-nav-brand-title">DineOS Advisor</h2>
-              </div>
-              
               <div style={{ position: 'relative' }}>
                 <button 
                   type="button" 
@@ -553,12 +569,12 @@ export default function AiBusinessAdvisorModal({
                   title="Switch AI Model or Plan B"
                 >
                   {selectedModel === 'plan-b-local' ? (
-                    <ShieldCheck size={13} color="#10b981" />
+                    <ShieldCheck size={14} color="#34d399" />
                   ) : (
-                    <Bot size={13} color="#38bdf8" />
+                    <Sparkles size={14} color="#34d399" />
                   )}
-                  <span className="ai-model-pill-text">{currentModelObj.name}</span>
-                  <ChevronDown size={12} />
+                  <span className="ai-model-pill-text">DineOS AI · {currentModelObj.name}</span>
+                  <ChevronDown size={13} />
                 </button>
 
                 {showModelPicker && (
@@ -602,32 +618,9 @@ export default function AiBusinessAdvisorModal({
                 title="Clear Chat Conversation"
               >
                 <Trash2 size={13} />
-                <span>Clear Chat</span>
+                <span>Clear</span>
               </button>
             )}
-
-            <button
-              type="button"
-              className={`ai-pulse-toggle-btn ${showPulse ? 'active' : ''}`}
-              onClick={() => setShowPulse(!showPulse)}
-              title="Toggle Live Business Pulse KPI Cards"
-            >
-              <Zap size={13} />
-              <span>Business Pulse</span>
-              {showPulse ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-
-            <button
-              type="button"
-              className="ai-icon-toggle-btn"
-              onClick={() => {
-                setTempKeyInput(apiKey);
-                setShowKeyConfig(!showKeyConfig);
-              }}
-              title="Configure Groq Cloud API Key"
-            >
-              <Key size={15} />
-            </button>
 
             <button
               type="button"
@@ -875,7 +868,8 @@ export default function AiBusinessAdvisorModal({
         {/* Bottom Floating Prompt Capsule */}
         <footer className="ai-workspace-input-container">
           <div className="ai-input-center-wrap">
-            {/* Quick Follow-up Chips with vibrant styling */}
+            {/* Show quick starter chips only before conversation starts */}
+            {isChatEmpty && (
             <div className="ai-quick-chips-row">
               {QUICK_CHIPS.map((chip, idx) => (
                 <button
@@ -890,6 +884,7 @@ export default function AiBusinessAdvisorModal({
                 </button>
               ))}
             </div>
+            )}
 
             {/* Floating Capsule Bar */}
             <div className="ai-floating-capsule">
