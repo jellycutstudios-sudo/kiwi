@@ -61,18 +61,18 @@ describe('Matte Monochrome Palette System', () => {
     expect(ncRules).toContain('color: #e2e8f0 !important');
   });
 
-  it('sets sidebar active nav item to high-contrast monochrome', () => {
+  it('sets sidebar active nav item to crisp elevated Linear-style indicator', () => {
     // Dark mode
     const darkNavMatch = css.match(/\[data-theme="dark"\]\s+\.sidebar\.collapsed\s+\.nav-item\.active,\s*\[data-theme="dark"\]\s+\.nav-item\.active\s*\{([^}]+)\}/);
     expect(darkNavMatch).not.toBeNull();
-    expect(darkNavMatch[1]).toContain('background: #ffffff !important');
-    expect(darkNavMatch[1]).toContain('color: #09090b !important');
+    expect(darkNavMatch[1]).toContain('background: rgba(255, 255, 255, 0.09) !important');
+    expect(darkNavMatch[1]).toContain('color: #ffffff !important');
 
     // Light mode
     const lightNavMatch = css.match(/\.nav-item\.active\s*\{([^}]+)\}/);
     expect(lightNavMatch).not.toBeNull();
-    expect(lightNavMatch[1]).toContain('background: #0f172a');
-    expect(lightNavMatch[1]).toContain('color: #ffffff');
+    expect(lightNavMatch[1]).toContain('background: rgba(16, 185, 129, 0.1)');
+    expect(lightNavMatch[1]).toContain('color: #0f172a');
   });
 
   it('sets dark mode primary buttons to solid matte white pill with dark text', () => {
