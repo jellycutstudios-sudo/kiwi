@@ -9298,26 +9298,31 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
     padding: 6px 8px !important;
     gap: 8px !important;
   }
+
   .tm-controls-left {
     width: auto;
     flex: 1 1 auto;
     overflow: visible;
     gap: 6px;
   }
+
   .tm-controls-right {
     width: auto;
     flex-shrink: 0;
     flex-wrap: nowrap;
     gap: 6px;
   }
+
   .tm-desktop-only,
   .tm-floor-tabs-group,
   .tm-filter-pills {
     display: none !important;
   }
+
   .tm-mobile-section-btn {
     display: inline-flex !important;
   }
+
   .tm-mobile-more-wrap {
     display: inline-flex !important;
   }
@@ -9373,19 +9378,22 @@ html.dark .tm-settle-upi:hover:not(:disabled) {
 }
 
 .tm-mobile-more-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 245px;
-  background: var(--color-bg-elevated);
+  width: 100%;
+  max-width: 340px;
+  background: var(--color-bg-elevated, #ffffff);
   border: 1px solid var(--color-separator);
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
-  z-index: 100;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+[data-theme="dark"] .tm-mobile-more-popover,
+[data-theme="dark"] .tm-mobile-section-modal {
+  background: #121726 !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
 }
 
 .tm-mobile-more-rev {
@@ -10031,7 +10039,7 @@ html.dark .tm-segmented-glider {
   padding: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (min-width: 769px) {
   .tm-controls-bar {
     flex-direction: column;
     align-items: stretch;
@@ -10043,6 +10051,27 @@ html.dark .tm-segmented-glider {
   .tm-controls-right {
     justify-content: space-between;
     width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .tm-controls-bar {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    padding: 6px 8px !important;
+  }
+  .tm-controls-left {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    justify-content: flex-start !important;
+  }
+  .tm-controls-right {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    justify-content: flex-end !important;
   }
 }
 

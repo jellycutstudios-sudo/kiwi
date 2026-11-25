@@ -1036,7 +1036,7 @@ export default function TableMap() {
             )}
           </div>
 
-          <div className="tm-toolbar-divider" />
+          <div className="tm-toolbar-divider tm-desktop-only" />
 
           {/* Status Filter Chips */}
           <div className="tm-filter-pills" role="toolbar" aria-label="Filter tables by status">
@@ -1199,12 +1199,27 @@ export default function TableMap() {
             </button>
 
             {showMobileMoreMenu && (
-              <>
+              <div
+                className="modal-overlay"
+                style={{ zIndex: 1200, padding: 16 }}
+                onClick={() => setShowMobileMoreMenu(false)}
+              >
                 <div
-                  className="tm-mobile-popover-backdrop"
-                  onClick={() => setShowMobileMoreMenu(false)}
-                />
-                <div className="tm-mobile-more-popover">
+                  className="tm-mobile-more-popover"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="tm-mobile-section-modal-header">
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Floor Options</h3>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowMobileMoreMenu(false)}
+                      aria-label="Close"
+                      style={{ width: 32, height: 32, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
                   {floorMetrics.liveRevenue > 0 && (
                     <div className="tm-mobile-more-rev">
                       <span>Active Dining</span>
@@ -1292,7 +1307,7 @@ export default function TableMap() {
                     <ThemeToggle />
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
