@@ -228,6 +228,7 @@ export default function DeliveryHub() {
     enabled: false,
     fields: {},
     commission: 20,
+    markupPercent: 0,
     showSecret: false,
     saving: false
   });
@@ -806,6 +807,7 @@ export default function DeliveryHub() {
       enabled: currentConfig.enabled ?? false,
       fields: initialFields,
       commission: commissions[platformId] ?? 20,
+      markupPercent: currentConfig.markupPercent ?? 0,
       showSecret: false,
       saving: false
     });
@@ -813,23 +815,26 @@ export default function DeliveryHub() {
 
   // Save partner configuration
   const handleSaveConfigModal = async () => {
-    const { platformId, enabled, fields, commission } = configModal;
+    const { platformId, enabled, fields, commission, markupPercent } = configModal;
     if (!platformId || !restaurant?.id) return;
     setConfigModal(prev => ({ ...prev, saving: true }));
     try {
+      const parsedMarkup = Math.max(0, parseFloat(markupPercent) || 0);
       // 1. Securely save credentials to protected deliverySettings subcollection (accessible only by admin & Cloud Functions)
       const secureDocRef = doc(db, 'restaurants', restaurant.id, 'deliverySettings', platformId);
       await setDoc(secureDocRef, {
         ...fields,
         platformId,
         enabled: Boolean(enabled),
+        markupPercent: parsedMarkup,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
       // 2. On root restaurant document, save only non-sensitive configuration (enabled flag & general delivery settings)
       const docRef = doc(db, 'restaurants', restaurant.id);
       const publicPlatformConfig = {
-        enabled: Boolean(enabled)
+        enabled: Boolean(enabled),
+        markupPercent: parsedMarkup
       };
 
       const parsedCommission = parseFloat(commission);
@@ -3093,23 +3098,45 @@ export default function DeliveryHub() {
                 );
               })}
 
-              {/* Commission Rate */}
-              <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 'var(--weight-medium)', fontSize: 'var(--text-subhead)' }}>
-                  Platform Commission Rate (%)
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    className="form-input"
-                    value={configModal.commission}
-                    onChange={e => setConfigModal(prev => ({ ...prev, commission: e.target.value }))}
-                    style={{ maxWidth: 120 }}
-                  />
-                  <span style={{ fontWeight: 'bold' }}>%</span>
+              {/* Commission Rate & Menu Markup */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'var(--weight-medium)', fontSize: 'var(--text-subhead)' }}>
+                    Commission Rate (%)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      className="form-input"
+                      value={configModal.commission}
+                      onChange={e => setConfigModal(prev => ({ ...prev, commission: e.target.value }))}
+                      style={{ maxWidth: 100 }}
+                    />
+                    <span style={{ fontWeight: 'bold' }}>%</span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'var(--weight-medium)', fontSize: 'var(--text-subhead)' }}>
+                    Menu Price Markup (%)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      className="form-input"
+                      value={configModal.markupPercent}
+                      onChange={e => setConfigModal(prev => ({ ...prev, markupPercent: e.target.value }))}
+                      style={{ maxWidth: 100 }}
+                      title="Automatically increase synced prices on this channel to offset commission"
+                    />
+                    <span style={{ fontWeight: 'bold' }}>%</span>
+                  </div>
                 </div>
               </div>
             </div>

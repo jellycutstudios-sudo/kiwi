@@ -42,6 +42,17 @@ async function getPlatformOverrides(restaurantId, platform) {
 }
 
 /**
+ * Apply optional per-channel price markup (%) for delivery aggregators.
+ * Rounds cleanly to 2 decimal places (or nearest integer if whole-number base).
+ */
+function applyChannelMarkup(price, markupPercent = 0) {
+  const base = Number(price) || 0;
+  const pct = Number(markupPercent) || 0;
+  if (pct <= 0 || base <= 0) return base;
+  return Math.round(base * (1 + pct / 100) * 100) / 100;
+}
+
+/**
  * Format menu to Uber Eats Catalog format
  */
 function formatForUberEats(menu, overrides) {
@@ -319,10 +330,21 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
   let headers = {};
   let method = 'POST';
 
+  const markupPct = Number(config?.markupPercent) || 0;
+  const effectiveMenu = markupPct > 0
+    ? menu.map(cat => ({
+        ...cat,
+        items: (cat.items || []).map(item => ({
+          ...item,
+          price: applyChannelMarkup(item.price, markupPct)
+        }))
+      }))
+    : menu;
+
   try {
     switch (platform) {
       case 'ubereats':
-        payload = formatForUberEats(menu, overrides);
+        payload = formatForUberEats(effectiveMenu, overrides);
         url = `https://api.uber.com/v1/stores/${config.storeId}/catalog`;
         headers = {
           'Content-Type': 'application/json',
@@ -331,7 +353,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         method = 'PUT';
         break;
       case 'zomato':
-        payload = formatForZomato(menu, overrides);
+        payload = formatForZomato(effectiveMenu, overrides);
         url = 'https://api.zomato.com/v1/menu/sync';
         headers = {
           'Content-Type': 'application/json',
@@ -340,7 +362,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         };
         break;
       case 'swiggy':
-        payload = formatForSwiggy(menu, overrides);
+        payload = formatForSwiggy(effectiveMenu, overrides);
         url = 'https://api.swiggy.com/v1/menu/sync';
         headers = {
           'Content-Type': 'application/json',
@@ -349,7 +371,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         };
         break;
       case 'deliveroo':
-        payload = formatForDeliveroo(menu, overrides);
+        payload = formatForDeliveroo(effectiveMenu, overrides);
         url = 'https://api.deliveroo.com/v1/menu/sync';
         headers = {
           'Content-Type': 'application/json',
@@ -358,7 +380,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         };
         break;
       case 'talabat':
-        payload = formatForTalabat(menu, overrides);
+        payload = formatForTalabat(effectiveMenu, overrides);
         url = 'https://api.talabat.com/v1/catalog/sync';
         headers = {
           'Content-Type': 'application/json',
@@ -367,7 +389,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         };
         break;
       case 'snoonu':
-        payload = formatForSnoonu(menu, overrides);
+        payload = formatForSnoonu(effectiveMenu, overrides);
         url = 'https://merchant-api.snoonu.com/v1/menu/sync';
         headers = {
           'Content-Type': 'application/json',
@@ -377,7 +399,7 @@ async function syncPlatformMenu(restaurantId, platform, config, menu, overrides)
         break;
       case 'jahez':
       case 'rafeeq':
-        payload = formatForJahez(menu, overrides);
+        payload = formatForJahez(effectiveMenu, overrides);
         url = `https://api.${platform}.com/v1/menu/sync`;
         headers = {
           'Content-Type': 'application/json',

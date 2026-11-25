@@ -3,7 +3,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useBusinessConfig } from '../../hooks/useBusinessConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { Plus, Edit2, Trash2, X, LayoutGrid, List, Search, ChevronDown, ChevronUp, ChevronsUpDown, Camera, ChevronRight, FileSpreadsheet, Languages, Sparkles, GripVertical, ArrowRight, ArrowUpDown, Check, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -907,6 +907,18 @@ export default function MenuEditor() {
         await updateDoc(doc(db, 'restaurants', restaurant.id, 'menu', targetCatId), { items });
       } catch (e) {
         console.warn('[MenuEditor] Toggle availability cloud sync deferred:', e?.message);
+      }
+
+      // Auto-86 sync: push updated stock status to any connected delivery channels
+      const hasDeliveryChannels = Object.values(restaurant?.deliveryIntegrations || {}).some(p => p?.enabled);
+      if (hasDeliveryChannels) {
+        try {
+          const token = await auth.currentUser?.getIdToken?.();
+          if (token) {
+            const syncUrl = `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?restaurantId=${restaurant.id}`;
+            fetch(syncUrl, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+          }
+        } catch {}
       }
     }
     toast.success(nextAvailable ? `${item.name} is now Available` : `${item.name} marked Out of Stock`);

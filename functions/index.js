@@ -335,6 +335,12 @@ exports.handleDeliveryWebhook = onRequest(async (req, res) => {
     // Normalize order
     const normalizedOrder = adapter.normalize(req.body);
 
+    // Apply restaurant-configured commission rate if present (overrides adapter default)
+    const configuredCommission = restData.deliverySettings?.commissions?.[platform];
+    if (typeof configuredCommission === 'number' && !isNaN(configuredCommission)) {
+      normalizedOrder.platformCommission = configuredCommission;
+    }
+
     // Set auto-accept state
     const autoAccept = restData.deliverySettings?.autoAccept ?? false;
     if (autoAccept) {
@@ -364,6 +370,21 @@ exports.handleDeliveryWebhook = onRequest(async (req, res) => {
     }
 
     const savedDoc = await orderRef.add(normalizedOrder);
+
+    // Two-way auto-accept handshake: notify the aggregator immediately when autoAccept is enabled
+    if (autoAccept && normalizedOrder.externalOrderId) {
+      try {
+        await notifyPlatformOrderStatus({
+          platform,
+          config: platformConfig,
+          externalOrderId: normalizedOrder.externalOrderId,
+          status: 'accepted',
+          prepTimeMinutes: Number(restData.deliverySettings?.defaultPrepMinutes) || 20
+        });
+      } catch (cbErr) {
+        console.warn(`[AUTO-ACCEPT] Callback failed for ${platform} order ${normalizedOrder.externalOrderId}:`, cbErr?.message);
+      }
+    }
 
     console.log(`Processed ${platform} order ${normalizedOrder.externalOrderId} -> docId ${savedDoc.id}`);
 
