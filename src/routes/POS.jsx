@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Fragment, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
@@ -88,6 +88,291 @@ const getDisplayPrice = (item, currency) => {
   }
   return { isFrom: false, text: formatCurrency(item?.price || 0, currency) };
 };
+
+/**
+ * 0ms Instant Mouse/Pen Activation: fires immediately on pointerdown instead of
+ * waiting 80-120ms for pointerup/click, while preserving safe drag-scroll on touch.
+ */
+const fireInstantMouse = (e, fn) => {
+  if (e.pointerType !== 'touch' && e.button === 0) {
+    e.currentTarget.dataset.pdHandled = '1';
+    fn(e);
+  }
+};
+
+const fireClickIfNotHandled = (e, fn) => {
+  if (e.currentTarget.dataset.pdHandled === '1') {
+    delete e.currentTarget.dataset.pdHandled;
+    return;
+  }
+  fn(e);
+};
+
+const DenseMenuKeyCard = memo(function DenseMenuKeyCard({
+  item,
+  qty,
+  catColors,
+  catName,
+  showCatTag,
+  formattedPrice,
+  isVegItem,
+  hasModifiers,
+  onActivate,
+  handleIncreaseItem,
+  handleDecreaseItem,
+}) {
+  const triggerActivate = () => {
+    if (item.available === false) return;
+    onActivate(item, hasModifiers);
+  };
+
+  return (
+    <div
+      id={`menu-item-${item.id}`}
+      role="button"
+      tabIndex={0}
+      className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+      style={{ '--key-cat-stripe': catColors.stripe }}
+      onPointerDown={(e) => fireInstantMouse(e, triggerActivate)}
+      onClick={(e) => fireClickIfNotHandled(e, triggerActivate)}
+      onKeyDown={e => {
+        if (item.available === false) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onActivate(item, hasModifiers);
+        }
+      }}
+    >
+      {/* Top Meta Bar: Dietary Icon on left + Badges (Options / SubCategory / Bestseller) on right */}
+      <div className="menu-key-header">
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+          <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+          {showCatTag && catName && (
+            <span className="menu-key-cat-tag" style={{ color: catColors.stripe }}>
+              {catName}
+            </span>
+          )}
+        </div>
+        <div className="menu-key-badges-right">
+          {item.subCategory && (
+            <span className="item-subcat-badge">{item.subCategory}</span>
+          )}
+          {hasModifiers ? (
+            <span className="menu-key-pill menu-key-pill-mod">
+              Options
+            </span>
+          ) : (item.isBestseller || item.bestseller || item.popular) ? (
+            <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
+              <Flame size={10} color="var(--color-orange)" />
+            </span>
+          ) : item.highMargin ? (
+            <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
+              Special
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Title: Unconstrained full-width title area for clean, legible reading */}
+      <div className="menu-key-title-wrap">
+        <span className="menu-key-name" title={item.name}>{item.name}</span>
+      </div>
+
+      {/* Bottom Row: Price display & In-Card Stepper / Action Button */}
+      <div className="menu-key-footer">
+        <div className="menu-key-price-wrap">
+          {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
+          <span className="menu-key-price">{formattedPrice.text}</span>
+        </div>
+        {qty > 0 ? (
+          <div
+            className="pos-card-stepper"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="pos-card-stepper-btn minus"
+              onPointerDown={(e) => { e.stopPropagation(); fireInstantMouse(e, () => handleDecreaseItem(item)); }}
+              onClick={(e) => { e.stopPropagation(); fireClickIfNotHandled(e, () => handleDecreaseItem(item)); }}
+              title="Decrease quantity"
+              aria-label="Decrease quantity"
+            >
+              <Minus size={11} strokeWidth={2.8} />
+            </button>
+            <span className="pos-card-stepper-qty">{qty}</span>
+            <button
+              type="button"
+              className="pos-card-stepper-btn plus"
+              onPointerDown={(e) => { e.stopPropagation(); fireInstantMouse(e, () => handleIncreaseItem(item)); }}
+              onClick={(e) => { e.stopPropagation(); fireClickIfNotHandled(e, () => handleIncreaseItem(item)); }}
+              title="Increase quantity"
+              aria-label="Increase quantity"
+            >
+              <Plus size={11} strokeWidth={2.8} />
+            </button>
+          </div>
+        ) : (
+          <span className="menu-key-action-btn" title="Add to cart">
+            <Plus size={13} strokeWidth={2.5} />
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const VisualMenuItemCard = memo(function VisualMenuItemCard({
+  item,
+  qty,
+  catColors,
+  catName,
+  showCatTag,
+  currency,
+  isVegItem,
+  hasModifiers,
+  formattedPrice,
+  isBogoItem,
+  matchedOffer,
+  visuals,
+  onActivate,
+  handleIncreaseItem,
+  handleDecreaseItem,
+}) {
+  const triggerActivate = () => {
+    if (item.available === false) return;
+    onActivate(item, hasModifiers);
+  };
+
+  return (
+    <div
+      id={`menu-item-${item.id}`}
+      role="button"
+      tabIndex={0}
+      className={`menu-item-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
+      style={{ '--key-cat-stripe': catColors.stripe }}
+      onPointerDown={(e) => fireInstantMouse(e, triggerActivate)}
+      onClick={(e) => fireClickIfNotHandled(e, triggerActivate)}
+      onKeyDown={e => {
+        if (item.available === false) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onActivate(item, hasModifiers);
+        }
+      }}
+    >
+      {/* Veg / Non-Veg Indicator Badge */}
+      <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 'var(--z-raised)' }}>
+        <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+      </div>
+
+      {qty > 0 && (
+        <div className="menu-item-qty-badge">{qty}</div>
+      )}
+
+      {/* Promotional Offer / BOGO Badge */}
+      {isBogoItem ? (
+        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
+          <span>🔥</span><span>BOGO</span>
+        </div>
+      ) : matchedOffer ? (
+        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: matchedOffer.badgeColor || (matchedOffer.type === 'bogo' ? '#ef4444' : '#f59e0b'), color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
+          <span>{matchedOffer.icon || (matchedOffer.type === 'bogo' ? '🔥' : '🍹')}</span>
+          <span>{matchedOffer.type === 'bogo' ? (matchedOffer.tag || 'BOGO') : `${matchedOffer.discountPercent}% OFF`}</span>
+        </div>
+      ) : null}
+
+      <div className={`menu-item-img-wrap ${!(item.imageUrl || item.image) ? 'has-placeholder' : ''}`}>
+        {item.imageUrl || item.image ? (
+          <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
+        ) : (
+          <div
+            className="menu-item-img-placeholder"
+            data-palette={visuals.palette}
+            style={{
+              background: visuals.bg,
+              borderBottom: `1px solid ${visuals.border}`
+            }}
+          >
+            <span
+              className="menu-item-monogram"
+              style={{
+                color: visuals.color,
+                textShadow: `0 0 18px ${visuals.glow}`
+              }}
+            >
+              {visuals.monogram}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="menu-item-body">
+        <div className="menu-item-name" title={item.name}>
+          {showCatTag && catName && (
+            <span className="menu-item-cat-tag" style={{ color: catColors.stripe }}>
+              {catName}
+            </span>
+          )}
+          <span className="menu-item-name-text">{item.name}</span>
+          {item.subCategory && (
+            <span className="item-subcat-badge">{item.subCategory}</span>
+          )}
+          {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
+          {(item.isBestseller || item.bestseller || item.popular) && (
+            <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
+          )}
+        </div>
+        <div className="menu-item-price">
+          <span className="menu-item-price-val">
+            {formattedPrice.isFrom ? (
+              <>
+                <span className="menu-item-from-prefix">From</span>
+                <span>{formattedPrice.text}</span>
+              </>
+            ) : (
+              formatCurrency(item.price, currency)
+            )}
+          </span>
+          {qty > 0 ? (
+            <div
+              className="pos-card-stepper"
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="pos-card-stepper-btn minus"
+                onPointerDown={(e) => { e.stopPropagation(); fireInstantMouse(e, () => handleDecreaseItem(item)); }}
+                onClick={(e) => { e.stopPropagation(); fireClickIfNotHandled(e, () => handleDecreaseItem(item)); }}
+                title="Decrease quantity"
+                aria-label="Decrease quantity"
+              >
+                <Minus size={11} strokeWidth={2.8} />
+              </button>
+              <span className="pos-card-stepper-qty">{qty}</span>
+              <button
+                type="button"
+                className="pos-card-stepper-btn plus"
+                onPointerDown={(e) => { e.stopPropagation(); fireInstantMouse(e, () => handleIncreaseItem(item)); }}
+                onClick={(e) => { e.stopPropagation(); fireClickIfNotHandled(e, () => handleIncreaseItem(item)); }}
+                title="Increase quantity"
+                aria-label="Increase quantity"
+              >
+                <Plus size={11} strokeWidth={2.8} />
+              </button>
+            </div>
+          ) : hasModifiers ? (
+            <span className="menu-item-sizes-badge">Sizes</span>
+          ) : (
+            <span className="menu-item-add-icon-btn">
+              <Plus size={13} strokeWidth={2.5} />
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift, heldCount = 0, onOpenHeldOrders }) {
   return (
@@ -312,14 +597,15 @@ export default function POS() {
   // Cache original order items when editing — avoids a Firestore getDoc on every cart tap
   const originalOrderItemsRef = useRef(null);
 
-  const handleAddItem = (item) => {
+  const handleAddItem = useCallback((item) => {
     hapticTap('light');
     addItem(item);
-  };
+  }, [addItem]);
 
-  const handleDecreaseItem = (menuItem) => {
+  const handleDecreaseItem = useCallback((menuItem) => {
     hapticTap('light');
-    const matching = items.filter(it => it.id === menuItem.id || it.menuItemId === menuItem.id);
+    const currentItems = useOrderStore.getState().items;
+    const matching = currentItems.filter(it => it.id === menuItem.id || it.menuItemId === menuItem.id);
     if (matching.length === 0) return;
     const target = matching[matching.length - 1];
     if (target.qty > 1) {
@@ -327,9 +613,9 @@ export default function POS() {
     } else {
       removeItem(target.id, target.selectedModifiers);
     }
-  };
+  }, [updateQty, removeItem]);
 
-  const handleIncreaseItem = (menuItem) => {
+  const handleIncreaseItem = useCallback((menuItem) => {
     hapticTap('light');
     const hasModifiers = menuItem.modifierGroups && menuItem.modifierGroups.length > 0;
     if (hasModifiers) {
@@ -337,7 +623,16 @@ export default function POS() {
     } else {
       handleAddItem(menuItem);
     }
-  };
+  }, [handleAddItem]);
+
+  const handleActivateCard = useCallback((item, hasModifiers) => {
+    if (hasModifiers) {
+      hapticTap('light');
+      setActiveModifierItem(item);
+    } else {
+      handleAddItem(item);
+    }
+  }, [handleAddItem]);
 
   const [custSearch, setCustSearch] = useState('');
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -1213,6 +1508,58 @@ export default function POS() {
     return groups.length > 0 ? groups : [{ category: null, index: -1, items: displayItems }];
   }, [categories, displayItems, activeCat, search]);
 
+  // Pre-compute category & card metadata once per menu/currency/offers update (O(1) lookup per card)
+  const itemCardMetaById = useMemo(() => {
+    const catById = new Map();
+    categories.forEach((c, idx) => {
+      const colors = getCategoryChromaticColors(c, idx);
+      catById.set(c.id, { cat: c, idx, colors });
+      if (c.name) catById.set(c.name, { cat: c, idx, colors });
+    });
+
+    const meta = new Map();
+    categories.forEach((c, cIdx) => {
+      (c.items ?? []).forEach(item => {
+        const key = item.categoryId || item.categoryName || c.id;
+        const catInfo = catById.get(key) || { cat: c, idx: cIdx, colors: getCategoryChromaticColors(c, cIdx) };
+        const hasModifiers = Boolean(item.modifierGroups && item.modifierGroups.length > 0);
+        const isVegItem = checkIsVegItem(item);
+        const formattedPrice = getDisplayPrice(item, currency);
+        const isBogoItem = Boolean(
+          item.isBogo ||
+          (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) ||
+          item.name?.toLowerCase().includes('bogo')
+        );
+        let matchedOffer = null;
+        if (!isBogoItem && activeOffers.length > 0) {
+          const catStr = (item.categoryName || c.name || item.categoryId || c.id || '').toLowerCase();
+          matchedOffer = activeOffers.find(off => {
+            if (off.type === 'bogo') {
+              return (off.categoryFilter || []).some(f => catStr.includes(f.toLowerCase()));
+            }
+            if (off.type === 'percent_category') {
+              return off.targetCategory && catStr.includes(off.targetCategory.toLowerCase());
+            }
+            return false;
+          }) || null;
+        }
+        const visuals = !(item.imageUrl || item.image) ? getItemVisuals(item) : null;
+
+        meta.set(item.id, {
+          catColors: catInfo.colors,
+          catName: catInfo.cat?.name || item.categoryName || c.name || '',
+          hasModifiers,
+          isVegItem,
+          formattedPrice,
+          isBogoItem,
+          matchedOffer,
+          visuals,
+        });
+      });
+    });
+    return meta;
+  }, [categories, currency, activeOffers]);
+
   // Order type buttons with modern Lucide icons
   const orderTypes = [
     {
@@ -1850,6 +2197,7 @@ export default function POS() {
                 {(() => {
                   const colors = getCategoryChromaticColors('all');
                   const isActive = activeCat === 'all';
+                  const selectAll = () => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); };
                   return (
                     <button
                       id="cat-all"
@@ -1857,7 +2205,8 @@ export default function POS() {
                       role="tab"
                       aria-selected={isActive}
                       className={`category-chip ${isActive ? 'active' : ''}`}
-                      onClick={() => { hapticTap('light'); setActiveCat('all'); setCatFirstOverview(false); setSearch(''); }}
+                      onPointerDown={(e) => fireInstantMouse(e, selectAll)}
+                      onClick={(e) => fireClickIfNotHandled(e, selectAll)}
                       title="View All Menu Items"
                       style={{
                         '--cat-stripe': colors.stripe,
@@ -1875,6 +2224,7 @@ export default function POS() {
                 {activeOffers.length > 0 && (() => {
                   const colors = getCategoryChromaticColors('deals');
                   const isActive = activeCat === 'deals';
+                  const selectDeals = () => { hapticTap('light'); setActiveCat(isActive ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); };
                   return (
                     <button
                       id="cat-deals-rail"
@@ -1882,7 +2232,8 @@ export default function POS() {
                       role="tab"
                       aria-selected={isActive}
                       className={`category-chip ${isActive ? 'active' : ''}`}
-                      onClick={() => { hapticTap('light'); setActiveCat(isActive ? 'all' : 'deals'); setCatFirstOverview(false); setSearch(''); }}
+                      onPointerDown={(e) => fireInstantMouse(e, selectDeals)}
+                      onClick={(e) => fireClickIfNotHandled(e, selectDeals)}
                       title="View All Promotional Deals & BOGO Items"
                       style={{
                         '--cat-stripe': colors.stripe,
@@ -1900,6 +2251,7 @@ export default function POS() {
                 {categories.map((c, idx) => {
                   const colors = getCategoryChromaticColors(c, idx);
                   const isActive = activeCat === c.id;
+                  const selectCat = () => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); };
                   return (
                     <button
                       key={c.id}
@@ -1908,7 +2260,8 @@ export default function POS() {
                       role="tab"
                       aria-selected={isActive}
                       className={`category-chip ${isActive ? 'active' : ''}`}
-                      onClick={() => { hapticTap('light'); setActiveCat(c.id); setCatFirstOverview(false); setSearch(''); }}
+                      onPointerDown={(e) => fireInstantMouse(e, selectCat)}
+                      onClick={(e) => fireClickIfNotHandled(e, selectCat)}
                       style={{
                         '--cat-stripe': colors.stripe,
                         '--cat-active-bg': colors.activeBg,
@@ -2116,10 +2469,14 @@ export default function POS() {
                               role="tab"
                               aria-selected={isActive}
                               className={`pos-subcat-pill ${isActive ? 'active' : ''}`}
-                              onClick={() => {
+                              onPointerDown={(e) => fireInstantMouse(e, () => {
                                 hapticTap('light');
                                 setActiveSubCat(isActive ? 'all' : sub.name);
-                              }}
+                              })}
+                              onClick={(e) => fireClickIfNotHandled(e, () => {
+                                hapticTap('light');
+                                setActiveSubCat(isActive ? 'all' : sub.name);
+                              })}
                             >
                               <span>{sub.name}</span>
                               <span className="pos-subcat-count">{sub.count}</span>
@@ -2152,280 +2509,59 @@ export default function POS() {
                             )}
 
                             {groupItems.map(item => {
-                              const qty = getItemQty(item);
-                              const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
-                              const isVegItem = checkIsVegItem(item);
-                              const itemCat = categories.find(c => c.id === (item.categoryId || item.categoryName));
-                              const catIndex = categories.findIndex(c => c.id === (item.categoryId || item.categoryName));
-                              const catColors = getCategoryChromaticColors(itemCat || item.categoryId || 'default', catIndex >= 0 ? catIndex : 0);
+                              const qty = itemQtyMap[item.id] || 0;
+                              const meta = itemCardMetaById.get(item.id);
+                              const catColors = meta ? meta.catColors : getCategoryChromaticColors(item.categoryId || 'default', 0);
+                              const catName = meta ? meta.catName : (item.categoryName || '');
+                              const hasModifiers = meta ? meta.hasModifiers : Boolean(item.modifierGroups && item.modifierGroups.length > 0);
+                              const isVegItem = meta ? meta.isVegItem : checkIsVegItem(item);
+                              const formattedPrice = meta ? meta.formattedPrice : getDisplayPrice(item, currency);
+                              const showCatTag = Boolean((activeCat === 'all' || activeCat === 'deals' || (typeof search === 'string' && search.trim())) && catName);
 
                               if (menuDensity === 'dense') {
-                                const formattedPrice = getDisplayPrice(item, currency);
-
                                 return (
-                                  <div
+                                  <DenseMenuKeyCard
                                     key={item.id}
-                                    id={`menu-item-${item.id}`}
-                                    role="button"
-                                    tabIndex={0}
-                                    className={`menu-key-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
-                                    style={{ '--key-cat-stripe': catColors.stripe }}
-                                    onClick={() => {
-                                      if (item.available === false) return;
-                                      if (hasModifiers) setActiveModifierItem(item);
-                                      else handleAddItem(item);
-                                    }}
-                                    onKeyDown={e => {
-                                      if (item.available === false) return;
-                                      if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        if (hasModifiers) setActiveModifierItem(item);
-                                        else handleAddItem(item);
-                                      }
-                                    }}
-                                  >
-                                    {/* Top Meta Bar: Dietary Icon on left + Badges (Options / SubCategory / Bestseller) on right */}
-                                    <div className="menu-key-header">
-                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-                                        <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-                                        {(activeCat === 'all' || activeCat === 'deals' || Boolean(search?.trim())) && (itemCat?.name || item.categoryName) && (
-                                          <span className="menu-key-cat-tag" style={{ color: catColors.stripe }}>
-                                            {itemCat?.name || item.categoryName}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="menu-key-badges-right">
-                                  {item.subCategory && (
-                                    <span className="item-subcat-badge">{item.subCategory}</span>
-                                  )}
-                                  {hasModifiers ? (
-                                    <span className="menu-key-pill menu-key-pill-mod">
-                                      Options
-                                    </span>
-                                  ) : (item.isBestseller || item.bestseller || item.popular) ? (
-                                    <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
-                                      <Flame size={10} color="var(--color-orange)" />
-                                    </span>
-                                  ) : item.highMargin ? (
-                                    <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
-                                      Special
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              {/* Title: Unconstrained full-width title area for clean, legible reading */}
-                              <div className="menu-key-title-wrap">
-                                <span className="menu-key-name" title={item.name}>{item.name}</span>
-                              </div>
-
-                              {/* Bottom Row: Price display & In-Card Stepper / Action Button */}
-                              <div className="menu-key-footer">
-                                <div className="menu-key-price-wrap">
-                                  {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
-                                  <span className="menu-key-price">{formattedPrice.text}</span>
-                                </div>
-                                {qty > 0 ? (
-                                  <div className="pos-card-stepper" onClick={e => e.stopPropagation()}>
-                                    <button
-                                      type="button"
-                                      className="pos-card-stepper-btn minus"
-                                      onClick={() => handleDecreaseItem(item)}
-                                      title="Decrease quantity"
-                                      aria-label="Decrease quantity"
-                                    >
-                                      <Minus size={11} strokeWidth={2.8} />
-                                    </button>
-                                    <span className="pos-card-stepper-qty">{qty}</span>
-                                    <button
-                                      type="button"
-                                      className="pos-card-stepper-btn plus"
-                                      onClick={() => handleIncreaseItem(item)}
-                                      title="Increase quantity"
-                                      aria-label="Increase quantity"
-                                    >
-                                      <Plus size={11} strokeWidth={2.8} />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className="menu-key-action-btn" title="Add to cart">
-                                    <Plus size={13} strokeWidth={2.5} />
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={item.id}
-                            id={`menu-item-${item.id}`}
-                            role="button"
-                            tabIndex={0}
-                            className={`menu-item-card ${item.available === false ? 'unavailable' : ''} ${qty > 0 ? 'in-cart' : ''}`}
-                            style={{ '--key-cat-stripe': catColors.stripe }}
-                            onClick={() => {
-                              if (item.available === false) return;
-                              if (hasModifiers) {
-                                setActiveModifierItem(item);
-                              } else {
-                                handleAddItem(item);
-                              }
-                            }}
-                            onKeyDown={e => {
-                              if (item.available === false) return;
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                if (hasModifiers) {
-                                  setActiveModifierItem(item);
-                                } else {
-                                  handleAddItem(item);
-                                }
-                              }
-                            }}
-                          >
-                            {/* Veg / Non-Veg Indicator Badge */}
-                            <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 'var(--z-raised)' }}>
-                              <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-                            </div>
-
-                            {qty > 0 && (
-                              <div className="menu-item-qty-badge">{qty}</div>
-                            )}
-
-                            {/* Promotional Offer / BOGO Badge */}
-                            {(() => {
-                              if (item.isBogo || (Array.isArray(item.tags) && item.tags.some(t => String(t).toLowerCase() === 'bogo')) || item.name?.toLowerCase().includes('bogo')) {
-                                return (
-                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
-                                    <span>🔥</span><span>BOGO</span>
-                                  </div>
+                                    item={item}
+                                    qty={qty}
+                                    catColors={catColors}
+                                    catName={catName}
+                                    showCatTag={showCatTag}
+                                    formattedPrice={formattedPrice}
+                                    isVegItem={isVegItem}
+                                    hasModifiers={hasModifiers}
+                                    onActivate={handleActivateCard}
+                                    handleIncreaseItem={handleIncreaseItem}
+                                    handleDecreaseItem={handleDecreaseItem}
+                                  />
                                 );
                               }
-                              const matchedOffer = activeOffers.find(off => {
-                                const cat = (item.categoryName || item.categoryId || '').toLowerCase();
-                                if (off.type === 'bogo') {
-                                  return (off.categoryFilter || []).some(f => cat.includes(f.toLowerCase()));
-                                }
-                                if (off.type === 'percent_category') {
-                                  return off.targetCategory && cat.includes(off.targetCategory.toLowerCase());
-                                }
-                                return false;
-                              });
-                              if (matchedOffer) {
-                                const isBogo = matchedOffer.type === 'bogo';
-                                const tag = isBogo ? (matchedOffer.tag || 'BOGO') : `${matchedOffer.discountPercent}% OFF`;
-                                const color = matchedOffer.badgeColor || (isBogo ? '#ef4444' : '#f59e0b');
-                                const icon = matchedOffer.icon || (isBogo ? '🔥' : '🍹');
-                                return (
-                                  <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: color, color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
-                                    <span>{icon}</span><span>{tag}</span>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
-                            <div className={`menu-item-img-wrap ${!(item.imageUrl || item.image) ? 'has-placeholder' : ''}`}>
-                              {item.imageUrl || item.image ? (
-                                <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
-                              ) : (() => {
-                                const visuals = getItemVisuals(item);
-                                return (
-                                  <div
-                                    className="menu-item-img-placeholder"
-                                    data-palette={visuals.palette}
-                                    style={{
-                                      background: visuals.bg,
-                                      borderBottom: `1px solid ${visuals.border}`
-                                    }}
-                                  >
-                                    <span
-                                      className="menu-item-monogram"
-                                      style={{
-                                        color: visuals.color,
-                                        textShadow: `0 0 18px ${visuals.glow}`
-                                      }}
-                                    >
-                                      {visuals.monogram}
-                                    </span>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                            <div className="menu-item-body">
-                              <div className="menu-item-name" title={item.name}>
-                                {(activeCat === 'all' || activeCat === 'deals' || Boolean(search?.trim())) && (itemCat?.name || item.categoryName) && (
-                                  <span className="menu-item-cat-tag" style={{ color: catColors.stripe }}>
-                                    {itemCat?.name || item.categoryName}
-                                  </span>
-                                )}
-                                <span className="menu-item-name-text">{item.name}</span>
-                                {item.subCategory && (
-                                  <span className="item-subcat-badge">{item.subCategory}</span>
-                                )}
-                                {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
-                                {(item.isBestseller || item.bestseller || item.popular) && (
-                                  <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
-                                )}
-                              </div>
-                              <div className="menu-item-price">
-                                <span className="menu-item-price-val">
-                                  {hasModifiers && parseFloat(item.price) === 0 ? (
-                                    (() => {
-                                      const allPrices = item.modifierGroups.flatMap(g => g.options?.map(o => o.priceAdd) || []).filter(p => p > 0);
-                                      const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-                                      return (
-                                        <>
-                                          <span className="menu-item-from-prefix">From</span>
-                                          <span>{formatCurrency(minPrice, currency)}</span>
-                                        </>
-                                      );
-                                    })()
-                                  ) : (
-                                    formatCurrency(item.price, currency)
-                                  )}
-                                </span>
-                                {qty > 0 ? (
-                                  <div className="pos-card-stepper" onClick={e => e.stopPropagation()}>
-                                    <button
-                                      type="button"
-                                      className="pos-card-stepper-btn minus"
-                                      onClick={() => handleDecreaseItem(item)}
-                                      title="Decrease quantity"
-                                      aria-label="Decrease quantity"
-                                    >
-                                      <Minus size={11} strokeWidth={2.8} />
-                                    </button>
-                                    <span className="pos-card-stepper-qty">{qty}</span>
-                                    <button
-                                      type="button"
-                                      className="pos-card-stepper-btn plus"
-                                      onClick={() => handleIncreaseItem(item)}
-                                      title="Increase quantity"
-                                      aria-label="Increase quantity"
-                                    >
-                                      <Plus size={11} strokeWidth={2.8} />
-                                    </button>
-                                  </div>
-                                ) : hasModifiers ? (
-                                  <span className="menu-item-sizes-badge">Sizes</span>
-                                ) : (
-                                  <span className="menu-item-add-icon-btn">
-                                    <Plus size={13} strokeWidth={2.5} />
-                                  </span>
-                                )}
-                              </div>
-                            </div>
 
-                          </div>
-
+                              return (
+                                <VisualMenuItemCard
+                                  key={item.id}
+                                  item={item}
+                                  qty={qty}
+                                  catColors={catColors}
+                                  catName={catName}
+                                  showCatTag={showCatTag}
+                                  currency={currency}
+                                  isVegItem={isVegItem}
+                                  hasModifiers={hasModifiers}
+                                  formattedPrice={formattedPrice}
+                                  isBogoItem={meta ? meta.isBogoItem : false}
+                                  matchedOffer={meta ? meta.matchedOffer : null}
+                                  visuals={meta?.visuals || getItemVisuals(item)}
+                                  onActivate={handleActivateCard}
+                                  handleIncreaseItem={handleIncreaseItem}
+                                  handleDecreaseItem={handleDecreaseItem}
+                                />
+                              );
+                            })}
+                          </Fragment>
                         );
                       })}
-                    </Fragment>
-                  );
-                })}
-              </div>
+                    </div>
                   </>
                 )}
               </>
