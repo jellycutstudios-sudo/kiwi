@@ -46,12 +46,12 @@ const LiveDateTime = memo(function LiveDateTime() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14.5px', fontWeight: 600, color: 'var(--color-label-secondary)' }}>
-        <Calendar size={15} style={{ color: 'var(--color-label-tertiary)' }} />
-        {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
+        <Calendar size={14} style={{ color: 'var(--color-label-tertiary)' }} />
+        {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
       </span>
-      <span style={{ color: 'var(--color-separator-opaque, rgba(255,255,255,0.25))', fontSize: '13px' }}>•</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14.5px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--color-label)' }}>
+      <span style={{ color: 'var(--color-separator-opaque, rgba(255,255,255,0.25))', fontSize: '12px' }}>·</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13.5px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--color-label)', whiteSpace: 'nowrap' }}>
         <Clock size={15} style={{ color: 'var(--color-accent, #3b82f6)' }} />
         {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
       </span>
@@ -771,22 +771,20 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Operations Navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="dash-quick-nav">
           <button
             type="button"
             onClick={() => navigate('/tables')}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, padding: '6px 12px' }}
+            className="btn btn-secondary btn-sm dash-quick-nav-btn"
           >
-            <Armchair size={14} /> Floor Plan
+            <Armchair size={15} /> Floor Plan
           </button>
           <button
             type="button"
             onClick={() => navigate('/pos')}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, padding: '6px 12px' }}
+            className="btn btn-secondary btn-sm dash-quick-nav-btn"
           >
-            <Zap size={14} color="#10b981" /> POS Register
+            <Zap size={15} color="#10b981" /> POS Register
           </button>
         </div>
       </div>
@@ -838,33 +836,31 @@ export default function Dashboard() {
 
       {/* 1. Executive Sales Assistant Hero Briefing */}
       <div className="sales-assistant-hero animate-fade-in">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 360px', minWidth: 0 }}>
-          <div className="sales-assistant-avatar-wrap">
-            <Bot size={20} />
-            <div className="sales-assistant-pulse-dot" />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="sales-assistant-title">
-                Sales Assistant
-              </span>
-              <span className="badge badge-gray" style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px' }}>
-                {salesAssistantSummary.headline}
-              </span>
+        <div className="sales-assistant-main">
+          <div className="sales-assistant-header-row">
+            <div className="sales-assistant-avatar-wrap">
+              <img src="/ricon.svg" alt="DineOS" style={{ width: 11, height: 15, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+              <div className="sales-assistant-pulse-dot" />
             </div>
-            <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.45', color: 'var(--color-label-secondary)', fontWeight: 500 }}>
-              {salesAssistantSummary.message}
-            </p>
+            <span className="sales-assistant-title">
+              Sales Assistant
+            </span>
+            <span className="sales-assistant-status-pill">
+              {salesAssistantSummary.headline}
+            </span>
           </div>
+          <p className="sales-assistant-desc">
+            {salesAssistantSummary.message}
+          </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
+        <div className="sales-assistant-actions">
           <button
             type="button"
             onClick={() => setShowAiAdvisor(true)}
             className="btn btn-primary btn-sm sales-assistant-ask-btn"
           >
-            <Sparkles size={13} /> Ask Assistant
+            <Sparkles size={14} /> Ask Assistant
           </button>
         </div>
       </div>
