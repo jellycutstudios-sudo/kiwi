@@ -30,7 +30,8 @@ import {
   ShoppingBag,
   Globe,
   Megaphone,
-  FileText
+  FileText,
+  MoreVertical
 } from 'lucide-react';
 import { printSingleKitchenTicket } from '../utils/print';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -120,8 +121,8 @@ const KDSTicketCard = memo(function KDSTicketCard({
   handleRingWaiter,
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const [rangItems, setRangItems] = useState({});
   const [headerRang, setHeaderRang] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -135,203 +136,172 @@ const KDSTicketCard = memo(function KDSTicketCard({
   const anyStationPending = stationItems.some(i => !i.status || i.status === 'pending');
   const allStationReady = stationItems.length > 0 && stationItems.every(i => ['ready', 'served'].includes(i.status));
 
+  const headerBg = allStationReady
+    ? '#16a34a'
+    : urgency.type === 'late'
+      ? '#dc2626'
+      : (urgency.type === 'delayed' || order.status === 'preparing')
+        ? '#d97706'
+        : '#334155';
+
+  const orderTitle = order.source === 'kiosk'
+    ? (order.tableName?.replace(/^Table\s+/i, '') || 'Kiosk')
+    : order.type === 'dine-in'
+      ? (order.tableName ? `Table ${order.tableName.replace(/^Table\s+/i, '')}` : 'Dine-In')
+      : order.type === 'takeaway'
+        ? 'Takeaway'
+        : 'Online';
+
   return (
     <div
       className={`kds-order-card ${urgency.borderClass}`}
       id={`kds-order-${order.id}`}
     >
-      {/* Top Urgency Header Banner */}
+      {/* Unified Color-Coded Expo Header (Clover Style + Live Timer + ⋮ Menu) */}
       <div style={{
-        padding: '8px 14px',
-        background: urgency.bannerBg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        padding: '8px 10px',
+        background: headerBg,
         color: '#ffffff',
-        fontWeight: 900,
-        fontSize: 12,
-        letterSpacing: '0.04em'
+        borderTopLeftRadius: 9,
+        borderTopRightRadius: 9,
+        position: 'relative'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {orderIdx < 9 && (
-            <span style={{
-              fontSize: 10.5,
-              fontWeight: 900,
-              padding: '1px 5px',
-              borderRadius: 4,
-              background: 'rgba(255,255,255,0.22)',
-              color: '#ffffff',
-              fontFamily: 'monospace'
-            }} title={`Bump bar hotkey: Press [${orderIdx + 1}]`}>
-              #{orderIdx + 1}
-            </span>
-          )}
-          {urgency.type === 'late' && <Flame size={15} color="#ffffff" />}
-          {urgency.type === 'delayed' && <AlertTriangle size={15} color="#ffffff" />}
-          {urgency.type === 'normal' && <Clock size={15} color="#ffffff" />}
-          <span>{urgency.label}</span>
-        </div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          fontFamily: 'monospace',
-          fontSize: 13,
-          background: 'rgba(0,0,0,0.3)',
-          padding: '2px 8px',
-          borderRadius: 6
-        }}>
-          <Clock size={12} />
-          <span>{stopwatch}</span>
-        </div>
-      </div>
-
-      {/* Order Identity Subheader */}
-      <div className="kds-order-header">
-        <div>
-          <div className="kds-order-id" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
             {modes.includes('token') && order.token && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCallToken(order.token);
                 }}
                 style={{
-                  padding: '3px 8px',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  borderRadius: 6,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  background: '#f59e0b',
-                  color: '#000000',
+                  padding: '1px 6px',
+                  fontSize: 10.5,
+                  fontWeight: 900,
+                  borderRadius: 5,
+                  background: '#000000',
+                  color: '#fbbf24',
                   border: 'none',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(245, 158, 11, 0.4)'
+                  flexShrink: 0
                 }}
-                title="Tap to call token number on TV display"
+                title="Tap to call token on TV display"
               >
-                <Megaphone size={12} /> #{String(order.token).padStart(3, '0')}
+                #{String(order.token).padStart(3, '0')}
               </button>
             )}
-            <span>
-              {order.source === 'kiosk' ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Monitor size={13} color="#f59e0b" />
-                  <span>{order.tableName?.replace(/^Table\s+/i, '') || 'Kiosk'}</span>
-                </span>
-              ) : order.type === 'dine-in' ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Utensils size={13} />
-                  <span>{order.tableName ? `Table ${order.tableName.replace(/^Table\s+/i, '')}` : 'Dine-In'}</span>
-                </span>
-              ) : order.type === 'takeaway' ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <ShoppingBag size={13} />
-                  <span>Takeaway</span>
-                </span>
-              ) : (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Globe size={13} />
-                  <span>Online</span>
-                </span>
-              )}
+            <span style={{
+              fontSize: 14.5,
+              fontWeight: 800,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              letterSpacing: '-0.2px'
+            }}>
+              {orderTitle}
             </span>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 3, fontWeight: 600 }}>
-            {order.type.toUpperCase()} · #{order.id.slice(-6).toUpperCase()}
-          </div>
-        </div>
-        
-        {/* Action & Status Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {handleRingWaiter && (
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <span style={{
+              fontFamily: 'monospace',
+              fontSize: 11.5,
+              fontWeight: 800,
+              background: 'rgba(0,0,0,0.28)',
+              padding: '2px 6px',
+              borderRadius: 5,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3
+            }}>
+              <Clock size={10} />
+              {stopwatch}
+            </span>
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleRingWaiter(order);
-                setHeaderRang(true);
-                setTimeout(() => setHeaderRang(false), 2500);
+                setMenuOpen(v => !v);
               }}
               style={{
-                background: headerRang ? 'var(--color-green)' : 'rgba(245, 158, 11, 0.12)',
-                border: headerRang ? '1px solid var(--color-green)' : '1px solid rgba(245, 158, 11, 0.35)',
-                color: headerRang ? '#ffffff' : '#f59e0b',
-                borderRadius: 7,
-                padding: '0 8px',
-                height: 28,
-                cursor: 'pointer',
+                background: 'rgba(0,0,0,0.2)',
+                border: 'none',
+                color: '#ffffff',
+                width: 24,
+                height: 24,
+                borderRadius: 6,
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 4,
-                fontSize: 11,
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                transition: 'all 0.15s ease'
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0
               }}
-              title="Alert waiter/runner to come to pass"
+              title="Ticket actions"
+              aria-label="Ticket actions"
             >
-              <Bell size={12} />
-              <span>{headerRang ? 'Rang!' : 'Ring'}</span>
+              <MoreVertical size={13} />
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              printSingleKitchenTicket({
-                restaurant,
-                order,
-                items: order.items,
-                staffName: order.staffName
-              });
-            }}
-            style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-separator-opaque)',
-              color: 'var(--color-label-secondary)',
-              borderRadius: 7,
-              padding: '0 8px',
-              height: 28,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 3,
-              fontSize: 11,
-              fontWeight: 700,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              transition: 'all 0.15s ease'
-            }}
-            title="Print Kitchen Ticket to Thermal Printer"
-          >
-            <Printer size={13} />
-          </button>
-
-          {/* Status Pill */}
-          <div style={{
-            padding: '0 8px',
-            height: 28,
-            borderRadius: 7,
-            fontSize: 10.5,
-            fontWeight: 800,
-            letterSpacing: '0.04em',
-            background: order.status === 'pending' ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
-            color: order.status === 'pending' ? 'var(--color-yellow)' : 'var(--color-purple)',
-            border: order.status === 'pending' ? '1px solid var(--color-yellow)' : '1px solid var(--color-purple)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}>
-            {order.status === 'pending' ? 'TO COOK' : 'COOKING'}
           </div>
         </div>
+
+        <div style={{ fontSize: 10.5, opacity: 0.9, marginTop: 2, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{orderIdx < 9 ? `#${orderIdx + 1} · ` : ''}{order.type.toUpperCase()} · #{order.id.slice(-5).toUpperCase()}</span>
+          <span>{allStationReady ? 'READY' : (order.status === 'preparing' ? 'COOKING' : 'QUEUED')}</span>
+        </div>
+
+        {menuOpen && (
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: 38,
+              right: 8,
+              zIndex: 30,
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-separator)',
+              borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+              padding: 4,
+              minWidth: 140,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              style={{ justifyContent: 'flex-start', gap: 6, padding: '6px 8px', fontSize: 12 }}
+              onClick={() => {
+                setMenuOpen(false);
+                printSingleKitchenTicket({
+                  restaurant,
+                  order,
+                  items: order.items,
+                  staffName: order.staffName
+                });
+              }}
+            >
+              <Printer size={13} /> Print KOT
+            </button>
+            {handleRingWaiter && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                style={{ justifyContent: 'flex-start', gap: 6, padding: '6px 8px', fontSize: 12, color: '#f59e0b' }}
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleRingWaiter(order);
+                  setHeaderRang(true);
+                  setTimeout(() => setHeaderRang(false), 2500);
+                }}
+              >
+                <Bell size={13} /> {headerRang ? 'Rang Waiter!' : 'Ring Waiter'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Card Items List */}
@@ -376,36 +346,44 @@ const KDSTicketCard = memo(function KDSTicketCard({
                       onClick={() => cycleItemStatus(order, originalIndex, item.status || 'pending')}
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: 'flex-start',
                         justifyContent: 'space-between',
                         width: '100%',
-                        padding: '7px 8px',
-                        borderRadius: 8,
+                        padding: '4px 2px',
+                        borderRadius: 5,
                         cursor: 'pointer',
-                        background: isPreparing ? 'var(--color-purple-light)' : (isDone ? 'transparent' : 'var(--color-bg-secondary)'),
-                        border: isPreparing ? '1px solid var(--color-purple)' : '1px solid var(--color-separator-opaque)',
-                        transition: 'all 0.15s ease',
+                        background: isPreparing ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                        transition: 'background 0.12s ease',
                       }}
-                      title="Click to advance item prep status"
+                      title="Tap to cycle item status"
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginRight: 8, opacity: isDone ? 0.55 : 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span className="kds-item-qty" style={{
-                            background: isDone ? 'var(--color-fill-secondary)' : '#f59e0b',
-                            color: isDone ? 'var(--color-label-secondary)' : '#000000'
-                          }}>
-                            ×{item.qty}
-                          </span>
-                          <span style={{ 
-                            textDecoration: isDone ? 'line-through' : 'none',
-                            color: isDone ? 'var(--color-label-tertiary)' : 'var(--color-label)',
-                            fontSize: 15,
-                            fontWeight: isPreparing ? 800 : 700,
-                            letterSpacing: '-0.2px',
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, opacity: isDone ? 0.55 : 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            width: 15,
+                            height: 15,
+                            borderRadius: '50%',
+                            flexShrink: 0,
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 6
+                            justifyContent: 'center',
+                            background: isDone ? '#16a34a' : (isPreparing ? '#f59e0b' : 'transparent'),
+                            border: isDone ? '1.5px solid #16a34a' : (isPreparing ? '1.5px solid #f59e0b' : '1.5px solid var(--color-label-tertiary)'),
+                            color: '#ffffff'
                           }}>
+                            {isDone && <Check size={10} strokeWidth={3} />}
+                          </span>
+                          <span style={{
+                            textDecoration: isDone ? 'line-through' : 'none',
+                            color: isDone ? 'var(--color-label-tertiary)' : 'var(--color-label)',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 4
+                          }}>
+                            <strong style={{ fontWeight: 900, marginRight: 2 }}>{item.qty}</strong>
                             <span>{item.name}</span>
                             {item.seatNumber && (
                               <span style={{
@@ -418,6 +396,19 @@ const KDSTicketCard = memo(function KDSTicketCard({
                                 borderRadius: 5
                               }}>
                                 Seat {item.seatNumber}
+                              </span>
+                            )}
+                            {item.isTakeaway && (
+                              <span style={{
+                                fontSize: 10.5,
+                                fontWeight: 900,
+                                background: '#f59e0b',
+                                color: '#000000',
+                                padding: '1px 6px',
+                                borderRadius: 5,
+                                letterSpacing: '0.03em'
+                              }}>
+                                PACK / TAKEAWAY
                               </span>
                             )}
                           </span>
@@ -452,160 +443,23 @@ const KDSTicketCard = memo(function KDSTicketCard({
                           </div>
                         )}
                         {item.selectedModifiers && item.selectedModifiers.length > 0 && (() => {
-                          const variantMods = item.selectedModifiers.filter(m => m.isVariantAxis);
-                          const regularMods = item.selectedModifiers.filter(m => !m.isVariantAxis);
+                          const allMods = item.selectedModifiers.map(m => m.name).filter(Boolean);
+                          if (allMods.length === 0) return null;
                           return (
-                            <div style={{ paddingLeft: 38, marginTop: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {/* Variant axes — large high-contrast badge */}
-                              {variantMods.length > 0 && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  {variantMods.map((m, mIdx) => (
-                                    <span key={mIdx} style={{
-                                      background: mIdx === 0 ? 'var(--color-yellow-light)' : 'var(--color-purple-light)',
-                                      color: mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)',
-                                      border: `1.5px solid ${mIdx === 0 ? 'var(--color-yellow)' : 'var(--color-purple)'}`,
-                                      padding: '3px 10px',
-                                      borderRadius: 6,
-                                      fontSize: 13,
-                                      fontWeight: 900,
-                                      letterSpacing: '0.04em',
-                                      textTransform: 'uppercase',
-                                    }}>
-                                      {m.modifierGroupName}: {m.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              {/* Regular modifiers — show group name + option so kitchen knows Gravy vs Paste */}
-                              {regularMods.length > 0 && (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                  {regularMods.map((m, mIdx) => (
-                                    <span key={mIdx} style={{
-                                      background: 'var(--color-bg-secondary)',
-                                      color: 'var(--color-label-secondary)',
-                                      border: '1px solid var(--color-separator-opaque)',
-                                      padding: '2px 7px',
-                                      borderRadius: 4,
-                                      fontSize: 11,
-                                      fontWeight: 700
-                                    }}>
-                                      {m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                            <div style={{ paddingLeft: 22, marginTop: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {allMods.map((modName, mIdx) => (
+                                <span key={mIdx} style={{
+                                  color: '#60a5fa',
+                                  fontSize: 11.5,
+                                  fontWeight: 600,
+                                  lineHeight: 1.25
+                                }}>
+                                  • {modName}
+                                </span>
+                              ))}
                             </div>
                           );
                         })()}
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {activeStation === 'All' && item.station && item.station !== 'Kitchen' && item.station !== 'Default' && (
-                          <span style={{
-                            fontSize: 9,
-                            padding: '2px 5px',
-                            borderRadius: 4,
-                            background: 'var(--color-fill-secondary)',
-                            color: 'var(--color-label-secondary)',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em'
-                          }}>
-                            {item.station}
-                          </span>
-                        )}
-                        {isServed ? (
-                          <span style={{
-                            fontSize: 10.5,
-                            padding: '2px 7px',
-                            height: 24,
-                            borderRadius: 5,
-                            fontWeight: 800,
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            color: '#10b981',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 3,
-                            flexShrink: 0
-                          }}>
-                            <Check size={11} strokeWidth={2.5} /> Picked Up
-                          </span>
-                        ) : isReady ? (
-                          <>
-                            {handleRingWaiter && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRingWaiter(order, item.name);
-                                  setRangItems(prev => ({ ...prev, [originalIndex]: true }));
-                                  setTimeout(() => {
-                                    setRangItems(prev => ({ ...prev, [originalIndex]: false }));
-                                  }, 2500);
-                                }}
-                                style={{
-                                  fontSize: 10.5,
-                                  padding: '2px 6px',
-                                  height: 24,
-                                  borderRadius: 5,
-                                  fontWeight: 800,
-                                  background: rangItems[originalIndex] ? 'var(--color-green)' : 'rgba(245, 158, 11, 0.15)',
-                                  color: rangItems[originalIndex] ? '#ffffff' : '#f59e0b',
-                                  border: rangItems[originalIndex] ? '1px solid var(--color-green)' : '1px solid rgba(245, 158, 11, 0.35)',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 3,
-                                  flexShrink: 0,
-                                  transition: 'all 0.15s ease'
-                                }}
-                                title="Ring Waiter / Food Runner for this dish"
-                              >
-                                <Bell size={11} />
-                                <span>{rangItems[originalIndex] ? 'Rang!' : 'Ring'}</span>
-                              </button>
-                            )}
-                            <span style={{
-                              fontSize: 10.5,
-                              padding: '2px 7px',
-                              height: 24,
-                              borderRadius: 5,
-                              fontWeight: 800,
-                              background: 'var(--color-green-light)',
-                              color: 'var(--color-green)',
-                              border: '1px solid var(--color-green)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 3,
-                              flexShrink: 0,
-                              letterSpacing: '0.02em'
-                            }}>
-                              <Check size={11} strokeWidth={2.5} /> Ready
-                            </span>
-                          </>
-                        ) : (
-                          <span style={{
-                            fontSize: 10.5,
-                            padding: '2px 7px',
-                            height: 24,
-                            borderRadius: 5,
-                            fontWeight: 800,
-                            background: isPreparing ? 'var(--color-purple-light)' : 'rgba(245, 158, 11, 0.1)',
-                            color: isPreparing ? 'var(--color-purple)' : 'var(--color-yellow)',
-                            border: isPreparing ? '1px solid var(--color-purple)' : '1px solid rgba(245, 158, 11, 0.3)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 3,
-                            flexShrink: 0,
-                            letterSpacing: '0.02em'
-                          }}>
-                            {isPreparing ? 'Cooking' : 'To Cook'}
-                          </span>
-                        )}
                       </div>
                     </div>
                   );
@@ -636,25 +490,24 @@ const KDSTicketCard = memo(function KDSTicketCard({
       </div>
 
       {/* Card Action Bump Bar */}
-      <div className="kds-order-action">
+      <div className="kds-order-action" style={{ padding: '6px 8px' }}>
         {allStationReady ? (
-          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
             <div style={{
               flex: 1,
               textAlign: 'center',
-              color: 'var(--color-green)',
-              fontSize: 12.5,
+              color: '#ffffff',
+              fontSize: 12,
               fontWeight: 800,
-              padding: '9px 0',
-              background: 'var(--color-green-light)',
-              borderRadius: 9,
-              border: '1px solid var(--color-green)',
+              padding: '7px 0',
+              background: '#16a34a',
+              borderRadius: 7,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 5
+              gap: 4
             }}>
-              <CheckCircle2 size={15} /> All Ready at Pass
+              <CheckCircle2 size={14} /> Ready at Pass
             </div>
             {handleRingWaiter && (
               <button
@@ -665,46 +518,42 @@ const KDSTicketCard = memo(function KDSTicketCard({
                   setTimeout(() => setHeaderRang(false), 2500);
                 }}
                 style={{
-                  background: headerRang ? 'var(--color-green)' : '#f59e0b',
+                  background: headerRang ? '#16a34a' : '#f59e0b',
                   color: headerRang ? '#ffffff' : '#000000',
                   border: 'none',
-                  borderRadius: 9,
-                  padding: '0 14px',
+                  borderRadius: 7,
+                  padding: '0 10px',
                   fontWeight: 800,
-                  fontSize: 12,
+                  fontSize: 11.5,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 5,
-                  boxShadow: headerRang 
-                    ? '0 2px 8px rgba(16, 185, 129, 0.5)' 
-                    : '0 2px 8px rgba(245, 158, 11, 0.35)',
-                  transition: 'all 0.15s ease'
+                  gap: 4
                 }}
-                title="Ring Server: Buzz waiter to pick up order"
+                title="Ring Waiter"
               >
-                <Bell size={13} />
-                <span>{headerRang ? 'Rang!' : 'Ring Waiter'}</span>
+                <Bell size={12} />
+                <span>{headerRang ? 'Rang' : 'Ring'}</span>
               </button>
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
             {order.status === 'pending' && anyStationPending && (
               <button
                 className="kds-cook-btn"
                 onClick={() => handleStartPreparing(order, activeStation)}
-                style={{ flex: 1, padding: '9px 12px', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ flex: 1, padding: '7px 8px', fontSize: 11.5, borderRadius: 7, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
               >
-                <ChefHat size={15} /> Start Cooking
+                <ChefHat size={13} /> Start
               </button>
             )}
             <button
               className="kds-ready-btn"
               onClick={() => handleMarkReady(order, activeStation)}
-              style={{ flex: 1, padding: '9px 12px', fontSize: 12.5 }}
+              style={{ flex: 1.2, padding: '7px 8px', fontSize: 11.5, borderRadius: 7 }}
             >
-              <Check size={15} strokeWidth={3} /> Mark All Ready
+              <Check size={13} strokeWidth={3} /> Mark Completed
             </button>
           </div>
         )}

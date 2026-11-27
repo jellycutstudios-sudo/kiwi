@@ -72,6 +72,7 @@ describe('CartItemEditModal — accessible cart item customization popup', () =>
       prepState: 'hold',
       course: 'Starters',
       seatNumber: 2,
+      isTakeaway: false,
     });
   });
 
@@ -105,7 +106,40 @@ describe('CartItemEditModal — accessible cart item customization popup', () =>
       prepState: 'fired',
       course: 'Mains',
       seatNumber: null,
+      isTakeaway: false,
     });
+  });
+
+  it('allows Pack / Takeaway toggle for pending items and locks it once cooked/ready', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <CartItemEditModal
+        item={{ ...sampleCartItem, status: 'pending' }}
+        currency="INR"
+        orderType="dine-in"
+        onSave={onSave}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const packBtn = screen.getByRole('button', { name: /Pack \/ Takeaway/i });
+    expect(packBtn.disabled).toBe(false);
+    fireEvent.click(packBtn);
+    fireEvent.click(screen.getByRole('button', { name: /Save · ₹180\.00/i }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ isTakeaway: true }));
+
+    rerender(
+      <CartItemEditModal
+        item={{ ...sampleCartItem, status: 'ready' }}
+        currency="INR"
+        orderType="dine-in"
+        onSave={onSave}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Pack \/ Takeaway/i }).disabled).toBe(true);
   });
 
   it('triggers onRemove when clicking the large Remove button', () => {

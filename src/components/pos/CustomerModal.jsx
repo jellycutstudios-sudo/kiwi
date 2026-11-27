@@ -15,7 +15,9 @@ export default function CustomerModal({
   customerName = '',
   customerPhone = '',
   onAttach,
-  onDetach
+  onDetach,
+  allowSkip = false,
+  onSkip
 }) {
   const { t } = useTranslation();
   const { ensureAnonymousAuth } = useAuthStore();
@@ -450,6 +452,28 @@ export default function CustomerModal({
             >
               {t('cancel') || 'Cancel'}
             </button>
+
+            {allowSkip && onSkip && (
+              <button
+                type="button"
+                id="delivery-skip-customer-btn"
+                className="btn btn-secondary"
+                onClick={onSkip}
+                style={{
+                  flex: 1.1,
+                  height: 38,
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  color: '#f59e0b',
+                  borderColor: 'rgba(245, 158, 11, 0.35)',
+                  background: 'rgba(245, 158, 11, 0.1)'
+                }}
+                title="Proceed without entering customer or address"
+              >
+                Skip →
+              </button>
+            )}
 
             <button
               type="submit"

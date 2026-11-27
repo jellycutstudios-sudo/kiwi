@@ -760,6 +760,7 @@ export default function POS() {
     }
   }, [items.length]);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [pendingDeliveryAction, setPendingDeliveryAction] = useState(null); // 'checkout' | 'kitchen' | null
   const [modalInitialPhone, setModalInitialPhone] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
   const [showOffersDrawer, setShowOffersDrawer] = useState(false);
@@ -1234,6 +1235,7 @@ export default function POS() {
         prepState: updates.prepState,
         course: updates.course,
         seatNumber: updates.seatNumber,
+        isTakeaway: Boolean(updates.isTakeaway),
       },
       targetItem.selectedModifiers
     );
@@ -1689,14 +1691,16 @@ export default function POS() {
 
   const [tableSelAction, setTableSelAction] = useState('select');
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (opts = {}) => {
     if (!items.length) return;
-    if (orderType === 'delivery') {
+    const skipDeliveryCheck = opts?.skipDeliveryCheck === true;
+    if (orderType === 'delivery' && !skipDeliveryCheck) {
       const activePhone = customer?.phone || customerPhone;
       const activeAddress = customer?.address || customer?.deliveryAddress;
       if (!activePhone || !activeAddress) {
         hapticTap('light');
-        toast.error('Please enter customer phone and delivery address before checkout', { duration: 4000, icon: '🛵' });
+        toast('Enter customer phone & address or tap Skip', { duration: 3500, icon: '🛵' });
+        setPendingDeliveryAction('checkout');
         setShowCustomerModal(true);
         return { needsDeliveryInfo: true };
       }
@@ -1720,11 +1724,12 @@ export default function POS() {
     setShowPayment(true);
   };
 
-  const handleSendToKitchen = async () => {
+  const handleSendToKitchen = async (opts = {}) => {
     if (!items.length) {
       toast.error('Cart is empty');
       return { error: 'Cart is empty' };
     }
+    const skipDeliveryCheck = opts?.skipDeliveryCheck === true;
     if (orderType === 'dine-in' && !tableId && modes.includes('table')) {
       if (isEffectiveHandheld) {
         toast(isKitchenActive ? 'Please select a table to send order to kitchen' : 'Please select a table to save order');
@@ -1734,12 +1739,13 @@ export default function POS() {
       setShowTableSel(true);
       return { needsTable: true };
     }
-    if (orderType === 'delivery') {
+    if (orderType === 'delivery' && !skipDeliveryCheck) {
       const activePhone = customer?.phone || customerPhone;
       const activeAddress = customer?.address || customer?.deliveryAddress;
       if (!activePhone || !activeAddress) {
         hapticTap('light');
-        toast.error('Please enter customer phone and delivery address before sending to kitchen', { duration: 4000, icon: '🛵' });
+        toast('Enter customer phone & address or tap Skip', { duration: 3500, icon: '🛵' });
+        setPendingDeliveryAction('kitchen');
         setShowCustomerModal(true);
         return { needsDeliveryInfo: true };
       }
@@ -1810,18 +1816,27 @@ export default function POS() {
 
   const handlePrintPreBill = async () => {
     if (!items.length) return;
+    const storeState = useOrderStore.getState();
+    const { giftCardCode, giftCardDeduction } = useGiftCardStore.getState();
     const printOrder = {
       id: editingOrderId || 'PRE-BILL',
       type: orderType,
       tableName,
       token: modes.includes('token') ? tokenNumber : null,
       customerName,
+      customerPhone,
       subtotal,
       discount,
       discountType,
       discountAmount,
+      appliedOffer: storeState.appliedOffer ?? null,
+      promoDiscount: storeState.promoDiscount ?? 0,
+      pointsDiscount: storeState.pointsDiscount ?? 0,
+      serviceChargeAmount: storeState.serviceChargeAmount ?? 0,
+      giftCardCode,
+      giftCardDeduction,
       total,
-      paymentMethod: 'Unpaid (Guest Check)',
+      paymentMethod: 'UNPAID',
       currency,
       note,
     };
@@ -1876,6 +1891,18 @@ export default function POS() {
     ), { duration: 6000 });
   };
 
+  const handleQuickTakeawayCashAndPrint = async () => {
+    if (!items.length) return;
+    hapticTap('medium');
+    if (isComplimentary) {
+      await handleCheckout({ skipDeliveryCheck: true });
+      return;
+    }
+    setPaymentMethod('cash');
+    useOrderStore.setState({ paymentMethod: 'cash', splitPayments: [] });
+    await handlePaymentConfirm({ shouldPrintReceipt: true });
+  };
+
   const handlePaymentConfirm = async (options = {}) => {
     // Instant-close modal for 0ms cashier latency
     setShowPayment(false);
@@ -1905,8 +1932,13 @@ export default function POS() {
       const snapDiscountAmount = discountAmount;
       const snapTotal = total;
       const snapPaymentMethod = paymentMethod;
-      const snapSplitPayments = useOrderStore.getState().splitPayments ?? [];
-      const snapTipAmount = useOrderStore.getState().tipAmount ?? 0;
+      const snapOrderState = useOrderStore.getState();
+      const snapSplitPayments = snapOrderState.splitPayments ?? [];
+      const snapTipAmount = snapOrderState.tipAmount ?? 0;
+      const snapAppliedOffer = snapOrderState.appliedOffer ?? null;
+      const snapPromoDiscount = snapOrderState.promoDiscount ?? 0;
+      const snapPointsDiscount = snapOrderState.pointsDiscount ?? 0;
+      const snapServiceCharge = snapOrderState.serviceChargeAmount ?? 0;
       const snapTaxInfo = taxInfo;
       const snapStaffName = staffDoc?.name || 'Cashier';
       const snapNote = note;
@@ -1963,6 +1995,10 @@ export default function POS() {
         discount: snapDiscount,
         discountType: snapDiscountType,
         discountAmount: snapDiscountAmount,
+        appliedOffer: snapAppliedOffer,
+        promoDiscount: snapPromoDiscount,
+        pointsDiscount: snapPointsDiscount,
+        serviceChargeAmount: snapServiceCharge,
         total: snapTotal,
         paymentMethod: snapPaymentMethod,
         splitPayments: snapSplitPayments,
@@ -3366,6 +3402,20 @@ export default function POS() {
                                     {formatCurrency(i.price, currency)} ea
                                   </span>
                                 )}
+                                {i.isTakeaway && (
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    padding: '1px 6px',
+                                    borderRadius: 5,
+                                    background: 'rgba(245, 158, 11, 0.16)',
+                                    color: '#f59e0b',
+                                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    Pack
+                                  </span>
+                                )}
 
                                 {/* Item-level Promo Offer Badge */}
                                 {appliedOffer?.itemDiscounts?.[i.id] > 0 && (
@@ -3957,7 +4007,11 @@ export default function POS() {
               className="cart-action-buttons"
               style={{
                 display: 'grid',
-                gridTemplateColumns: orderType === 'dine-in' ? '40px 40px minmax(68px, 1fr) minmax(105px, 1.35fr)' : '40px minmax(75px, 1fr) minmax(115px, 1.4fr)',
+                gridTemplateColumns: orderType === 'dine-in'
+                  ? '40px 40px minmax(68px, 1fr) minmax(105px, 1.35fr)'
+                  : orderType === 'takeaway' && !isComplimentary
+                    ? '40px minmax(62px, 0.9fr) minmax(88px, 1.15fr) minmax(92px, 1.2fr)'
+                    : '40px minmax(75px, 1fr) minmax(115px, 1.4fr)',
                 gap: 6,
                 padding: '10px 10px 14px',
                 boxSizing: 'border-box',
@@ -4036,6 +4090,35 @@ export default function POS() {
                   <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
                 )}
               </button>
+              {orderType === 'takeaway' && !isComplimentary && (
+                <button
+                  type="button"
+                  id="quick-takeaway-cash-btn"
+                  onClick={handleQuickTakeawayCashAndPrint}
+                  disabled={!items.length}
+                  style={{
+                    minWidth: 0,
+                    height: 44,
+                    borderRadius: 12,
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    opacity: items.length ? 1 : 0.4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    padding: '0 6px',
+                    cursor: items.length ? 'pointer' : 'not-allowed'
+                  }}
+                  title="1-Tap Cash Pay & Print Receipt"
+                >
+                  <Zap size={13} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Cash &amp; Print
+                  </span>
+                </button>
+              )}
               <button
                 className="cart-action-btn-checkout"
                 id="checkout-btn"
@@ -4358,6 +4441,7 @@ export default function POS() {
           isOpen={showCustomerModal}
           onClose={() => {
             setShowCustomerModal(false);
+            setPendingDeliveryAction(null);
             setModalInitialPhone('');
           }}
           initialPhone={modalInitialPhone || custSearch || ''}
@@ -4365,11 +4449,30 @@ export default function POS() {
           customer={customer}
           customerName={customerName}
           customerPhone={customerPhone}
+          allowSkip={Boolean(pendingDeliveryAction)}
+          onSkip={() => {
+            const action = pendingDeliveryAction;
+            setShowCustomerModal(false);
+            setPendingDeliveryAction(null);
+            setModalInitialPhone('');
+            if (action === 'checkout') {
+              handleCheckout({ skipDeliveryCheck: true });
+            } else if (action === 'kitchen') {
+              handleSendToKitchen({ skipDeliveryCheck: true });
+            }
+          }}
           onAttach={(profile) => {
+            const action = pendingDeliveryAction;
             setCustomerProfile(profile);
             setCustomer(profile.name || 'Customer', profile.phone);
             setCustSearch('');
             setModalInitialPhone('');
+            setPendingDeliveryAction(null);
+            if (action === 'checkout') {
+              handleCheckout({ skipDeliveryCheck: true });
+            } else if (action === 'kitchen') {
+              handleSendToKitchen({ skipDeliveryCheck: true });
+            }
           }}
           onDetach={() => {
             setCustomerProfile(null);

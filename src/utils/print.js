@@ -120,6 +120,9 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   const ALIGN_LEFT = [ESC, 97, 0];
   const BOLD_ON = [ESC, 69, 1];
   const BOLD_OFF = [ESC, 69, 0];
+  const DOUBLE_SIZE = [GS, 33, 17];
+  const DOUBLE_HEIGHT = [GS, 33, 1];
+  const NORMAL_SIZE = [GS, 33, 0];
   const CUT = [GS, 86, 65, 0];
   const DRAWER_KICK = [ESC, 112, 0, 25, 250];
   const BUZZER_BELL = [7];
@@ -135,7 +138,28 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     writeBytes([LF]);
   };
 
+  const wrapWords = (text, maxLen, indent = '') => {
+    const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return [];
+    const lines = [];
+    let current = indent;
+    const limit = Math.max(8, maxLen);
+    for (const w of words) {
+      if (current === indent) {
+        current += w;
+      } else if (current.length + 1 + w.length <= limit) {
+        current += ' ' + w;
+      } else {
+        lines.push(current);
+        current = indent + w;
+      }
+    }
+    if (current.length > indent.length) lines.push(current);
+    return lines;
+  };
+
   const divider = '-'.repeat(lineWidth);
+  const doubleDivider = '='.repeat(lineWidth);
   
   writeBytes(INIT);
   
@@ -164,10 +188,12 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     }
   }
 
-  // Header
+  // Header — Prominent 2x Restaurant Name
   writeBytes(ALIGN_CENTER);
   writeBytes(BOLD_ON);
-  writeTextLine(restName);
+  writeBytes(DOUBLE_SIZE);
+  writeTextLine(String(restName || 'DineOS').toUpperCase());
+  writeBytes(NORMAL_SIZE);
   writeBytes(BOLD_OFF);
   
   if (address) writeTextLine(address);
@@ -175,65 +201,75 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
   if (restaurant?.gstin) writeTextLine(`GSTIN: ${restaurant.gstin}`);
   if (restaurant?.fssai) writeTextLine(`FSSAI Lic: ${restaurant.fssai}`);
   
-  writeTextLine(divider);
+  writeTextLine(doubleDivider);
   
+  const isTokenEnabled = getActiveModes(restaurant).includes('token');
+  const orderTypeLabel =
+    order.type === 'dine-in'  ? (order.tableName ? `DINE-IN · TABLE ${order.tableName}` : `DINE-IN`) :
+    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `TAKEAWAY · TOKEN #${order.token}` : `TAKEAWAY`) :
+    order.type === 'delivery' ? `DELIVERY` :
+    `ONLINE ORDER`;
+
+  writeBytes(ALIGN_CENTER);
+  writeBytes(BOLD_ON);
+  writeTextLine(orderTypeLabel);
+  writeBytes(BOLD_OFF);
+
   writeBytes(ALIGN_LEFT);
-  writeTextLine(`Date: ${new Date().toLocaleString()}`);
+  const billNo = order.id ? `#${order.id.slice(-8).toUpperCase()}` : '';
+  const dateStr = new Date().toLocaleString([], {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+  writeTextLine(billNo ? `Bill: ${billNo}   ${dateStr}` : `Date: ${dateStr}`);
   if (order.isOffline) {
     writeBytes(BOLD_ON);
     writeTextLine('*** OFFLINE BUFFERED RECEIPT ***');
     writeBytes(BOLD_OFF);
   }
-  const isTokenEnabled = getActiveModes(restaurant).includes('token');
-  const orderTypeLabel =
-    order.type === 'dine-in'  ? (order.tableName ? `Table: ${order.tableName}` : `Dine-In`) :
-    order.type === 'takeaway' ? (isTokenEnabled && order.token ? `Token: #${order.token}` : `Takeaway`) :
-    order.type === 'delivery' ? `Delivery` :
-    `Online`;
-  writeTextLine(orderTypeLabel);
   
   if (order.customerName) writeTextLine(`Customer: ${order.customerName}`);
   if (order.customerPhone) writeTextLine(`Phone: ${order.customerPhone}`);
   if (order.deliveryAddress || order.customer?.address) {
-    writeTextLine(`Address: ${order.deliveryAddress || order.customer?.address}`);
+    wrapWords(`Address: ${order.deliveryAddress || order.customer?.address}`, lineWidth).forEach(writeTextLine);
   }
   if (order.assignedRiderName) writeTextLine(`Rider: ${order.assignedRiderName}`);
-  if (staffName) writeTextLine(`Staff: ${staffName}`);
+  if (staffName) writeTextLine(`Cashier: ${staffName}`);
   
   writeTextLine(divider);
   
-  // Table Header
+  // Table Header — flush-right Amt
+  const nameCol = is58mm ? 16 : 28;
+  const qtyCol = is58mm ? 5 : 6;
+  const amtCol = lineWidth - nameCol - qtyCol;
   writeBytes(BOLD_ON);
-  if (is58mm) {
-    // 32 chars: Item(16) + Qty(6) + Amt(10) = 32
-    writeTextLine('Item            Qty       Amt');
-  } else {
-    // 48 chars: Item(26) + Qty(8) + Amt(14) = 48
-    writeTextLine('Item                      Qty         Amt   ');
-  }
+  writeTextLine(`${'ITEM'.padEnd(nameCol)}${'QTY'.padStart(qtyCol)}${'AMT'.padStart(amtCol)}`);
   writeBytes(BOLD_OFF);
+  writeTextLine(divider);
   
-  // Items — columns: 58mm: 16+6+10=32, 80mm: 26+8+14=48
+  // Items with clean word-wrapped modifiers & unit rate subline when qty > 1
+  let totalItemQty = 0;
   items.forEach(i => {
-    if (is58mm) {
-      const itemLeft = i.name.slice(0, 16).padEnd(16, ' ');
-      const qtyMid = String(i.qty).padStart(6, ' ');
-      const amtRight = (i.price * i.qty).toFixed(2).padStart(10, ' ');
-      writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
-    } else {
-      const itemLeft = i.name.slice(0, 26).padEnd(26, ' ');
-      const qtyMid = String(i.qty).padStart(8, ' ');
-      const amtRight = (i.price * i.qty).toFixed(2).padStart(14, ' ');
-      writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
+    const qtyNum = Number(i.qty) || 1;
+    const priceNum = Number(i.price) || 0;
+    totalItemQty += qtyNum;
+    const itemLeft = String(i.name || '').slice(0, nameCol).padEnd(nameCol, ' ');
+    const qtyMid = String(qtyNum).padStart(qtyCol, ' ');
+    const amtRight = (priceNum * qtyNum).toFixed(2).padStart(amtCol, ' ');
+    writeTextLine(`${itemLeft}${qtyMid}${amtRight}`);
+
+    if (String(i.name || '').length > nameCol) {
+      const restNamePart = String(i.name).slice(nameCol).trim();
+      if (restNamePart) {
+        wrapWords(restNamePart, lineWidth - 2, '  ').forEach(writeTextLine);
+      }
     }
-    // Variant axes on receipt — labeled for customer clarity
-    const varRec = (i.selectedModifiers ?? []).filter(m => m.isVariantAxis);
-    const regRec = (i.selectedModifiers ?? []).filter(m => !m.isVariantAxis);
-    if (varRec.length > 0) {
-      writeTextLine(`  ${varRec.map(m => `${m.modifierGroupName}: ${m.name}`).join(' | ')}`);
+    if (qtyNum > 1) {
+      writeTextLine(`  @ ${priceNum.toFixed(2)} x ${qtyNum}`);
     }
-    if (regRec.length > 0) {
-      writeTextLine(`  ${regRec.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}`);
+
+    const allMods = (i.selectedModifiers ?? []).map(m => m.name).filter(Boolean);
+    if (allMods.length > 0) {
+      wrapWords(`+ ${allMods.join(', ')}`, lineWidth, '  ').forEach(writeTextLine);
     }
   });
 
@@ -246,10 +282,17 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     return label + ' '.repeat(Math.max(1, space)) + valueStr;
   };
 
-  writeTextLine(formatTotalLine('Subtotal:', (order.subtotal ?? 0).toFixed(2)));
-  
   const promoAmt = Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0;
   const manualDiscAmt = Math.max(0, (Number(order.discountAmount) || 0) - promoAmt);
+  const pointsDiscAmt = Number(order.pointsDiscount) || 0;
+  const serviceChargeAmt = Number(order.serviceChargeAmount ?? order.serviceCharge) || 0;
+  const tipAmt = Number(order.tipAmount) || 0;
+  const giftCardAmt = Number(order.giftCardDeduction) || 0;
+  const hasAdjustments = promoAmt > 0 || manualDiscAmt > 0 || pointsDiscAmt > 0 || (taxInfo?.lines?.length > 0) || serviceChargeAmt > 0 || tipAmt > 0 || giftCardAmt > 0;
+
+  if (hasAdjustments) {
+    writeTextLine(formatTotalLine('Subtotal:', (Number(order.subtotal) || 0).toFixed(2)));
+  }
 
   if (promoAmt > 0) {
     const offerLabel = `Offer (${(order.appliedOffer?.name || 'Promo').slice(0, 16)}):`;
@@ -259,53 +302,63 @@ function compileEscPosReceipt({ restaurant, order, items, taxInfo, staffName, pr
     const discLabel = `Discount${order.discountType === 'percent' ? `(${order.discount}%)` : ''}:`;
     writeTextLine(formatTotalLine(discLabel, `-${manualDiscAmt.toFixed(2)}`));
   }
+  if (pointsDiscAmt > 0) {
+    writeTextLine(formatTotalLine('Loyalty Points:', `-${pointsDiscAmt.toFixed(2)}`));
+  }
   
   (taxInfo?.lines ?? []).forEach(l => {
-    writeTextLine(formatTotalLine(`${l.label}:`, l.amount.toFixed(2)));
+    writeTextLine(formatTotalLine(`${l.label}:`, (Number(l.amount) || 0).toFixed(2)));
   });
 
-  const serviceChargeAmt = order.serviceChargeAmount ?? order.serviceCharge ?? 0;
   if (serviceChargeAmt > 0) {
     writeTextLine(formatTotalLine('Service Charge:', serviceChargeAmt.toFixed(2)));
   }
 
-  if (order.tipAmount && order.tipAmount > 0) {
-    writeTextLine(formatTotalLine('Tip / Gratuity:', order.tipAmount.toFixed(2)));
+  if (tipAmt > 0) {
+    writeTextLine(formatTotalLine('Tip / Gratuity:', tipAmt.toFixed(2)));
   }
 
-  if (order.giftCardDeduction && order.giftCardDeduction > 0) {
+  if (giftCardAmt > 0) {
     const gcCode = order.giftCardCode ? ` (${order.giftCardCode})` : '';
-    writeTextLine(formatTotalLine(`Gift Card${gcCode}:`, `-${order.giftCardDeduction.toFixed(2)}`));
+    writeTextLine(formatTotalLine(`Gift Card${gcCode}:`, `-${giftCardAmt.toFixed(2)}`));
   }
   
   writeBytes(BOLD_ON);
-  writeTextLine(formatTotalLine(`TOTAL (${currency}):`, (order.total ?? 0).toFixed(2)));
+  writeBytes(DOUBLE_HEIGHT);
+  writeTextLine(formatTotalLine(`TOTAL (${currency}):`, (Number(order.total) || 0).toFixed(2)));
+  writeBytes(NORMAL_SIZE);
   writeBytes(BOLD_OFF);
 
-  const escPosTotalSavings = (Number(order.discountAmount) || 0) + (Number(order.pointsDiscount) || 0);
+  const escPosTotalSavings = (Number(order.discountAmount) || 0) + pointsDiscAmt;
   if (escPosTotalSavings > 0) {
     writeTextLine(divider);
     writeBytes(BOLD_ON);
     writeBytes(ALIGN_CENTER);
-    writeTextLine(`*** YOU SAVED ${currency} ${escPosTotalSavings.toFixed(2)} TODAY! ***`);
+    writeTextLine(`YOU SAVED ${currency} ${escPosTotalSavings.toFixed(2)} TODAY!`);
     writeBytes(BOLD_OFF);
     writeBytes(ALIGN_LEFT);
   }
   
-  writeTextLine(divider);
+  writeTextLine(doubleDivider);
   writeBytes(ALIGN_CENTER);
-  writeTextLine(`Payment: ${(order.paymentMethod ?? 'cash').toUpperCase()}`);
-  if (order.upiRef) {
-    writeTextLine(`UPI Ref: ${order.upiRef}`);
+  const payMethodUpper = String(order.paymentMethod || 'unpaid').toUpperCase();
+  const isUnpaid = !order.paymentMethod || payMethodUpper.includes('UNPAID');
+  const payBadge = isUnpaid ? 'PRE-BILL · PAYMENT PENDING' : `PAID VIA ${payMethodUpper}`;
+  writeBytes(BOLD_ON);
+  writeTextLine(payBadge);
+  writeBytes(BOLD_OFF);
+  if (!isUnpaid && order.paymentMethod === 'split' && Array.isArray(order.splitPayments) && order.splitPayments.length > 0) {
+    const splitSummary = order.splitPayments
+      .map(p => `${String(p.method || 'cash').toUpperCase()}: ${(Number(p.amount) || 0).toFixed(2)}`)
+      .join(' | ');
+    wrapWords(splitSummary, lineWidth).forEach(writeTextLine);
   }
-  if (order.rrn) {
-    writeTextLine(`RRN: ${order.rrn}`);
-  }
-  if (order.authCode) {
-    writeTextLine(`Auth Code: ${order.authCode}`);
-  }
-  writeTextLine('Thank you for dining with us!');
-  writeTextLine(`Order ID: ${order.id?.slice(-8) ?? ''}`);
+  if (order.upiRef) writeTextLine(`UPI Ref: ${order.upiRef}`);
+  if (order.rrn) writeTextLine(`RRN: ${order.rrn}`);
+  if (order.authCode) writeTextLine(`Auth Code: ${order.authCode}`);
+  writeTextLine(`Items: ${items.length}  |  Total Qty: ${totalItemQty}`);
+  const defaultThankYou = order.type === 'dine-in' ? 'Thank you for dining with us!' : 'Thank you for your order!';
+  writeTextLine(restaurant?.receiptConfig?.footerMessage || defaultThankYou);
   
   writeBytes([LF, LF]);
   writeBytes(CUT);
@@ -411,6 +464,11 @@ function compileEscPosKitchenTicket({ restaurant, order, items, staffName, print
     if (i.prepState === 'hold') {
       writeBytes(BOLD_ON);
       writeTextLine('  *** HOLD - DO NOT PREP ***'.slice(0, lineWidth));
+      writeBytes(BOLD_OFF);
+    }
+    if (i.isTakeaway) {
+      writeBytes(BOLD_ON);
+      writeTextLine('  *** PACK / TAKEAWAY ***'.slice(0, lineWidth));
       writeBytes(BOLD_OFF);
     }
     if (i.allergies && i.allergies.length > 0) {
@@ -1038,21 +1096,22 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
   if (!win) { alert('Please allow popups to print receipts.'); return; }
 
   const itemRows = items.map(i => {
-    const varMods = (i.selectedModifiers ?? []).filter(m => m.isVariantAxis);
-    const regMods = (i.selectedModifiers ?? []).filter(m => !m.isVariantAxis);
-    const varHtml = varMods.length > 0
-      ? `<div style="font-size:9px;font-weight:bold;color:#333;padding-left:1mm;margin-top:1px;">${varMods.map(m => `${m.modifierGroupName}: ${m.name}`).join(' · ')}</div>`
+    const qtyNum = Number(i.qty) || 1;
+    const priceNum = Number(i.price) || 0;
+    const allMods = (i.selectedModifiers ?? []).map(m => m.name).filter(Boolean);
+    const modHtml = allMods.length > 0
+      ? `<div style="font-size:9.5px;color:#333;padding-left:2mm;margin-top:1px;">+ ${allMods.join(' · ')}</div>`
       : '';
-    const regHtml = regMods.length > 0
-      ? `<div style="font-size:9px;color:#666;padding-left:1mm;">${regMods.map(m => m.modifierGroupName ? `${m.modifierGroupName}: ${m.name}` : `+ ${m.name}`).join(', ')}</div>`
+    const rateHtml = qtyNum > 1
+      ? `<div style="font-size:9px;color:#555;padding-left:2mm;">@ ${priceNum.toFixed(2)} × ${qtyNum}</div>`
       : '';
     return `<tr>
       <td>
-        <div style="font-weight:${is58mm ? 'bold' : 'normal'};">${i.name}</div>
-        ${varHtml}${regHtml}
+        <div style="font-weight:bold;">${i.name}</div>
+        ${rateHtml}${modHtml}
       </td>
-      <td style="text-align:center;vertical-align:top;">${i.qty}</td>
-      <td style="text-align:right;vertical-align:top;">${(i.price * i.qty).toFixed(2)}</td>
+      <td style="text-align:center;vertical-align:top;">${qtyNum}</td>
+      <td style="text-align:right;vertical-align:top;font-weight:bold;">${(priceNum * qtyNum).toFixed(2)}</td>
     </tr>`;
   }).join('');
 
@@ -1069,7 +1128,8 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
 
   const promoAmt = Number(order.appliedOffer?.discountAmount || order.promoDiscount) || 0;
   const manualDiscAmt = Math.max(0, (Number(order.discountAmount) || 0) - promoAmt);
-  const browserTotalSavings = (Number(order.discountAmount) || 0) + (Number(order.pointsDiscount) || 0);
+  const pointsDiscAmt = Number(order.pointsDiscount) || 0;
+  const browserTotalSavings = (Number(order.discountAmount) || 0) + pointsDiscAmt;
 
   let discountRows = '';
   if (promoAmt > 0) {
@@ -1077,6 +1137,9 @@ export function printReceiptBrowser({ restaurant, order, items, taxInfo, staffNa
   }
   if (manualDiscAmt > 0) {
     discountRows += `<tr><td colspan="2">Discount${order.discountType === 'percent' ? ` (${order.discount}%)` : ''}</td><td style="text-align:right">-${manualDiscAmt.toFixed(2)}</td></tr>`;
+  }
+  if (pointsDiscAmt > 0) {
+    discountRows += `<tr><td colspan="2" style="color:#059669">Loyalty Points</td><td style="text-align:right;color:#059669">-${pointsDiscAmt.toFixed(2)}</td></tr>`;
   }
 
   const discountRow = discountRows;
@@ -1148,15 +1211,15 @@ ${staffName ? `<div>Staff: ${staffName}</div>` : ''}
 </table>
 <div class="divider"></div>
 <table>
-  <tr><td colspan="2">Subtotal</td><td style="text-align:right">${(order.subtotal ?? 0).toFixed(2)}</td></tr>
+  <tr><td colspan="2">Subtotal</td><td style="text-align:right">${(Number(order.subtotal) || 0).toFixed(2)}</td></tr>
   ${discountRow}
   ${taxRows}
-  ${(order.serviceChargeAmount || order.serviceCharge) ? `<tr><td colspan="2">Service Charge</td><td style="text-align:right">${((order.serviceChargeAmount || order.serviceCharge) ?? 0).toFixed(2)}</td></tr>` : ''}
-  ${(order.tipAmount && order.tipAmount > 0) ? `<tr><td colspan="2">Tip / Gratuity</td><td style="text-align:right">${(order.tipAmount).toFixed(2)}</td></tr>` : ''}
-  ${(order.giftCardDeduction && order.giftCardDeduction > 0) ? `<tr><td colspan="2">Gift Card${order.giftCardCode ? ` (${order.giftCardCode})` : ''}</td><td style="text-align:right">-${(order.giftCardDeduction).toFixed(2)}</td></tr>` : ''}
+  ${(Number(order.serviceChargeAmount || order.serviceCharge) > 0) ? `<tr><td colspan="2">Service Charge</td><td style="text-align:right">${(Number(order.serviceChargeAmount || order.serviceCharge) || 0).toFixed(2)}</td></tr>` : ''}
+  ${(Number(order.tipAmount) > 0) ? `<tr><td colspan="2">Tip / Gratuity</td><td style="text-align:right">${(Number(order.tipAmount) || 0).toFixed(2)}</td></tr>` : ''}
+  ${(Number(order.giftCardDeduction) > 0) ? `<tr><td colspan="2">Gift Card${order.giftCardCode ? ` (${order.giftCardCode})` : ''}</td><td style="text-align:right">-${(Number(order.giftCardDeduction) || 0).toFixed(2)}</td></tr>` : ''}
   <tr class="total-row">
     <td colspan="2">TOTAL (${currency})</td>
-    <td style="text-align:right">${(order.total ?? 0).toFixed(2)}</td>
+    <td style="text-align:right">${(Number(order.total) || 0).toFixed(2)}</td>
   </tr>
 </table>
 ${browserTotalSavings > 0 ? `

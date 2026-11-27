@@ -29,13 +29,11 @@ describe('Terminal Delivery Workflow & Safety Logic', () => {
     expect(useOrderStore.getState().assignedRiderName).toBeNull();
   });
 
-  it('POS enforces safety validation on Checkout and Kitchen dispatch for delivery', () => {
-    // Checkout guard
-    expect(posJsx).toContain('if (orderType === \'delivery\') {');
-    expect(posJsx).toContain('toast.error(\'Please enter customer phone and delivery address before checkout\'');
-
-    // Kitchen dispatch guard
-    expect(posJsx).toContain('toast.error(\'Please enter customer phone and delivery address before sending to kitchen\'');
+  it('POS prompts for delivery details on Checkout and Kitchen dispatch with Skip support', () => {
+    // Checkout & Kitchen dispatch guards with skipDeliveryCheck bypass
+    expect(posJsx).toContain("if (orderType === 'delivery' && !skipDeliveryCheck) {");
+    expect(posJsx).toContain("toast('Enter customer phone & address or tap Skip'");
+    expect(posJsx).toContain('allowSkip={Boolean(pendingDeliveryAction)}');
   });
 
   it('POS displays prominent delivery destination bar with quick edit action', () => {

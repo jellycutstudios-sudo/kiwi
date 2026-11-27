@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Minus, Plus, Hash, Trash2, Flame, Clock, MessageSquare, Check } from 'lucide-react';
+import { X, Minus, Plus, Hash, Trash2, Flame, Clock, MessageSquare, Check, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { getItemVisuals } from '../../utils/itemVisuals';
@@ -31,6 +31,7 @@ export default function CartItemEditModal({
   const [prepState, setPrepState] = useState(item?.prepState || 'fired');
   const [course, setCourse] = useState(item?.course || 'Mains');
   const [seatNumber, setSeatNumber] = useState(item?.seatNumber ?? null);
+  const [isTakeaway, setIsTakeaway] = useState(Boolean(item?.isTakeaway));
   const [isKeypadOpen, setIsKeypadOpen] = useState(false);
 
   const modalRef = useRef(null);
@@ -44,6 +45,7 @@ export default function CartItemEditModal({
       setPrepState(item.prepState || 'fired');
       setCourse(item.course || 'Mains');
       setSeatNumber(item.seatNumber ?? null);
+      setIsTakeaway(Boolean(item.isTakeaway));
       setIsKeypadOpen(false);
     }
   }
@@ -133,6 +135,7 @@ export default function CartItemEditModal({
       prepState,
       course,
       seatNumber: orderType === 'dine-in' ? seatNumber : null,
+      isTakeaway: orderType === 'dine-in' ? isTakeaway : false,
     });
   };
 
@@ -451,8 +454,77 @@ export default function CartItemEditModal({
             />
           </div>
 
-          {/* 3. Kitchen Timing + Course + Seat */}
+          {/* 3. Kitchen Timing + Pack/Takeaway + Course + Seat */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {orderType === 'dine-in' && (() => {
+              const isAlreadyCooked = item.status === 'ready' || item.status === 'served';
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label-secondary)', display: 'block' }}>
+                      Serving Type
+                    </span>
+                    {isAlreadyCooked && (
+                      <span style={{ fontSize: 10.5, color: '#f59e0b', fontWeight: 600 }}>
+                        Locked · Already cooked/ready
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      disabled={isAlreadyCooked}
+                      onClick={() => {
+                        hapticTap('light');
+                        setIsTakeaway(false);
+                      }}
+                      style={{
+                        height: 36,
+                        padding: '0 12px',
+                        borderRadius: 9,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        border: !isTakeaway ? '1.5px solid #3b82f6' : '1px solid var(--color-separator)',
+                        background: !isTakeaway ? 'rgba(59, 130, 246, 0.14)' : 'var(--color-bg-secondary)',
+                        color: !isTakeaway ? '#60a5fa' : 'var(--color-label-secondary)',
+                        cursor: isAlreadyCooked ? 'not-allowed' : 'pointer',
+                        opacity: isAlreadyCooked ? 0.55 : 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}
+                    >
+                      <UtensilsCrossed size={13} /> Dine-In
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isAlreadyCooked}
+                      onClick={() => {
+                        hapticTap('light');
+                        setIsTakeaway(true);
+                      }}
+                      style={{
+                        height: 36,
+                        padding: '0 12px',
+                        borderRadius: 9,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        border: isTakeaway ? '1.5px solid #f59e0b' : '1px solid var(--color-separator)',
+                        background: isTakeaway ? 'rgba(245, 158, 11, 0.16)' : 'var(--color-bg-secondary)',
+                        color: isTakeaway ? '#fbbf24' : 'var(--color-label-secondary)',
+                        cursor: isAlreadyCooked ? 'not-allowed' : 'pointer',
+                        opacity: isAlreadyCooked ? 0.55 : 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}
+                    >
+                      <ShoppingBag size={13} /> Pack / Takeaway
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
             {/* Fire Now vs Hold */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
