@@ -21,10 +21,10 @@ describe('POS Dynamic Table and Customer Pills in Cart Header', () => {
     expect(posJsx).toContain('{customer?.name || customerName || customer?.phone || customerPhone}');
     expect(posJsx).toContain('className="cart-unified-chip cart-unified-chip--customer is-assigned"');
 
-    // When empty, renders dynamic Customer label (or Delivery Info in delivery mode)
-    expect(posJsx).toContain('className="cart-unified-chip cart-unified-chip--customer is-empty"');
+    // When empty, renders compact icon-only Customer button (or Delivery Info in delivery mode)
+    expect(posJsx).toContain("className={`cart-unified-chip cart-unified-chip--customer is-empty ${orderType !== 'delivery' ? 'is-icon-only' : ''}`}");
     expect(posJsx).toContain('orderType === \'delivery\'');
-    expect(posJsx).toContain('<span className="cart-unified-label">Customer</span>');
+    expect(posJsx).toContain('<UserPlus size={16} className="cart-unified-icon" />');
     expect(posJsx).toContain('Delivery Info');
   });
 

@@ -4,7 +4,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch, 
 import { db } from '../../firebase';
 import { 
   Plus, Edit2, Trash2, X, AlertTriangle, Boxes, 
-  DollarSign, Truck, FileText, Eye 
+  DollarSign, Truck, FileText, Eye, SlidersHorizontal, History, Search 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -12,18 +12,27 @@ import { formatCurrency } from '../../utils/formatCurrency';
 const UNITS = ['pcs', 'kg', 'g', 'l', 'ml'];
 
 export default function Inventory() {
-  const { restaurant } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('stock'); // 'stock' | 'suppliers' | 'pos'
+  const { restaurant, staffDoc, user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('stock'); // 'stock' | 'suppliers' | 'pos' | 'logs'
   
   // Core states
   const [ingredients, setIngredients] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [inventoryLogs, setInventoryLogs] = useState([]);
+  
+  // Stock Adjustment / Wastage modal state
+  const [adjustTarget, setAdjustTarget] = useState(null);
+  const [adjustType, setAdjustType] = useState('wastage'); // 'wastage' | 'deduct' | 'restock' | 'count'
+  const [adjustQty, setAdjustQty] = useState('');
+  const [adjustReason, setAdjustReason] = useState('Spoiled / Expired');
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(200);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState('all'); // 'all' | 'low'
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
@@ -93,15 +102,20 @@ export default function Inventory() {
     return unsub;
   }, [restaurant?.id, pageSize]);
 
-  // Case-insensitive, substring-capable instant search across ingredient name & unit
+  // Case-insensitive, substring-capable instant search + Low Stock filter
   const filteredIngredients = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
-    if (!term) return ingredients;
-    return ingredients.filter(ing => 
-      (ing.name && ing.name.toLowerCase().includes(term)) ||
-      (ing.unit && ing.unit.toLowerCase().includes(term))
-    );
-  }, [ingredients, debouncedSearch]);
+    return ingredients.filter(ing => {
+      if (stockFilter === 'low' && (Number(ing.qty) || 0) > (Number(ing.minQty) || 0)) {
+        return false;
+      }
+      if (!term) return true;
+      return (
+        (ing.name && ing.name.toLowerCase().includes(term)) ||
+        (ing.unit && ing.unit.toLowerCase().includes(term))
+      );
+    });
+  }, [ingredients, debouncedSearch, stockFilter]);
 
   // 2. Fetch suppliers list in real-time
   useEffect(() => {
@@ -116,6 +130,21 @@ export default function Inventory() {
     if (!restaurant?.id) return;
     return onSnapshot(collection(db, 'restaurants', restaurant.id, 'purchase_orders'), snap => {
       setPurchaseOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+  }, [restaurant?.id]);
+
+  // 4. Fetch inventory movement / wastage audit logs in real-time
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const logsQ = query(
+      collection(db, 'restaurants', restaurant.id, 'inventory_logs'),
+      orderBy('createdAt', 'desc'),
+      limit(150)
+    );
+    return onSnapshot(logsQ, snap => {
+      setInventoryLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, err => {
+      console.warn('[Inventory] logs listener deferred:', err?.message);
     });
   }, [restaurant?.id]);
 
@@ -281,13 +310,38 @@ export default function Inventory() {
         if (!confirm('Marking as RECEIVED will automatically increment ingredient stock levels. Continue?')) return;
         
         const batch = writeBatch(db);
+        const actorName = staffDoc?.name || user?.displayName || 'Admin';
         
-        // 1. Loop through items and update quantities + cost references
+        // 1. Loop through items, update quantities using Weighted Average Cost (WAC), and log receipt
         for (const item of po.items) {
+          const existing = ingredients.find(i => i.id === item.ingredientId);
+          const oldQty = Math.max(0, Number(existing?.qty) || 0);
+          const oldCost = Number(existing?.cost) || 0;
+          const newQty = Number(item.qtyOrdered) || 0;
+          const unitCost = Number(item.unitCost) || 0;
+          const totalQty = oldQty + newQty;
+          const wacCost = totalQty > 0 && oldQty > 0
+            ? Math.round((((oldQty * oldCost) + (newQty * unitCost)) / totalQty) * 100) / 100
+            : unitCost;
+
           const ingRef = doc(db, 'restaurants', restaurant.id, 'inventory', item.ingredientId);
           batch.update(ingRef, {
-            qty: increment(item.qtyOrdered),
-            cost: item.unitCost // Update inventory baseline to latest cost
+            qty: increment(newQty),
+            cost: wacCost
+          });
+
+          const logRef = doc(collection(db, 'restaurants', restaurant.id, 'inventory_logs'));
+          batch.set(logRef, {
+            ingredientId: item.ingredientId,
+            ingredientName: item.name,
+            unit: item.unit || existing?.unit || 'pcs',
+            type: 'po_received',
+            delta: newQty,
+            previousQty: Number(existing?.qty) || 0,
+            newQty: (Number(existing?.qty) || 0) + newQty,
+            reason: `PO #${po.id.slice(-6).toUpperCase()} (${po.supplierName || 'Vendor'})`,
+            staffName: actorName,
+            createdAt: serverTimestamp()
           });
         }
 
@@ -310,6 +364,60 @@ export default function Inventory() {
       }
     } catch (e) {
       toast.error('PO status transition failed: ' + e.message);
+    }
+  };
+
+  const handleStockAdjustSubmit = async () => {
+    if (!adjustTarget || !restaurant?.id) return;
+    const rawNum = parseFloat(adjustQty);
+    if (isNaN(rawNum) || rawNum < 0 || (adjustType !== 'count' && rawNum <= 0)) {
+      toast.error('Please enter a valid quantity');
+      return;
+    }
+
+    const prevQty = Number(adjustTarget.qty) || 0;
+    let delta = 0;
+    if (adjustType === 'wastage' || adjustType === 'deduct') {
+      delta = -rawNum;
+    } else if (adjustType === 'restock') {
+      delta = rawNum;
+    } else if (adjustType === 'count') {
+      delta = Math.round((rawNum - prevQty) * 1000000) / 1000000;
+    }
+
+    if (delta === 0) {
+      toast.error('No stock change detected');
+      return;
+    }
+
+    setAdjustSubmitting(true);
+    try {
+      const batch = writeBatch(db);
+      const ingRef = doc(db, 'restaurants', restaurant.id, 'inventory', adjustTarget.id);
+      batch.update(ingRef, { qty: increment(delta) });
+
+      const logRef = doc(collection(db, 'restaurants', restaurant.id, 'inventory_logs'));
+      batch.set(logRef, {
+        ingredientId: adjustTarget.id,
+        ingredientName: adjustTarget.name,
+        unit: adjustTarget.unit,
+        type: adjustType,
+        delta,
+        previousQty: prevQty,
+        newQty: Math.round((prevQty + delta) * 1000000) / 1000000,
+        reason: adjustReason.trim() || adjustType,
+        staffName: staffDoc?.name || user?.displayName || 'Admin',
+        createdAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      toast.success(`Stock updated (${delta > 0 ? `+${delta}` : delta} ${adjustTarget.unit})`);
+      setAdjustTarget(null);
+      setAdjustQty('');
+    } catch (e) {
+      toast.error('Failed to adjust stock: ' + e.message);
+    } finally {
+      setAdjustSubmitting(false);
     }
   };
 
@@ -357,16 +465,25 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Stats Cards (Rendered only on Stock Ledger tab) */}
+      {/* Stats Cards (Balanced 3-column KPI strip on Stock Ledger tab) */}
       {activeTab === 'stock' && (
-        <div className="stat-grid">
+        <div className="inventory-kpi-grid">
           {stats.map((s, i) => (
-            <div key={i} className="stat-card">
+            <div
+              key={i}
+              className={`stat-card inventory-kpi-card ${i === 2 && lowStockItems.length > 0 ? 'is-clickable' : ''}`}
+              onClick={() => {
+                if (i === 2 && lowStockItems.length > 0) {
+                  setStockFilter(prev => (prev === 'low' ? 'all' : 'low'));
+                }
+              }}
+              title={i === 2 && lowStockItems.length > 0 ? 'Click to filter low-stock items' : undefined}
+            >
               <div className="stat-card-icon" style={{ background: s.bg }}>
-                <s.icon size={20} color={s.color} />
+                <s.icon size={18} color={s.color} />
               </div>
-              <div className="stat-card-value">
-                {loading ? <div className="skeleton" style={{ height: 28, width: 80, borderRadius: 6 }} /> : s.value}
+              <div className="stat-card-value" style={{ fontSize: 22 }}>
+                {loading ? <div className="skeleton" style={{ height: 26, width: 76, borderRadius: 6 }} /> : s.value}
               </div>
               <div className="stat-card-label">{s.label}</div>
             </div>
@@ -379,7 +496,8 @@ export default function Inventory() {
         {[
           { key: 'stock', label: 'Stock Ledger', icon: Boxes },
           { key: 'suppliers', label: 'Suppliers Directory', icon: Truck },
-          { key: 'pos', label: 'Purchase Orders', icon: FileText }
+          { key: 'pos', label: 'Purchase Orders', icon: FileText },
+          { key: 'logs', label: 'Stock Logs', icon: History }
         ].map(tab => (
           <button
             key={tab.key}
@@ -396,40 +514,37 @@ export default function Inventory() {
       {/* ── Tab Content: Stock Ledger ─────────────────────── */}
       {activeTab === 'stock' && (
         <>
-          {lowStockItems.length > 0 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-3)',
-              padding: 'var(--space-3) var(--space-4)',
-              background: 'var(--color-orange-light)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1.5px solid var(--color-orange)',
-              color: 'var(--color-orange)',
-              fontWeight: 'var(--weight-semibold)',
-              fontSize: 'var(--text-footnote)'
-            }}>
-              <AlertTriangle size={18} />
-              <span>Attention: {lowStockItems.length} ingredients are running below safety stock minimums. Please issue purchase orders to restock immediately.</span>
-            </div>
-          )}
-
           <div className="card">
-            <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-              <div>
-                <span className="card-title">Active Ingredient Stock</span>
-                <span className="badge badge-gray" style={{ marginLeft: 6 }}>
-                  {filteredIngredients.length}{filteredIngredients.length !== ingredients.length ? ` of ${ingredients.length}` : ''} items
-                </span>
+            <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span className="card-title">Stock Ledger</span>
+                <div className="inventory-filter-pills">
+                  <button
+                    type="button"
+                    className={`inventory-filter-pill ${stockFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setStockFilter('all')}
+                  >
+                    All ({ingredients.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`inventory-filter-pill ${stockFilter === 'low' ? 'active is-warn' : ''}`}
+                    onClick={() => setStockFilter('low')}
+                  >
+                    Low Stock ({lowStockItems.length})
+                  </button>
+                </div>
               </div>
-              <input
-                type="text"
-                className="input"
-                placeholder="Search ingredients..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                style={{ minWidth: 200 }}
-              />
+              <div className="inventory-search-wrap">
+                <Search size={14} className="inventory-search-icon" />
+                <input
+                  type="text"
+                  className="form-input inventory-search-input"
+                  placeholder="Search ingredients..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
             </div>
 
             {/* Mobile Touch Cards View (visible on mobile <= 768px) */}
@@ -481,6 +596,18 @@ export default function Inventory() {
                     </div>
 
                     <div className="inventory-mobile-card-actions">
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          setAdjustTarget(ing);
+                          setAdjustType('wastage');
+                          setAdjustQty('');
+                          setAdjustReason('Spoiled / Expired');
+                        }}
+                      >
+                        <SlidersHorizontal size={13} />
+                        <span>Adjust</span>
+                      </button>
                       <button className="btn btn-secondary btn-sm" id={`mob-edit-ing-${ing.id}`} onClick={() => {
                         setEditId(ing.id);
                         setForm({ name: ing.name, unit: ing.unit, qty: String(ing.qty), minQty: String(ing.minQty), cost: String(ing.cost) });
@@ -532,33 +659,48 @@ export default function Inventory() {
                         <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-semibold)' }}>
                           {ing.name}
                         </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', textAlign: 'right', color: 'var(--color-label-secondary)' }}>
-                          {formatCurrency(ing.cost, currency)} / {ing.unit}
+                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', textAlign: 'right', color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
+                          {formatCurrency(ing.cost, currency)} <span style={{ opacity: 0.7 }}>/ {ing.unit}</span>
                         </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)' }}>
-                          {ing.qty} {ing.unit}
+                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', whiteSpace: 'nowrap' }}>
+                          <span>{ing.qty}</span>{' '}
+                          <span className="inventory-unit-chip">{ing.unit}</span>
                         </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)' }}>
+                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-footnote)', color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
                           {ing.minQty} {ing.unit}
                         </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', textAlign: 'right', color: 'var(--color-accent)' }}>
+                        <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-bold)', textAlign: 'right', color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>
                           {formatCurrency(totalCostVal, currency)}
                         </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center' }}>
-                          <span className={`badge ${isLow ? 'badge-orange' : 'badge-green'}`} style={{ textTransform: 'uppercase', fontSize: 10 }}>
+                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span className={`badge ${isLow ? 'badge-orange' : 'badge-green'}`} style={{ textTransform: 'uppercase', fontSize: 10, whiteSpace: 'nowrap' }}>
                             {isLow ? 'Low Stock' : 'Good'}
                           </span>
                         </td>
-                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'center' }}>
-                            <button className="btn btn-secondary btn-icon btn-sm" id={`edit-ing-${ing.id}`} onClick={() => {
+                        <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                            <button
+                              className="btn btn-secondary btn-xs"
+                              title="Log Wastage / Adjust Stock"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 8px' }}
+                              onClick={() => {
+                                setAdjustTarget(ing);
+                                setAdjustType('wastage');
+                                setAdjustQty('');
+                                setAdjustReason('Spoiled / Expired');
+                              }}
+                            >
+                              <SlidersHorizontal size={12} />
+                              <span>Adjust</span>
+                            </button>
+                            <button className="btn btn-secondary btn-icon btn-sm" id={`edit-ing-${ing.id}`} title="Edit ingredient" onClick={() => {
                               setEditId(ing.id);
                               setForm({ name: ing.name, unit: ing.unit, qty: String(ing.qty), minQty: String(ing.minQty), cost: String(ing.cost) });
                               setShowForm(true);
                             }}>
                               <Edit2 size={12} />
                             </button>
-                            <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteIngredient(ing.id)} id={`delete-ing-${ing.id}`}>
+                            <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} title="Delete ingredient" onClick={() => deleteIngredient(ing.id)} id={`delete-ing-${ing.id}`}>
                               <Trash2 size={12} />
                             </button>
                           </div>
@@ -913,33 +1055,50 @@ export default function Inventory() {
               <h2 className="modal-title">{editId ? 'Edit Ingredient' : 'New Stock Item'}</h2>
               <button className="btn btn-secondary btn-icon" onClick={() => setShowForm(false)}><X size={16} /></button>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Ingredient Name</label>
-                <input id="ing-name-input" className="form-input" placeholder="e.g. Cooking Oil, Cheese Buns" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                <input id="ing-name-input" className="form-input" placeholder="e.g. Cooking Oil, Cheese Buns" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} autoFocus />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label className="form-label">Unit Cost ({currency})</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Cost per {form.unit} ({currency})</label>
                   <input id="ing-cost-input" className="form-input" type="number" min={0} step={0.01} placeholder="0.00" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Unit UoM</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Unit</label>
                   <select id="ing-unit-select" className="form-select" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label className="form-label">Current Stock Qty</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">{editId ? `Current Stock (${form.unit})` : `Opening Stock (${form.unit})`}</label>
                   <input id="ing-qty-input" className="form-input" type="number" min={0} step={0.001} placeholder="0" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Safety Alert Stock</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Low-Stock Alert At ({form.unit})</label>
                   <input id="ing-min-input" className="form-input" type="number" min={0} step={0.001} placeholder="10" value={form.minQty} onChange={e => setForm(f => ({ ...f, minQty: e.target.value }))} />
                 </div>
               </div>
+              {(parseFloat(form.qty) > 0 && parseFloat(form.cost) > 0) && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-separator)',
+                  fontSize: 12.5
+                }}>
+                  <span style={{ color: 'var(--color-label-secondary)' }}>Estimated Stock Value</span>
+                  <strong style={{ color: 'var(--color-green)' }}>
+                    {formatCurrency((parseFloat(form.qty) || 0) * (parseFloat(form.cost) || 0), currency)}
+                  </strong>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
@@ -1114,6 +1273,150 @@ export default function Inventory() {
               <button className="btn btn-secondary" onClick={() => setShowPoForm(false)}>Cancel</button>
               <button className="btn btn-primary" id="save-po-btn" onClick={savePurchaseOrder} disabled={poItems.length === 0 || !poSupplierId}>
                 Save Draft PO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Content: Stock Movement & Wastage Logs ────── */}
+      {activeTab === 'logs' && (
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <span className="card-title">Stock Movement &amp; Wastage Audit Log</span>
+              <span className="badge badge-gray" style={{ marginLeft: 8 }}>{inventoryLogs.length} entries</span>
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-separator)' }}>
+                  {['Time', 'Ingredient', 'Type', 'Change', 'New Balance', 'Reason', 'Staff'].map(h => (
+                    <th key={h} style={{
+                      padding: 'var(--space-3) var(--space-4)',
+                      textAlign: h === 'Change' || h === 'New Balance' ? 'right' : 'left',
+                      fontSize: 'var(--text-caption1)',
+                      fontWeight: 'var(--weight-semibold)',
+                      color: 'var(--color-label-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {inventoryLogs.map(log => {
+                  const ts = log.createdAt?.toDate ? log.createdAt.toDate() : (log.createdAt ? new Date(log.createdAt) : null);
+                  const isPos = Number(log.delta) > 0;
+                  const typeLabel = log.type === 'po_received' ? 'PO Received'
+                    : log.type === 'wastage' ? 'Wastage'
+                    : log.type === 'count' ? 'Audit Count'
+                    : log.type === 'restock' ? 'Restock'
+                    : 'Adjustment';
+                  return (
+                    <tr key={log.id} style={{ borderBottom: '1px solid var(--color-separator)' }}>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 12, color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
+                        {ts ? ts.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, fontSize: 13 }}>
+                        {log.ingredientName}
+                      </td>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                        <span className={`badge ${log.type === 'wastage' ? 'badge-red' : isPos ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 10, textTransform: 'uppercase' }}>
+                          {typeLabel}
+                        </span>
+                      </td>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--color-green)' : 'var(--color-red)' }}>
+                        {isPos ? `+${log.delta}` : log.delta} {log.unit}
+                      </td>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', textAlign: 'right', fontSize: 12.5, fontWeight: 600 }}>
+                        {log.newQty} {log.unit}
+                      </td>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 12.5, color: 'var(--color-label-secondary)' }}>
+                        {log.reason || '—'}
+                      </td>
+                      <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 12, color: 'var(--color-label-tertiary)' }}>
+                        {log.staffName || 'Admin'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {inventoryLogs.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                      No stock adjustments, wastage logs, or PO receipts recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Stock Adjustment / Wastage ───────────── */}
+      {adjustTarget && (
+        <div className="modal-overlay" onClick={() => setAdjustTarget(null)}>
+          <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Adjust Stock · {adjustTarget.name}</h2>
+              <button className="btn btn-secondary btn-icon" onClick={() => setAdjustTarget(null)}><X size={16} /></button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--color-label-secondary)' }}>
+                Current Stock: <strong style={{ color: 'var(--color-label)' }}>{adjustTarget.qty} {adjustTarget.unit}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { id: 'wastage', label: 'Wastage / Spoil (-)', defaultReason: 'Spoiled / Expired' },
+                  { id: 'deduct', label: 'Manual Deduct (-)', defaultReason: 'Kitchen Usage' },
+                  { id: 'restock', label: 'Quick Restock (+)', defaultReason: 'Cash Purchase' },
+                  { id: 'count', label: 'Physical Audit (=)', defaultReason: 'Physical Count Variance' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`btn btn-sm ${adjustType === opt.id ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => {
+                      setAdjustType(opt.id);
+                      setAdjustReason(opt.defaultReason);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div>
+                <label className="form-label">
+                  {adjustType === 'count' ? `Actual Physical Count (${adjustTarget.unit})` : `Quantity (${adjustTarget.unit})`}
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  className="form-input"
+                  placeholder="0"
+                  value={adjustQty}
+                  onChange={e => setAdjustQty(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="form-label">Reason / Note</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={adjustReason}
+                  onChange={e => setAdjustReason(e.target.value)}
+                  placeholder="e.g., Spoiled, Spillage, Physical Count"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setAdjustTarget(null)}>Cancel</button>
+              <button className="btn btn-primary" disabled={adjustSubmitting} onClick={handleStockAdjustSubmit}>
+                {adjustSubmitting ? 'Saving...' : 'Save Adjustment'}
               </button>
             </div>
           </div>

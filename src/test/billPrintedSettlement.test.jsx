@@ -78,11 +78,8 @@ describe('Pre-Bill Tracking & Duplicate Print Prevention', () => {
       />
     );
 
-    // Subtle header badge
-    expect(screen.getByText(/Bill Printed/i)).toBeInTheDocument();
-
-    // Compact bill button state
-    expect(screen.getByText(/Bill ✓/i)).toBeInTheDocument();
+    // Compact icon-only bill button indicates already printed
+    expect(screen.getByRole('button', { name: /Bill printed/i })).toBeInTheDocument();
 
     // Unified Quick Cash button (no redundant duplicate printer button)
     expect(screen.getByRole('button', { name: /^Quick Cash$/i })).toBeInTheDocument();

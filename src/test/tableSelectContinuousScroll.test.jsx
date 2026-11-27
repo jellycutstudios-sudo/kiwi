@@ -66,7 +66,8 @@ describe('Petpooja-Style Continuous Section-Grouped Scroll Table View', () => {
     expect(tableMapJsx).not.toContain('tm-card-large-tag');
     expect(tableMapJsx).not.toContain('+ Start Order');
 
-    // Clean free state with indicator dot
-    expect(tableMapJsx).toContain('className="tm-status-dot free"');
+    // Clean free state without redundant "Free" pill clutter
+    expect(tableMapJsx).toContain("'tm-card--free free'");
+    expect(tableMapJsx).not.toContain('table-3d-status-pill free');
   });
 });

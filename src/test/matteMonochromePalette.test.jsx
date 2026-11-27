@@ -100,8 +100,8 @@ describe('Matte Monochrome Palette System', () => {
   it('preserves real-world semantic green on veg badges and free table indicators', () => {
     // Veg badge must stay green
     expect(css).toMatch(/\.food-badge-veg\s*\{[^}]*#16a34a/);
-    // Free table status dot must stay green
-    expect(css).toMatch(/\.tm-status-dot\.free\s*\{[^}]*#10b981/);
+    // Free table status dot uses clean monochrome slate
+    expect(css).toMatch(/\.tm-status-dot\.free\s*\{[^}]*#64748b/);
   });
 
   describe('TableMap Relatable Status Colors', () => {

@@ -277,6 +277,16 @@ export default function AppShell() {
     // On other pages we respect whatever state the user has set (or the screen-size default above).
   }, [isPOS, isTableMap]);
 
+  // Scope POS focus mode strictly to /pos so navigating to Dashboard or other pages never hides the sidebar.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const shouldHideSidebar = Boolean(isPOS && isFocusMode);
+    document.body.classList.toggle('pos-focus-mode', shouldHideSidebar);
+    return () => {
+      document.body.classList.remove('pos-focus-mode');
+    };
+  }, [isPOS, isFocusMode]);
+
   return (
     <div className={`app-shell ${isKDS ? 'kds-app-shell' : ''}`}>
       {!isKDS && (

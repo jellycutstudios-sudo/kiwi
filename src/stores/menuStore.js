@@ -203,13 +203,6 @@ export const useMenuStore = create((set, get) => {
         try {
           if (typeof localStorage !== 'undefined') localStorage.setItem('kiwi_pos_focus', String(nextVal));
         } catch {}
-        if (typeof document !== 'undefined') {
-          if (nextVal) {
-            document.body.classList.add('pos-focus-mode');
-          } else {
-            document.body.classList.remove('pos-focus-mode');
-          }
-        }
         return { isFocusMode: nextVal };
       });
     },

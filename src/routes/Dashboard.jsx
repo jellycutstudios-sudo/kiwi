@@ -371,7 +371,11 @@ export default function Dashboard() {
             return date >= d && date < nextD;
           }).length;
       const dayRevenue = i === 0
-        ? (salesViewMode === 'open' ? todayStats.openSales : (salesViewMode === 'pipeline' ? todayStats.totalSales : todayStats.settledSales))
+        ? (salesViewMode === 'open'
+            ? liveOpenSales
+            : (salesViewMode === 'pipeline'
+                ? Math.round((todayStats.settledSales + liveOpenSales) * 100) / 100
+                : todayStats.settledSales))
         : analyticsOrders
             .filter(o => {
               const date = typeof o.createdAt?.toDate === 'function' ? o.createdAt.toDate() : new Date(o.createdAt);
@@ -381,7 +385,7 @@ export default function Dashboard() {
       days.push({ label, rev: dayRevenue, orders: dayOrders, isToday: i === 0 });
     }
     return days;
-  }, [analyticsOrders, salesViewMode, todayStats.totalSales, todayStats.settledSales, todayStats.openSales, liveOpenOrders, todayStats.settledOrders]);
+  }, [analyticsOrders, salesViewMode, todayStats.settledSales, liveOpenSales, liveOpenOrders, todayStats.settledOrders]);
 
 
   // Dynamic Growth Insights / Tips
@@ -539,9 +543,9 @@ export default function Dashboard() {
         return settleTime && settleTime >= today.getTime() && settleTime <= endOfToday.getTime();
       });
 
-      // Open dining/kitchen orders: active in restaurant right now (unpaid and not cancelled/void)
+      // Open dining/kitchen orders: active in restaurant right now (unpaid and not cancelled/void/completed)
       const todayOpen = combined.filter(d => {
-        if (d.status === 'cancelled' || d.status === 'void' || d.status === 'billed') return false;
+        if (d.status === 'cancelled' || d.status === 'void' || d.status === 'billed' || d.status === 'completed') return false;
         if (d.paid === true || (d.paymentMethod && d.paymentMethod !== 'unpaid')) return false;
         const orderTime = getOrderTimestampMs(d);
         // Count if created today or currently in active in-memory orders
@@ -648,6 +652,9 @@ export default function Dashboard() {
   const effectiveOpenOrders = liveOpenOrders;
   const effectiveTotalSales = Math.round((todayStats.settledSales + effectiveOpenSales) * 100) / 100;
   const effectiveTotalOrders = todayStats.settledOrders + effectiveOpenOrders;
+  const effectiveAvgCheck = todayStats.settledOrders > 0
+    ? todayStats.settledSales / todayStats.settledOrders
+    : (effectiveTotalOrders > 0 ? effectiveTotalSales / effectiveTotalOrders : 0);
 
   const displayedSales = salesViewMode === 'open'
     ? effectiveOpenSales
@@ -1025,7 +1032,7 @@ export default function Dashboard() {
           </div>
           <div className="sales-vital-sub">
             <span style={{ color: 'var(--color-label-tertiary)' }}>
-              Avg Check: {formatCurrency(todayStats.avg, currency)} · {effectiveTotalOrders} total orders
+              Avg Check: {formatCurrency(effectiveAvgCheck, currency)} · {effectiveTotalOrders} total orders
             </span>
           </div>
         </div>

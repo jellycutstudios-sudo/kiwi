@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useTableStore } from '../stores/tableStore';
 import { useOrderStore } from '../stores/orderStore';
-import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
+import { compareTables, getTableFloor } from '../utils/tableSort';
 import { printReceipt } from '../utils/print';
 import { sendWhatsAppReceipt } from '../services/whatsappService';
 import toast from 'react-hot-toast';
@@ -15,7 +16,7 @@ import {
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
   Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
-  ArrowLeft, Bell, ChevronDown, MoreHorizontal, Check
+  ArrowLeft, Bell, ChevronDown, MoreHorizontal, Check, ArrowUpDown, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
@@ -153,16 +154,43 @@ export default function TableMap() {
 
   const popoverRef = useRef(null);
 
+  const [reorderMode, setReorderMode] = useState(false);
+
   const floorTables = useMemo(() => {
     if (activeFloor === 'all') return tables;
-    return tables.filter(t => (t.floor || 'Ground Floor') === activeFloor);
+    return tables.filter(t => getTableFloor(t) === activeFloor);
   }, [tables, activeFloor]);
 
   const sortedFloorTables = useMemo(() => {
-    return [...floorTables].sort((a, b) =>
-      (a.name || '').localeCompare(b.name || '', undefined, { numeric: true })
-    );
+    return [...floorTables].sort(compareTables);
   }, [floorTables]);
+
+  const handleMoveTable = useCallback(async (targetTable, direction) => {
+    if (!restaurant?.id || !targetTable?.id) return;
+    const floorName = getTableFloor(targetTable);
+    const list = [...tables]
+      .filter(t => getTableFloor(t) === floorName)
+      .sort(compareTables);
+    const idx = list.findIndex(t => t.id === targetTable.id);
+    const swapIdx = direction === 'prev' ? idx - 1 : idx + 1;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= list.length) return;
+
+    const reordered = [...list];
+    const [moved] = reordered.splice(idx, 1);
+    reordered.splice(swapIdx, 0, moved);
+
+    try {
+      const batch = writeBatch(db);
+      reordered.forEach((tbl, i) => {
+        batch.update(doc(db, 'restaurants', restaurant.id, 'tables', tbl.id), {
+          sortOrder: (i + 1) * 10
+        });
+      });
+      await batch.commit();
+    } catch (err) {
+      toast.error('Failed to reorder table: ' + err.message);
+    }
+  }, [restaurant?.id, tables]);
 
   // Listen for external table selection events (e.g. from Food Ready notification banner)
   useEffect(() => {
@@ -823,9 +851,8 @@ export default function TableMap() {
               ? 'tm-card--reserved reserved'
               : 'tm-card--free free'
           } ${selected === t.id ? 'tm-card--selected' : ''}`}
-          title={`${t.name} • ${capacity} Seats • ${isFoodReady ? 'FOOD READY' : isBilled ? 'BILLED' : effectiveStatus.toUpperCase()}`}
         >
-          {/* Status Pill Badge at Top */}
+          {/* Status Pill Badge at Top (Only for urgent/special states: READY, Billed, Overdue, Reserved) */}
           {isFoodReady ? (
             <span className={`tm-card-ready-pill ${isPassOverdue ? 'overdue' : ''}`}>
               <Bell size={10} strokeWidth={2.5} />
@@ -841,22 +868,12 @@ export default function TableMap() {
               <AlertCircle size={10} strokeWidth={2.5} />
               <span>Overdue {elapsedMins}m</span>
             </span>
-          ) : effectiveStatus === 'occupied' ? (
-            <span className="table-3d-status-pill occupied">
-              <span className="tm-status-dot occupied" />
-              <span>Seated</span>
-            </span>
           ) : isReserved ? (
             <span className="table-3d-status-pill reserved">
               <Star size={10} fill="currentColor" />
               <span>Reserved</span>
             </span>
-          ) : (
-            <span className="table-3d-status-pill free">
-              <span className="tm-status-dot free" />
-              <span>Free</span>
-            </span>
-          )}
+          ) : null}
 
           {/* Table Name (Prominent, High-Contrast Center) */}
           <div className="table-3d-name-row">
@@ -868,16 +885,18 @@ export default function TableMap() {
             )}
           </div>
 
-          {/* Capacity */}
-          <span className="table-3d-capacity">
-            {capacity} {capacity === 1 ? 'seat' : 'seats'}
-          </span>
+          {/* Capacity (Only on Free or Reserved tables — hidden once seated) */}
+          {!hasOrder && !isBilled && !isFoodReady && (
+            <span className="table-3d-capacity">
+              {capacity} {capacity === 1 ? 'seat' : 'seats'}
+            </span>
+          )}
 
           {/* Live Order Metrics (if occupied / billed / ready) */}
           {(hasOrder || isBilled || isFoodReady) && order?.total != null && (
             <div className="table-3d-metrics">
               <span className="tm-card-bill-amount table-3d-order-total">
-                {formatCurrency(order.total, currency)}
+                {String(formatCurrency(order.total, currency) || '').replace(/\.00$/, '')}
               </span>
               {elapsedMins > 0 && (
                 <span
@@ -895,16 +914,49 @@ export default function TableMap() {
             </div>
           )}
 
-          {/* Items count if occupied */}
-          {itemCount > 0 && (
+          {/* Order note only if present */}
+          {order?.note && (
             <span className="table-3d-items-sub">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
-              {order?.note && ` • ${order.note}`}
+              {order.note}
             </span>
           )}
 
-          {/* Quick Edit Button if canEditLayout */}
-          {canEditLayout && (
+          {/* Quick Edit / Reorder Buttons if canEditLayout */}
+          {canEditLayout && reorderMode ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                zIndex: 4
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary btn-icon btn-xs"
+                title={`Move ${t.name} earlier`}
+                aria-label={`Move ${t.name} earlier`}
+                onClick={() => handleMoveTable(t, 'prev')}
+                style={{ width: 26, height: 26, padding: 0, borderRadius: 7 }}
+              >
+                <ChevronLeft size={13} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-icon btn-xs"
+                title={`Move ${t.name} later`}
+                aria-label={`Move ${t.name} later`}
+                onClick={() => handleMoveTable(t, 'next')}
+                style={{ width: 26, height: 26, padding: 0, borderRadius: 7 }}
+              >
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          ) : canEditLayout && (
             <button
               type="button"
               className="tm-card-edit-btn"
@@ -922,7 +974,7 @@ export default function TableMap() {
       </div>
     </div>
   );
-  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency, canEditLayout]);
+  }, [tableOrders, reservations, selected, clearCart, setTable, setOrderType, navigate, nowTime, currency, canEditLayout, reorderMode, handleMoveTable]);
 
   return (
     <div className="tm-root">
@@ -1038,16 +1090,8 @@ export default function TableMap() {
 
           <div className="tm-toolbar-divider tm-desktop-only" />
 
-          {/* Status Filter Chips */}
+          {/* Status Filter Chips (Toggleable — tap active chip again to show all) */}
           <div className="tm-filter-pills" role="toolbar" aria-label="Filter tables by status">
-            <button
-              type="button"
-              className={`tm-pill ${statusFilter === 'all' ? 'tm-pill--active tm-pill--all' : ''}`}
-              onClick={() => setStatusFilter('all')}
-            >
-              <span>All</span>
-              <span className="tm-pill-count">({floorTables.length})</span>
-            </button>
             <button
               type="button"
               className={`tm-pill ${statusFilter === 'free' ? 'tm-pill--active tm-pill--free' : ''}`}
@@ -1167,6 +1211,19 @@ export default function TableMap() {
               >
                 <Wand2 size={13} />
                 <span>Bulk</span>
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${reorderMode ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => {
+                  setReorderMode(v => !v);
+                  if (viewMode !== 'grid') setViewMode('grid');
+                }}
+                title="Reorder tables (syncs with POS)"
+                style={{ height: 36, fontSize: 12.5, fontWeight: 600, gap: 5, padding: '0 10px' }}
+              >
+                <ArrowUpDown size={13} />
+                <span>{reorderMode ? 'Done' : 'Reorder'}</span>
               </button>
               <button
                 type="button"
@@ -1411,16 +1468,40 @@ export default function TableMap() {
         </div>
       )}
 
+      {/* ═══ REORDER MODE BANNER ═══ */}
+      {reorderMode && canEditLayout && viewMode === 'grid' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '8px 14px',
+          marginBottom: 10,
+          borderRadius: 10,
+          background: 'rgba(59, 130, 246, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.28)',
+          fontSize: 12.5,
+          color: 'var(--color-label)'
+        }}>
+          <span>
+            <strong>Reorder Mode:</strong> Tap <strong>‹</strong> or <strong>›</strong> on any table to set its display order (syncs with POS Table Picker).
+          </span>
+          <button type="button" className="btn btn-primary btn-xs" onClick={() => setReorderMode(false)}>
+            Done
+          </button>
+        </div>
+      )}
+
       {/* ═══ VIEW MODE: QUICK GRID (TOUCH & SMALL DEVICE OPTIMIZED) ═══ */}
       {viewMode === 'grid' && (
         activeFloor === 'all' && allFloors.length > 1 ? (
           /* Continuous Grouped Scroll across all floors/sections (Petpooja style) */
           <div className="tm-all-floors-container">
             {allFloors.map(floor => {
-              const floorTablesRaw = tables.filter(t => (t.floor || 'Ground Floor') === floor);
+              const floorTablesRaw = tables.filter(t => getTableFloor(t) === floor);
               const floorTablesFiltered = floorTablesRaw
                 .filter(filterTable)
-                .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true }));
+                .sort(compareTables);
 
               if (floorTablesFiltered.length === 0 && searchQuery) return null;
 

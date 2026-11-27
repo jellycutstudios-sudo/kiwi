@@ -676,118 +676,78 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     );
   }
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.65)' }}>
-      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 620, width: 'min(620px, 95vw)', maxHeight: '96vh', borderRadius: 22, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.12)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
-        <div className="modal-header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-            }}>
-              <CreditCard size={18} />
-            </div>
-            <div>
-              <h2 className="modal-title" style={{ fontSize: 17, fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
-                {t('payment')}
-              </h2>
-              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', marginTop: 1 }}>
-                {orderType === 'delivery'
-                  ? `🛵 Delivery • ${customerName || customer?.name || 'Customer'}`
-                  : (tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Direct Register Checkout'))}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="modal-close-touch"
-            onClick={onClose}
-            id="payment-modal-close"
-            title="Close payment modal"
-            aria-label="Close payment modal"
-          >
-            <X size={20} strokeWidth={2.4} />
-          </button>
-        </div>
+  const formatCleanAmount = (amt) => String(formatCurrency(amt, currency) || '').replace(/\.00$/, '');
 
-        <div className="modal-body" style={{ flex: 1, maxHeight: 'calc(96vh - 120px)', overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* 1. Hero Amount Due Card (flexShrink: 0, high contrast, never squashed) */}
-          <div style={{
-            flexShrink: 0,
-            background: 'var(--color-bg-secondary)',
-            borderRadius: 16,
-            padding: '14px 18px',
-            textAlign: 'center',
-            border: '1.5px solid rgba(16, 185, 129, 0.35)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-            position: 'relative'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 4
+  return (
+    <div className="modal-overlay payment-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.68)' }}>
+      <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 520, width: 'min(520px, 95vw)', maxHeight: '94dvh', borderRadius: 22, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.5)', display: 'flex', flexDirection: 'column' }}>
+        {/* Unified Calm Header + Hero Amount */}
+        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: 'var(--color-label-secondary)',
+              background: 'var(--color-bg-secondary)',
+              padding: '4px 10px',
+              borderRadius: 999,
+              border: '1px solid var(--color-separator)'
             }}>
-              <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                {t('amountDue') || 'Amount Due'}
-              </span>
-              <span style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--color-label)',
-                background: 'var(--color-bg-tertiary, rgba(255, 255, 255, 0.08))',
-                padding: '2px 8px',
-                borderRadius: 999,
-                border: '1px solid var(--color-separator)'
-              }}>
-                {orderType === 'delivery' ? '🛵 Delivery' : (tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Register'))}
-              </span>
+              {orderType === 'delivery'
+                ? `Delivery · ${customerName || customer?.name || 'Customer'}`
+                : (tableName ? `Table ${tableName}` : (tokenNumber ? `Token #${tokenNumber}` : 'Counter Checkout'))}
+            </span>
+            <button
+              type="button"
+              className="modal-close-touch"
+              onClick={onClose}
+              id="payment-modal-close"
+              title="Close payment modal"
+              aria-label="Close payment modal"
+            >
+              <X size={20} strokeWidth={2.4} />
+            </button>
+          </div>
+
+          <div style={{ textAlign: 'center', padding: '2px 0 4px' }}>
+            <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 2 }}>
+              {t('amountDue') || 'Amount Due'}
             </div>
 
             {settledTotal > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                 <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>Bill: {formatCurrency(total, currency)}</span>
-                  <span>•</span>
-                  <span style={{ color: '#10b981', fontWeight: 700 }}>Paid: {formatCurrency(settledTotal, currency)}</span>
+                  <span>Bill: {formatCleanAmount(total)}</span>
+                  <span>·</span>
+                  <span style={{ color: '#10b981', fontWeight: 700 }}>Paid: {formatCleanAmount(settledTotal)}</span>
                 </div>
                 <div style={{
-                  fontSize: 'clamp(30px, 8vw, 40px)',
+                  fontSize: 'clamp(30px, 8vw, 38px)',
                   fontWeight: 900,
                   letterSpacing: '-0.03em',
-                  color: '#10b981',
+                  color: 'var(--color-label)',
                   fontVariantNumeric: 'tabular-nums',
-                  lineHeight: 1.15
+                  lineHeight: 1.1
                 }}>
-                  {formatCurrency(effectiveDue, currency)}
+                  {formatCleanAmount(effectiveDue)}
                 </div>
               </div>
             ) : (
               <div style={{
-                fontSize: 'clamp(30px, 8vw, 40px)',
+                fontSize: 'clamp(30px, 8vw, 38px)',
                 fontWeight: 900,
                 letterSpacing: '-0.03em',
-                color: '#10b981',
+                color: 'var(--color-label)',
                 fontVariantNumeric: 'tabular-nums',
-                lineHeight: 1.15
+                lineHeight: 1.1
               }}>
-                {formatCurrency(total, currency)}
+                {formatCleanAmount(total)}
               </div>
             )}
 
             {(discountAmt > 0 || getPointsDiscountAmount() > 0 || giftCardDeduction > 0 || tipAmount > 0) && (
               <div style={{
                 marginTop: 8,
-                paddingTop: 8,
-                borderTop: '1px solid var(--color-separator)',
                 fontSize: 11,
                 color: 'var(--color-label-secondary)',
                 display: 'flex',
@@ -795,14 +755,17 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 gap: 8,
                 flexWrap: 'wrap'
               }}>
-                <span>Subtotal: {formatCurrency(subtotal, currency)}</span>
-                {discountAmt > 0 && <span style={{ color: '#10b981', fontWeight: 700 }}>• Disc: -{formatCurrency(discountAmt, currency)}</span>}
-                {getPointsDiscountAmount() > 0 && <span style={{ color: '#f59e0b', fontWeight: 700 }}>• Points: -{formatCurrency(getPointsDiscountAmount(), currency)}</span>}
-                {tipAmount > 0 && <span style={{ color: '#0ea5e9', fontWeight: 700 }}>• Tip: +{formatCurrency(tipAmount, currency)}</span>}
-                {giftCardDeduction > 0 && <span style={{ color: '#8b5cf6', fontWeight: 700 }}>• Card: -{formatCurrency(giftCardDeduction, currency)}</span>}
+                <span>Subtotal {formatCleanAmount(subtotal)}</span>
+                {discountAmt > 0 && <span style={{ color: '#10b981', fontWeight: 700 }}>· Disc -{formatCleanAmount(discountAmt)}</span>}
+                {getPointsDiscountAmount() > 0 && <span style={{ color: '#f59e0b', fontWeight: 700 }}>· Points -{formatCleanAmount(getPointsDiscountAmount())}</span>}
+                {tipAmount > 0 && <span style={{ color: '#38bdf8', fontWeight: 700 }}>· Tip +{formatCleanAmount(tipAmount)}</span>}
+                {giftCardDeduction > 0 && <span style={{ color: '#a78bfa', fontWeight: 700 }}>· Card -{formatCleanAmount(giftCardDeduction)}</span>}
               </div>
             )}
           </div>
+        </div>
+
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* Delivery Dispatch Details Card */}
           {orderType === 'delivery' && (
@@ -872,9 +835,9 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             </div>
           )}
 
-          {/* 2. Payment Methods (Balanced 5-Card Single Row) */}
+          {/* 2. Payment Methods (Clean Responsive Grid) */}
           <div style={{ flexShrink: 0 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+            <div className="payment-methods-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
               {METHODS.map(m => {
                 const isSelected = paymentMethod === m.key;
                 return (
@@ -1166,10 +1129,10 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Cash Tendered
+                  Cash Received
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                  Total Due: <strong style={{ color: 'var(--color-label)' }}>{formatCurrency(total, currency)}</strong>
+                  Bill: <strong style={{ color: 'var(--color-label)' }}>{String(formatCurrency(total, currency) || '').replace(/\.00$/, '')}</strong>
                 </span>
               </div>
 
@@ -1226,11 +1189,13 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 )}
               </div>
 
-              {/* 1-Tap Smart Cash Denomination Chips */}
+              {/* Clean 1-Tap Cash Tender Chips (No noisy change pills) */}
               {quickCashOptions.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 10 }}>
                   {quickCashOptions.map((opt, idx) => {
                     const isSelected = Math.abs(parseFloat(cashTendered || 0) - opt.amount) < 0.01;
+                    const amountLabel = String(formatCurrency(opt.amount, currency) || '').replace(/\.00$/, '');
+                    const isExact = opt.change === 0;
                     return (
                       <button
                         key={idx}
@@ -1238,88 +1203,48 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                         onClick={() => setCashTendered(opt.amount.toString())}
                         className={`payment-denom-btn ${isSelected ? 'selected' : ''}`}
                         style={{
-                          minHeight: 46,
+                          minHeight: 42,
                           padding: '8px 12px',
-                          borderRadius: 10
+                          borderRadius: 10,
+                          justifyContent: 'center',
+                          gap: 6
                         }}
                       >
-                        <div style={{ textAlign: 'left' }}>
-                          <div style={{ fontSize: 13.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                            {formatCurrency(opt.amount, currency)}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
+                        {isExact && (
                           <span style={{
-                            fontSize: 11,
-                            fontWeight: 800,
-                            padding: '2px 7px',
-                            borderRadius: 6,
-                            background: isSelected ? 'rgba(52, 211, 153, 0.2)' : (opt.change > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg-tertiary)'),
-                            color: isSelected ? '#34d399' : (opt.change > 0 ? '#10b981' : 'var(--color-label-secondary)'),
-                            fontVariantNumeric: 'tabular-nums'
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            color: isSelected ? '#34d399' : 'var(--color-label-secondary)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em'
                           }}>
-                            {opt.change > 0 ? `+${formatCurrency(opt.change, currency)}` : 'Exact'}
+                            Exact
                           </span>
-                        </div>
+                        )}
+                        <span style={{ fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                          {amountLabel}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               )}
 
-              {/* Quick Bill Adder Strip */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center' }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-label-secondary)', textTransform: 'uppercase' }}>Add:</span>
-                {(currency === 'INR' ? [50, 100, 200, 500] : [5, 10, 20, 50]).map(val => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => {
-                      const current = parseFloat(cashTendered) || 0;
-                      setCashTendered((current + val).toString());
-                    }}
-                    className="payment-bill-btn"
-                  >
-                    +{currency === 'INR' ? `₹${val}` : `${val}`}
-                  </button>
-                ))}
-              </div>
-
-              {/* Live Change / Remaining Bal Display */}
+              {/* Minimal Return Change Bar */}
               {change !== null && change >= 0 && (
-                <div className={`payment-change-bar ${change > 0 ? 'has-change' : ''}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 8,
-                      background: change > 0 ? '#10b981' : 'var(--color-bg-tertiary)',
-                      color: change > 0 ? '#ffffff' : 'var(--color-label-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: change > 0 ? '0 2px 6px rgba(16, 185, 129, 0.25)' : 'none'
-                    }}>
-                      <Coins size={15} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 800, color: change > 0 ? '#059669' : 'var(--color-label)' }}>
-                        {change > 0 ? 'Change to Return' : 'Exact Tendered'}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--color-label-secondary)' }}>
-                        {change > 0 ? 'Hand cash back to customer' : 'No balance due'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize: 20,
+                <div className={`payment-change-bar ${change > 0 ? 'has-change' : ''}`} style={{ padding: '10px 14px' }}>
+                  <span style={{ fontSize: 13, fontWeight: 750, color: change > 0 ? '#34d399' : 'var(--color-label)' }}>
+                    {change > 0 ? 'Return Change' : 'Exact Paid'}
+                  </span>
+                  <span style={{
+                    fontSize: 19,
                     fontWeight: 900,
                     fontVariantNumeric: 'tabular-nums',
-                    color: change > 0 ? '#059669' : 'var(--color-label)',
+                    color: change > 0 ? '#34d399' : 'var(--color-label)',
                     letterSpacing: '-0.02em'
                   }}>
-                    {formatCurrency(change, currency)}
-                  </div>
+                    {String(formatCurrency(change, currency) || '').replace(/\.00$/, '')}
+                  </span>
                 </div>
               )}
               {change !== null && change < 0 && (
@@ -1882,128 +1807,121 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             )}
           </div>
 
-          {/* Thermal Receipt Print Preference */}
-          <div 
-            onClick={() => setShouldPrintReceipt(prev => !prev)}
-            style={{
-              marginTop: 10,
-              padding: '8px 12px',
-              borderRadius: 10,
-              background: shouldPrintReceipt ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-              border: shouldPrintReceipt ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              userSelect: 'none'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Printer size={15} color={shouldPrintReceipt ? '#38bdf8' : '#64748b'} />
-              <div>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: shouldPrintReceipt ? '#ffffff' : '#94a3b8' }}>
-                  Print Receipt on Settle
+          {/* Compact Receipt Preferences Row (Print + optional WhatsApp) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShouldPrintReceipt(prev => !prev)}
+                style={{
+                  flex: '1 1 150px',
+                  height: 38,
+                  padding: '0 12px',
+                  borderRadius: 10,
+                  background: shouldPrintReceipt ? 'rgba(16, 185, 129, 0.1)' : 'var(--color-bg-secondary)',
+                  border: shouldPrintReceipt ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--color-separator)',
+                  color: shouldPrintReceipt ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <Printer size={14} color={shouldPrintReceipt ? '#10b981' : 'var(--color-label-secondary)'} />
+                  <span>Print Receipt</span>
                 </span>
-                {billPrinted && (
-                  <span style={{ display: 'block', fontSize: 11, color: '#38bdf8' }}>
-                    ✓ Pre-bill already printed &middot; Print off to avoid duplicate
-                  </span>
-                )}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={shouldPrintReceipt}
-              onChange={e => setShouldPrintReceipt(e.target.checked)}
-              onClick={e => e.stopPropagation()}
-              style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
-            />
-          </div>
+                <span style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  background: shouldPrintReceipt ? '#10b981' : 'transparent',
+                  border: shouldPrintReceipt ? 'none' : '1.5px solid var(--color-separator-opaque)',
+                  color: '#fff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {shouldPrintReceipt && <Check size={11} strokeWidth={3} />}
+                </span>
+              </button>
 
-          {/* WhatsApp E-Receipt Status Indicator */}
-          {Boolean((restaurant?.whatsapp?.phoneNumberId || restaurant?.settings?.whatsapp?.phoneNumberId) && (restaurant?.whatsapp?.enabled !== false && restaurant?.settings?.whatsapp?.enabled !== false)) && (
-            <div style={{
-              marginTop: 8,
-              padding: '8px 12px',
-              borderRadius: 10,
-              background: 'rgba(37, 211, 102, 0.08)',
-              border: '1px solid rgba(37, 211, 102, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 12
-            }}>
-              <span style={{ fontSize: 15 }}>📲</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                  <span style={{ fontWeight: 700, color: '#16a34a' }}>
-                    Meta WhatsApp E-Receipt
+              {Boolean((restaurant?.whatsapp?.phoneNumberId || restaurant?.settings?.whatsapp?.phoneNumberId) && (restaurant?.whatsapp?.enabled !== false && restaurant?.settings?.whatsapp?.enabled !== false)) && (
+                <button
+                  type="button"
+                  onClick={() => setEditingWaPhone(p => !p)}
+                  style={{
+                    flex: '1 1 150px',
+                    height: 38,
+                    padding: '0 12px',
+                    borderRadius: 10,
+                    background: (customerPhone || customer?.phone) ? 'rgba(16, 185, 129, 0.1)' : 'var(--color-bg-secondary)',
+                    border: (customerPhone || customer?.phone) ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--color-separator)',
+                    color: (customerPhone || customer?.phone) ? 'var(--color-label)' : 'var(--color-label-secondary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 700
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <Phone size={13} color={(customerPhone || customer?.phone) ? '#10b981' : 'var(--color-label-secondary)'} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {(customerPhone || customer?.phone) ? `WA · ${customerPhone || customer?.phone}` : 'WhatsApp Receipt'}
+                    </span>
                   </span>
-                  {(customerPhone || customer?.phone) && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingWaPhone(p => !p)}
-                      style={{ background: 'none', border: 'none', color: '#16a34a', fontSize: 11, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-                    >
-                      {editingWaPhone ? 'Cancel' : 'Change #'}
-                    </button>
-                  )}
-                </div>
-                {editingWaPhone || !(customerPhone || customer?.phone) ? (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
-                    <input
-                      type="tel"
-                      placeholder="Enter mobile # (e.g. 9400112833)"
-                      value={waPhoneInput}
-                      onChange={e => setWaPhoneInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleSaveWaPhone();
-                      }}
-                      style={{
-                        flex: 1,
-                        height: 26,
-                        fontSize: 11,
-                        padding: '2px 8px',
-                        borderRadius: 6,
-                        border: '1px solid rgba(22, 163, 74, 0.4)',
-                        background: 'var(--color-bg-base)',
-                        color: 'var(--color-label)'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSaveWaPhone}
-                      className="btn btn-success btn-xs"
-                      style={{ height: 26, padding: '0 8px', fontSize: 11, fontWeight: 700 }}
-                    >
-                      Attach
-                    </button>
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 11, color: 'var(--color-label-secondary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    Auto-sends to customer: <strong>{customerPhone || customer?.phone}</strong> ({customer?.name || customerName || 'Customer'})
+                  <span style={{ fontSize: 10.5, color: '#10b981', fontWeight: 750 }}>
+                    {editingWaPhone ? 'Done' : ((customerPhone || customer?.phone) ? 'Edit' : '+ Add')}
                   </span>
-                )}
-              </div>
+                </button>
+              )}
             </div>
-          )}
+
+            {editingWaPhone && Boolean((restaurant?.whatsapp?.phoneNumberId || restaurant?.settings?.whatsapp?.phoneNumberId) && (restaurant?.whatsapp?.enabled !== false && restaurant?.settings?.whatsapp?.enabled !== false)) && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="Enter mobile # (e.g. 9400112833)"
+                  value={waPhoneInput}
+                  onChange={e => setWaPhoneInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleSaveWaPhone();
+                  }}
+                  style={{ flex: 1, height: 34, fontSize: 12, padding: '0 10px', borderRadius: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveWaPhone}
+                  className="btn btn-success btn-sm"
+                  style={{ height: 34, padding: '0 12px', fontSize: 12, fontWeight: 700, borderRadius: 8 }}
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="modal-footer" style={{
           padding: '12px 18px',
           borderTop: '1px solid var(--color-separator)',
           display: 'flex',
-          gap: 12,
+          gap: 10,
           background: 'var(--color-bg-elevated)',
-          borderBottomLeftRadius: 24,
-          borderBottomRightRadius: 24,
           flexShrink: 0
         }}>
           <button 
             className="btn btn-secondary" 
             onClick={onClose} 
             id="payment-cancel-btn"
-            style={{ flex: '0 0 auto', padding: '0 20px', height: 44, borderRadius: 12, fontWeight: 700 }}
+            style={{ flex: '0 0 auto', padding: '0 18px', height: 46, borderRadius: 12, fontWeight: 700 }}
           >
             {t('cancel')}
           </button>
@@ -2023,17 +1941,17 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              background: canConfirm ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'var(--color-bg-secondary)',
+              background: canConfirm ? '#10b981' : 'var(--color-bg-secondary)',
               color: canConfirm ? '#ffffff' : 'var(--color-label-tertiary)',
-              border: canConfirm ? 'none' : '1.5px solid var(--color-separator-opaque)',
-              boxShadow: canConfirm ? '0 4px 16px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)' : 'none',
+              border: canConfirm ? 'none' : '1px solid var(--color-separator)',
+              boxShadow: 'none',
               cursor: canConfirm ? 'pointer' : 'not-allowed',
               opacity: canConfirm ? 1 : 0.65,
-              transition: 'transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease'
+              transition: 'transform 0.08s ease, background 0.15s ease'
             }}
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={2.5} />}
-            <span>Complete Payment &middot; {formatCurrency(effectiveDue, currency)}</span>
+            <span>Complete Payment &middot; {formatCleanAmount(effectiveDue)}</span>
           </button>
         </div>
       </div>

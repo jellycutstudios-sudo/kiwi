@@ -15,6 +15,7 @@ import { useOfflineQueueStore } from './offlineQueueStore';
 import toast from 'react-hot-toast';
 import { localSyncChannel } from '../utils/localSyncChannel';
 import { evaluateSingleOffer } from '../utils/promoEngine';
+import { aggregateRecipeUsage } from '../utils/inventoryUnits';
 
 let activeOrdersUnsub = null;
 let subscribedOrdersRestId = null;
@@ -288,6 +289,13 @@ export const useOrderStore = create((set, get) => ({
       isComplimentary: false, complimentaryReason: ''
     });
     useGiftCardStore.getState().clearGiftCard();
+  },
+
+  setAssignedWaiter: (waiterId, waiterName) => {
+    set({
+      assignedWaiterId: waiterId || null,
+      assignedWaiterName: waiterName || null
+    });
   },
 
   setItemSeat: (id, seatNumber, selectedModifiers) => {
@@ -1219,23 +1227,8 @@ export const useOrderStore = create((set, get) => ({
         }
 
         // Calculate and apply ingredient stock difference
-        const getIngredientUsageMap = (itemsList) => {
-          const map = {};
-          for (const item of itemsList) {
-            const recipe = item.recipe ?? [];
-            for (const recipeItem of recipe) {
-              if (recipeItem.ingredientId && recipeItem.amount) {
-                const qty = item.qty ?? 0;
-                const amt = recipeItem.amount * qty;
-                map[recipeItem.ingredientId] = (map[recipeItem.ingredientId] ?? 0) + amt;
-              }
-            }
-          }
-          return map;
-        };
-
-        const oldUsage = getIngredientUsageMap(oldItems);
-        const newUsage = getIngredientUsageMap(items);
+        const oldUsage = aggregateRecipeUsage(oldItems);
+        const newUsage = aggregateRecipeUsage(items);
 
         // Merge ingredient keys
         const allIngredientIds = new Set([
@@ -1301,23 +1294,21 @@ export const useOrderStore = create((set, get) => ({
         markLocalCreatedOrder(orderId);
 
         // Add new order write to batch with status pending for security rule compatibility
-        batch.set(orderDocRef, { ...orderData, status: 'pending' });
+        batch.set(orderDocRef, { ...orderData, status: 'pending', inventoryDepleted: true });
 
         if (shiftUpdate) {
           const shiftRef = doc(db, 'restaurants', restaurant.id, 'shifts', activeShift.id);
           batch.update(shiftRef, shiftUpdate);
         }
         
-        // Deplete stock levels for each ingredient in the recipe
-        for (const item of items) {
-          const recipe = item.recipe ?? [];
-          for (const recipeItem of recipe) {
-            if (recipeItem.ingredientId && recipeItem.amount) {
-              const ingDocRef = doc(db, 'restaurants', restaurant.id, 'inventory', recipeItem.ingredientId);
-              batch.set(ingDocRef, {
-                qty: increment(-recipeItem.amount * item.qty)
-              }, { merge: true });
-            }
+        // Deplete aggregated stock levels for each ingredient in the recipes
+        const newOrderUsage = aggregateRecipeUsage(items);
+        for (const [ingredientId, amt] of Object.entries(newOrderUsage)) {
+          if (amt > 0) {
+            const ingDocRef = doc(db, 'restaurants', restaurant.id, 'inventory', ingredientId);
+            batch.set(ingDocRef, {
+              qty: increment(-amt)
+            }, { merge: true });
           }
         }
 
@@ -1834,16 +1825,13 @@ export const useOrderStore = create((set, get) => ({
               const order = snap.data();
               if (order.type === 'online' && !order.inventoryDepleted) {
                 const batch = writeBatch(db);
-                const items = order.items ?? [];
-                for (const item of items) {
-                  const recipe = item.recipe ?? [];
-                  for (const recipeItem of recipe) {
-                    if (recipeItem.ingredientId && recipeItem.amount) {
-                      const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', recipeItem.ingredientId);
-                      batch.update(ingDocRef, {
-                        qty: increment(-recipeItem.amount * (item.qty || 1))
-                      });
-                    }
+                const onlineUsage = aggregateRecipeUsage(order.items ?? []);
+                for (const [ingredientId, amt] of Object.entries(onlineUsage)) {
+                  if (amt > 0) {
+                    const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', ingredientId);
+                    batch.update(ingDocRef, {
+                      qty: increment(-amt)
+                    });
                   }
                 }
                 batch.update(orderRef, { status, inventoryDepleted: true, updatedAt: serverTimestamp() });
@@ -1853,6 +1841,34 @@ export const useOrderStore = create((set, get) => ({
             }
           } catch (err) {
             console.warn('Inventory depletion on order prepare check failed:', err);
+          }
+        }
+
+        // If cancelling or voiding an order whose stock was depleted, restore ingredients once
+        if (status === 'cancelled' || status === 'void') {
+          try {
+            const snap = await getDoc(orderRef);
+            if (snap.exists()) {
+              const order = snap.data();
+              const wasDepleted = order.type === 'online' ? Boolean(order.inventoryDepleted) : order.inventoryDepleted !== false;
+              if (wasDepleted && !order.inventoryRestored) {
+                const restoreUsage = aggregateRecipeUsage(order.items ?? []);
+                const batch = writeBatch(db);
+                for (const [ingredientId, amt] of Object.entries(restoreUsage)) {
+                  if (amt > 0) {
+                    const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', ingredientId);
+                    batch.set(ingDocRef, {
+                      qty: increment(amt)
+                    }, { merge: true });
+                  }
+                }
+                batch.update(orderRef, { status, inventoryRestored: true, updatedAt: serverTimestamp() });
+                await batch.commit();
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn('Inventory restore on cancel/void check failed:', err);
           }
         }
 

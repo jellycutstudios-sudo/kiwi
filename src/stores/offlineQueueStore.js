@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { useShiftStore } from './shiftStore';
 import { useAuthStore } from './authStore';
 import { getActiveModes } from '../hooks/useBusinessConfig';
+import { aggregateRecipeUsage } from '../utils/inventoryUnits';
 import toast from 'react-hot-toast';
 
 const QUEUE_STORAGE_KEY = 'dineos_offline_order_queue';
@@ -255,17 +256,14 @@ export const useOfflineQueueStore = create((set, get) => {
             batch.update(shiftRef, shiftUpdate);
           }
 
-          // Deplete inventory for offline orders upon sync
-          const items = order.items ?? [];
-          for (const item of items) {
-            const recipe = item.recipe ?? [];
-            for (const recipeItem of recipe) {
-              if (recipeItem.ingredientId && recipeItem.amount) {
-                const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', recipeItem.ingredientId);
-                batch.update(ingDocRef, {
-                  qty: increment(-recipeItem.amount * (item.qty || 1))
-                });
-              }
+          // Deplete aggregated inventory for offline orders upon sync
+          const offlineUsage = aggregateRecipeUsage(order.items ?? []);
+          for (const [ingredientId, amt] of Object.entries(offlineUsage)) {
+            if (amt > 0) {
+              const ingDocRef = doc(db, 'restaurants', restaurantId, 'inventory', ingredientId);
+              batch.update(ingDocRef, {
+                qty: increment(-amt)
+              });
             }
           }
 

@@ -14,6 +14,7 @@ import { transliterateFood } from '../../utils/foodTransliteration';
 import { getItemVisuals } from '../../utils/itemVisuals';
 import ToggleSwitch from '../../components/shared/ToggleSwitch';
 import { getCategoryChromaticColors, CHROMATIC_PALETTE } from '../../utils/categoryColors';
+import { convertRecipeAmount, getCompatibleUnits } from '../../utils/inventoryUnits';
 
 // Compress image client-side to a small base64 JPEG for inline storage
 const compressImage = (file, maxDim = 400, quality = 0.82) => {
@@ -3507,7 +3508,9 @@ export default function MenuEditor() {
                       }
                       const newRecipeItem = {
                         ingredientId: inventory[0].id,
-                        amount: 1
+                        amount: 1,
+                        unit: inventory[0].unit || 'pcs',
+                        stockUnit: inventory[0].unit || 'pcs'
                       };
                       setItemForm(f => ({ ...f, recipe: [...(f.recipe ?? []), newRecipeItem] }));
                     }}
@@ -3522,7 +3525,9 @@ export default function MenuEditor() {
                   const itemPrice = parseFloat(itemForm.price) || 0;
                   const recipeCost = (itemForm.recipe ?? []).reduce((sum, ri) => {
                     const ing = inventory.find(i => i.id === ri.ingredientId);
-                    return sum + (ing ? ing.cost * ri.amount : 0);
+                    if (!ing) return sum;
+                    const stockAmt = convertRecipeAmount(ri.amount, ri.unit || ing.unit, ing.unit);
+                    return sum + (ing.cost * stockAmt);
                   }, 0);
                   const profitVal = itemPrice - recipeCost;
                   const marginPct = itemPrice > 0 ? (profitVal / itemPrice) * 100 : 0;
@@ -3585,6 +3590,10 @@ export default function MenuEditor() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {(itemForm.recipe ?? []).map((recipeItem, rIdx) => {
                     const matchedIng = inventory.find(i => i.id === recipeItem.ingredientId);
+                    const compatibleUnits = getCompatibleUnits(matchedIng?.unit);
+                    const activeRecipeUnit = recipeItem.unit && compatibleUnits.includes(recipeItem.unit)
+                      ? recipeItem.unit
+                      : (matchedIng?.unit ?? '');
                     
                     return (
                       <div key={rIdx} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', background: 'var(--color-bg-secondary)', padding: '6px 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
@@ -3592,7 +3601,9 @@ export default function MenuEditor() {
                           className="form-select"
                           value={recipeItem.ingredientId}
                           onChange={e => {
-                            const updated = itemForm.recipe.map((ri, idx) => idx === rIdx ? { ...ri, ingredientId: e.target.value } : ri);
+                            const nextIng = inventory.find(i => i.id === e.target.value);
+                            const nextUnit = nextIng?.unit || 'pcs';
+                            const updated = itemForm.recipe.map((ri, idx) => idx === rIdx ? { ...ri, ingredientId: e.target.value, unit: nextUnit, stockUnit: nextUnit } : ri);
                             setItemForm(f => ({ ...f, recipe: updated }));
                           }}
                           style={{ flex: 1.5, height: 32, padding: '4px var(--space-2)', fontSize: 'var(--text-footnote)' }}
@@ -3611,14 +3622,30 @@ export default function MenuEditor() {
                             placeholder="Amount"
                             value={recipeItem.amount}
                             onChange={e => {
-                              const updated = itemForm.recipe.map((ri, idx) => idx === rIdx ? { ...ri, amount: parseFloat(e.target.value) || 0 } : ri);
+                              const updated = itemForm.recipe.map((ri, idx) => idx === rIdx ? { ...ri, amount: parseFloat(e.target.value) || 0, stockUnit: matchedIng?.unit || ri.stockUnit } : ri);
                               setItemForm(f => ({ ...f, recipe: updated }));
                             }}
                             style={{ width: '100%', height: 32, padding: '4px var(--space-2)', fontSize: 'var(--text-footnote)', textAlign: 'right' }}
                           />
-                          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', minWidth: 28, paddingLeft: 4, fontWeight: 'var(--weight-semibold)' }}>
-                            {matchedIng?.unit ?? ''}
-                          </span>
+                          {compatibleUnits.length > 1 ? (
+                            <select
+                              className="form-select"
+                              value={activeRecipeUnit}
+                              onChange={e => {
+                                const updated = itemForm.recipe.map((ri, idx) => idx === rIdx ? { ...ri, unit: e.target.value, stockUnit: matchedIng?.unit || ri.stockUnit } : ri);
+                                setItemForm(f => ({ ...f, recipe: updated }));
+                              }}
+                              style={{ width: 58, height: 32, padding: '2px 4px', fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-semibold)' }}
+                            >
+                              {compatibleUnits.map(u => (
+                                <option key={u} value={u}>{u}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', minWidth: 28, paddingLeft: 4, fontWeight: 'var(--weight-semibold)' }}>
+                              {matchedIng?.unit ?? ''}
+                            </span>
+                          )}
                         </div>
                         
                         <button

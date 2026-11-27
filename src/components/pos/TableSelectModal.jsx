@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTableStore } from '../../stores/tableStore';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { compareTables, getTableFloor } from '../../utils/tableSort';
 import { X, Search, LayoutGrid, Layers, Armchair } from 'lucide-react';
 
 export default function TableSelectModal({ restaurantId, currency = 'INR', tableOrders = {}, onSelect, onClose }) {
@@ -41,52 +42,41 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
     return { all: tables.length, free, occupied, reserved };
   }, [tables, getEffectiveStatus]);
 
-  // Auto-detect zones/sections or table prefix clusters (e.g. 'T', 'G', 'B')
+  // Group by actual floor / room so POS Table Picker matches Floor Plan 1-to-1
   const zones = useMemo(() => {
     const map = new Map();
     tables.forEach(t => {
-      const prefix = t.name ? t.name.match(/^[A-Za-z]+/)?.[0] : null;
-      const zoneName = t.section || (prefix ? prefix.toUpperCase() : null) || t.floor;
-      if (zoneName) {
-        map.set(zoneName, (map.get(zoneName) || 0) + 1);
-      }
+      const floorName = getTableFloor(t);
+      map.set(floorName, (map.get(floorName) || 0) + 1);
     });
 
     if (map.size >= 2) {
-      return Array.from(map.entries()).map(([name, count]) => {
-        let label = name;
-        if (name.length === 1) {
-          label = `${name}-Section`;
-        }
-        return { id: name, label, count };
-      });
+      return Array.from(map.entries()).map(([name, count]) => ({
+        id: name,
+        label: name,
+        count
+      }));
     }
     return [];
   }, [tables]);
 
-  // Filter and sort tables
+  // Filter and sort tables using shared sortOrder + natural numeric order
   const filteredTables = useMemo(() => {
     return tables
       .filter(tbl => {
         const effectiveStatus = getEffectiveStatus(tbl);
         if (filterStatus !== 'all' && effectiveStatus !== filterStatus) return false;
 
-        if (selectedZone !== 'all') {
-          const prefix = tbl.name ? tbl.name.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() : null;
-          const zoneName = tbl.section || prefix || tbl.floor;
-          if (zoneName !== selectedZone) return false;
-        }
+        if (selectedZone !== 'all' && getTableFloor(tbl) !== selectedZone) return false;
 
         if (search.trim() && !tbl.name.toLowerCase().includes(search.toLowerCase())) return false;
 
         return true;
       })
-      .sort((a, b) => {
-        return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
-      });
+      .sort(compareTables);
   }, [tables, filterStatus, selectedZone, search, getEffectiveStatus]);
 
-  // Section-grouped continuous scroll (Petpooja style: AC, Garden, Non-AC in continuous scroll)
+  // Floor-grouped continuous scroll matching Floor Plan sections
   const groupedSections = useMemo(() => {
     if (zones.length < 2 || selectedZone !== 'all') return null;
 
@@ -95,22 +85,14 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
       groups.set(z.id, { id: z.id, label: z.label, tables: [] });
     });
 
-    const unassigned = [];
     filteredTables.forEach(t => {
-      const prefix = t.name ? t.name.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() : null;
-      const zoneKey = t.section || prefix || t.floor;
-      if (zoneKey && groups.has(zoneKey)) {
-        groups.get(zoneKey).tables.push(t);
-      } else {
-        unassigned.push(t);
+      const floorName = getTableFloor(t);
+      if (groups.has(floorName)) {
+        groups.get(floorName).tables.push(t);
       }
     });
 
-    const list = Array.from(groups.values()).filter(g => g.tables.length > 0);
-    if (unassigned.length > 0) {
-      list.push({ id: 'other', label: 'Other Tables', tables: unassigned });
-    }
-    return list;
+    return Array.from(groups.values()).filter(g => g.tables.length > 0);
   }, [zones, selectedZone, filteredTables]);
 
   const handleZoneClick = useCallback((zoneId) => {

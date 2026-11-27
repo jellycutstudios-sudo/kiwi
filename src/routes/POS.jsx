@@ -8,6 +8,7 @@ import { useTokenStore } from '../stores/tokenStore';
 import { useMenuStore } from '../stores/menuStore';
 import { useTableStore } from '../stores/tableStore';
 import { useGiftCardStore } from '../stores/giftCardStore';
+import { useStaffStore } from '../stores/staffStore';
 import { useShallow } from 'zustand/react/shallow';
 import { collection, doc, getDoc, query, where, getDocs, addDoc, limit } from 'firebase/firestore';
 import { db, functions } from '../firebase';
@@ -146,48 +147,24 @@ const DenseMenuKeyCard = memo(function DenseMenuKeyCard({
         }
       }}
     >
-      {/* Top Meta Bar: Dietary Icon on left + Badges (Options / SubCategory / Bestseller) on right */}
-      <div className="menu-key-header">
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-          <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-          {showCatTag && catName && (
-            <span className="menu-key-cat-tag" style={{ color: catColors.stripe }}>
-              {catName}
-            </span>
-          )}
-        </div>
-        <div className="menu-key-badges-right">
-          {item.subCategory && (
-            <span className="item-subcat-badge">{item.subCategory}</span>
-          )}
-          {hasModifiers ? (
-            <span className="menu-key-pill menu-key-pill-mod">
-              Options
-            </span>
-          ) : (item.isBestseller || item.bestseller || item.popular) ? (
-            <span className="menu-key-pill menu-key-pill-bestseller" title="Bestseller / Popular">
-              <Flame size={10} color="var(--color-orange)" />
-            </span>
-          ) : item.highMargin ? (
-            <span className="menu-key-pill menu-key-pill-special" title="Chef's Special">
-              Special
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Title: Unconstrained full-width title area for clean, legible reading */}
-      <div className="menu-key-title-wrap">
+      {/* Row 1: Clean Item Name (Primary Focus) */}
+      <div className="menu-key-title-wrap" style={{ flexDirection: 'column', gap: 3 }}>
+        {showCatTag && catName && (
+          <span className="menu-key-cat-tag" style={{ color: catColors.stripe }}>
+            {catName}
+          </span>
+        )}
         <span className="menu-key-name" title={item.name}>{displayName || item.name}</span>
       </div>
 
-      {/* Bottom Row: Price display & In-Card Stepper / Action Button */}
+      {/* Row 2: Dietary Dot + Clean Price, and Stepper ONLY when in cart */}
       <div className="menu-key-footer">
-        <div className="menu-key-price-wrap">
-          {formattedPrice.isFrom && <span className="menu-key-price-from">From </span>}
-          <span className="menu-key-price">{formattedPrice.text}</span>
+        <div className="menu-key-price-wrap" style={{ alignItems: 'center', gap: 6 }}>
+          <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
+          {formattedPrice.isFrom && <span className="menu-key-price-from">From</span>}
+          <span className="menu-key-price">{String(formattedPrice.text || '').replace(/\.00$/, '')}</span>
         </div>
-        {qty > 0 ? (
+        {qty > 0 && (
           <div
             className="pos-card-stepper"
             onPointerDown={e => e.stopPropagation()}
@@ -215,10 +192,6 @@ const DenseMenuKeyCard = memo(function DenseMenuKeyCard({
               <Plus size={11} strokeWidth={2.8} />
             </button>
           </div>
-        ) : (
-          <span className="menu-key-action-btn" title="Add to cart">
-            <Plus size={13} strokeWidth={2.5} />
-          </span>
         )}
       </div>
     </div>
@@ -265,22 +238,13 @@ const VisualMenuItemCard = memo(function VisualMenuItemCard({
         }
       }}
     >
-      {/* Veg / Non-Veg Indicator Badge */}
-      <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 'var(--z-raised)' }}>
-        <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
-      </div>
-
-      {qty > 0 && (
-        <div className="menu-item-qty-badge">{qty}</div>
-      )}
-
-      {/* Promotional Offer / BOGO Badge */}
+      {/* Promotional Offer / BOGO Badge (only when active) */}
       {isBogoItem ? (
-        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
+        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 'var(--z-raised)', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
           <span>🔥</span><span>BOGO</span>
         </div>
       ) : matchedOffer ? (
-        <div style={{ position: 'absolute', top: 8, right: qty > 0 ? 36 : 8, zIndex: 'var(--z-raised)', background: matchedOffer.badgeColor || (matchedOffer.type === 'bogo' ? '#ef4444' : '#f59e0b'), color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px', transition: 'right 0.12s ease' }}>
+        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 'var(--z-raised)', background: matchedOffer.badgeColor || (matchedOffer.type === 'bogo' ? '#ef4444' : '#f59e0b'), color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
           <span>{matchedOffer.icon || (matchedOffer.type === 'bogo' ? '🔥' : '🍹')}</span>
           <span>{matchedOffer.type === 'bogo' ? (matchedOffer.tag || 'BOGO') : `${matchedOffer.discountPercent}% OFF`}</span>
         </div>
@@ -290,21 +254,8 @@ const VisualMenuItemCard = memo(function VisualMenuItemCard({
         {item.imageUrl || item.image ? (
           <img src={item.imageUrl || item.image} alt={item.name} className="menu-item-img" loading="lazy" decoding="async" />
         ) : (
-          <div
-            className="menu-item-img-placeholder"
-            data-palette={visuals.palette}
-            style={{
-              background: visuals.bg,
-              borderBottom: `1px solid ${visuals.border}`
-            }}
-          >
-            <span
-              className="menu-item-monogram"
-              style={{
-                color: visuals.color,
-                textShadow: `0 0 18px ${visuals.glow}`
-              }}
-            >
+          <div className="menu-item-img-placeholder menu-item-img-placeholder--muted">
+            <span className="menu-item-monogram">
               {visuals.monogram}
             </span>
           </div>
@@ -318,26 +269,20 @@ const VisualMenuItemCard = memo(function VisualMenuItemCard({
         )}
         <div className="menu-item-name" title={item.name}>
           <span className="menu-item-name-text">{displayName || item.name}</span>
-          {item.subCategory && (
-            <span className="item-subcat-badge">{item.subCategory}</span>
-          )}
-          {item.highMargin && <span title="High Margin — chef recommended" style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-orange)', flexShrink: 0 }}>Special</span>}
-          {(item.isBestseller || item.bestseller || item.popular) && (
-            <Flame size={12} color="var(--color-orange)" style={{ flexShrink: 0 }} />
-          )}
         </div>
         <div className="menu-item-price">
-          <span className="menu-item-price-val">
+          <span className="menu-item-price-val" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span className={isVegItem ? "food-badge-veg" : "food-badge-nonveg"} title={isVegItem ? "Vegetarian" : "Non-Vegetarian"} />
             {formattedPrice.isFrom ? (
               <>
                 <span className="menu-item-from-prefix">From</span>
-                <span>{formattedPrice.text}</span>
+                <span>{String(formattedPrice.text || '').replace(/\.00$/, '')}</span>
               </>
             ) : (
-              formatCurrency(item.price, currency)
+              String(formatCurrency(item.price, currency) || '').replace(/\.00$/, '')
             )}
           </span>
-          {qty > 0 ? (
+          {qty > 0 && (
             <div
               className="pos-card-stepper"
               onPointerDown={e => e.stopPropagation()}
@@ -365,12 +310,6 @@ const VisualMenuItemCard = memo(function VisualMenuItemCard({
                 <Plus size={11} strokeWidth={2.8} />
               </button>
             </div>
-          ) : hasModifiers ? (
-            <span className="menu-item-sizes-badge">Sizes</span>
-          ) : (
-            <span className="menu-item-add-icon-btn">
-              <Plus size={13} strokeWidth={2.5} />
-            </span>
           )}
         </div>
       </div>
@@ -382,40 +321,30 @@ function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift, heldCount = 
   return (
     <div className="pos-empty-cart-minimal">
       <div className="pos-empty-cart-icon-wrap">
-        <ShoppingBag size={34} strokeWidth={1.5} />
+        <FileText size={24} strokeWidth={1.6} />
       </div>
-      <div className="pos-empty-cart-title">Your cart is empty</div>
-      <div className="pos-empty-cart-subtitle">Select items from the menu to start order</div>
-      {heldCount > 0 && onOpenHeldOrders && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            hapticTap('light');
-            onOpenHeldOrders();
-          }}
-          className="btn btn-secondary btn-sm"
-          style={{
-            marginTop: 10,
-            background: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.45)',
-            color: '#f59e0b',
-            borderRadius: 8,
-            fontWeight: 700,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6
-          }}
-        >
-          <PauseCircle size={14} />
-          <span>Resume {heldCount} Held {heldCount === 1 ? 'Order' : 'Orders'}</span>
-        </button>
-      )}
-      <div className="pos-empty-cart-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div className="pos-empty-cart-title">New Ticket</div>
+      <div className="pos-empty-cart-subtitle">Tap menu items to add to this check</div>
+
+      <div className="pos-empty-cart-actions">
+        {heldCount > 0 && onOpenHeldOrders && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              hapticTap('light');
+              onOpenHeldOrders();
+            }}
+            className="pos-empty-action-row pos-empty-action-row--held"
+          >
+            <PauseCircle size={15} />
+            <span>Resume Held ({heldCount})</span>
+          </button>
+        )}
         {onAddCustomItem && (
           <button
             type="button"
-            className="pos-empty-custom-item-btn"
+            className="pos-empty-custom-item-btn pos-empty-action-row"
             onClick={(e) => {
               e.stopPropagation();
               hapticTap('light');
@@ -423,14 +352,14 @@ function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift, heldCount = 
             }}
             title="Add a custom or off-menu item"
           >
-            <Plus size={13} strokeWidth={2.5} />
-            <span>Add Custom Item</span>
+            <Plus size={15} strokeWidth={2.3} />
+            <span>Custom Item</span>
           </button>
         )}
         {onOpenTill && (
           <button
             type="button"
-            className="pos-empty-till-btn"
+            className="pos-empty-till-btn pos-empty-action-row"
             id="empty-cart-till-btn"
             onClick={(e) => {
               e.stopPropagation();
@@ -440,7 +369,7 @@ function EmptyCartState({ onAddCustomItem, onOpenTill, activeShift, heldCount = 
             disabled={!activeShift}
             title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
           >
-            <Banknote size={14} strokeWidth={2.2} />
+            <Banknote size={15} strokeWidth={2} />
             <span>Till Drawer</span>
             {activeShift && <span className="pos-cart-till-dot" />}
           </button>
@@ -476,7 +405,8 @@ export default function POS() {
     settleSubCheck, settledChecks,
     billPrinted, markBillPrinted,
     heldOrders, holdCurrentOrder, resumeHeldOrder, discardHeldOrder, clearAllHeldOrders,
-    isComplimentary, setComplimentary
+    isComplimentary, setComplimentary,
+    assignedWaiterId, assignedWaiterName, setAssignedWaiter
   } = useOrderStore(
     useShallow((state) => ({
       items: state.items,
@@ -530,9 +460,38 @@ export default function POS() {
       clearAllHeldOrders: state.clearAllHeldOrders,
       isComplimentary: Boolean(state.isComplimentary),
       setComplimentary: state.setComplimentary,
-      complimentaryReason: state.complimentaryReason
+      complimentaryReason: state.complimentaryReason,
+      assignedWaiterId: state.assignedWaiterId || null,
+      assignedWaiterName: state.assignedWaiterName || null,
+      setAssignedWaiter: state.setAssignedWaiter
     }))
   );
+
+  const staffList = useStaffStore(s => s.staff);
+  const subscribeStaff = useStaffStore(s => s.subscribeStaff);
+  useEffect(() => {
+    if (restaurant?.id) {
+      return subscribeStaff(restaurant.id);
+    }
+  }, [restaurant?.id, subscribeStaff]);
+
+  const waiterOptions = useMemo(() => {
+    return (staffList || []).filter(
+      s => s && s.active !== false && ['waiter', 'server', 'captain'].includes(String(s.role || '').toLowerCase())
+    );
+  }, [staffList]);
+  const [showWaiterMenu, setShowWaiterMenu] = useState(false);
+  const waiterMenuRef = useRef(null);
+  useEffect(() => {
+    if (!showWaiterMenu) return;
+    const handleOutside = (e) => {
+      if (waiterMenuRef.current && !waiterMenuRef.current.contains(e.target)) {
+        setShowWaiterMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    return () => document.removeEventListener('pointerdown', handleOutside);
+  }, [showWaiterMenu]);
 
   const {
     activeShift, openShift, closeShift, recordCashTransaction, subscribeActiveShift,
@@ -857,6 +816,14 @@ export default function POS() {
 
   // Till drawer modal states
   const [tillModalTab, setTillModalTab] = useState('summary'); // 'summary' | 'movement' | 'close'
+  const [dayEndCloseStep, setDayEndCloseStep] = useState('overview'); // 'overview' | 'cash'
+  const [dayEndOverview, setDayEndOverview] = useState({
+    loading: false,
+    success: { count: 0, total: 0 },
+    cancelled: { count: 0, total: 0 },
+    complimentary: { count: 0, total: 0 },
+    refunded: { count: 0, total: 0 },
+  });
   const [tillTxType, setTillTxType] = useState('drop'); // 'drop' | 'paidout'
   const [tillTxAmount, setTillTxAmount] = useState('');
   const [tillTxReason, setTillTxReason] = useState('');
@@ -1125,10 +1092,77 @@ export default function POS() {
       setDenominations({ 500: '', 200: '', 100: '', 50: '', 20: '', 10: '', coins: '' });
       setShowDenomCounter(false);
       setTillModalTab('summary');
+      setDayEndCloseStep('overview');
     } else {
       toast.error(`Failed to close shift: ${res.error}`);
     }
   };
+
+  // Load Day End Overview order breakdown when Till Modal opens
+  useEffect(() => {
+    if (!showTillModal || !restaurant?.id || !activeShift?.id) return;
+    let cancelled = false;
+    const loadDayEnd = async () => {
+      setDayEndOverview(prev => ({ ...prev, loading: true }));
+      try {
+        const openedMs = activeShift.openedAt?.seconds
+          ? activeShift.openedAt.seconds * 1000
+          : (activeShift.openedAt ? new Date(activeShift.openedAt).getTime() : Date.now() - 24 * 60 * 60 * 1000);
+        const shiftStartDate = new Date(openedMs);
+        const q = query(
+          collection(db, 'restaurants', restaurant.id, 'orders'),
+          where('createdAt', '>=', shiftStartDate),
+          limit(500)
+        );
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        const summary = {
+          loading: false,
+          success: { count: 0, total: 0 },
+          cancelled: { count: 0, total: 0 },
+          complimentary: { count: 0, total: 0 },
+          refunded: { count: 0, total: 0 },
+        };
+        snap.docs.forEach(docSnap => {
+          const o = docSnap.data() || {};
+          const total = Number(o.total) || 0;
+          const refundAmt = Number(o.refundAmount) || 0;
+          if (o.status === 'cancelled' || o.status === 'void') {
+            summary.cancelled.count += 1;
+            summary.cancelled.total += total;
+            return;
+          }
+          if (o.status === 'refunded' || refundAmt > 0) {
+            summary.refunded.count += 1;
+            summary.refunded.total += refundAmt > 0 ? refundAmt : total;
+          }
+          const isComp = o.isComplimentary === true || o.paymentMethod === 'complimentary' || (total === 0 && (Number(o.discountAmount) || 0) > 0);
+          if (isComp) {
+            summary.complimentary.count += 1;
+            summary.complimentary.total += Number(o.discountAmount) || Number(o.subtotal) || 0;
+            return;
+          }
+          const isSettled = o.status === 'billed' || o.status === 'completed' || o.paid === true || (o.paymentMethod && o.paymentMethod !== 'unpaid');
+          if (isSettled) {
+            summary.success.count += 1;
+            summary.success.total += total;
+          }
+        });
+        setDayEndOverview(summary);
+      } catch (err) {
+        console.warn('[POS] Day End overview fetch deferred:', err?.message);
+        if (!cancelled) {
+          setDayEndOverview(prev => ({
+            ...prev,
+            loading: false,
+            success: { count: Number(activeShift?.totalOrders) || 0, total: Number(activeShift?.totalSales) || 0 },
+          }));
+        }
+      }
+    };
+    loadDayEnd();
+    return () => { cancelled = true; };
+  }, [showTillModal, restaurant?.id, activeShift?.id, activeShift?.openedAt, activeShift?.totalOrders, activeShift?.totalSales]);
 
   const handleCartDecrement = async (item) => {
     hapticTap('light');
@@ -2791,58 +2825,43 @@ export default function POS() {
           </div>
 
           {editingOrderId && (
-            <div style={{
-              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-              color: '#1e40af',
-              padding: '6px 12px',
-              fontSize: '11.5px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid #bfdbfe',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
-            }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div className="cart-editing-banner">
+              <span className="cart-editing-title">
                 <span>{tableName ? `Table ${tableName}` : 'Active Order'}</span>
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div className="cart-editing-actions">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-xs"
+                  className="btn btn-ghost btn-xs cart-editing-btn cart-editing-btn--bill"
                   onClick={handlePrintPreBill}
                   title="Print Guest Bill / Pre-Bill Check"
-                  style={{ color: '#1e40af', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(255,255,255,0.7)', borderRadius: 6, border: '1px solid rgba(30,64,175,0.2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                 >
                   <Printer size={12} />
                   <span>Bill</span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-xs"
+                  className="btn btn-ghost btn-xs cart-editing-btn cart-editing-btn--split"
                   onClick={() => { hapticTap('light'); setShowSplitBillModal(true); }}
                   title="Split Guest Checks by Seat or Item"
-                  style={{ color: '#047857', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(209,250,229,0.85)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                 >
                   <Split size={11} /> Split
                 </button>
                 {tableId && (
                   <button
                     type="button"
-                    className="btn btn-ghost btn-xs"
+                    className="btn btn-ghost btn-xs cart-editing-btn cart-editing-btn--free"
                     onClick={handleReleaseTable}
                     title="Release / Free Table"
-                    style={{ color: '#991b1b', padding: '2px 7px', fontSize: 11, height: 22, background: 'rgba(254,226,226,0.7)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}
                   >
                     Free
                   </button>
                 )}
                 <button
                   type="button"
-                  className="btn btn-ghost btn-xs"
+                  className="btn btn-ghost btn-xs cart-editing-close"
                   onClick={clearCart}
                   title="Close active order view"
-                  style={{ color: '#64748b', padding: '2px 5px', fontSize: 11, height: 22 }}
                 >
                   ✕
                 </button>
@@ -2857,7 +2876,7 @@ export default function POS() {
               <div className="cart-unified-mode-wrapper" ref={orderTypeMenuRef}>
                 <button
                   type="button"
-                  className={`cart-unified-mode-btn ${showOrderTypeMenu ? 'is-open' : ''}`}
+                  className={`cart-unified-mode-btn cart-unified-mode-btn--compact ${showOrderTypeMenu ? 'is-open' : ''}`}
                   id={`order-type-${orderType}`}
                   onClick={() => {
                     hapticTap('light');
@@ -2865,19 +2884,17 @@ export default function POS() {
                   }}
                   aria-haspopup="listbox"
                   aria-expanded={showOrderTypeMenu}
-                  title="Change order service mode"
+                  title={`Order Mode: ${isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway')} — Tap to switch`}
+                  aria-label={`Order Mode: ${isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway')}`}
                 >
                   {orderType === 'dine-in' ? (
                     <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
                   ) : orderType === 'delivery' ? (
                     <Bike size={18} className="cart-unified-mode-icon cart-unified-mode-icon--delivery" />
                   ) : (
-                    <ShoppingBag size={18} className="cart-unified-mode-icon" />
+                    <ShoppingBag size={18} className="cart-unified-mode-icon cart-unified-mode-icon--takeaway" />
                   )}
-                  <span className="cart-unified-mode-label">
-                    {isRetail ? 'Retail' : (orderType === 'dine-in' ? 'Dine In' : orderType === 'delivery' ? 'Delivery' : 'Takeaway')}
-                  </span>
-                  <ChevronDown size={13} className={`cart-unified-mode-caret ${showOrderTypeMenu ? 'is-open' : ''}`} />
+                  <ChevronDown size={12} className={`cart-unified-mode-caret ${showOrderTypeMenu ? 'is-open' : ''}`} />
                 </button>
 
                 {showOrderTypeMenu && (
@@ -2914,9 +2931,8 @@ export default function POS() {
                 )}
               </div>
             ) : (
-              <div className="cart-unified-mode-btn is-single">
+              <div className="cart-unified-mode-btn cart-unified-mode-btn--compact is-single" title="Order Mode: Dine In">
                 <UtensilsCrossed size={18} className="cart-unified-mode-icon" />
-                <span className="cart-unified-mode-label">Dine In</span>
               </div>
             )}
 
@@ -2972,6 +2988,72 @@ export default function POS() {
               )
             )}
 
+            {/* 2b. Conditional Server / Waiter Pill (Only in Dine-In when >=2 active servers or already assigned) */}
+            {orderType === 'dine-in' && !isBillOnly && (waiterOptions.length >= 2 || assignedWaiterId) && (
+              <div className="cart-unified-mode-wrapper" ref={waiterMenuRef}>
+                <button
+                  type="button"
+                  id="pos-assign-waiter-btn"
+                  className={`cart-unified-chip cart-unified-chip--waiter ${assignedWaiterId ? 'is-assigned' : 'is-empty'} ${showWaiterMenu ? 'is-open' : ''}`}
+                  onClick={() => {
+                    hapticTap('light');
+                    setShowWaiterMenu(prev => !prev);
+                  }}
+                  aria-haspopup="listbox"
+                  aria-expanded={showWaiterMenu}
+                  title={assignedWaiterName ? `Server: ${assignedWaiterName}` : 'Assign waiter / server'}
+                >
+                  <User size={14} className="cart-unified-icon" />
+                  <span className="cart-unified-label">{assignedWaiterName || 'Server'}</span>
+                  <ChevronDown size={12} className={`cart-unified-mode-caret ${showWaiterMenu ? 'is-open' : ''}`} />
+                </button>
+
+                {showWaiterMenu && (
+                  <div className="cart-unified-mode-dropdown" role="menu" aria-label="Assign Server">
+                    {assignedWaiterId && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="cart-unified-mode-option"
+                        onClick={() => {
+                          hapticTap('light');
+                          setAssignedWaiter(null, null);
+                          setShowWaiterMenu(false);
+                        }}
+                      >
+                        <div className="cart-unified-mode-option-text">
+                          <span className="cart-unified-mode-option-label">Unassigned</span>
+                          <span className="cart-unified-mode-option-desc">Clear server assignment</span>
+                        </div>
+                      </button>
+                    )}
+                    {waiterOptions.map(w => {
+                      const isActive = assignedWaiterId === w.id;
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          role="menuitem"
+                          className={`cart-unified-mode-option ${isActive ? 'is-active' : ''}`}
+                          onClick={() => {
+                            hapticTap('light');
+                            setAssignedWaiter(w.id, w.name || 'Server');
+                            setShowWaiterMenu(false);
+                          }}
+                        >
+                          <div className="cart-unified-mode-option-text">
+                            <span className="cart-unified-mode-option-label">{w.name || 'Server'}</span>
+                            {w.role && <span className="cart-unified-mode-option-desc" style={{ textTransform: 'capitalize' }}>{w.role}</span>}
+                          </div>
+                          {isActive && <Check size={16} strokeWidth={2.6} className="cart-unified-mode-option-check" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 3. Customer Pill (Dynamic & Never Truncated / Broken) */}
             {(customer || customerName || customerPhone) ? (
               <div
@@ -3016,7 +3098,7 @@ export default function POS() {
             ) : (
               <button
                 type="button"
-                className="cart-unified-chip cart-unified-chip--customer is-empty"
+                className={`cart-unified-chip cart-unified-chip--customer is-empty ${orderType !== 'delivery' ? 'is-icon-only' : ''}`}
                 onClick={() => {
                   hapticTap('light');
                   setModalInitialPhone('');
@@ -3031,10 +3113,7 @@ export default function POS() {
                     <span className="cart-unified-label" style={{ color: '#f59e0b', fontWeight: 750 }}>Delivery Info</span>
                   </>
                 ) : (
-                  <>
-                    <UserPlus size={15} className="cart-unified-icon" />
-                    <span className="cart-unified-label">Customer</span>
-                  </>
+                  <UserPlus size={16} className="cart-unified-icon" />
                 )}
               </button>
             )}
@@ -4896,25 +4975,176 @@ export default function POS() {
                   </>
                 )}
 
-                {tillModalTab === 'close' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {/* Header Banner */}
-                    <div style={{
-                      background: 'rgba(239, 68, 68, 0.06)',
-                      border: '1px solid rgba(239, 68, 68, 0.2)',
-                      borderRadius: 12, padding: '10px 14px',
-                      display: 'flex', alignItems: 'center', gap: 10
-                    }}>
-                      <Lock size={18} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
-                          Close Register & Count Cash
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                          Count the physical cash in drawer to reconcile against system sales.
-                        </div>
-                      </div>
+                {tillModalTab === 'close' && (() => {
+                  const openTabsList = (activeOrders || []).filter(o => {
+                    if (['billed', 'cancelled', 'completed'].includes(o.status)) return false;
+                    const isPaid = o.paid === true || (o.paymentMethod && o.paymentMethod !== 'unpaid');
+                    const allReady = (o.items || []).length > 0 && o.items.every(i => i.status === 'ready');
+                    return !(isPaid && (o.status === 'ready' || allReady));
+                  });
+                  const openTabsTotal = openTabsList.reduce((s, o) => s + (Number(o.total) || 0), 0);
+                  const effectiveSuccessCount = dayEndOverview.success.count > 0 ? dayEndOverview.success.count : totalOrdersCount;
+                  const effectiveSuccessTotal = dayEndOverview.success.total > 0 ? dayEndOverview.success.total : totalSalesAmt;
+
+                  return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* 2-Step Day End Stepper */}
+                    <div className="dayend-stepper">
+                      <button
+                        type="button"
+                        onClick={() => setDayEndCloseStep('overview')}
+                        className={`dayend-step ${dayEndCloseStep === 'overview' ? 'active' : 'done'}`}
+                      >
+                        <span className="dayend-step-num">1</span>
+                        <span>Day End Overview</span>
+                      </button>
+                      <span className="dayend-step-sep">›</span>
+                      <button
+                        type="button"
+                        onClick={() => setDayEndCloseStep('cash')}
+                        className={`dayend-step ${dayEndCloseStep === 'cash' ? 'active' : ''}`}
+                      >
+                        <span className="dayend-step-num">2</span>
+                        <span>Cash Count &amp; Finalize</span>
+                      </button>
                     </div>
+
+                    {dayEndCloseStep === 'overview' ? (
+                      <>
+                        {openTabsList.length > 0 && (
+                          <div className="dayend-warning-banner">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                              <div>
+                                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f59e0b' }}>
+                                  {openTabsList.length} Open Unpaid Tab{openTabsList.length > 1 ? 's' : ''} ({formatCurrency(openTabsTotal, currency)})
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                                  Settle or close open dining tables before finalizing day end.
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-xs"
+                              onClick={() => {
+                                setShowTillModal(false);
+                                setShowActiveOrdersModal(true);
+                              }}
+                              style={{ flexShrink: 0, height: 28, fontSize: 11, fontWeight: 700 }}
+                            >
+                              View Orders
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 4-Card Order Status Breakdown */}
+                        <div className="dayend-grid">
+                          <div className="dayend-card dayend-card--success">
+                            <div className="dayend-card-label">Success Orders</div>
+                            <div className="dayend-card-val">
+                              {dayEndOverview.loading ? '...' : formatCurrency(effectiveSuccessTotal, currency)}
+                            </div>
+                            <div className="dayend-card-sub">
+                              Orders: <strong>{effectiveSuccessCount}</strong>
+                            </div>
+                          </div>
+
+                          <div className="dayend-card dayend-card--cancelled">
+                            <div className="dayend-card-label">Cancelled / Void</div>
+                            <div className="dayend-card-val">
+                              {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.cancelled.total, currency)}
+                            </div>
+                            <div className="dayend-card-sub">
+                              Orders: <strong>{dayEndOverview.cancelled.count}</strong>
+                            </div>
+                          </div>
+
+                          <div className="dayend-card dayend-card--comp">
+                            <div className="dayend-card-label">Complimentary</div>
+                            <div className="dayend-card-val">
+                              {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.complimentary.total, currency)}
+                            </div>
+                            <div className="dayend-card-sub">
+                              Orders: <strong>{dayEndOverview.complimentary.count}</strong>
+                            </div>
+                          </div>
+
+                          <div className="dayend-card dayend-card--refund">
+                            <div className="dayend-card-label">Refunds / Returns</div>
+                            <div className="dayend-card-val">
+                              {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.refunded.total, currency)}
+                            </div>
+                            <div className="dayend-card-sub">
+                              Orders: <strong>{dayEndOverview.refunded.count}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Payment Breakdown Summary */}
+                        <div className="till-card" style={{ padding: '12px 14px' }}>
+                          <div className="till-card-header" style={{ marginBottom: 8 }}>
+                            <span>Order Payment Details</span>
+                            <span style={{ fontSize: 10.5, opacity: 0.8 }}>{totalOrdersCount} Paid</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                            <div className="dayend-pay-pill">
+                              <span>Cash ({activeShift?.cashSalesCount || 0})</span>
+                              <strong style={{ color: 'var(--color-green)' }}>{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}</strong>
+                            </div>
+                            <div className="dayend-pay-pill">
+                              <span>Card ({activeShift?.cardSalesCount || 0})</span>
+                              <strong>{formatCurrency(activeShift?.cardSalesAmount || 0, currency)}</strong>
+                            </div>
+                            <div className="dayend-pay-pill">
+                              <span>UPI / QR ({activeShift?.upiSalesCount || 0})</span>
+                              <strong>{formatCurrency(activeShift?.upiSalesAmount || 0, currency)}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setDayEndCloseStep('cash')}
+                          className="btn btn-primary"
+                          style={{
+                            width: '100%', height: 44, borderRadius: 12,
+                            fontSize: 13.5, fontWeight: 700,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                          }}
+                        >
+                          <span>Proceed to Cash Count →</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Header Banner */}
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.06)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          borderRadius: 12, padding: '10px 14px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <Lock size={18} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
+                                Close Register &amp; Count Cash
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                                Count the physical cash in drawer to reconcile against system sales.
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs"
+                            onClick={() => setDayEndCloseStep('overview')}
+                            style={{ flexShrink: 0, height: 28, fontSize: 11, fontWeight: 600 }}
+                          >
+                            ← Overview
+                          </button>
+                        </div>
 
                     {/* Step 1: Expected Reference */}
                     <div style={{
@@ -5118,8 +5348,11 @@ export default function POS() {
                         This permanently closes the active shift, prints the Z-Report audit, and resets the register for the next cashier.
                       </p>
                     </div>
+                      </>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>

@@ -31,14 +31,14 @@ describe('POS Touch Ergonomics & Speed Screen System', () => {
     expect(css).toMatch(/\.menu-grid,\s*\n?\s*\.menu-grid\.dense\s*\{[^}]*padding-bottom:\s*84px !important;/);
   });
 
-  it('styles tactile in-card stepper buttons with high-contrast emerald and white', () => {
+  it('styles tactile in-card stepper buttons with clean matte slate and high-contrast white', () => {
     const stepperMatch = css.match(/\.pos-card-stepper\s*\{([^}]+)\}/);
     expect(stepperMatch).not.toBeNull();
-    expect(stepperMatch[1]).toContain('background: #10b981');
-    expect(stepperMatch[1]).toContain('border-radius: 20px');
+    expect(stepperMatch[1]).toContain('background: #0f172a');
+    expect(stepperMatch[1]).toContain('border-radius: 9px');
 
     const stepperBtnMatch = css.match(/\.pos-card-stepper-btn\s*\{([^}]+)\}/);
     expect(stepperBtnMatch).not.toBeNull();
-    expect(stepperBtnMatch[1]).toContain('border-radius: 50%');
+    expect(stepperBtnMatch[1]).toContain('border-radius: 7px');
   });
 });

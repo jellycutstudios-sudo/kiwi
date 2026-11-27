@@ -407,34 +407,33 @@ export default function ActiveOrdersModal({
               <FileText size={20} />
             </div>
             <div>
-              <h2 className="orders-modal-title" style={{ fontSize: 17, fontWeight: 800, margin: 0, color: '#ffffff' }}>
-                Order Center &amp; Kitchen Pass
+              <h2 className="orders-modal-title" style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#ffffff' }}>
+                Orders
               </h2>
-              <p className="orders-modal-subtitle" style={{ fontSize: 12, color: 'var(--color-label-secondary, #94a3b8)', margin: '2px 0 0' }}>
-                Track live orders, reprint completed customer receipts, and review void audit logs
-              </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {/* View Switcher: Table vs Cards (only active on Open Orders) */}
+            {/* View Switcher: Icon-only Table vs Cards (only active on Open Orders) */}
             {activeTab === 'open' && (
               <div className="orders-view-switcher">
                 <button
                   type="button"
                   onClick={() => setViewMode('table')}
                   className={`orders-view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                  title="Compact Table / List View"
+                  title="Table View"
+                  aria-label="Table View"
                 >
-                  <LayoutList size={14} /> <span className="orders-view-label">Table View</span>
+                  <LayoutList size={17} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('cards')}
                   className={`orders-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
-                  title="Visual Kitchen Cards"
+                  title="Cards View"
+                  aria-label="Cards View"
                 >
-                  <LayoutGrid size={14} /> <span className="orders-view-label">Cards View</span>
+                  <LayoutGrid size={17} />
                 </button>
               </div>
             )}
@@ -804,21 +803,22 @@ export default function ActiveOrdersModal({
                                   </div>
                                 </td>
 
-                                {/* 4. Status Badges */}
+                                {/* 4. Status Badges (Single-line, clean) */}
                                 <td className="col-status">
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
                                     {isReady ? (
                                       <span style={{
                                         background: 'rgba(16, 185, 129, 0.2)',
                                         color: '#34d399',
                                         border: '1px solid rgba(16, 185, 129, 0.5)',
-                                        padding: '1px 6px',
-                                        borderRadius: 4,
-                                        fontSize: 10,
+                                        padding: '2px 8px',
+                                        borderRadius: 6,
+                                        fontSize: 10.5,
                                         fontWeight: 800,
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 3
+                                        gap: 4,
+                                        whiteSpace: 'nowrap'
                                       }}>
                                         <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
                                         READY
@@ -828,13 +828,14 @@ export default function ActiveOrdersModal({
                                         background: 'rgba(239, 68, 68, 0.15)',
                                         color: '#f87171',
                                         border: '1px solid rgba(239, 68, 68, 0.4)',
-                                        padding: '1px 6px',
-                                        borderRadius: 4,
-                                        fontSize: 10,
+                                        padding: '2px 8px',
+                                        borderRadius: 6,
+                                        fontSize: 10.5,
                                         fontWeight: 800,
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 3
+                                        gap: 4,
+                                        whiteSpace: 'nowrap'
                                       }}>
                                         <AlertCircle size={9} /> SERVED DUE
                                       </span>
@@ -843,29 +844,13 @@ export default function ActiveOrdersModal({
                                         background: 'rgba(245, 158, 11, 0.15)',
                                         color: '#fbbf24',
                                         border: '1px solid rgba(245, 158, 11, 0.4)',
-                                        padding: '1px 6px',
-                                        borderRadius: 4,
-                                        fontSize: 10,
-                                        fontWeight: 700
+                                        padding: '2px 8px',
+                                        borderRadius: 6,
+                                        fontSize: 10.5,
+                                        fontWeight: 700,
+                                        whiteSpace: 'nowrap'
                                       }}>
                                         In Kitchen
-                                      </span>
-                                    )}
-
-                                    {order.billPrinted && isUnpaid && (
-                                      <span style={{
-                                        background: 'rgba(56, 189, 248, 0.12)',
-                                        color: '#38bdf8',
-                                        border: '1px solid rgba(56, 189, 248, 0.3)',
-                                        padding: '1px 5px',
-                                        borderRadius: 4,
-                                        fontSize: 9.5,
-                                        fontWeight: 700,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 2.5
-                                      }}>
-                                        <Printer size={8} /> Bill Printed
                                       </span>
                                     )}
                                   </div>
@@ -873,14 +858,14 @@ export default function ActiveOrdersModal({
 
                                 {/* 5. Total Amount */}
                                 <td style={{ textAlign: 'right' }}>
-                                  <span style={{ fontSize: 14.5, fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.2px' }}>
-                                    {formatCurrency(order.total ?? 0, currency)}
+                                  <span style={{ fontSize: 14.5, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.2px', fontVariantNumeric: 'tabular-nums' }}>
+                                    {String(formatCurrency(order.total ?? 0, currency) || '').replace(/\.00$/, '')}
                                   </span>
                                 </td>
 
                                 {/* 6. Compact Touch Actions (Zero Overflow) */}
                                 <td style={{ textAlign: 'right' }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                                     {/* Resume / Edit */}
                                     {onLoadOrderToCart && (
                                       <button
@@ -890,49 +875,48 @@ export default function ActiveOrdersModal({
                                           onClose();
                                         }}
                                         style={{
-                                          height: 28,
-                                          fontSize: 11,
+                                          height: 30,
+                                          fontSize: 11.5,
                                           fontWeight: 700,
-                                          padding: '0 7px',
-                                          borderRadius: 6,
+                                          padding: '0 9px',
+                                          borderRadius: 7,
                                           background: 'rgba(255, 255, 255, 0.08)',
                                           border: '1px solid rgba(255, 255, 255, 0.18)',
                                           color: '#ffffff',
                                           display: 'inline-flex',
                                           alignItems: 'center',
-                                          gap: 3,
+                                          gap: 4,
                                           cursor: 'pointer',
                                           whiteSpace: 'nowrap'
                                         }}
                                         title="Resume / Edit order in cart"
                                       >
-                                        <Edit2 size={10} /> Resume
+                                        <Edit2 size={11} /> Resume
                                       </button>
                                     )}
 
-                                    {/* Print Bill */}
+                                    {/* Print Bill (Icon-only compact) */}
                                     <button
                                       type="button"
                                       onClick={() => handlePrint(order)}
                                       className="orders-btn-bill"
+                                      aria-label={order.billPrinted ? 'Bill printed' : 'Bill'}
                                       style={{
-                                        height: 28,
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        padding: '0 7px',
-                                        borderRadius: 6,
-                                        background: order.billPrinted ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.08)',
-                                        border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.18)',
+                                        width: 30,
+                                        height: 30,
+                                        padding: 0,
+                                        borderRadius: 7,
+                                        background: order.billPrinted ? 'rgba(56, 189, 248, 0.14)' : 'rgba(255, 255, 255, 0.08)',
+                                        border: order.billPrinted ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.18)',
                                         color: order.billPrinted ? '#38bdf8' : '#e2e8f0',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 3,
-                                        cursor: 'pointer',
-                                        whiteSpace: 'nowrap'
+                                        justifyContent: 'center',
+                                        cursor: 'pointer'
                                       }}
                                       title={order.billPrinted ? "Bill already printed. Tap to reprint bill." : "Print Customer Bill"}
                                     >
-                                      <Printer size={10} /> {order.billPrinted ? 'Bill ✓' : 'Bill'}
+                                      {order.billPrinted ? <Check size={13} strokeWidth={2.6} /> : <Printer size={13} />}
                                     </button>
 
                                     {/* Settle (Card / Quick Cash) */}
@@ -942,29 +926,28 @@ export default function ActiveOrdersModal({
                                           <button
                                             type="button"
                                             className="orders-btn-card-upi"
+                                            aria-label="Card / UPI Payment"
                                             onClick={() => {
                                               onLoadOrderToCart(order);
                                               onClose();
                                               onOpenPayment();
                                             }}
                                             style={{
-                                              height: 28,
-                                              fontSize: 11,
-                                              fontWeight: 700,
-                                              padding: '0 7px',
-                                              borderRadius: 6,
-                                              background: 'rgba(56, 189, 248, 0.12)',
-                                              border: '1px solid rgba(56, 189, 248, 0.35)',
-                                              color: '#38bdf8',
+                                              width: 30,
+                                              height: 30,
+                                              padding: 0,
+                                              borderRadius: 7,
+                                              background: 'rgba(255, 255, 255, 0.08)',
+                                              border: '1px solid rgba(255, 255, 255, 0.18)',
+                                              color: '#e2e8f0',
                                               display: 'inline-flex',
                                               alignItems: 'center',
-                                              gap: 3,
-                                              cursor: 'pointer',
-                                              whiteSpace: 'nowrap'
+                                              justifyContent: 'center',
+                                              cursor: 'pointer'
                                             }}
-                                            title="Card / UPI Payment"
+                                            title="Card / UPI / Split Payment"
                                           >
-                                            <CreditCard size={10} /> Card
+                                            <CreditCard size={14} />
                                           </button>
                                         )}
 
