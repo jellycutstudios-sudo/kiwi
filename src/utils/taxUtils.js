@@ -65,6 +65,59 @@ export function resolveItemTaxRule(item = {}, category = {}, taxConfig = {}, ord
   };
 }
 
+export function computePackagingCharge({
+  items = [],
+  orderType = 'dine-in',
+  baseSubtotal = 0,
+  packagingConfig = null,
+  waived = false
+} = {}) {
+  if (waived || !items || items.length === 0 || !packagingConfig) return 0;
+  const mode = packagingConfig.mode || 'none';
+  if (mode === 'none') return 0;
+
+  const allowedTypes = Array.isArray(packagingConfig.applyTo)
+    ? packagingConfig.applyTo
+    : ['takeaway', 'delivery'];
+  if (!allowedTypes.includes(orderType)) return 0;
+
+  const configAmt = Number(packagingConfig.amount) || 0;
+  if (mode === 'flat') {
+    return configAmt > 0 ? Math.round(configAmt * 100) / 100 : 0;
+  }
+  if (mode === 'percent') {
+    return configAmt > 0 && baseSubtotal > 0
+      ? Math.round(((baseSubtotal * configAmt) / 100) * 100) / 100
+      : 0;
+  }
+  if (mode === 'per_item') {
+    const total = items.reduce((sum, item) => {
+      const qty = Number(item.quantity ?? item.qty) || 1;
+      const itemFee = (item.packagingCharge != null && item.packagingCharge !== '')
+        ? Number(item.packagingCharge) || 0
+        : configAmt;
+      return sum + itemFee * qty;
+    }, 0);
+    return Math.round(total * 100) / 100;
+  }
+  return 0;
+}
+
+export function computeRoundOff(rawTotal, cashRounding = 'exact') {
+  const cleanRaw = Math.max(0, Math.round((Number(rawTotal) || 0) * 100) / 100);
+  if (!cashRounding || cashRounding === 'exact' || cleanRaw <= 0) {
+    return { rawTotal: cleanRaw, roundOffAmount: 0, roundedTotal: cleanRaw };
+  }
+  let roundedTotal = cleanRaw;
+  if (cashRounding === 'nearest_integer') {
+    roundedTotal = Math.round(cleanRaw);
+  } else if (cashRounding === 'nearest_half') {
+    roundedTotal = Math.round(cleanRaw * 2) / 2;
+  }
+  const roundOffAmount = Math.round((roundedTotal - cleanRaw) * 100) / 100;
+  return { rawTotal: cleanRaw, roundOffAmount, roundedTotal };
+}
+
 /**
  * 1-Pass Universal Line-Item Tax Calculation
  */
@@ -74,6 +127,8 @@ export function computeOrderTaxes(items = [], categoriesMap = {}, taxConfig = {}
     pointsDiscount = 0,
     serviceChargeAmount = 0,
     serviceChargeTaxable = false,
+    packagingAmount = 0,
+    packagingTaxable = false,
     orderType = 'dine-in'
   } = options;
 
@@ -194,6 +249,32 @@ export function computeOrderTaxes(items = [], categoriesMap = {}, taxConfig = {}
       totalCalculatedTax += scTax;
       const scLabel = `Tax on Service Charge (${scDefaultRate}%)`;
       taxLinesMap[scLabel] = { label: scLabel, amount: scTax };
+    }
+  }
+
+  // Packaging / parcel charge tax calculation if taxable
+  if (packagingTaxable && packagingAmount > 0 && taxConfig?.type && taxConfig.type !== 'none') {
+    if (taxConfig.type === 'gst') {
+      const cgstRate = taxConfig.cgst ?? (Number(taxConfig.rate || 5) / 2);
+      const sgstRate = taxConfig.sgst ?? (Number(taxConfig.rate || 5) / 2);
+      const totalPkgGstRate = cgstRate + sgstRate;
+      if (totalPkgGstRate > 0) {
+        const cgstAmt = Math.round(((packagingAmount * cgstRate) / 100) * 100) / 100;
+        const sgstAmt = Math.round(((packagingAmount * sgstRate) / 100) * 100) / 100;
+        totalCalculatedTax += cgstAmt + sgstAmt;
+        const cgstLabel = `CGST (${cgstRate}%)`;
+        const sgstLabel = `SGST (${sgstRate}%)`;
+        taxLinesMap[cgstLabel] = { label: cgstLabel, amount: (taxLinesMap[cgstLabel]?.amount || 0) + cgstAmt };
+        taxLinesMap[sgstLabel] = { label: sgstLabel, amount: (taxLinesMap[sgstLabel]?.amount || 0) + sgstAmt };
+      }
+    } else {
+      const pkgRate = Number(taxConfig.rate) || 0;
+      if (pkgRate > 0) {
+        const pkgTax = Math.round(((packagingAmount * pkgRate) / 100) * 100) / 100;
+        totalCalculatedTax += pkgTax;
+        const pkgLabel = taxConfig.type === 'vat' ? `VAT (${pkgRate}%)` : `Tax (${pkgRate}%)`;
+        taxLinesMap[pkgLabel] = { label: pkgLabel, amount: (taxLinesMap[pkgLabel]?.amount || 0) + pkgTax };
+      }
     }
   }
 
@@ -329,4 +410,36 @@ export function computeTax(subtotal, taxConfig = {}, options = {}) {
     default:
       return { type: 'none', lines: [], taxTotal: 0, total: numSubtotal };
   }
+}
+
+/**
+ * Separates base item price from priced addon modifiers (e.g. Buffalo Wings 350 + Mayo 10)
+ * while keeping line-item totals identical (`baseLineAmount + sum(addon.lineAmount) === qty * price`).
+ */
+export function splitItemModifiersForBill(item) {
+  const qtyNum = Number(item?.qty) || 1;
+  const unitPrice = Number(item?.price) || 0;
+  const mods = Array.isArray(item?.selectedModifiers) ? item.selectedModifiers.filter(m => m?.name) : [];
+  const addons = [];
+  let addonUnitTotal = 0;
+
+  mods.forEach(m => {
+    const modQty = Number(m.qty) || 1;
+    const rawUnit = !m.isVariantAxis ? (Number(m.priceAdd ?? m.price) || 0) : 0;
+    const addonPerItemUnit = rawUnit * modQty;
+    addonUnitTotal += addonPerItemUnit;
+    addons.push({
+      name: modQty > 1 ? `${modQty}x ${m.name}` : m.name,
+      unitPrice: addonPerItemUnit,
+      lineAmount: Math.round(addonPerItemUnit * qtyNum * 100) / 100,
+    });
+  });
+
+  const hasSeparatedAddons = addonUnitTotal > 0 && addonUnitTotal <= unitPrice + 0.001;
+  const baseUnitPrice = hasSeparatedAddons
+    ? Math.max(0, Math.round((unitPrice - addonUnitTotal) * 100) / 100)
+    : unitPrice;
+  const baseLineAmount = Math.round(baseUnitPrice * qtyNum * 100) / 100;
+
+  return { qtyNum, unitPrice, baseUnitPrice, baseLineAmount, addons, hasSeparatedAddons };
 }

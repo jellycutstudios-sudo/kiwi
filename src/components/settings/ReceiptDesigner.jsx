@@ -563,31 +563,32 @@ export default function ReceiptDesigner({ settings, updateField }) {
             </div>
           </div>
         ) : (
-        /* Paper Container */
+        /* Paper Container — Clean Minimal Thermal Design */
         <div style={{
-          width: paperSize === '58mm' ? '260px' : '330px',
+          width: paperSize === '58mm' ? '252px' : '326px',
           background: '#ffffff',
-          color: '#111827',
-          padding: '24px 20px',
+          color: '#000000',
+          padding: '20px 16px',
           boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
           borderRadius: '4px',
-          fontFamily: '"Courier Prime", Courier, monospace',
-          fontSize: paperSize === '58mm' ? '11px' : '12px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif',
+          fontSize: paperSize === '58mm' ? '10.5px' : '11.5px',
           lineHeight: '1.35',
+          fontVariantNumeric: 'tabular-nums',
           position: 'relative',
           transition: 'all 0.2s ease',
-          borderTop: '4px solid #e5e7eb',
+          borderTop: '4px solid #111827',
         }}>
-          {/* Header */}
-          <div style={{ textAlign: 'center', borderBottom: '1px dashed #9ca3af', paddingBottom: '12px', marginBottom: '10px' }}>
+          {/* Store Header */}
+          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
             {(currentThermalLogo || currentLogoUrl) && (
-              <div style={{ marginBottom: '6px' }}>
+              <div style={{ marginBottom: '5px' }}>
                 <img
                   src={previewThermalMode ? (currentThermalLogo || currentLogoUrl) : currentLogoUrl}
                   alt="Restaurant Logo"
                   style={{
-                    maxHeight: '52px',
-                    maxWidth: paperSize === '58mm' ? '150px' : '180px',
+                    maxHeight: '46px',
+                    maxWidth: paperSize === '58mm' ? '130px' : '160px',
                     objectFit: 'contain',
                     margin: '0 auto',
                     display: 'block',
@@ -598,97 +599,121 @@ export default function ReceiptDesigner({ settings, updateField }) {
                 />
               </div>
             )}
-            <div style={{ fontWeight: 'bold', fontSize: '15px', letterSpacing: '0.05em' }}>
+            <div style={{ fontWeight: '800', fontSize: paperSize === '58mm' ? '14px' : '16px', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
               {settings?.name || 'MY AWESOME STORE'}
             </div>
             {settings?.address && (
-              <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '2px' }}>
+              <div style={{ fontSize: '10px', color: '#374151', marginTop: '2px' }}>
                 {settings.address}
               </div>
             )}
             {settings?.phone && (
-              <div style={{ fontSize: '11px', color: '#4b5563' }}>
+              <div style={{ fontSize: '10px', color: '#374151' }}>
                 Tel: {settings.phone}
               </div>
             )}
             {settings?.gstin && showTaxBreakdown && (
-              <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '2px' }}>
-                TAX ID / GSTIN: {settings.gstin}
+              <div style={{ fontSize: '9.5px', color: '#111827', fontWeight: '700', marginTop: '2px' }}>
+                GSTIN: {settings.gstin}
               </div>
             )}
             {headerMessage && (
-              <div style={{ fontSize: '11px', fontStyle: 'italic', marginTop: '6px', color: '#374151' }}>
+              <div style={{ fontSize: '10px', marginTop: '3px', color: '#374151' }}>
                 {headerMessage}
               </div>
             )}
           </div>
 
-          {/* Metadata info */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', marginBottom: '8px' }}>
-            <span>Bill: #REC-4821</span>
-            <span>Table: T-04 / Tok: 42</span>
+          {/* Highlighted Order Mode Banner */}
+          <div style={{
+            borderTop: '1.5px solid #000',
+            borderBottom: '1.5px solid #000',
+            padding: '4px 6px',
+            margin: '6px 0',
+            textAlign: 'center',
+            fontWeight: '800',
+            fontSize: paperSize === '58mm' ? '10.5px' : '12px',
+            letterSpacing: '0.04em'
+          }}>
+            TABLE: T-04
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', marginBottom: '10px', color: '#4b5563' }}>
+
+          {/* Clean Meta Rows */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#374151', marginBottom: '2px' }}>
+            <span>Bill #REC-4821</span>
             <span>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            {showCashier && <span>Staff: Sam</span>}
           </div>
+          {showCashier && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#374151', marginBottom: '6px' }}>
+              <span>Guest: Walk-in</span>
+              <span>Staff: Sam</span>
+            </div>
+          )}
 
           {/* Item Table Header */}
-          <div style={{ borderTop: '1px solid #111827', borderBottom: '1px solid #111827', padding: '4px 0', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ borderTop: '1px dashed #6b7280', marginTop: '4px', paddingTop: '5px', borderBottom: '1px solid #000', paddingBottom: '4px', fontWeight: '800', fontSize: '9.5px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ flex: 1 }}>Item</span>
-            <span style={{ width: '30px', textAlign: 'center' }}>Qty</span>
-            <span style={{ width: '65px', textAlign: 'right' }}>Price</span>
+            <span style={{ width: '28px', textAlign: 'center' }}>Qty</span>
+            <span style={{ width: '64px', textAlign: 'right' }}>Amt</span>
           </div>
 
-          {/* Items */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 0', borderBottom: '1px dashed #9ca3af' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ flex: 1 }}>Special Filter Coffee</span>
-              <span style={{ width: '30px', textAlign: 'center' }}>2</span>
-              <span style={{ width: '65px', textAlign: 'right' }}>{formatCurrency(180, currency)}</span>
+          {/* Items (showing clean addon price separation) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '7px 0', borderBottom: '1px dashed #6b7280' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '700' }}>
+                <span style={{ flex: 1 }}>Special Filter Coffee</span>
+                <span style={{ width: '28px', textAlign: 'center', fontWeight: '500' }}>2</span>
+                <span style={{ width: '64px', textAlign: 'right' }}>{formatCurrency(180, currency)}</span>
+              </div>
+              <div style={{ fontSize: '9.5px', color: '#4b5563', paddingLeft: '6px' }}>2 × {formatCurrency(90, currency)}</div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ flex: 1 }}>Artisan Croissant</span>
-              <span style={{ width: '30px', textAlign: 'center' }}>1</span>
-              <span style={{ width: '65px', textAlign: 'right' }}>{formatCurrency(170, currency)}</span>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '700' }}>
+                <span style={{ flex: 1 }}>Artisan Croissant</span>
+                <span style={{ width: '28px', textAlign: 'center', fontWeight: '500' }}>1</span>
+                <span style={{ width: '64px', textAlign: 'right' }}>{formatCurrency(160, currency)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#374151', paddingLeft: '8px' }}>
+                <span style={{ flex: 1 }}>+ Extra Butter</span>
+                <span style={{ width: '64px', textAlign: 'right' }}>{formatCurrency(10, currency)}</span>
+              </div>
             </div>
           </div>
 
-          {/* Totals */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '8px 0', borderBottom: '1px solid #111827' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Subtotal:</span>
+          {/* Minimal Totals */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '7px 0', borderBottom: '1px dashed #6b7280' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#111827' }}>
+              <span>Subtotal</span>
               <span>{formatCurrency(350, currency)}</span>
             </div>
             {showTaxBreakdown && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#4b5563' }}>
-                <span>Tax (5%):</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#374151' }}>
+                <span>Tax (5%)</span>
                 <span>{formatCurrency(17.5, currency)}</span>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', marginTop: '4px' }}>
-              <span>TOTAL:</span>
-              <span>{formatCurrency(367.5, currency)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#4b5563' }}>
-              <span>Paid via Cash:</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '14px', borderTop: '1.5px solid #000', paddingTop: '5px', marginTop: '3px' }}>
+              <span>TOTAL ({currency})</span>
               <span>{formatCurrency(367.5, currency)}</span>
             </div>
           </div>
 
-          {/* Footer & QR */}
-          <div style={{ textAlign: 'center', paddingTop: '12px' }}>
+          {/* Payment Pill & Footer */}
+          <div style={{ textAlign: 'center', paddingTop: '8px' }}>
+            <div style={{ fontSize: '10.5px', fontWeight: '800', letterSpacing: '0.04em', marginBottom: '6px' }}>
+              PAID · CASH
+            </div>
             {showQrCode && (
               <div style={{
-                margin: '0 auto 8px',
-                width: '60px',
-                height: '60px',
+                margin: '0 auto 7px',
+                width: '54px',
+                height: '54px',
                 background: '#f3f4f6',
                 border: '1px solid #d1d5db',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '9px',
+                fontSize: '8.5px',
                 fontWeight: 'bold',
                 color: '#4b5563'
               }}>
@@ -696,12 +721,12 @@ export default function ReceiptDesigner({ settings, updateField }) {
               </div>
             )}
             {footerMessage && (
-              <div style={{ fontSize: '10.5px', color: '#4b5563', whiteSpace: 'pre-line' }}>
+              <div style={{ fontSize: '10px', color: '#374151', whiteSpace: 'pre-line' }}>
                 {footerMessage}
               </div>
             )}
-            <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '8px' }}>
-              Powered by Kiwi POS
+            <div style={{ fontSize: '9.5px', color: '#6b7280', marginTop: '4px' }}>
+              3 items · Thank you for dining with us!
             </div>
           </div>
         </div>

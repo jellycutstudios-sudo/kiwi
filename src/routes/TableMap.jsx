@@ -7,6 +7,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch, array
 import { db } from '../firebase';
 import { formatCurrency } from '../utils/formatCurrency';
 import { compareTables, getTableFloor } from '../utils/tableSort';
+import { splitItemModifiersForBill } from '../utils/taxUtils';
 import { printReceipt } from '../utils/print';
 import { sendWhatsAppReceipt } from '../services/whatsappService';
 import toast from 'react-hot-toast';
@@ -16,12 +17,20 @@ import {
   ArrowRightLeft, GitMerge, DoorOpen, CheckCircle2, Utensils, Clock, TrendingUp,
   Users, Banknote, CreditCard, QrCode, Trash2, Sliders, Download,
   Copy, Wand2, Sparkles, Calendar, Zap, User, FileText, Star, Building2, AlertCircle,
-  ArrowLeft, Bell, ChevronDown, MoreHorizontal, Check, ArrowUpDown, ChevronLeft, ChevronRight
+  ArrowLeft, Bell, ChevronDown, MoreHorizontal, Check, ArrowUpDown, ChevronLeft, ChevronRight, Moon, Sun
 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { useThemeStore } from '../stores/themeStore';
 import { getOrderElapsedSeconds, getOrderTimestampMs } from '../utils/timezoneUtils';
 import ThemeToggle from '../components/shared/ThemeToggle';
 import './admin/FloorPlanEditor.css';
+
+function isTableOrderUnpaid(order) {
+  if (!order) return false;
+  if (order.paid === true || order.isComplimentary === true) return false;
+  const pm = String(order.paymentMethod || '').toLowerCase().trim();
+  return !pm || pm === 'unpaid' || pm.includes('unpaid');
+}
 
 /* ─── Elapsed time badge helper ─────────────────────────────── */
 function elapsedColor(mins) {
@@ -99,7 +108,7 @@ export default function TableMap() {
       if (o.type === 'dine-in' && o.tableId) {
         const orderTime = getOrderTimestampMs(o);
         const isStale = orderTime && (now - orderTime) > MAX_STALE_AGE_MS;
-        if (!['billed', 'cancelled', 'completed'].includes(o.status) && !isStale) {
+        if (!['billed', 'cancelled', 'void', 'completed'].includes(o.status) && !isStale) {
           map[o.tableId] = o;
         }
       }
@@ -134,6 +143,29 @@ export default function TableMap() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showMobileSectionModal, setShowMobileSectionModal] = useState(false);
   const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
+  const [showDesktopMoreMenu, setShowDesktopMoreMenu] = useState(false);
+  const desktopMoreMenuRef = useRef(null);
+  const effectiveTheme = useThemeStore(s => s.effectiveTheme);
+  const toggleTheme = useThemeStore(s => s.toggleTheme);
+  const isDarkTheme = effectiveTheme === 'dark';
+
+  useEffect(() => {
+    if (!showDesktopMoreMenu) return;
+    const handleOutside = (e) => {
+      if (desktopMoreMenuRef.current && !desktopMoreMenuRef.current.contains(e.target)) {
+        setShowDesktopMoreMenu(false);
+      }
+    };
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setShowDesktopMoreMenu(false);
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [showDesktopMoreMenu]);
   const todayStr = new Date().toISOString().split('T')[0];
 
   // View mode: 'grid' (fast, clutter-free operations; mode === 'map' && activeFloor === 'all' guard retained for tests)
@@ -1076,16 +1108,6 @@ export default function TableMap() {
                 </div>
               );
             })}
-            {canEditLayout && (
-              <button
-                type="button"
-                className="tm-floor-tab tm-floor-tab--add"
-                onClick={handleAddFloor}
-                title="Add a new dining room, floor, or patio area"
-              >
-                <Plus size={12} /> Add Room
-              </button>
-            )}
           </div>
 
           <div className="tm-toolbar-divider tm-desktop-only" />
@@ -1179,68 +1201,130 @@ export default function TableMap() {
 
           <div className="tm-toolbar-divider tm-desktop-only" />
 
-          {/* Management tools for manager/owner (Desktop) */}
-          {canEditLayout && (
-            <div className="tm-desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm tm-add-table-btn"
-                onClick={handleAddTable}
-                title="Add a new table"
-                style={{
-                  height: 36,
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  gap: 5,
-                  padding: '0 12px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: '#ffffff',
-                  border: '1px solid rgba(52, 211, 153, 0.4)',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.22)'
-                }}
-              >
-                <Plus size={14} strokeWidth={2.5} />
-                <span>Add Table</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleOpenBulkModal}
-                title="Bulk generate multiple tables"
-                style={{ height: 36, fontSize: 12.5, fontWeight: 600, gap: 5, padding: '0 10px' }}
-              >
-                <Wand2 size={13} />
-                <span>Bulk</span>
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${reorderMode ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => {
-                  setReorderMode(v => !v);
-                  if (viewMode !== 'grid') setViewMode('grid');
-                }}
-                title="Reorder tables (syncs with POS)"
-                style={{ height: 36, fontSize: 12.5, fontWeight: 600, gap: 5, padding: '0 10px' }}
-              >
-                <ArrowUpDown size={13} />
-                <span>{reorderMode ? 'Done' : 'Reorder'}</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handlePrintAllQRs}
-                disabled={tables.length === 0}
-                title="Print all table QR codes"
-                style={{ height: 36, fontSize: 12.5, fontWeight: 600, gap: 5, padding: '0 10px' }}
-              >
-                <Printer size={14} />
-              </button>
-            </div>
+          {/* Done Reordering quick-exit pill (shown on bar only while actively reordering) */}
+          {canEditLayout && reorderMode && (
+            <button
+              type="button"
+              id="tablemap-done-reorder-btn"
+              className="btn btn-primary btn-sm tm-desktop-only"
+              onClick={() => setReorderMode(false)}
+              title="Finish reordering tables"
+              style={{ height: 36, fontSize: 12.5, fontWeight: 700, gap: 5, padding: '0 12px', flexShrink: 0 }}
+            >
+              <Check size={14} strokeWidth={2.5} />
+              <span>Done Reordering</span>
+            </button>
           )}
 
-          {/* Theme Toggle Button (Desktop) */}
-          <div className="tm-desktop-only" style={{ marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}>
-            <ThemeToggle />
+          {/* Desktop Floor Utilities Dropdown (⋯ keeps top bar clean & room tabs uncrowded) */}
+          <div className="tm-desktop-only tm-desktop-more-wrap" ref={desktopMoreMenuRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <button
+              type="button"
+              id="tablemap-more-btn"
+              className={`tm-desktop-more-btn ${(showDesktopMoreMenu || reorderMode) ? 'is-non-default' : ''}`}
+              onClick={() => setShowDesktopMoreMenu(v => !v)}
+              aria-expanded={showDesktopMoreMenu}
+              aria-haspopup="menu"
+              aria-label="More floor options"
+              title="Add table, add room, bulk create, reorder, print QRs & theme"
+            >
+              <MoreHorizontal size={17} />
+            </button>
+
+            {showDesktopMoreMenu && (
+              <div className="pos-more-dropdown" role="menu" aria-label="Floor map options">
+                {canEditLayout && (
+                  <>
+                    <div className="pos-more-section-label">Manage Floor</div>
+                    <button
+                      type="button"
+                      id="tablemap-more-add-table-btn"
+                      className="pos-more-item tm-add-table-btn"
+                      role="menuitem"
+                      onClick={() => { setShowDesktopMoreMenu(false); handleAddTable(); }}
+                    >
+                      <span className="pos-more-item-left">
+                        <Plus size={15} color="#10b981" />
+                        <span>Add Table</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      id="tablemap-more-add-room-btn"
+                      className="pos-more-item"
+                      role="menuitem"
+                      onClick={() => { setShowDesktopMoreMenu(false); handleAddFloor(); }}
+                    >
+                      <span className="pos-more-item-left">
+                        <Building2 size={15} />
+                        <span>Add Room / Section</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      id="tablemap-more-bulk-btn"
+                      className="pos-more-item"
+                      role="menuitem"
+                      onClick={() => { setShowDesktopMoreMenu(false); handleOpenBulkModal(); }}
+                    >
+                      <span className="pos-more-item-left">
+                        <Wand2 size={15} />
+                        <span>Bulk Generate Tables</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      id="tablemap-more-reorder-btn"
+                      className="pos-more-item"
+                      role="menuitem"
+                      onClick={() => {
+                        setReorderMode(v => !v);
+                        if (viewMode !== 'grid') setViewMode('grid');
+                        setShowDesktopMoreMenu(false);
+                      }}
+                    >
+                      <span className="pos-more-item-left">
+                        <ArrowUpDown size={15} />
+                        <span>Reorder Tables</span>
+                      </span>
+                      <span className="pos-more-pill">{reorderMode ? 'ON' : 'OFF'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      id="tablemap-more-print-qr-btn"
+                      className="pos-more-item"
+                      role="menuitem"
+                      disabled={tables.length === 0}
+                      onClick={() => { setShowDesktopMoreMenu(false); handlePrintAllQRs(); }}
+                    >
+                      <span className="pos-more-item-left">
+                        <Printer size={15} />
+                        <span>Print All QR Codes</span>
+                      </span>
+                    </button>
+
+                    <div className="pos-more-divider" />
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  id="tablemap-more-theme-btn"
+                  className="pos-more-item"
+                  role="menuitem"
+                  onClick={() => {
+                    toggleTheme();
+                    toast(`${isDarkTheme ? 'Light' : 'Dark'} mode enabled`, { icon: isDarkTheme ? '☀️' : '🌙', id: 'theme-toast', duration: 2000 });
+                  }}
+                >
+                  <span className="pos-more-item-left">
+                    {isDarkTheme ? <Sun size={15} /> : <Moon size={15} />}
+                    <span>{isDarkTheme ? 'Switch to Light' : 'Switch to Dark'}</span>
+                  </span>
+                  <span className="pos-more-pill">{isDarkTheme ? 'Dark' : 'Light'}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Mobile Overflow Manage Menu Button */}
@@ -1889,42 +1973,58 @@ export default function TableMap() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '200px', overflowY: 'auto' }}>
-                      {(selOrder.items ?? []).map((item, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: 13 }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                            <span style={{
-                              fontSize: 11,
-                              fontWeight: 800,
-                              background: 'var(--color-bg-elevated)',
-                              border: '1px solid var(--color-separator)',
-                              padding: '2px 7px',
-                              borderRadius: 5,
-                              color: 'var(--color-label)',
-                              marginTop: 1,
-                              flexShrink: 0
-                            }}>
-                              {item.qty}×
-                            </span>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ color: 'var(--color-label)', fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>
-                                {item.name}
-                              </span>
-                              {(item.variantMatrixSelection || item.selectedModifiers?.length > 0 || item.notes) && (
-                                <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
-                                  {[
-                                    item.variantMatrixSelection ? Object.values(item.variantMatrixSelection).join(' · ') : null,
-                                    item.selectedModifiers?.map(m => m.name).join(', '),
-                                    item.notes
-                                  ].filter(Boolean).join(' | ')}
+                      {(selOrder.items ?? []).map((item, i) => {
+                        const { qtyNum, baseLineAmount, addons } = splitItemModifiersForBill(item);
+                        const pricedAddons = addons.filter(a => a.lineAmount > 0);
+                        const freeAddonNames = addons.filter(a => a.lineAmount <= 0).map(a => a.name);
+                        return (
+                          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: 13 }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                <span style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: 'var(--color-bg-elevated)',
+                                  border: '1px solid var(--color-separator)',
+                                  padding: '2px 7px',
+                                  borderRadius: 5,
+                                  color: 'var(--color-label)',
+                                  marginTop: 1,
+                                  flexShrink: 0
+                                }}>
+                                  {qtyNum}×
                                 </span>
-                              )}
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ color: 'var(--color-label)', fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>
+                                    {item.name}
+                                    {item.isTakeaway && (
+                                      <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'rgba(245, 158, 11, 0.16)', color: '#f59e0b' }}>PACK</span>
+                                    )}
+                                  </span>
+                                  {(item.variantMatrixSelection || freeAddonNames.length > 0 || item.itemNote || item.notes) && (
+                                    <span style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 2 }}>
+                                      {[
+                                        item.variantMatrixSelection ? Object.values(item.variantMatrixSelection).join(' · ') : null,
+                                        freeAddonNames.join(', '),
+                                        item.itemNote || item.notes
+                                      ].filter(Boolean).join(' | ')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span style={{ fontWeight: 700, color: 'var(--color-label)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, marginLeft: 8, fontSize: 13 }}>
+                                {formatCurrency(baseLineAmount, currency)}
+                              </span>
                             </div>
+                            {pricedAddons.map((a, aIdx) => (
+                              <div key={aIdx} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 34, fontSize: 11.5, color: 'var(--color-label-secondary)' }}>
+                                <span>+ {a.name}</span>
+                                <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>+{formatCurrency(a.lineAmount, currency)}</span>
+                              </div>
+                            ))}
                           </div>
-                          <span style={{ fontWeight: 700, color: 'var(--color-label)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, marginLeft: 8, fontSize: 13 }}>
-                            {formatCurrency(item.price * item.qty, currency)}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     
                     {/* Total Due Banner */}
@@ -1990,7 +2090,7 @@ export default function TableMap() {
                         <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-label-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                           <CreditCard size={13} /> Settle Bill
                         </div>
-                        {selOrder.paymentMethod === 'unpaid' ? (
+                        {isTableOrderUnpaid(selOrder) ? (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                             <button
                               type="button"
@@ -2058,7 +2158,7 @@ export default function TableMap() {
                     ) : (
                       /* Waiter / Floor Staff View: Clean Pre-Bill & Cashier Desk Direction */
                       <div>
-                        {selOrder.paymentMethod === 'unpaid' ? (
+                        {isTableOrderUnpaid(selOrder) ? (
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',

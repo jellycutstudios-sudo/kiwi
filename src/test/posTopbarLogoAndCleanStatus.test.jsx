@@ -13,7 +13,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
   return {
     ...actual,
     doc: vi.fn(),
-    onSnapshot: vi.fn(() => () => {}),
+    onSnapshot: vi.fn(() => () => { }),
   };
 });
 
@@ -141,5 +141,63 @@ describe('POS Topbar Brand Logo & Clean Status Touch Optimization', () => {
     const statusText = statusBtn.querySelector('.network-status-text');
     expect(statusText).toBeTruthy();
     expect(statusText.textContent).toContain('Offline (2)');
+  });
+
+  it('keeps secondary utilities inside the More dropdown and toggles it cleanly on click', async () => {
+    window.history.pushState({}, '', '/pos');
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      );
+    });
+
+    // Low-frequency buttons are NOT mounted directly on the top bar when closed
+    expect(document.getElementById('pos-switch-cards-btn')).toBeNull();
+    expect(document.getElementById('pos-switch-keys-btn')).toBeNull();
+    expect(document.getElementById('pos-waiter-lang-btn')).toBeNull();
+    expect(document.querySelector('.density-expand-btn')).toBeNull();
+    expect(document.querySelector('.pos-topbar-theme-toggle')).toBeNull();
+    expect(document.getElementById('notification-bell-btn')).toBeNull();
+
+    // Clicking the More button opens the terminal options menu with those utilities
+    const moreBtn = document.getElementById('pos-topbar-more-btn');
+    expect(moreBtn).toBeTruthy();
+    expect(moreBtn.getAttribute('aria-expanded')).toBe('false');
+
+    await act(async () => {
+      moreBtn.click();
+    });
+
+    expect(moreBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelector('.pos-more-dropdown')).toBeTruthy();
+    expect(document.getElementById('pos-switch-cards-btn')).toBeTruthy();
+    expect(document.getElementById('pos-switch-keys-btn')).toBeTruthy();
+    expect(document.getElementById('pos-waiter-lang-btn')).toBeTruthy();
+    expect(document.getElementById('pos-more-theme-btn')).toBeTruthy();
+    expect(document.getElementById('notification-bell-btn')).toBeTruthy();
+
+    // Clicking More again closes it
+    await act(async () => {
+      moreBtn.click();
+    });
+    expect(moreBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelector('.pos-more-dropdown')).toBeNull();
+  });
+
+  it('renders /tables (Floor Map) full-screen without the left icon sidebar', async () => {
+    window.history.pushState({}, '', '/tables');
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      );
+    });
+
+    expect(document.querySelector('.sidebar')).toBeNull();
+    expect(document.querySelector('.app-shell')?.classList.contains('kds-app-shell')).toBe(true);
+    expect(document.querySelector('.main-content')?.classList.contains('kds-main-content')).toBe(true);
   });
 });

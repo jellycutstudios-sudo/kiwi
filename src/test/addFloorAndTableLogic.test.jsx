@@ -6,11 +6,11 @@ describe('Add Floor and Table Logic & Grid View Configuration', () => {
   const indexCss = fs.readFileSync(path.resolve(__dirname, '../index.css'), 'utf-8');
   const tableMapJsx = fs.readFileSync(path.resolve(__dirname, '../routes/TableMap.jsx'), 'utf-8');
 
-  it('verifies Add Room (+ Add Floor) is exposed to authorized users in normal grid view', () => {
-    // Add Room button must be gated by canEditLayout rather than hidden isEditingLayout
+  it('verifies Add Room (+ Add Floor) is exposed to authorized users inside the floor options menu', () => {
+    // Add Room button must be gated by canEditLayout inside the clean More dropdown
     expect(tableMapJsx).toContain('canEditLayout && (');
-    expect(tableMapJsx).toContain('className="tm-floor-tab tm-floor-tab--add"');
-    expect(tableMapJsx).toContain('onClick={handleAddFloor}');
+    expect(tableMapJsx).toContain('id="tablemap-more-add-room-btn"');
+    expect(tableMapJsx).toContain('handleAddFloor()');
     expect(tableMapJsx).toContain('Add Room');
 
     // Empty floor delete button must also be gated by canEditLayout

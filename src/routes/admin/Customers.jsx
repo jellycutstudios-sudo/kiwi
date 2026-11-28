@@ -42,9 +42,11 @@ export default function Customers() {
   const [form, setForm] = useState({
     name: '',
     phone: '',
+    gstin: '',
     birthday: '',
     notes: '',
     points: '0',
+    khataBalance: '0',
     visitCount: '0',
     lifetimeSpend: '0'
   });
@@ -191,9 +193,11 @@ export default function Customers() {
     const payload = {
       name: form.name.trim(),
       phone: cleanPhone,
+      gstin: (form.gstin || '').trim().toUpperCase(),
       birthday: form.birthday || '',
       notes: form.notes.trim() || '',
       points: parseFloat(form.points) || 0,
+      khataBalance: parseFloat(form.khataBalance) || 0,
       visitCount: parseInt(form.visitCount) || 0,
       lifetimeSpend: parseFloat(form.lifetimeSpend) || 0,
     };
@@ -239,10 +243,36 @@ export default function Customers() {
 
       setShowForm(false);
       setEditPhone(null);
-      setForm({ name: '', phone: '', birthday: '', notes: '', points: '0', visitCount: '0', lifetimeSpend: '0' });
+      setForm({ name: '', phone: '', gstin: '', birthday: '', notes: '', points: '0', khataBalance: '0', visitCount: '0', lifetimeSpend: '0' });
       fetchCustomers();
     } catch (e) {
       toast.error('Failed to save: ' + e.message);
+    }
+  };
+
+  const settleKhata = async (cust) => {
+    const due = Number(cust.khataBalance || 0);
+    if (!due || due <= 0) return;
+    if (!confirm(`Mark Khata due (${formatCurrency(due, currency)}) as settled for ${cust.name}?`)) return;
+    try {
+      const nextSpend = (Number(cust.lifetimeSpend) || 0) + due;
+      const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+      const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+      if (!isLocalOnly && isOnline && restaurant?.id) {
+        await setDoc(doc(db, 'restaurants', restaurant.id, 'customers', cust.phone || cust.id), {
+          khataBalance: 0,
+          lifetimeSpend: nextSpend,
+          updatedAt: new Date()
+        }, { merge: true });
+      }
+      setCustomers(prev => {
+        const next = prev.map(c => (c.phone === cust.phone || c.id === cust.id) ? { ...c, khataBalance: 0, lifetimeSpend: nextSpend } : c);
+        try { localStorage.setItem('dineos_cached_customers', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      toast.success(`Settled Khata (${formatCurrency(due, currency)}) for ${cust.name}!`);
+    } catch (e) {
+      toast.error('Failed to settle Khata: ' + e.message);
     }
   };
 
@@ -345,7 +375,7 @@ export default function Customers() {
         </div>
         <div>
           {activeTab === 'crm' ? (
-            <button className="btn btn-primary" id="add-customer-btn" onClick={() => { setEditPhone(null); setForm({ name: '', phone: '', birthday: '', notes: '', points: '0', visitCount: '0', lifetimeSpend: '0' }); setShowForm(true); }}>
+            <button className="btn btn-primary" id="add-customer-btn" onClick={() => { setEditPhone(null); setForm({ name: '', phone: '', gstin: '', birthday: '', notes: '', points: '0', khataBalance: '0', visitCount: '0', lifetimeSpend: '0' }); setShowForm(true); }}>
               <Plus size={16} /> Add Customer
             </button>
           ) : (
@@ -434,7 +464,27 @@ export default function Customers() {
                   {filteredCustomers.map(cust => (
                     <tr key={cust.id} style={{ borderBottom: '1px solid var(--color-separator)' }}>
                       <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', fontWeight: 'var(--weight-semibold)' }}>
-                        {cust.name}
+                        <div>{cust.name}</div>
+                        {cust.gstin && (
+                          <div style={{ fontSize: 10.5, color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                            GSTIN: {cust.gstin}
+                          </div>
+                        )}
+                        {Number(cust.khataBalance || 0) > 0 && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 6 }}>
+                              Khata: {formatCurrency(cust.khataBalance, currency)}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-xs"
+                              onClick={() => settleKhata(cust)}
+                              style={{ fontSize: 10, padding: '2px 6px', height: 20, background: '#10b981', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Settle
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-subhead)', color: 'var(--color-label-secondary)' }}>
                         {formatDisplayPhone(cust.phone)}
@@ -465,9 +515,11 @@ export default function Customers() {
                             setForm({
                               name: cust.name,
                               phone: cust.phone,
+                              gstin: cust.gstin ?? '',
                               birthday: cust.birthday ?? '',
                               notes: cust.notes ?? '',
                               points: String(cust.points ?? 0),
+                              khataBalance: String(cust.khataBalance ?? 0),
                               visitCount: String(cust.visitCount ?? 0),
                               lifetimeSpend: String(cust.lifetimeSpend ?? 0)
                             });
@@ -526,9 +578,11 @@ export default function Customers() {
                             setForm({
                               name: cust.name,
                               phone: cust.phone,
+                              gstin: cust.gstin ?? '',
                               birthday: cust.birthday ?? '',
                               notes: cust.notes ?? '',
                               points: String(cust.points ?? 0),
+                              khataBalance: String(cust.khataBalance ?? 0),
                               visitCount: String(cust.visitCount ?? 0),
                               lifetimeSpend: String(cust.lifetimeSpend ?? 0)
                             });
@@ -562,6 +616,23 @@ export default function Customers() {
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-green)' }}>{formatCurrency(cust.lifetimeSpend ?? 0, currency)}</div>
                       </div>
                     </div>
+
+                    {(cust.gstin || Number(cust.khataBalance || 0) > 0) && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+                        {cust.gstin ? (
+                          <span style={{ fontSize: 11, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>GSTIN: {cust.gstin}</span>
+                        ) : <span />}
+                        {Number(cust.khataBalance || 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => settleKhata(cust)}
+                            style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(16,185,129,0.16)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Settle Khata ({formatCurrency(cust.khataBalance, currency)})
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {(cust.birthday || cust.notes) && (
                       <div style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)', display: 'flex', flexDirection: 'column', gap: 2, borderTop: '1px dashed var(--color-separator)', paddingTop: 6 }}>
@@ -768,6 +839,16 @@ export default function Customers() {
                 <div className="form-group">
                   <label className="form-label">Lifetime Spend ({currency})</label>
                   <input id="cust-spend-input" className="form-input" type="number" min={0} step={0.01} value={form.lifetimeSpend} onChange={e => setForm(f => ({ ...f, lifetimeSpend: e.target.value }))} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--space-3)' }}>
+                <div className="form-group">
+                  <label className="form-label">B2B GSTIN (Optional)</label>
+                  <input id="cust-gstin-input" className="form-input" maxLength={15} placeholder="27AAAAA0000A1Z5" value={form.gstin || ''} onChange={e => setForm(f => ({ ...f, gstin: e.target.value.toUpperCase() }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Khata Due ({currency})</label>
+                  <input id="cust-khata-input" className="form-input" type="number" min={0} step={0.01} value={form.khataBalance || '0'} onChange={e => setForm(f => ({ ...f, khataBalance: e.target.value }))} />
                 </div>
               </div>
               <div className="form-group">

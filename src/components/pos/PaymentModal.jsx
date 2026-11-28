@@ -44,6 +44,24 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
 
   const [editingWaPhone, setEditingWaPhone] = useState(false);
   const [waPhoneInput, setWaPhoneInput] = useState('');
+  const [editingDeliveryInfo, setEditingDeliveryInfo] = useState(false);
+  const [delivPhone, setDelivPhone] = useState(() => customerPhone || customer?.phone || '');
+  const [delivName, setDelivName] = useState(() => customerName || customer?.name || '');
+  const [delivAddress, setDelivAddress] = useState(() => customer?.address || customer?.deliveryAddress || '');
+
+  const syncInlineDelivery = (nextPhone, nextName, nextAddr) => {
+    const cleanPhone = String(nextPhone || '').replace(/\D/g, '');
+    const cleanName = String(nextName || '').trim();
+    const cleanAddr = String(nextAddr || '').trim();
+    setCustomer(cleanName || (cleanPhone ? 'Customer' : ''), cleanPhone);
+    setCustomerProfile({
+      ...(customer || {}),
+      name: cleanName || customer?.name || (cleanPhone ? 'Customer' : ''),
+      phone: cleanPhone,
+      address: cleanAddr,
+      points: customer?.points || 0
+    });
+  };
 
   const handleSaveWaPhone = () => {
     const clean = waPhoneInput.replace(/\D/g, '');
@@ -89,7 +107,16 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
   const [cashTendered, setCashTendered] = useState(() => (effectiveDue > 0 ? effectiveDue.toString() : ''));
   const [loading, setLoading] = useState(false);
 
-  // Ensure cashTendered defaults to effectiveDue when entering cash mode or amount changes
+  // Ensure cashTendered defaults to effectiveDue when entering cash mode or amount changes,
+  // and ensure paymentMethod never stays stuck at 'unpaid' when opening PaymentModal.
+  useEffect(() => {
+    const pm = String(paymentMethod || '').toLowerCase();
+    const isValid = METHODS.some(m => m.key === pm) || pm === 'khata';
+    if (!isValid) {
+      setPaymentMethod('cash');
+    }
+  }, [paymentMethod, setPaymentMethod]);
+
   useEffect(() => {
     if (paymentMethod === 'cash') {
       setCashTendered(prev => (!prev || parseFloat(prev) <= 0) ? (effectiveDue > 0 ? effectiveDue.toString() : '') : prev);
@@ -290,7 +317,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
   const splitPaid = paymentMethod === 'split' && (allEqualPaid || allMixedPaid);
 
   const canConfirm = paymentMethod !== 'split'
-    ? (!loading && (paymentMethod !== 'cash' || !cashTendered || parseFloat(cashTendered) >= total - 0.01))
+    ? (!loading && (paymentMethod !== 'cash' || !cashTendered || parseFloat(cashTendered) >= total - 0.01) && (paymentMethod !== 'khata' || Boolean(customer?.phone || customerPhone)))
     : (!loading && splitPaid);
 
   const handleVerifyGiftCard = async () => {
@@ -506,6 +533,23 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     }
   };
 
+  // Fast keyboard confirm: pressing Enter confirms settlement when valid (skip inside voucher/phone/split-item inputs)
+  useEffect(() => {
+    if (terminalStatus) return;
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Enter') return;
+      const targetId = e.target?.id || '';
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'textarea' || tag === 'select' || ['gift-card-code-input', 'split-next-amount', 'delivery-phone-input', 'delivery-name-input', 'delivery-address-input'].includes(targetId)) return;
+      if (canConfirm && !loading) {
+        e.preventDefault();
+        handleConfirm();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
   if (terminalStatus) {
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -682,8 +726,8 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
     <div className="modal-overlay payment-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()} style={{ backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.68)' }}>
       <div className="modal animate-slide-up payment-modal-mobile" style={{ maxWidth: 520, width: 'min(520px, 95vw)', maxHeight: '94dvh', borderRadius: 22, overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.5)', display: 'flex', flexDirection: 'column' }}>
         {/* Unified Calm Header + Hero Amount */}
-        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0, position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ padding: '12px 18px 10px', borderBottom: '1px solid var(--color-separator)', flexShrink: 0, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{
               fontSize: 11.5,
               fontWeight: 700,
@@ -709,9 +753,9 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
             </button>
           </div>
 
-          <div style={{ textAlign: 'center', padding: '2px 0 4px' }}>
-            <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 2 }}>
-              {t('amountDue') || 'Amount Due'}
+          <div style={{ textAlign: 'center', padding: '0 0 2px' }}>
+            <div style={{ fontSize: 11, color: 'var(--color-label-secondary)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+              {t('amountDue', { defaultValue: 'Amount Due' })}
             </div>
 
             {settledTotal > 0 ? (
@@ -765,73 +809,168 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
           </div>
         </div>
 
-        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-          {/* Delivery Dispatch Details Card */}
+          {/* Delivery Dispatch Card (Clean header + 2 equal 40px touch controls; inputs expand on tap) */}
           {orderType === 'delivery' && (
             <div
               className="payment-delivery-dispatch-card"
               style={{
-                padding: '10px 14px',
+                padding: '10px 12px',
                 borderRadius: 12,
                 background: 'rgba(245, 158, 11, 0.08)',
                 border: '1px solid rgba(245, 158, 11, 0.25)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
-                textAlign: 'left'
+                textAlign: 'left',
+                flexShrink: 0,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Bike size={16} color="#f59e0b" />
-                  <span style={{ fontSize: 12, fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <Bike size={15} color="#f59e0b" />
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                     Delivery Dispatch
                   </span>
                 </div>
-                {(customerPhone || customer?.phone) && (
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--color-label)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Phone size={12} color="var(--color-label-secondary)" />
-                    {customerPhone || customer?.phone}
+                {(delivPhone || customerPhone || customer?.phone || delivName || customerName) && !editingDeliveryInfo && (
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--color-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {(delivName || customerName) ? `${delivName || customerName} · ` : ''}{delivPhone || customerPhone || customer?.phone}
                   </span>
                 )}
               </div>
-              {(customer?.address || customer?.deliveryAddress) && (
-                <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', lineHeight: 1.3, display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-                  <MapPin size={13} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span>{customer?.address || customer?.deliveryAddress}</span>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{
+                  height: 40,
+                  borderRadius: 10,
+                  border: '1px solid var(--color-separator)',
+                  background: 'var(--color-bg-elevated)',
+                  padding: '0 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  minWidth: 0,
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    Assign Rider:
+                  </span>
+                  <select
+                    value={assignedRiderName || ''}
+                    onChange={(e) => setRider(e.target.value)}
+                    aria-label="Assign Delivery Rider"
+                    className="payment-rider-select"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      height: '100%',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--color-label)',
+                      padding: 0,
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">Unassigned</option>
+                    {riderStaff.map(s => (
+                      <option key={s.id || s.name} value={s.name}>{s.name} (In-House)</option>
+                    ))}
+                    <option value="Dunzo">Dunzo Delivery</option>
+                    <option value="Porter">Porter</option>
+                    <option value="Shadowfax">Shadowfax</option>
+                    <option value="Own Fleet">Own Fleet / Self Delivery</option>
+                  </select>
                 </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', whiteSpace: 'nowrap' }}>
-                  Assign Rider:
-                </span>
-                <select
-                  value={assignedRiderName || ''}
-                  onChange={(e) => setRider(e.target.value)}
-                  aria-label="Assign Delivery Rider"
+
+                <button
+                  type="button"
+                  id="payment-delivery-edit-toggle"
+                  onClick={() => setEditingDeliveryInfo(v => !v)}
                   style={{
-                    flex: 1,
-                    height: 32,
+                    height: 40,
+                    padding: '0 12px',
+                    borderRadius: 10,
+                    background: editingDeliveryInfo
+                      ? 'rgba(245, 158, 11, 0.2)'
+                      : ((delivPhone || delivAddress) ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.06)'),
+                    border: editingDeliveryInfo
+                      ? '1px solid rgba(245, 158, 11, 0.45)'
+                      : ((delivPhone || delivAddress) ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(245, 158, 11, 0.35)'),
+                    color: editingDeliveryInfo
+                      ? '#fbbf24'
+                      : ((delivPhone || delivAddress) ? '#34d399' : '#fbbf24'),
                     fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 8,
-                    border: '1px solid var(--color-separator)',
-                    background: 'var(--color-bg-elevated)',
-                    color: 'var(--color-label)',
-                    padding: '0 8px'
+                    fontWeight: 750,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    whiteSpace: 'nowrap',
+                    touchAction: 'manipulation',
                   }}
                 >
-                  <option value="">Unassigned (Assign later)</option>
-                  {riderStaff.map(s => (
-                    <option key={s.id || s.name} value={s.name}>{s.name} (In-House)</option>
-                  ))}
-                  <option value="Dunzo">Dunzo Delivery</option>
-                  <option value="Porter">Porter</option>
-                  <option value="Shadowfax">Shadowfax</option>
-                  <option value="Own Fleet">Own Fleet / Self Delivery</option>
-                </select>
+                  <Phone size={13} />
+                  <span>{editingDeliveryInfo ? 'Done' : ((delivPhone || delivAddress) ? 'Edit Customer' : '+ Customer / Address')}</span>
+                </button>
               </div>
+
+              {editingDeliveryInfo ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 2 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <input
+                      id="delivery-phone-input"
+                      type="tel"
+                      className="form-input"
+                      placeholder="Mobile # (optional)"
+                      value={delivPhone}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setDelivPhone(val);
+                        syncInlineDelivery(val, delivName, delivAddress);
+                      }}
+                      style={{ height: 36, fontSize: 12, padding: '0 10px', borderRadius: 8 }}
+                    />
+                    <input
+                      id="delivery-name-input"
+                      type="text"
+                      className="form-input"
+                      placeholder="Name (optional)"
+                      value={delivName}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setDelivName(val);
+                        syncInlineDelivery(delivPhone, val, delivAddress);
+                      }}
+                      style={{ height: 36, fontSize: 12, padding: '0 10px', borderRadius: 8 }}
+                    />
+                  </div>
+                  <input
+                    id="delivery-address-input"
+                    type="text"
+                    className="form-input"
+                    placeholder="Delivery Address / Landmark (optional)"
+                    value={delivAddress}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setDelivAddress(val);
+                      syncInlineDelivery(delivPhone, delivName, val);
+                    }}
+                    style={{ height: 36, fontSize: 12, padding: '0 10px', borderRadius: 8 }}
+                  />
+                </div>
+              ) : (delivAddress || customer?.address || customer?.deliveryAddress) && (
+                <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <MapPin size={12} color="#f59e0b" style={{ flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {delivAddress || customer?.address || customer?.deliveryAddress}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -863,6 +1002,32 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 );
               })}
             </div>
+            {(customer?.phone || customerPhone) && (
+              <button
+                type="button"
+                id="payment-method-khata"
+                onClick={() => setPaymentMethod('khata')}
+                className={`payment-method-btn ${paymentMethod === 'khata' ? 'selected' : ''}`}
+                style={{
+                  width: '100%',
+                  marginTop: 8,
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderColor: paymentMethod === 'khata' ? '#f59e0b' : undefined,
+                  background: paymentMethod === 'khata' ? 'rgba(245, 158, 11, 0.14)' : undefined
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 800, color: paymentMethod === 'khata' ? '#fbbf24' : 'var(--color-label)' }}>
+                  📒 Khata / Credit Account ({customerName || customer?.name || customerPhone || customer?.phone})
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)' }}>
+                  {Number(customer?.khataBalance || 0) > 0 ? `Due: ${formatCurrency(customer.khataBalance, currency)}` : 'Monthly Settlement'}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Split Bill section */}
@@ -1121,13 +1286,13 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
           {/* Cash tendered field */}
           {paymentMethod === 'cash' && (
             <div style={{
-              marginTop: 12,
-              padding: '14px 16px',
+              marginTop: 0,
+              padding: '12px 14px',
               background: 'var(--color-bg-secondary)',
               borderRadius: 14,
               border: '1px solid var(--color-separator)'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-label-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Cash Received
                 </span>
@@ -1137,7 +1302,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
               </div>
 
               {/* Input row with clear button */}
-              <div style={{ position: 'relative', marginBottom: 10 }}>
+              <div style={{ position: 'relative', marginBottom: 8 }}>
                 <span style={{
                   position: 'absolute',
                   left: 14,
@@ -1189,9 +1354,9 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                 )}
               </div>
 
-              {/* Clean 1-Tap Cash Tender Chips (No noisy change pills) */}
+              {/* Clean 1-Tap Cash Tender Chips — fixed balanced 4-column single row */}
               {quickCashOptions.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(quickCashOptions.length, 4)}, minmax(0, 1fr))`, gap: 6, marginBottom: 8 }}>
                   {quickCashOptions.map((opt, idx) => {
                     const isSelected = Math.abs(parseFloat(cashTendered || 0) - opt.amount) < 0.01;
                     const amountLabel = String(formatCurrency(opt.amount, currency) || '').replace(/\.00$/, '');
@@ -1203,16 +1368,16 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                         onClick={() => setCashTendered(opt.amount.toString())}
                         className={`payment-denom-btn ${isSelected ? 'selected' : ''}`}
                         style={{
-                          minHeight: 42,
-                          padding: '8px 12px',
+                          minHeight: 40,
+                          padding: '6px 6px',
                           borderRadius: 10,
                           justifyContent: 'center',
-                          gap: 6
+                          gap: 4
                         }}
                       >
                         {isExact && (
                           <span style={{
-                            fontSize: 10.5,
+                            fontSize: 10,
                             fontWeight: 700,
                             color: isSelected ? '#34d399' : 'var(--color-label-secondary)',
                             textTransform: 'uppercase',
@@ -1221,7 +1386,7 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
                             Exact
                           </span>
                         )}
-                        <span style={{ fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                           {amountLabel}
                         </span>
                       </button>
@@ -1232,12 +1397,12 @@ export default function PaymentModal({ total, currency, onConfirm, onClose, onOp
 
               {/* Minimal Return Change Bar */}
               {change !== null && change >= 0 && (
-                <div className={`payment-change-bar ${change > 0 ? 'has-change' : ''}`} style={{ padding: '10px 14px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 750, color: change > 0 ? '#34d399' : 'var(--color-label)' }}>
+                <div className={`payment-change-bar ${change > 0 ? 'has-change' : ''}`} style={{ padding: '8px 12px' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 750, color: change > 0 ? '#34d399' : 'var(--color-label)' }}>
                     {change > 0 ? 'Return Change' : 'Exact Paid'}
                   </span>
                   <span style={{
-                    fontSize: 19,
+                    fontSize: 17,
                     fontWeight: 900,
                     fontVariantNumeric: 'tabular-nums',
                     color: change > 0 ? '#34d399' : 'var(--color-label)',

@@ -197,11 +197,11 @@ export const useOfflineQueueStore = create((set, get) => {
 
           const batch = writeBatch(db);
           const orderDocRef = doc(db, 'restaurants', restaurantId, 'orders', targetOrderId);
-          batch.set(orderDocRef, firestoreOrder);
+          batch.set(orderDocRef, firestoreOrder, targetOrderId === order.id ? { merge: true } : undefined);
 
-          // Update active shift if this order was paid
+          // Update active shift if this order was paid (skip when settlement already credited activeShift)
           const activeShift = useShiftStore.getState().activeShift;
-          if (activeShift?.id && order.paymentMethod !== 'unpaid' && (order.total ?? 0) > 0) {
+          if (!order.skipShiftUpdate && activeShift?.id && order.paymentMethod !== 'unpaid' && (order.total ?? 0) > 0) {
             const shiftRef = doc(db, 'restaurants', restaurantId, 'shifts', activeShift.id);
             const shiftUpdate = {
               totalSalesAmount: increment(order.total)

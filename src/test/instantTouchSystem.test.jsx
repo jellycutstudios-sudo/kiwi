@@ -24,9 +24,8 @@ describe('Zero-Latency Instant Touch & Click System', () => {
   });
 
   it('verifies no artificial setTimeout delay when opening customer modal in delivery mode', () => {
-    expect(posJsx).toContain('if (newType === \'delivery\' && !customerPhone && !customer?.address) {');
     expect(posJsx).toContain('setShowCustomerModal(true);');
-    expect(posJsx).not.toContain('setTimeout(() => setShowCustomerModal(true), 120);');
+    expect(posJsx).not.toContain('setTimeout(() => setShowCustomerModal(true)');
   });
 
   it('verifies overscroll containment and snappy GPU modal performance', () => {

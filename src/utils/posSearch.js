@@ -32,6 +32,48 @@ export function extractDietaryFromQuery(rawQuery) {
 }
 
 /**
+ * Parses Indian counter short-code multiplier queries in the single POS search bar:
+ * - "101*3" -> { cleanQuery: "101", qty: 3 }   (standard shortCode * qty)
+ * - "ccb*2" -> { cleanQuery: "ccb", qty: 2 }
+ * - "3*ccb" -> { cleanQuery: "ccb", qty: 3 }   (qty * textCode when left is digits and right has letters)
+ * - "2x paneer tikka" or "3x101" -> { cleanQuery: "...", qty: 2|3 }
+ */
+export function parsePosSearchQuery(rawQuery) {
+  const { effectiveDietary, cleanQuery: dietClean } = extractDietaryFromQuery(rawQuery);
+  let query = dietClean;
+  let qty = 1;
+
+  // Match "qty x query" / "qtyx query" (e.g. "2x paneer tikka", "3x 101")
+  const explicitX = query.match(/^(\d{1,3})\s*x\s*(.+)$/i);
+  if (explicitX && (/\s/.test(query) || /^\d{1,3}x\d+/i.test(query))) {
+    const parsedQty = parseInt(explicitX[1], 10);
+    if (parsedQty > 0 && parsedQty <= 999) {
+      return { effectiveDietary, cleanQuery: explicitX[2].trim(), qty: parsedQty };
+    }
+  }
+
+  // Match "query * qty" (standard POS syntax: "101*3", "ccb * 4")
+  const trailingMult = query.match(/^(.+?)\s*\*\s*(\d{1,3})$/);
+  if (trailingMult) {
+    const parsedQty = parseInt(trailingMult[2], 10);
+    if (parsedQty > 0 && parsedQty <= 999) {
+      return { effectiveDietary, cleanQuery: trailingMult[1].trim(), qty: parsedQty };
+    }
+  }
+
+  // Match "qty * textQuery" when right side is non-numeric (e.g. "3*ccb", "2*masala")
+  const leadingMult = query.match(/^(\d{1,3})\s*\*\s*([^\d\s].*)$/);
+  if (leadingMult) {
+    const parsedQty = parseInt(leadingMult[1], 10);
+    if (parsedQty > 0 && parsedQty <= 999) {
+      return { effectiveDietary, cleanQuery: leadingMult[2].trim(), qty: parsedQty };
+    }
+  }
+
+  return { effectiveDietary, cleanQuery: query, qty };
+}
+
+/**
  * Fast O(n) check whether two lowercase words are within 1 edit
  * (1 substitution, 1 insertion/deletion, or 1 adjacent transposition).
  */

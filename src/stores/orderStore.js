@@ -4,7 +4,7 @@ import {
   collection, updateDoc, setDoc, doc, getDoc, serverTimestamp, onSnapshot, query, where, limit, increment, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { computeTax } from '../utils/taxUtils';
+import { computeTax, computePackagingCharge, computeRoundOff } from '../utils/taxUtils';
 import { useTableStore } from './tableStore';
 import { useMenuStore } from './menuStore';
 import { useAuthStore } from './authStore';
@@ -61,6 +61,55 @@ const isKdsActiveTab = () => {
 
 const CART_STORAGE_KEY = 'dineos_active_cart';
 const HELD_ORDERS_STORAGE_KEY = 'dineos_held_orders';
+const SETTLED_ORDERS_STORAGE_KEY = 'dineos_settled_orders_cache';
+const SETTLED_OVERRIDE_TTL_MS = 48 * 60 * 60 * 1000;
+
+const isOrderSettledPaid = (order) => {
+  if (!order) return false;
+  if (order.paid === true || order.isComplimentary === true) return true;
+  const pm = String(order.paymentMethod || '').toLowerCase().trim();
+  return Boolean(pm && pm !== 'unpaid' && !pm.includes('unpaid'));
+};
+
+const syncSettledOverrideIfPresent = (overrides, orderId, patch) => {
+  if (!overrides || !overrides[orderId] || !patch) return overrides;
+  const updated = {
+    ...overrides,
+    [orderId]: {
+      ...overrides[orderId],
+      ...patch,
+      _cachedAt: Date.now()
+    }
+  };
+  savePersistedSettledOverrides(updated);
+  return updated;
+};
+
+const loadPersistedSettledOverrides = () => {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(SETTLED_ORDERS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    const now = Date.now();
+    const cleaned = {};
+    Object.entries(parsed || {}).forEach(([id, entry]) => {
+      if (entry && (!entry._cachedAt || (now - entry._cachedAt) < SETTLED_OVERRIDE_TTL_MS)) {
+        cleaned[id] = entry;
+      }
+    });
+    return cleaned;
+  } catch {
+    return {};
+  }
+};
+
+const savePersistedSettledOverrides = (map) => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(SETTLED_ORDERS_STORAGE_KEY, JSON.stringify(map));
+  } catch {}
+};
 
 const loadPersistedHeldOrders = () => {
   if (typeof localStorage === 'undefined') return [];
@@ -105,7 +154,9 @@ const savePersistedCart = (state) => {
       editingOrderId: state.editingOrderId,
       billPrinted: Boolean(state.billPrinted),
       isComplimentary: Boolean(state.isComplimentary),
-      complimentaryReason: state.complimentaryReason || ''
+      complimentaryReason: state.complimentaryReason || '',
+      packagingWaived: Boolean(state.packagingWaived),
+      customerGstin: state.customerGstin || ''
     };
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartSnapshot));
   } catch {}
@@ -125,6 +176,17 @@ export const useOrderStore = create((set, get) => ({
   items: initialCart?.items || [],
   activeSeat: initialCart?.activeSeat || null,
   settledChecks: [],
+  settledOrderOverrides: loadPersistedSettledOverrides(),
+
+  recordSettledOrderOverride: (orderId, patch) => {
+    if (!orderId || !patch) return;
+    const entry = { ...patch, _cachedAt: Date.now() };
+    set(s => {
+      const next = { ...(s.settledOrderOverrides || {}), [orderId]: entry };
+      savePersistedSettledOverrides(next);
+      return { settledOrderOverrides: next };
+    });
+  },
   orderType: initialCart?.orderType || 'dine-in',   // 'dine-in' | 'takeaway' | 'online'
   tableId: initialCart?.tableId || null,
   tableName: initialCart?.tableName || null,
@@ -141,6 +203,8 @@ export const useOrderStore = create((set, get) => ({
   assignedRiderName: null,
   isComplimentary: Boolean(initialCart?.isComplimentary),
   complimentaryReason: initialCart?.complimentaryReason || '',
+  packagingWaived: Boolean(initialCart?.packagingWaived),
+  customerGstin: initialCart?.customerGstin || '',
   heldOrders: loadPersistedHeldOrders(),
 
   // Active orders list (realtime)
@@ -238,6 +302,11 @@ export const useOrderStore = create((set, get) => ({
   loadOrderToCart: (order) => {
     if (!order) return;
     const rawItems = Array.isArray(order.items) ? order.items : [];
+    const normalizedOrderType = order.type === 'pickup'
+      ? 'takeaway'
+      : order.type === 'online'
+        ? ((order.orderType === 'takeaway' || order.orderType === 'pickup') ? 'takeaway' : 'delivery')
+        : (order.type || 'dine-in');
     set({
       items: rawItems.map(i => ({
         id: i.id,
@@ -251,15 +320,20 @@ export const useOrderStore = create((set, get) => ({
         prepState: i.prepState ?? 'fired',
         station: i.station ?? 'Kitchen',
         status: i.status ?? 'pending',
-        seatNumber: i.seatNumber ?? null
+        seatNumber: i.seatNumber ?? null,
+        allergies: Array.isArray(i.allergies) ? i.allergies : [],
+        itemNote: i.itemNote ?? (i.notes ?? ''),
+        isTakeaway: Boolean(i.isTakeaway)
       })),
-      orderType: order.type,
+      orderType: normalizedOrderType,
       tableId: order.tableId,
       tableName: order.tableName,
       customerName: order.customerName || '',
       customerPhone: order.customerPhone || '',
       note: order.note || '',
-      paymentMethod: order.paymentMethod || 'cash',
+      paymentMethod: (!order.paymentMethod || String(order.paymentMethod).toLowerCase().includes('unpaid'))
+        ? 'cash'
+        : order.paymentMethod,
       editingOrderId: order.id,
       billPrinted: Boolean(order.billPrinted),
       discount: Number(order.discount) || 0,
@@ -273,20 +347,23 @@ export const useOrderStore = create((set, get) => ({
       assignedWaiterName: order.assignedWaiterName ?? null,
       assignedRiderName: order.assignedRiderName ?? null,
       isComplimentary: Boolean(order.isComplimentary),
-      complimentaryReason: order.complimentaryReason || ''
+      complimentaryReason: order.complimentaryReason || '',
+      packagingWaived: Boolean(order.packagingWaived),
+      customerGstin: order.customerGstin || order.customer?.gstin || ''
     });
   },
 
   clearCart: () => {
     clearPersistedCart();
     set({
-      items: [], activeSeat: null, settledChecks: [], orderType: 'dine-in', tokenNumber: null, tableId: null, tableName: null,
+      items: [], activeSeat: null, settledChecks: [], orderType: 'dine-in', paymentMethod: 'cash', tokenNumber: null, tableId: null, tableName: null,
       customerName: '', customerPhone: '', note: '', editingOrderId: null, billPrinted: false,
       discount: 0, discountType: 'fixed', appliedOffer: null, splitPayments: [],
       customer: null, redeemingPoints: false,
       tipAmount: 0, upiRef: '', terminalTx: null,
       assignedWaiterId: null, assignedWaiterName: null, assignedRiderName: null,
-      isComplimentary: false, complimentaryReason: ''
+      isComplimentary: false, complimentaryReason: '',
+      packagingWaived: false, customerGstin: ''
     });
     useGiftCardStore.getState().clearGiftCard();
   },
@@ -488,6 +565,9 @@ export const useOrderStore = create((set, get) => ({
   setUpiRef: (upiRef) => set({ upiRef }),
   setTerminalTx: (tx) => set({ terminalTx: tx }),
   setRider: (riderName) => set({ assignedRiderName: riderName }),
+  setPackagingWaived: (waived) => set({ packagingWaived: Boolean(waived) }),
+  togglePackagingWaived: () => set(s => ({ packagingWaived: !s.packagingWaived })),
+  setCustomerGstin: (gstin) => set({ customerGstin: String(gstin || '').toUpperCase().trim() }),
 
   setComplimentary: (isComp, reason = 'Manager Comp') => {
     const isComplimentary = Boolean(isComp);
@@ -512,7 +592,7 @@ export const useOrderStore = create((set, get) => ({
     const holdId = 'hold_' + Date.now().toString(36);
     const holdNumber = (state.heldOrders?.length || 0) + 1;
     const subtotal = state.getSubtotal();
-    const total = state.getTotal ? state.getTotal() : subtotal;
+    const total = state.getTotal ? state.getTotal(useAuthStore.getState().restaurant) : subtotal;
 
     const heldOrder = {
       id: holdId,
@@ -533,6 +613,8 @@ export const useOrderStore = create((set, get) => ({
       appliedOffer: state.appliedOffer,
       isComplimentary: Boolean(state.isComplimentary),
       complimentaryReason: state.complimentaryReason || '',
+      packagingWaived: Boolean(state.packagingWaived),
+      customerGstin: state.customerGstin || '',
       subtotal,
       total
     };
@@ -568,6 +650,8 @@ export const useOrderStore = create((set, get) => ({
       appliedOffer: target.appliedOffer || null,
       isComplimentary: Boolean(target.isComplimentary),
       complimentaryReason: target.complimentaryReason || '',
+      packagingWaived: Boolean(target.packagingWaived),
+      customerGstin: target.customerGstin || target.customer?.gstin || '',
       editingOrderId: null
     });
 
@@ -778,6 +862,14 @@ export const useOrderStore = create((set, get) => ({
       if (rest?.serviceChargeTaxable === 'yes') {
         taxableAmountForTax += serviceChargeAmt;
       }
+      const packagingAmt = computePackagingCharge({
+        items: mergedItems,
+        orderType: primaryOrder.type || 'dine-in',
+        baseSubtotal: baseTaxable,
+        packagingConfig: rest?.workflowConfig?.packagingConfig,
+        waived: Boolean(primaryOrder.packagingWaived)
+      });
+      const packagingTaxable = rest?.workflowConfig?.packagingConfig?.taxable !== false;
 
       const categories = useMenuStore.getState().categories || [];
       const categoriesMap = Object.fromEntries(categories.map(c => [c.id, c]));
@@ -788,21 +880,27 @@ export const useOrderStore = create((set, get) => ({
         pointsDiscount,
         serviceChargeAmount: serviceChargeAmt,
         serviceChargeTaxable: rest?.serviceChargeTaxable === 'yes',
+        packagingAmount: packagingAmt,
+        packagingTaxable,
         orderType: primaryOrder.type || 'dine-in'
       });
       const tipAmt = primaryOrder.tipAmount ?? 0;
       const taxToAdd = taxRes.mode === 'inclusive' ? 0 : (Number(taxRes.taxTotal) || 0);
-      const totalBeforeGiftCard = baseTaxable + taxToAdd + serviceChargeAmt + tipAmt;
+      const totalBeforeGiftCard = baseTaxable + taxToAdd + serviceChargeAmt + packagingAmt + tipAmt;
       const giftCardDeduction = primaryOrder.giftCardDeduction ?? 0;
-      const total = Math.max(0, totalBeforeGiftCard - giftCardDeduction);
+      const rawTotal = Math.max(0, totalBeforeGiftCard - giftCardDeduction);
+      const { roundOffAmount, roundedTotal: total } = computeRoundOff(rawTotal, rest?.workflowConfig?.cashRounding || 'exact');
 
       const mergedUpdates = {
         items: mergedItems,
         subtotal,
         discountAmount,
         serviceChargeAmount: serviceChargeAmt,
+        packagingAmount: packagingAmt,
         taxInfo: taxRes,
         taxTotal: taxRes.taxTotal,
+        rawTotal,
+        roundOffAmount,
         total,
         updatedAt: new Date().toISOString()
       };
@@ -915,12 +1013,30 @@ export const useOrderStore = create((set, get) => ({
     return Math.round(((taxableAmount * rate) / 100) * 100) / 100;
   },
 
+  getPackagingAmount: (restaurant) => {
+    if (get().isComplimentary) return 0;
+    const { items, orderType, packagingWaived } = get();
+    const subtotal = get().getSubtotal();
+    const discountAmt = get().getDiscountAmount();
+    const pointsDiscount = get().getPointsDiscountAmount();
+    const baseTaxable = Math.max(0, subtotal - discountAmt - pointsDiscount);
+    return computePackagingCharge({
+      items,
+      orderType,
+      baseSubtotal: baseTaxable,
+      packagingConfig: restaurant?.workflowConfig?.packagingConfig,
+      waived: Boolean(packagingWaived)
+    });
+  },
+
   getTaxInfo: (restaurant) => {
     const subtotal = get().getSubtotal();
     const discountAmt = get().getDiscountAmount();
     const pointsDiscount = get().getPointsDiscountAmount();
     const serviceChargeAmt = get().getServiceChargeAmount(restaurant);
     const serviceChargeTaxable = restaurant?.serviceChargeTaxable === 'yes';
+    const packagingAmt = get().getPackagingAmount(restaurant);
+    const packagingTaxable = restaurant?.workflowConfig?.packagingConfig?.taxable !== false;
 
     const items = get().items || [];
     const categories = useMenuStore.getState().categories || [];
@@ -933,6 +1049,8 @@ export const useOrderStore = create((set, get) => ({
       pointsDiscount,
       serviceChargeAmount: serviceChargeAmt,
       serviceChargeTaxable,
+      packagingAmount: packagingAmt,
+      packagingTaxable,
       orderType: get().orderType || 'dine-in'
     });
   },
@@ -949,25 +1067,40 @@ export const useOrderStore = create((set, get) => ({
     return Math.max(0, Math.round((total - settled) * 100) / 100);
   },
 
-  getTotal: (restaurant) => {
+  getRawTotal: (restaurant) => {
     const subtotal = get().getSubtotal();
     const discountAmt = get().getDiscountAmount();
     const pointsDiscount = get().getPointsDiscountAmount();
     const serviceChargeAmt = get().getServiceChargeAmount(restaurant);
+    const packagingAmt = get().getPackagingAmount(restaurant);
     const baseTaxable = Math.max(0, subtotal - discountAmt - pointsDiscount);
 
     const taxRes = get().getTaxInfo(restaurant);
     const tipAmt = Number(get().tipAmount) || 0;
     const taxToAdd = taxRes?.mode === 'inclusive' ? 0 : (Number(taxRes?.taxTotal) || 0);
-    const totalBeforeGiftCard = baseTaxable + taxToAdd + (Number(serviceChargeAmt) || 0) + tipAmt;
+    const totalBeforeGiftCard = baseTaxable + taxToAdd + (Number(serviceChargeAmt) || 0) + (Number(packagingAmt) || 0) + tipAmt;
     const giftCardDeduction = Number(useGiftCardStore.getState().giftCardDeduction) || 0;
     return Math.max(0, Math.round((totalBeforeGiftCard - giftCardDeduction) * 100) / 100);
+  },
+
+  getRoundOffAmount: (restaurant) => {
+    if (get().isComplimentary) return 0;
+    const rawTotal = get().getRawTotal(restaurant);
+    const mode = restaurant?.workflowConfig?.cashRounding || 'exact';
+    return computeRoundOff(rawTotal, mode).roundOffAmount;
+  },
+
+  getTotal: (restaurant) => {
+    if (get().isComplimentary) return 0;
+    const rawTotal = get().getRawTotal(restaurant);
+    const mode = restaurant?.workflowConfig?.cashRounding || 'exact';
+    return computeRoundOff(rawTotal, mode).roundedTotal;
   },
 
   // ── Submit Order ─────────────────────────────────────────
   submitOrder: async (restaurant, staffId) => {
     await useAuthStore.getState().ensureAnonymousAuth();
-    const { items, orderType, tableId, tableName, tokenNumber, customerName, customerPhone, note, paymentMethod, splitPayments, discount, discountType, editingOrderId, customer, redeemingPoints, tipAmount, upiRef } = get();
+    const { items, orderType, tableId, tableName, tokenNumber, customerName, customerPhone, customerGstin, note, paymentMethod, splitPayments, discount, discountType, editingOrderId, customer, redeemingPoints, tipAmount, upiRef, packagingWaived } = get();
     const { giftCardCode, giftCardDeduction, giftCardBalance } = useGiftCardStore.getState();
     if (!items.length) return { ok: false, error: 'Cart is empty' };
 
@@ -975,12 +1108,16 @@ export const useOrderStore = create((set, get) => ({
     const discountAmount = get().getDiscountAmount();
     const pointsDiscount = get().getPointsDiscountAmount();
     const serviceChargeAmount = get().getServiceChargeAmount(restaurant);
+    const packagingAmount = get().getPackagingAmount(restaurant);
     const taxInfo = get().getTaxInfo(restaurant);
     const taxTotal = Number(taxInfo?.taxTotal) || 0;
+    const rawTotal = get().getRawTotal(restaurant);
+    const roundOffAmount = get().getRoundOffAmount(restaurant);
     const total    = get().getTotal(restaurant);
 
     const isComplimentary = Boolean(get().isComplimentary);
-    const isPaid = isComplimentary ? true : paymentMethod !== 'unpaid';
+    const isKhata = !isComplimentary && paymentMethod === 'khata';
+    const isPaid = isComplimentary ? true : (paymentMethod !== 'unpaid' && !isKhata);
     const effectivePaymentMethod = isComplimentary ? 'complimentary' : paymentMethod;
     const currentStaffDoc = useAuthStore.getState().staffDoc;
     const currentStaffRole = currentStaffDoc?.role;
@@ -1016,7 +1153,8 @@ export const useOrderStore = create((set, get) => ({
         prepState: i.prepState ?? 'fired',
         seatNumber: i.seatNumber ?? null,
         allergies: Array.isArray(i.allergies) ? i.allergies : [],
-        itemNote: i.itemNote ?? (i.notes ?? '')
+        itemNote: i.itemNote ?? (i.notes ?? ''),
+        isTakeaway: Boolean(i.isTakeaway)
       })),
       settledChecks: get().settledChecks ?? [],
       subtotal,
@@ -1028,15 +1166,22 @@ export const useOrderStore = create((set, get) => ({
       pointsDiscount,
       serviceChargeRate: restaurant?.serviceChargeRate ?? 0,
       serviceChargeAmount,
+      packagingAmount,
+      packagingWaived: Boolean(packagingWaived),
       tipAmount: tipAmount ?? 0,
       taxInfo: taxInfo ?? {},
       taxTotal: taxTotal ?? 0,
+      rawTotal,
+      roundOffAmount,
       total,
+      isKhata,
+      khataSettled: false,
       tableId: tableId ?? null,
       tableName: tableName ?? null,
       token: tokenNumber ?? null,
       customerName: customerName || (customer?.name ?? ''),
       customerPhone: customerPhone || (customer?.phone ?? ''),
+      customerGstin: (customerGstin || customer?.gstin || '').toUpperCase(),
       deliveryAddress: customer?.address || '',
       loyaltyEarned: Math.floor(total / 10),
       loyaltyRedeemed: redeemingPoints && customer ? Math.round(pointsDiscount * 10) : 0,
@@ -1084,22 +1229,49 @@ export const useOrderStore = create((set, get) => ({
     const isLocalOnlySale = (isLocalOnly || isPrivateSales) && isPaid;
 
     if (isTrueNetworkOffline || isLocalOnlySale || isOfflineEditing) {
-      if (editingOrderId) {
-        orderData.id = editingOrderId;
+      const offlineNowIso = new Date().toISOString();
+      const existingEditingOrder = editingOrderId ? (get().activeOrders || []).find(o => o.id === editingOrderId) : null;
+      let offlineStatus = orderData.status || 'pending';
+      if (editingOrderId && (isPaid || isKhata)) {
+        if (orderType === 'dine-in' || ['ready', 'served', 'completed'].includes(existingEditingOrder?.status)) {
+          offlineStatus = 'billed';
+        } else if (existingEditingOrder?.status && existingEditingOrder.status !== 'billed') {
+          offlineStatus = existingEditingOrder.status;
+        }
       }
-      const offlineRes = useOfflineQueueStore.getState().enqueueOrder(orderData, restaurant);
+      const offlineOrderData = {
+        ...orderData,
+        status: offlineStatus,
+        createdAt: editingOrderId ? (existingEditingOrder?.createdAt || orderData.createdAt || offlineNowIso) : (orderData.createdAt || offlineNowIso),
+        updatedAt: offlineNowIso,
+        paidAt: isPaid ? offlineNowIso : null,
+      };
+      if (editingOrderId) {
+        offlineOrderData.id = editingOrderId;
+      }
+      const offlineRes = useOfflineQueueStore.getState().enqueueOrder(offlineOrderData, restaurant);
       markLocalCreatedOrder(offlineRes.orderId);
       const localActiveOrder = {
-        ...orderData,
+        ...offlineOrderData,
         id: offlineRes.orderId,
         token: offlineRes.token,
         isOffline: true,
-        createdAt: new Date().toISOString(),
       };
+      if (isPaid || offlineStatus === 'billed') {
+        get().recordSettledOrderOverride(offlineRes.orderId, {
+          paid: isPaid,
+          paymentMethod,
+          paidAt: isPaid ? offlineNowIso : null,
+          updatedAt: offlineNowIso,
+          status: offlineStatus,
+        });
+      }
       set(s => ({
-        activeOrders: editingOrderId
-          ? (s.activeOrders || []).map(o => o.id === editingOrderId ? localActiveOrder : o)
-          : [localActiveOrder, ...(s.activeOrders || [])]
+        activeOrders: offlineStatus === 'billed'
+          ? (s.activeOrders || []).filter(o => o.id !== editingOrderId && o.id !== offlineRes.orderId)
+          : editingOrderId
+            ? (s.activeOrders || []).map(o => o.id === editingOrderId ? localActiveOrder : o)
+            : [localActiveOrder, ...(s.activeOrders || [])]
       }));
       localSyncChannel.broadcast(editingOrderId ? 'LOCAL_ORDER_UPDATED' : 'LOCAL_ORDER_CREATED', {
         orderId: offlineRes.orderId,
@@ -1113,8 +1285,8 @@ export const useOrderStore = create((set, get) => ({
         useTableStore.getState().setTableStatus(
           restaurant?.id,
           tableId,
-          isPaid ? 'free' : 'occupied',
-          isPaid ? null : offlineRes.orderId
+          (isPaid || isKhata) ? 'free' : 'occupied',
+          (isPaid || isKhata) ? null : offlineRes.orderId
         );
       }
 
@@ -1198,17 +1370,43 @@ export const useOrderStore = create((set, get) => ({
         const oldOrderSnap = await getDoc(oldOrderRef);
         const oldItems = oldOrderSnap.exists() ? (oldOrderSnap.data().items || []) : [];
 
+        const oldData = oldOrderSnap.exists() ? (oldOrderSnap.data() || {}) : {};
         // Preserve original waiter assignment if cashier/admin edits order and had one
         if (!isCurrentStaffWaiter && oldOrderSnap.exists()) {
-          const oldData = oldOrderSnap.data();
           if (oldData.assignedWaiterId && !orderData.assignedWaiterId) {
             orderData.assignedWaiterId = oldData.assignedWaiterId;
             orderData.assignedWaiterName = oldData.assignedWaiterName || null;
           }
         }
 
+        // Preserve original createdAt Firestore Timestamp & mark settled dine-in checks as billed
+        const updatePayload = { ...orderData };
+        delete updatePayload.createdAt;
+        if (oldData.createdAt) {
+          orderData.createdAt = oldData.createdAt;
+        }
+        const totalOldQty = oldItems.reduce((sum, i) => sum + (Number(i.qty) || 1), 0);
+        const totalNewQty = items.reduce((sum, i) => sum + (Number(i.qty) || 1), 0);
+        if ((isPaid || isKhata) && (['ready', 'served', 'completed'].includes(oldData.status) || (orderType === 'dine-in' && totalNewQty <= totalOldQty))) {
+          updatePayload.status = 'billed';
+          orderData.status = 'billed';
+        } else if (oldData.status && oldData.status !== 'billed' && oldData.status !== 'completed') {
+          updatePayload.status = oldData.status;
+          orderData.status = oldData.status;
+        }
+
         const batch = writeBatch(db);
-        batch.update(oldOrderRef, orderData);
+        batch.update(oldOrderRef, updatePayload);
+        if (isPaid || orderData.status === 'billed') {
+          const settleNowIso = new Date().toISOString();
+          get().recordSettledOrderOverride(editingOrderId, {
+            paid: isPaid,
+            paymentMethod,
+            paidAt: isPaid ? settleNowIso : null,
+            updatedAt: settleNowIso,
+            status: orderData.status,
+          });
+        }
 
         if (shiftUpdate) {
           const shiftRef = doc(db, 'restaurants', restaurant.id, 'shifts', activeShift.id);
@@ -1312,23 +1510,33 @@ export const useOrderStore = create((set, get) => ({
           }
         }
 
-        // Update or create customer profile with loyalty points, visit counts, and lifetime spends ONLY if paid immediately
+        // Update or create customer profile with loyalty points, visit counts, lifetime spends, GSTIN, and Khata credit balance
         const activeCustPhone = (customer?.phone || customerPhone || '').replace(/\D/g, '');
-        if (activeCustPhone && activeCustPhone.length >= 8 && isPaid) {
-          const pointsEarned = orderData.loyaltyEarned ?? Math.floor(total / 10);
+        if (activeCustPhone && activeCustPhone.length >= 8 && (isPaid || isKhata)) {
+          const pointsEarned = isPaid ? (orderData.loyaltyEarned ?? Math.floor(total / 10)) : 0;
           const pointsRedeemed = orderData.loyaltyRedeemed ?? 0;
           const custDocRef = doc(db, 'restaurants', restaurant.id, 'customers', activeCustPhone);
           const custName = (customerName || customer?.name || '').trim();
+          const custGstin = (customerGstin || customer?.gstin || '').trim().toUpperCase();
           const custPayload = {
             phone: activeCustPhone,
-            visitCount: increment(1),
-            lifetimeSpend: increment(total),
-            points: increment(pointsEarned - pointsRedeemed),
             lastVisit: serverTimestamp(),
             updatedAt: serverTimestamp()
           };
+          if (isPaid) {
+            custPayload.visitCount = increment(1);
+            custPayload.lifetimeSpend = increment(total);
+            custPayload.points = increment(pointsEarned - pointsRedeemed);
+          }
+          if (isKhata) {
+            custPayload.visitCount = increment(1);
+            custPayload.khataBalance = increment(total);
+          }
           if (custName) {
             custPayload.name = custName;
+          }
+          if (custGstin) {
+            custPayload.gstin = custGstin;
           }
           batch.set(custDocRef, custPayload, { merge: true });
         }
@@ -1346,7 +1554,7 @@ export const useOrderStore = create((set, get) => ({
 
         if (orderType === 'dine-in' && tableId) {
           const tableRef = doc(db, 'restaurants', restaurant.id, 'tables', tableId);
-          batch.set(tableRef, isPaid ? {
+          batch.set(tableRef, (isPaid || isKhata) ? {
             status: 'free',
             currentOrderId: null
           } : {
@@ -1358,25 +1566,45 @@ export const useOrderStore = create((set, get) => ({
         await batch.commit();
       }
 
-      // Optimistically push order into activeOrders so KDS and table views receive it immediately
+      // Optimistically push order into activeOrders (or remove if dine-in check just got billed)
       const nowIso = new Date().toISOString();
       const newActiveOrder = {
         ...orderData,
         id: orderId,
-        createdAt: nowIso,
-        updatedAt: nowIso
+        createdAt: editingOrderId ? (orderData.createdAt || nowIso) : nowIso,
+        updatedAt: nowIso,
+        paidAt: isPaid ? nowIso : null,
       };
       set(s => {
         const existing = s.activeOrders || [];
+        if (orderData.status === 'billed') {
+          return { activeOrders: existing.filter(o => o.id !== orderId) };
+        }
         if (existing.some(o => o.id === orderId)) {
-          return { activeOrders: existing.map(o => o.id === orderId ? { ...o, ...newActiveOrder } : o) };
+          return {
+            activeOrders: existing.map(o => o.id === orderId
+              ? { ...o, ...newActiveOrder, createdAt: o.createdAt || newActiveOrder.createdAt }
+              : o)
+          };
         }
         return { activeOrders: [newActiveOrder, ...existing] };
       });
-      localSyncChannel.broadcast('LOCAL_ORDER_CREATED', {
-        order: newActiveOrder,
-        restaurantId: restaurant?.id
-      });
+      if (orderData.status === 'billed') {
+        localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
+          orderId,
+          status: 'billed',
+          paymentMethod: effectivePaymentMethod,
+          paid: isPaid,
+          restaurantId: restaurant?.id
+        });
+      } else {
+        localSyncChannel.broadcast(editingOrderId ? 'LOCAL_ORDER_UPDATED' : 'LOCAL_ORDER_CREATED', {
+          orderId,
+          order: newActiveOrder,
+          partial: newActiveOrder,
+          restaurantId: restaurant?.id
+        });
+      }
 
       get().clearCart();
       return { ok: true, orderId };
@@ -1387,11 +1615,15 @@ export const useOrderStore = create((set, get) => ({
       const isOfflineError = (isBrowser && navigator.onLine === false) ||
         /offline|network|unavailable|failed to fetch|timeout|deadline|failed-precondition/i.test(e.message || '');
       if (isOfflineError) {
+        const offlineNowIso = new Date().toISOString();
         const safeOrderData = {
           ...orderData,
+          ...(editingOrderId ? { id: editingOrderId } : {}),
           createdAt: (typeof orderData.createdAt === 'string' && !isNaN(new Date(orderData.createdAt).getTime()))
             ? orderData.createdAt
-            : new Date().toISOString()
+            : offlineNowIso,
+          updatedAt: offlineNowIso,
+          paidAt: isPaid ? offlineNowIso : null,
         };
         const offlineRes = useOfflineQueueStore.getState().enqueueOrder(safeOrderData, restaurant);
         const localActiveOrder = {
@@ -1400,10 +1632,27 @@ export const useOrderStore = create((set, get) => ({
           token: offlineRes.token,
           isOffline: true,
         };
+        if (isPaid || safeOrderData.status === 'billed') {
+          get().recordSettledOrderOverride(offlineRes.orderId, {
+            paid: isPaid,
+            paymentMethod: effectivePaymentMethod,
+            paidAt: isPaid ? offlineNowIso : null,
+            updatedAt: offlineNowIso,
+            status: safeOrderData.status,
+          });
+        }
         set(s => ({
-          activeOrders: [localActiveOrder, ...(s.activeOrders || [])]
+          activeOrders: safeOrderData.status === 'billed'
+            ? (s.activeOrders || []).filter(o => o.id !== editingOrderId && o.id !== offlineRes.orderId)
+            : editingOrderId
+              ? (s.activeOrders || []).map(o => o.id === editingOrderId ? localActiveOrder : o)
+              : [localActiveOrder, ...(s.activeOrders || [])]
         }));
-        localSyncChannel.broadcast('LOCAL_ORDER_CREATED', {
+        localSyncChannel.broadcast(safeOrderData.status === 'billed' ? 'LOCAL_ORDER_STATUS_CHANGED' : 'LOCAL_ORDER_CREATED', {
+          orderId: offlineRes.orderId,
+          status: safeOrderData.status,
+          paid: isPaid,
+          paymentMethod: effectivePaymentMethod,
           order: localActiveOrder,
           restaurantId: restaurant?.id
         });
@@ -1444,10 +1693,12 @@ export const useOrderStore = create((set, get) => ({
 
     // In local mode or offline, merge active orders from local offline queue immediately
     const localQueue = useOfflineQueueStore.getState().queue || [];
-    const activeLocalOrders = localQueue.filter(o => 
-      (!o.restaurantId || o.restaurantId === restaurantId) &&
-      ['pending', 'preparing', 'ready'].includes(o.status || 'pending')
-    );
+    const initialOverrides = get().settledOrderOverrides || {};
+    const activeLocalOrders = localQueue.filter(o => {
+      if (o.restaurantId && o.restaurantId !== restaurantId) return false;
+      const merged = initialOverrides[o.id] ? { ...o, ...initialOverrides[o.id] } : o;
+      return ['pending', 'preparing', 'ready'].includes(merged.status || 'pending');
+    });
     if (activeLocalOrders.length > 0) {
       set(s => {
         const existing = s.activeOrders || [];
@@ -1678,9 +1929,13 @@ export const useOrderStore = create((set, get) => ({
 
       const readArr = get().readOnlineOrderIds || [];
       set(s => {
+        const overrides = s.settledOrderOverrides || {};
+        const mergedRemote = orders
+          .map(o => overrides[o.id] ? { ...o, ...overrides[o.id] } : o)
+          .filter(o => !['billed', 'cancelled', 'void'].includes(o.status) && !(o.status === 'completed' && isOrderSettledPaid(o)));
         const localBuffered = (s.activeOrders || []).filter(o => o.isOffline && !orders.some(rem => rem.id === o.id));
         return {
-          activeOrders: [...localBuffered, ...orders],
+          activeOrders: [...localBuffered, ...mergedRemote],
           onlineOrders: online,
           unreadOnlineCount: online.filter(o => o.status === 'pending' && !readArr.includes(o.id)).length,
         };
@@ -1707,10 +1962,15 @@ export const useOrderStore = create((set, get) => ({
 
   patchActiveOrder: (orderId, partial) => {
     const currentRestId = useAuthStore.getState().restaurant?.id;
+    const nowIso = new Date().toISOString();
     set(s => ({
       activeOrders: ['billed', 'cancelled', 'void', 'completed'].includes(partial.status)
         ? (s.activeOrders || []).filter(o => o.id !== orderId)
-        : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o)
+        : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, ...partial } : o),
+      settledOrderOverrides: syncSettledOverrideIfPresent(s.settledOrderOverrides, orderId, {
+        ...partial,
+        updatedAt: partial?.updatedAt || nowIso
+      })
     }));
     localSyncChannel.broadcast('LOCAL_ORDER_UPDATED', {
       orderId,
@@ -1770,13 +2030,25 @@ export const useOrderStore = create((set, get) => ({
     // 0. Resolve order and its tableId BEFORE filtering from activeOrders
     const active = get().activeOrders || [];
     const queue = useOfflineQueueStore.getState().queue || [];
+    const overrides = get().settledOrderOverrides || {};
     const targetOrder = active.find(o => o.id === orderId) || queue.find(o => o.id === orderId);
+    const effectiveOrder = targetOrder
+      ? { ...targetOrder, ...(overrides[orderId] || {}) }
+      : overrides[orderId];
+    const shouldRemoveFromActive =
+      ['billed', 'cancelled', 'void'].includes(status) ||
+      (status === 'completed' && isOrderSettledPaid(effectiveOrder));
+    const nowIso = new Date().toISOString();
 
-    // 1. Immediately update active order status locally for zero UI lag
+    // 1. Immediately update active order status (and any cached settlement override) locally for zero UI lag
     set(s => ({
-      activeOrders: ['billed', 'cancelled', 'void'].includes(status)
+      activeOrders: shouldRemoveFromActive
         ? (s.activeOrders || []).filter(o => o.id !== orderId)
-        : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status } : o)
+        : (s.activeOrders || []).map(o => o.id === orderId ? { ...o, status, updatedAt: nowIso } : o),
+      settledOrderOverrides: syncSettledOverrideIfPresent(s.settledOrderOverrides, orderId, {
+        status,
+        updatedAt: nowIso
+      })
     }));
     localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
       orderId,
@@ -1813,12 +2085,14 @@ export const useOrderStore = create((set, get) => ({
     }
 
     try {
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
+      const isOfflineOrder = typeof orderId === 'string' && orderId.startsWith('offline_');
+      const isLocalOnly = Boolean(useAuthStore.getState().restaurant?.localStorageOnly);
+      if (!isOfflineOrder && !isLocalOnly && typeof navigator !== 'undefined' && navigator.onLine) {
         await useAuthStore.getState().ensureAnonymousAuth();
         const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
 
         // If moving to preparing or ready and order is online (or inventory not yet depleted), deplete stock safely
-        if (status === 'preparing' || status === 'ready') {
+        if ((status === 'preparing' || status === 'ready') && (!effectiveOrder || effectiveOrder.type === 'online')) {
           try {
             const snap = await getDoc(orderRef);
             if (snap.exists()) {
@@ -1979,17 +2253,38 @@ export const useOrderStore = create((set, get) => ({
 
       const settlementTotal = totalAmount || existingOrder?.total || 0;
       const nowIso = new Date().toISOString();
+      // Keep non-dine-in orders in Kitchen/KDS if they are still cooking when counter collects payment early
+      const keepInKitchen = Boolean(
+        existingOrder &&
+        existingOrder.type !== 'dine-in' &&
+        ['pending', 'preparing'].includes(existingOrder.status)
+      );
+      const nextStatus = keepInKitchen ? existingOrder.status : 'billed';
 
-      // 2. OPTIMISTIC INSTANT UPDATE (0ms delay):
-      // Update in-memory active orders & broadcast to all tabs (KDS, POS, TableMap, Dashboard)
+      const settledPatch = {
+        status: nextStatus,
+        paymentMethod: method,
+        paid: true,
+        paidAt: nowIso,
+        updatedAt: nowIso,
+        ...additionalFields
+      };
+
+      // 2. OPTIMISTIC INSTANT UPDATE (0ms delay) + durable local settlement override
+      get().recordSettledOrderOverride(orderId, settledPatch);
       set(s => ({
-        activeOrders: (s.activeOrders || []).filter(o => o.id !== orderId)
+        activeOrders: keepInKitchen
+          ? (s.activeOrders || []).map(o => o.id === orderId
+              ? { ...o, ...settledPatch }
+              : o)
+          : (s.activeOrders || []).filter(o => o.id !== orderId)
       }));
 
       localSyncChannel.broadcast('LOCAL_ORDER_STATUS_CHANGED', {
         orderId,
-        status: 'billed',
+        status: nextStatus,
         paymentMethod: method,
+        paid: true,
         restaurantId
       });
 
@@ -2003,22 +2298,13 @@ export const useOrderStore = create((set, get) => ({
         }
       }
 
-      // 4. Update offline queue if present
-      const queue = useOfflineQueueStore.getState().queue || [];
-      if (queue.some(o => o.id === orderId)) {
-        const updatedQueue = queue.map(o => o.id === orderId ? {
-          ...o,
-          status: 'billed',
-          paymentMethod: method,
-          paid: true,
-          paidAt: nowIso,
-          updatedAt: nowIso,
-          ...additionalFields
-        } : o);
-        useOfflineQueueStore.setState({ queue: updatedQueue });
-        try {
-          localStorage.setItem('dineos_offline_order_queue', JSON.stringify(updatedQueue));
-        } catch {}
+      // 4. Update offline queue cleanly (writes both persistence keys via store action)
+      const offlineQueueState = useOfflineQueueStore.getState();
+      if ((offlineQueueState.queue || []).some(o => o.id === orderId)) {
+        offlineQueueState.updateQueuedOrder(orderId, {
+          ...settledPatch,
+          skipShiftUpdate: true
+        });
       }
 
       // 5. Apply immediately to activeShift for instant X/Z report & till drawer accuracy
@@ -2032,32 +2318,39 @@ export const useOrderStore = create((set, get) => ({
         });
       }
 
-      // 6. ASYNC BACKGROUND CLOUD PERSISTENCE (Runs in parallel, does not block the UI!)
-      if (!isOfflineOrder && !isLocalOnly && !isNetworkOffline) {
-        (async () => {
-          try {
-            await useAuthStore.getState().ensureAnonymousAuth();
-            const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+      // 6. CLOUD PERSISTENCE (awaited so reopened Orders never refetch stale unpaid Firestore docs)
+      const enqueueSettlementRetry = () => {
+        if (existingOrder && !isOfflineOrder && !isLocalOnly && !isPrivateSales) {
+          useOfflineQueueStore.getState().enqueueOrder({
+            ...existingOrder,
+            id: orderId,
+            ...settledPatch,
+            skipShiftUpdate: true,
+          }, useAuthStore.getState().restaurant);
+        }
+      };
 
-            if (isPrivateSales) {
-              // Private Sales Mode: Close order on cloud without sending sales amount, payments or shift financials
-              await updateDoc(orderRef, {
-                status: 'completed',
-                isPrivateSale: true,
-                updatedAt: serverTimestamp()
-              }).catch(e => console.warn('[settleOrder] Private order cloud update deferred:', e?.message));
-              return;
-            }
-            
-            // Cloud update for order
+      if (!isOfflineOrder && !isLocalOnly && !isNetworkOffline) {
+        try {
+          await useAuthStore.getState().ensureAnonymousAuth();
+          const orderRef = doc(db, 'restaurants', restaurantId, 'orders', orderId);
+
+          if (isPrivateSales) {
+            // Private Sales Mode: Close order on cloud without sending payment amounts or financials
+            await updateDoc(orderRef, {
+              status: nextStatus === 'billed' ? 'completed' : nextStatus,
+              isPrivateSale: true,
+              updatedAt: serverTimestamp()
+            });
+          } else {
             const cloudOrderPromise = updateDoc(orderRef, {
-              status: 'billed',
+              status: nextStatus,
               paymentMethod: method,
               paid: true,
               paidAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               ...additionalFields
-            }).catch(e => console.warn('[settleOrder] Order cloud update deferred:', e?.message));
+            });
 
             // Cloud update for shift
             let cloudShiftPromise = Promise.resolve();
@@ -2140,11 +2433,20 @@ export const useOrderStore = create((set, get) => ({
               cloudLoyaltyPromise = setDoc(custDocRef, custPayload, { merge: true }).catch(e => console.warn('Could not update customer loyalty points at settle:', e));
             }
 
-            await Promise.allSettled([cloudOrderPromise, cloudShiftPromise, cloudLoyaltyPromise]);
-          } catch (cloudErr) {
-            console.warn('[settleOrder] Background cloud sync deferred:', cloudErr?.message);
+            const [orderRes] = await Promise.race([
+              Promise.allSettled([cloudOrderPromise, cloudShiftPromise, cloudLoyaltyPromise]),
+              new Promise(resolve => setTimeout(() => resolve([{ status: 'pending_timeout' }]), 2500))
+            ]);
+            if (orderRes?.status === 'rejected') {
+              enqueueSettlementRetry();
+            }
           }
-        })();
+        } catch (cloudErr) {
+          console.warn('[settleOrder] Cloud sync deferred to offline queue:', cloudErr?.message);
+          enqueueSettlementRetry();
+        }
+      } else if (isNetworkOffline && !isOfflineOrder && !isLocalOnly && !isPrivateSales) {
+        enqueueSettlementRetry();
       }
 
       return { ok: true };
@@ -2187,12 +2489,30 @@ localSyncChannel.subscribe((msg) => {
     }
   } else if (type === 'LOCAL_ORDER_UPDATED' && payload.orderId) {
     useOrderStore.setState(s => ({
-      activeOrders: (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, ...payload.partial } : o)
+      activeOrders: ['billed', 'cancelled', 'void', 'completed'].includes(payload.partial?.status)
+        ? (s.activeOrders || []).filter(o => o.id !== payload.orderId)
+        : (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, ...payload.partial } : o),
+      settledOrderOverrides: syncSettledOverrideIfPresent(s.settledOrderOverrides, payload.orderId, payload.partial)
     }));
   } else if (type === 'LOCAL_ORDER_STATUS_CHANGED' && payload.orderId) {
-    useOrderStore.setState(s => ({
-      activeOrders: (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, status: payload.status } : o)
-    }));
+    useOrderStore.setState(s => {
+      const targetOrder = (s.activeOrders || []).find(o => o.id === payload.orderId);
+      const effectiveOrder = targetOrder ? { ...targetOrder, ...(s.settledOrderOverrides?.[payload.orderId] || {}), ...payload } : payload;
+      const shouldRemove =
+        ['billed', 'cancelled', 'void'].includes(payload.status) ||
+        (payload.status === 'completed' && isOrderSettledPaid(effectiveOrder));
+      const statusPatch = {
+        status: payload.status,
+        ...(payload.paid !== undefined ? { paid: payload.paid } : {}),
+        ...(payload.paymentMethod ? { paymentMethod: payload.paymentMethod } : {}),
+      };
+      return {
+        activeOrders: shouldRemove
+          ? (s.activeOrders || []).filter(o => o.id !== payload.orderId)
+          : (s.activeOrders || []).map(o => o.id === payload.orderId ? { ...o, ...statusPatch } : o),
+        settledOrderOverrides: syncSettledOverrideIfPresent(s.settledOrderOverrides, payload.orderId, statusPatch)
+      };
+    });
   }
 });
 

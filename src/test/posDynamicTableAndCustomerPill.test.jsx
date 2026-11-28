@@ -47,8 +47,10 @@ describe('POS Dynamic Table and Customer Pills in Cart Header', () => {
     expect(indexCss).toMatch(/\.cart-unified-chip--customer\s*\{[^}]*flex:\s*1/);
   });
 
-  it('verifies subtle live breathing dot on active running orders button', () => {
-    // POS.jsx renders pos-op-live-dot when orders are running but not ready
+  it('verifies always-visible Orders button with live breathing dot near Floor Map in POS sidebar', () => {
+    // POS.jsx renders fixed Orders pill near Floor Map and shows pos-op-live-dot when active
+    expect(posJsx).toContain('id="pos-pinned-active-orders-btn"');
+    expect(posJsx).toContain('Orders');
     expect(posJsx).toContain('className="pos-op-live-dot"');
 
     // index.css has liveBreath animation and styling

@@ -73,7 +73,7 @@ export default function MenuEditor() {
   const [editItem, setEditItem] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', emoji: '', color: '', taxRate: '', subCategories: [] });
   const [newSubCatInput, setNewSubCatInput] = useState('');
-  const [itemForm, setItemForm] = useState({ name: '', categoryId: '', subCategory: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
+  const [itemForm, setItemForm] = useState({ name: '', categoryId: '', subCategory: '', mlName: '', hiName: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, code: '', barcode: '', unit: 'pcs', taxRate: '', packagingCharge: '', isVeg: true, dietary: 'veg' });
   const [editingPriceItemId, setEditingPriceItemId] = useState(null);
   const [editingPriceVal, setEditingPriceVal] = useState('');
   const [isAiTranslating, setIsAiTranslating] = useState(false);
@@ -120,7 +120,7 @@ export default function MenuEditor() {
     const currentStations = getKitchenStations(restaurant);
     const exists = currentStations.find(s => s.toLowerCase() === clean.toLowerCase());
     const stationName = exists || clean;
-    
+
     setItemForm(f => ({ ...f, station: stationName }));
     setIsAddingCustomStation(false);
     setNewCustomStation('');
@@ -168,9 +168,11 @@ export default function MenuEditor() {
       imageUrl: '',
       highMargin: false,
       isBestseller: false,
+      code: '',
       barcode: '',
       unit: 'pcs',
       taxRate: '',
+      packagingCharge: '',
       isVeg: true,
       dietary: 'veg'
     });
@@ -203,9 +205,11 @@ export default function MenuEditor() {
       imageUrl: item.imageUrl ?? '',
       highMargin: item.highMargin || false,
       isBestseller: item.isBestseller || item.bestseller || false,
+      code: item.code ?? '',
       barcode: item.barcode ?? '',
       unit: item.unit ?? 'pcs',
       taxRate: item.taxRate != null ? String(item.taxRate) : '',
+      packagingCharge: item.packagingCharge != null ? String(item.packagingCharge) : '',
       isVeg: isVegDefault,
       dietary: item.dietary || (isVegDefault ? 'veg' : 'non-veg')
     });
@@ -403,13 +407,13 @@ export default function MenuEditor() {
     }
     const unpolishedItems = targetScopeItems.filter(i => !i.mlName || !i.hiName);
     const targetItems = unpolishedItems.length > 0 ? unpolishedItems : targetScopeItems;
-    
+
     setIsBatchTranslating(true);
     const toastId = toast.loading(`Translating ${targetItems.length} dishes with AI...`);
     try {
       const names = targetItems.map(i => i.name);
       const translations = await batchTranslateDishesWithAI(names, restaurant);
-      
+
       const updatedCats = categories.map(c => {
         if (!isAll && c.id !== activeCat) return c;
         const updatedItems = (c.items || []).map(item => {
@@ -429,7 +433,7 @@ export default function MenuEditor() {
       useMenuStore.getState().setCategories(updatedCats);
       try {
         localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-      } catch {}
+      } catch { }
 
       if (restaurant?.id && !restaurant?.localStorageOnly && typeof navigator !== 'undefined' && navigator.onLine) {
         if (isAll) {
@@ -479,7 +483,7 @@ export default function MenuEditor() {
     const prices = (group.options ?? []).map(o => o.priceAdd || 0);
     const minP = Math.min(...prices);
     const maxP = Math.max(...prices);
-    const priceStr = minP === maxP 
+    const priceStr = minP === maxP
       ? (minP > 0 ? `+${formatCurrency(minP, restaurant?.currency)}` : 'Free')
       : `+${formatCurrency(minP, restaurant?.currency)} to +${formatCurrency(maxP, restaurant?.currency)}`;
     return `${count} ${count === 1 ? 'option' : 'options'} • ${priceStr}`;
@@ -618,8 +622,8 @@ export default function MenuEditor() {
     }
 
     // Guard: Prevent duplicate category names (case-insensitive)
-    const isDuplicate = categories.some(c => 
-      c.name.trim().toLowerCase() === cleanName.toLowerCase() && 
+    const isDuplicate = categories.some(c =>
+      c.name.trim().toLowerCase() === cleanName.toLowerCase() &&
       (!editingCat || c.id !== editingCat.id)
     );
     if (isDuplicate) {
@@ -652,7 +656,7 @@ export default function MenuEditor() {
       useMenuStore.getState().setCategories(updatedCats);
       try {
         localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-      } catch {}
+      } catch { }
 
       if (!isLocalOnly && isOnline) {
         try {
@@ -688,7 +692,7 @@ export default function MenuEditor() {
       useMenuStore.getState().setCategories(updatedCats);
       try {
         localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-      } catch {}
+      } catch { }
 
       if (!isLocalOnly && isOnline) {
         try {
@@ -727,7 +731,7 @@ export default function MenuEditor() {
     useMenuStore.getState().setCategories(updatedCats);
     try {
       localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-    } catch {}
+    } catch { }
 
     if (activeCat === catId) setActiveCat('all');
 
@@ -766,7 +770,7 @@ export default function MenuEditor() {
     }
 
     // Guard: Prevent duplicate item names in target category (case-insensitive)
-    const isDuplicateItem = (targetCat.items || []).some(i => 
+    const isDuplicateItem = (targetCat.items || []).some(i =>
       i.name.trim().toLowerCase() === cleanName.toLowerCase() &&
       (!editItem || i.id !== editItem.id)
     );
@@ -799,11 +803,13 @@ export default function MenuEditor() {
       imageUrl: itemForm.imageUrl ?? '',
       highMargin: itemForm.highMargin || false,
       isBestseller: itemForm.isBestseller || false,
+      code: itemForm.code?.trim().toUpperCase() || '',
       barcode: itemForm.barcode?.trim() ?? '',
       unit: itemForm.unit || 'pcs',
       isVeg: isVeg,
       dietary: isVeg ? 'veg' : 'non-veg',
       subCategory: itemForm.subCategory?.trim() || '',
+      ...(itemForm.packagingCharge !== '' && !isNaN(parseFloat(itemForm.packagingCharge)) ? { packagingCharge: parseFloat(itemForm.packagingCharge) } : {}),
       ...(parsedTaxRate !== null ? { taxRate: parsedTaxRate } : {})
     };
 
@@ -834,7 +840,7 @@ export default function MenuEditor() {
     useMenuStore.getState().setCategories(updatedCats);
     try {
       localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-    } catch {}
+    } catch { }
 
     if (!isLocalOnly && isOnline) {
       try {
@@ -858,7 +864,7 @@ export default function MenuEditor() {
 
     setShowItemForm(false);
     setEditItem(null);
-    setItemForm({ name:'', categoryId: '', price:'', description:'', emoji:'', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, barcode: '', unit: 'pcs', taxRate: '', isVeg: true, dietary: 'veg' });
+    setItemForm({ name: '', categoryId: '', price: '', description: '', emoji: '', available: true, modifierGroups: [], recipe: [], station: 'Kitchen', imageUrl: '', highMargin: false, isBestseller: false, code: '', barcode: '', unit: 'pcs', taxRate: '', packagingCharge: '', isVeg: true, dietary: 'veg' });
     toast.success(editItem ? (origCat && origCat.id !== targetCatId ? `Moved to ${targetCat.name}!` : 'Item updated!') : 'Item added!');
   };
 
@@ -875,7 +881,7 @@ export default function MenuEditor() {
     useMenuStore.getState().setCategories(updatedCats);
     try {
       localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-    } catch {}
+    } catch { }
 
     if (!isLocalOnly && isOnline) {
       try {
@@ -901,7 +907,7 @@ export default function MenuEditor() {
     useMenuStore.getState().setCategories(updatedCats);
     try {
       localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-    } catch {}
+    } catch { }
 
     if (!isLocalOnly && isOnline) {
       try {
@@ -917,9 +923,9 @@ export default function MenuEditor() {
           const token = await auth.currentUser?.getIdToken?.();
           if (token) {
             const syncUrl = `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'your-firebase-project'}.cloudfunctions.net/syncDeliveryMenu?restaurantId=${restaurant.id}`;
-            fetch(syncUrl, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+            fetch(syncUrl, { headers: { Authorization: `Bearer ${token}` } }).catch(() => { });
           }
-        } catch {}
+        } catch { }
       }
     }
     toast.success(nextAvailable ? `${item.name} is now Available` : `${item.name} marked Out of Stock`);
@@ -944,7 +950,7 @@ export default function MenuEditor() {
     useMenuStore.getState().setCategories(updatedCats);
     try {
       localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-    } catch {}
+    } catch { }
 
     if (!isLocalOnly && isOnline) {
       try {
@@ -970,7 +976,7 @@ export default function MenuEditor() {
     useMenuStore.getState().setCategories(updatedCats);
     try {
       localStorage.setItem('dineos_cached_menu', JSON.stringify(updatedCats));
-    } catch {}
+    } catch { }
 
     if (!isLocalOnly && isOnline) {
       try {
@@ -1082,9 +1088,9 @@ export default function MenuEditor() {
 
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       {/* Top Header Bar with balanced Action Buttons */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
         <div>
           <h2 className="text-title2" style={{ margin: 0, fontWeight: 'var(--weight-heavy)' }}>Menu Editor</h2>
           <p className="text-secondary text-caption1" style={{ margin: '2px 0 0 0' }}>
@@ -1299,7 +1305,7 @@ export default function MenuEditor() {
               );
             })}
             {categories.length === 0 ? (
-              <div style={{ padding:'var(--space-4)', color:'var(--color-label-tertiary)', fontSize:'var(--text-footnote)', textAlign:'center' }}>
+              <div style={{ padding: 'var(--space-4)', color: 'var(--color-label-tertiary)', fontSize: 'var(--text-footnote)', textAlign: 'center' }}>
                 No categories yet
               </div>
             ) : null}
@@ -1449,7 +1455,7 @@ export default function MenuEditor() {
 
               {categories.length > 0 && (
                 <button className="btn btn-primary btn-sm" id="add-item-btn" onClick={() => openAddItemModal(isAllItems ? null : activeCatId)}>
-                  <Plus size={14}/> Add {terms.item || 'Item'}
+                  <Plus size={14} /> Add {terms.item || 'Item'}
                 </button>
               )}
             </div>
@@ -1797,9 +1803,9 @@ export default function MenuEditor() {
             )}
 
             {currentCategoryItems.length === 0 ? (
-              <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
-                <div style={{fontSize:32}}>🍽️</div>
-                <div style={{marginTop:'var(--space-2)'}}>
+              <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                <div style={{ fontSize: 32 }}>🍽️</div>
+                <div style={{ marginTop: 'var(--space-2)' }}>
                   {isAllItems ? 'No items in menu yet' : `No ${terms.items?.toLowerCase() || 'items'} in this ${terms.category?.toLowerCase() || 'category'}`}
                 </div>
                 {categories.length > 0 && (
@@ -1814,9 +1820,9 @@ export default function MenuEditor() {
                 )}
               </div>
             ) : filteredItems.length === 0 ? (
-              <div style={{ padding:'var(--space-8)', textAlign:'center', color:'var(--color-label-tertiary)' }}>
-                <div style={{fontSize:28}}>🔍</div>
-                <div style={{marginTop:'var(--space-2)'}}>No items match "{searchQuery}"</div>
+              <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-label-tertiary)' }}>
+                <div style={{ fontSize: 28 }}>🔍</div>
+                <div style={{ marginTop: 'var(--space-2)' }}>No items match "{searchQuery}"</div>
                 <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => setSearchQuery('')}>Clear search</button>
               </div>
             ) : viewMode === 'grid' ? (
@@ -2095,7 +2101,7 @@ export default function MenuEditor() {
                             id={`edit-item-${item.id}`}
                             title="Edit item"
                           >
-                            <Edit2 size={13}/>
+                            <Edit2 size={13} />
                           </button>
                           <button
                             type="button"
@@ -2104,7 +2110,7 @@ export default function MenuEditor() {
                             id={`delete-item-${item.id}`}
                             title="Delete item"
                           >
-                            <Trash2 size={13}/>
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
@@ -2197,7 +2203,7 @@ export default function MenuEditor() {
                         </div>
                         {item.description && <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--color-label-secondary)', marginTop: 2 }}>{item.description}</div>}
                       </div>
-                      
+
                       <div className="menu-item-meta-actions">
                         <div style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-accent)', minWidth: 80, textAlign: 'right', fontSize: 'var(--text-subhead)' }}>
                           {item.modifierGroups?.length > 0 && parseFloat(item.price) === 0 ? (
@@ -2253,10 +2259,10 @@ export default function MenuEditor() {
                             <span>{item.isBestseller || item.bestseller ? 'Bestseller' : 'Best'}</span>
                           </button>
                           <button className="btn btn-secondary btn-icon btn-sm" onClick={() => openEditItemModal(item)} id={`edit-item-${item.id}`}>
-                            <Edit2 size={12}/>
+                            <Edit2 size={12} />
                           </button>
                           <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-red)' }} onClick={() => deleteItem(item.categoryId || activeCatId, item.id)} id={`delete-item-${item.id}`}>
-                            <Trash2 size={12}/>
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </div>
@@ -2275,12 +2281,12 @@ export default function MenuEditor() {
           <div className="modal" style={{ maxWidth: 440 }}>
             <div className="modal-header">
               <h2 className="modal-title">{editingCat ? 'Edit Category' : 'Add Category'}</h2>
-              <button className="btn btn-secondary btn-icon" onClick={() => setShowCatForm(false)}><X size={16}/></button>
+              <button className="btn btn-secondary btn-icon" onClick={() => setShowCatForm(false)}><X size={16} /></button>
             </div>
             <div className="modal-body">
               <div className="form-group">
                 <label className="form-label">Category Name</label>
-                <input id="cat-name-input" className="form-input" placeholder="e.g. Starters" value={catForm.name} onChange={e => setCatForm(f => ({...f, name:e.target.value}))} />
+                <input id="cat-name-input" className="form-input" placeholder="e.g. Starters" value={catForm.name} onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-group">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -2463,10 +2469,10 @@ export default function MenuEditor() {
                 title="Close"
                 style={{ width: 42, height: 42, minWidth: 42, minHeight: 42, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
               >
-                <X size={18}/>
+                <X size={18} />
               </button>
             </div>
-            
+
             {/* Segmented Pill Tab Bar */}
             <div className="modal-tabs-segmented-wrapper">
               <div className="modal-tabs-segmented">
@@ -2517,12 +2523,12 @@ export default function MenuEditor() {
                       <span className="status-text">{itemForm.available ? 'Available' : 'Sold Out'}</span>
                     </button>
                   </div>
-                  <input 
-                    id="item-name-input" 
-                    className="form-input" 
-                    placeholder="e.g. Grilled Chicken" 
-                    value={itemForm.name} 
-                    onChange={e => setItemForm(f=>({...f,name:e.target.value}))} 
+                  <input
+                    id="item-name-input"
+                    className="form-input"
+                    placeholder="e.g. Grilled Chicken"
+                    value={itemForm.name}
+                    onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))}
                     style={{ height: 46, fontSize: '15px', borderRadius: '10px' }}
                   />
                 </div>
@@ -2538,15 +2544,15 @@ export default function MenuEditor() {
                       <span style={{ position: 'absolute', left: 14, fontSize: '16px', fontWeight: 800, color: '#38bdf8', pointerEvents: 'none' }}>
                         {restaurant?.currency === 'INR' ? '₹' : (restaurant?.currency ?? '$')}
                       </span>
-                      <input 
-                        id="item-price-input" 
-                        className="form-input" 
-                        type="number" 
-                        min={0} 
-                        step={0.01} 
-                        placeholder="0.00" 
-                        value={itemForm.price} 
-                        onChange={e => setItemForm(f=>({...f,price:e.target.value}))} 
+                      <input
+                        id="item-price-input"
+                        className="form-input"
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        value={itemForm.price}
+                        onChange={e => setItemForm(f => ({ ...f, price: e.target.value }))}
                         style={{ paddingLeft: 30, height: 46, fontSize: '15px', fontWeight: 600, borderRadius: '10px' }}
                       />
                     </div>
@@ -2641,10 +2647,10 @@ export default function MenuEditor() {
                         </button>
                       </div>
                     ) : (
-                      <select 
-                        id="item-station-select" 
-                        className="form-select" 
-                        value={itemForm.station ?? 'Kitchen'} 
+                      <select
+                        id="item-station-select"
+                        className="form-select"
+                        value={itemForm.station ?? 'Kitchen'}
                         onChange={e => {
                           if (e.target.value === '__add_custom__') {
                             setIsAddingCustomStation(true);
@@ -2885,34 +2891,34 @@ export default function MenuEditor() {
                   {/* Emoji input (Right) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#f1f5f9' }}>Emoji</span>
-                    <input 
-                      id="item-emoji-input" 
-                      className="form-input" 
-                      placeholder="🍽️" 
-                      value={itemForm.emoji} 
-                      onChange={e => setItemForm(f=>({...f,emoji:e.target.value}))} 
+                    <input
+                      id="item-emoji-input"
+                      className="form-input"
+                      placeholder="🍽️"
+                      value={itemForm.emoji}
+                      onChange={e => setItemForm(f => ({ ...f, emoji: e.target.value }))}
                       style={{ width: 48, height: 44, textAlign: 'center', fontSize: 20, padding: '0 4px', borderRadius: '10px' }}
                     />
                   </div>
                 </div>
 
                 {/* 7. Waiter Local Language Display & AI Translator (Collapsible Deck) */}
-                <div 
+                <div
                   className="pronunciation-script-card"
-                  style={{ 
-                    background: '#0a0d15', 
-                    border: '1.5px solid rgba(255, 255, 255, 0.22)', 
-                    borderRadius: '12px', 
+                  style={{
+                    background: '#0a0d15',
+                    border: '1.5px solid rgba(255, 255, 255, 0.22)',
+                    borderRadius: '12px',
                     overflow: 'hidden',
                     transition: 'border-color 0.15s ease'
                   }}
                 >
-                  <div 
+                  <div
                     id="toggle-waiter-pronunciation-btn"
                     onClick={() => setShowPronunciation(p => !p)}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '10px 14px',
                       minHeight: 44,
@@ -2928,13 +2934,13 @@ export default function MenuEditor() {
                     title={showPronunciation ? 'Click to collapse pronunciation script' : 'Click to expand pronunciation script'}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, paddingRight: '8px' }}>
-                      <span style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#94a3b8', 
-                        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
-                        transform: showPronunciation ? 'rotate(180deg)' : 'rotate(0deg)' 
+                        color: '#94a3b8',
+                        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: showPronunciation ? 'rotate(180deg)' : 'rotate(0deg)'
                       }}>
                         <ChevronDown size={14} />
                       </span>
@@ -3014,11 +3020,11 @@ export default function MenuEditor() {
                   </div>
 
                   {showPronunciation && (
-                    <div style={{ 
-                      padding: '10px 14px 12px 14px', 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: '10px', 
+                    <div style={{
+                      padding: '10px 14px 12px 14px',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '10px',
                       borderTop: '1px solid rgba(255, 255, 255, 0.14)',
                       animation: 'fadeInAccordion 0.18s ease-out'
                     }}>
@@ -3063,7 +3069,7 @@ export default function MenuEditor() {
                       {showAdvancedDetails ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                       <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>{showAdvancedDetails ? 'Hide Optional Details' : 'Optional Details (SKU, Tax, Description)'}</span>
                     </span>
-                    {(itemForm.barcode || itemForm.description || itemForm.taxRate !== '' || (itemForm.unit && itemForm.unit !== 'pcs')) && (
+                    {(itemForm.code || itemForm.barcode || itemForm.description || itemForm.taxRate !== '' || itemForm.packagingCharge !== '' || (itemForm.unit && itemForm.unit !== 'pcs')) && (
                       <span className="optional-details-configured-badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.45)', fontWeight: 800 }}>Configured</span>
                     )}
                   </button>
@@ -3077,21 +3083,21 @@ export default function MenuEditor() {
                             Tax Rate Override (%)
                           </label>
                           <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)' }}>
-                            {activeCatData?.taxRate != null 
-                              ? `Inherits Category: ${activeCatData.taxRate}%` 
+                            {activeCatData?.taxRate != null
+                              ? `Inherits Category: ${activeCatData.taxRate}%`
                               : `Inherits Store: ${restaurant?.taxConfig?.rate ?? 0}%`}
                           </span>
                         </div>
-                        <input 
-                          id="item-tax-rate-input" 
-                          className="form-input" 
+                        <input
+                          id="item-tax-rate-input"
+                          className="form-input"
                           type="number"
                           min="0"
                           max="100"
                           step="0.01"
-                          placeholder={`Inherit (${activeCatData?.taxRate ?? restaurant?.taxConfig?.rate ?? 0}%) or enter 0 for Zero-Rated`} 
-                          value={itemForm.taxRate ?? ''} 
-                          onChange={e => setItemForm(f=>({...f, taxRate: e.target.value}))} 
+                          placeholder={`Inherit (${activeCatData?.taxRate ?? restaurant?.taxConfig?.rate ?? 0}%) or enter 0 for Zero-Rated`}
+                          value={itemForm.taxRate ?? ''}
+                          onChange={e => setItemForm(f => ({ ...f, taxRate: e.target.value }))}
                           style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
                         />
                         <span style={{ fontSize: '10.5px', color: 'var(--color-label-tertiary)', marginTop: '4px', display: 'block' }}>
@@ -3099,48 +3105,74 @@ export default function MenuEditor() {
                         </span>
                       </div>
 
-                      {/* Barcode & Unit Row */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                      {/* Short Code, Barcode & Container Fee Row */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                         <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Barcode / SKU</label>
-                          <input 
-                            id="item-barcode-input" 
-                            className="form-input" 
-                            placeholder="e.g. SKU-101" 
-                            value={itemForm.barcode ?? ''} 
-                            onChange={e => setItemForm(f=>({...f, barcode: e.target.value}))} 
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>POS Short Code</label>
+                          <input
+                            id="item-shortcode-input"
+                            className="form-input"
+                            placeholder="e.g. 101 or MD"
+                            value={itemForm.code ?? ''}
+                            onChange={e => setItemForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                             style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
                           />
                         </div>
-
                         <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Unit of Measure</label>
-                          <select 
-                            id="item-unit-select" 
-                            className="form-select" 
-                            value={itemForm.unit ?? 'pcs'} 
-                            onChange={e => setItemForm(f=>({...f, unit: e.target.value}))}
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Barcode / SKU</label>
+                          <input
+                            id="item-barcode-input"
+                            className="form-input"
+                            placeholder="e.g. SKU-101"
+                            value={itemForm.barcode ?? ''}
+                            onChange={e => setItemForm(f => ({ ...f, barcode: e.target.value }))}
                             style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
-                          >
-                            <option value="pcs">Pieces (pcs)</option>
-                            <option value="kg">Kilogram (kg)</option>
-                            <option value="g">Gram (g)</option>
-                            <option value="pack">Pack / Box</option>
-                            <option value="portion">Portion</option>
-                            <option value="hour">Hour / Session</option>
-                          </select>
+                          />
                         </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Parcel / Box Fee</label>
+                          <input
+                            id="item-packaging-charge-input"
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            className="form-input"
+                            placeholder="e.g. 10"
+                            value={itemForm.packagingCharge ?? ''}
+                            onChange={e => setItemForm(f => ({ ...f, packagingCharge: e.target.value }))}
+                            style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Unit of Measure */}
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Unit of Measure</label>
+                        <select
+                          id="item-unit-select"
+                          className="form-select"
+                          value={itemForm.unit ?? 'pcs'}
+                          onChange={e => setItemForm(f => ({ ...f, unit: e.target.value }))}
+                          style={{ height: 44, padding: '0 12px', fontSize: '13.5px', borderRadius: '10px' }}
+                        >
+                          <option value="pcs">Pieces (pcs)</option>
+                          <option value="kg">Kilogram (kg)</option>
+                          <option value="g">Gram (g)</option>
+                          <option value="pack">Pack / Box</option>
+                          <option value="portion">Portion</option>
+                          <option value="hour">Hour / Session</option>
+                        </select>
                       </div>
 
                       {/* Description */}
                       <div className="form-group" style={{ margin: 0 }}>
                         <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>Description</label>
-                        <textarea 
-                          id="item-desc-input" 
-                          className="form-input" 
-                          placeholder="Describe taste, ingredients, or allergens..." 
-                          value={itemForm.description} 
-                          onChange={e => setItemForm(f=>({...f,description:e.target.value}))} 
+                        <textarea
+                          id="item-desc-input"
+                          className="form-input"
+                          placeholder="Describe taste, ingredients, or allergens..."
+                          value={itemForm.description}
+                          onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))}
                           rows={2}
                           style={{ resize: 'none', padding: '10px 12px', height: 'auto', fontSize: '13px', fontFamily: 'inherit', borderRadius: '10px' }}
                         />
@@ -3248,12 +3280,12 @@ export default function MenuEditor() {
                             <div className="modifier-group-index-badge">
                               {gIdx + 1}
                             </div>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-label)' }}>
                                 {group.name?.trim() || `Group #${gIdx + 1}`}
                               </span>
-                              
+
                               <span className={`modifier-type-badge ${isPortionType ? 'portion' : 'addon'}`}>
                                 {isPortionType ? '🎯 Portion (Pick 1)' : '➕ Optional Extras'}
                               </span>
@@ -3399,7 +3431,7 @@ export default function MenuEditor() {
                                       }}
                                       style={{ height: 32, padding: '2px 8px', fontSize: 12 }}
                                     />
-                                    
+
                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                                       <span style={{ position: 'absolute', left: 8, fontSize: 11, color: 'var(--color-label-tertiary)' }}>+</span>
                                       <input
@@ -3434,7 +3466,7 @@ export default function MenuEditor() {
                                         {formatCurrency(finalPrice, restaurant?.currency ?? 'INR')}
                                       </div>
                                     )}
-                                    
+
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -3450,7 +3482,7 @@ export default function MenuEditor() {
                                   </div>
                                 );
                               })}
-                              
+
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-xs"
@@ -3470,7 +3502,7 @@ export default function MenuEditor() {
                       </div>
                     );
                   })}
-                  
+
                   {(!itemForm.modifierGroups || itemForm.modifierGroups.length === 0) && (
                     <div className="modifier-empty-state">
                       <div style={{ fontSize: 28, marginBottom: 2 }}>🍽️</div>
@@ -3531,7 +3563,7 @@ export default function MenuEditor() {
                   }, 0);
                   const profitVal = itemPrice - recipeCost;
                   const marginPct = itemPrice > 0 ? (profitVal / itemPrice) * 100 : 0;
-                  
+
                   // Margin safety color styling
                   let marginColor = '#ef4444'; // Red for low margin
                   let marginBg = 'rgba(239,68,68,0.1)';
@@ -3545,7 +3577,7 @@ export default function MenuEditor() {
                     marginColor = '#f59e0b'; // Orange for warning margin
                     marginBg = 'rgba(245,158,11,0.1)';
                   }
-                  
+
                   return (
                     <div style={{
                       display: 'grid',
@@ -3567,16 +3599,16 @@ export default function MenuEditor() {
                           {formatCurrency(profitVal, restaurant?.currency)}
                         </div>
                       </div>
-                      <div style={{ 
-                        padding: 'var(--space-3) var(--space-2)', 
+                      <div style={{
+                        padding: 'var(--space-3) var(--space-2)',
                         textAlign: 'center',
                         background: marginBg,
                         transition: 'all 0.2s ease'
                       }}>
                         <div style={{ fontSize: 9.5, textTransform: 'uppercase', fontWeight: 'bold', color: marginColor, marginBottom: 4 }}>Margin</div>
-                        <div style={{ 
-                          fontWeight: '800', 
-                          fontSize: 16, 
+                        <div style={{
+                          fontWeight: '800',
+                          fontSize: 16,
                           color: marginColor
                         }}>
                           {marginPct.toFixed(1)}%
@@ -3594,7 +3626,7 @@ export default function MenuEditor() {
                     const activeRecipeUnit = recipeItem.unit && compatibleUnits.includes(recipeItem.unit)
                       ? recipeItem.unit
                       : (matchedIng?.unit ?? '');
-                    
+
                     return (
                       <div key={rIdx} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', background: 'var(--color-bg-secondary)', padding: '6px 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-separator)' }}>
                         <select
@@ -3612,7 +3644,7 @@ export default function MenuEditor() {
                             <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
                           ))}
                         </select>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flex: 1 }}>
                           <input
                             className="form-input"
@@ -3647,7 +3679,7 @@ export default function MenuEditor() {
                             </span>
                           )}
                         </div>
-                        
+
                         <button
                           type="button"
                           onClick={() => {
@@ -3661,12 +3693,12 @@ export default function MenuEditor() {
                       </div>
                     );
                   })}
-                  
+
                   {(!itemForm.recipe || itemForm.recipe.length === 0) && (
-                    <div style={{ 
-                      fontSize: 'var(--text-footnote)', 
-                      color: 'var(--color-label-tertiary)', 
-                      textAlign: 'center', 
+                    <div style={{
+                      fontSize: 'var(--text-footnote)',
+                      color: 'var(--color-label-tertiary)',
+                      textAlign: 'center',
                       padding: 'var(--space-5) var(--space-4)',
                       background: 'var(--color-bg-secondary)',
                       borderRadius: 'var(--radius-lg)',

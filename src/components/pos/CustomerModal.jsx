@@ -24,6 +24,8 @@ export default function CustomerModal({
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [gstin, setGstin] = useState('');
+  const [showGstin, setShowGstin] = useState(false);
   const [isExisting, setIsExisting] = useState(null);
   const [existingProfile, setExistingProfile] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -54,6 +56,10 @@ export default function CustomerModal({
         if (data.address) {
           setAddress(prev => (prev && prev.trim() ? prev : (data.address || '')));
         }
+        if (data.gstin) {
+          setGstin(prev => (prev && prev.trim() ? prev : (data.gstin || '')));
+          setShowGstin(true);
+        }
       } else {
         setIsExisting(false);
         setExistingProfile(null);
@@ -72,9 +78,12 @@ export default function CustomerModal({
     const startPhone = (initialPhone || customerPhone || customer?.phone || '').replace(/\D/g, '');
     const startName = customerName || customer?.name || '';
     const startAddress = customer?.address || '';
+    const startGstin = customer?.gstin || '';
     setPhone(startPhone);
     setName(startName);
     setAddress(startAddress);
+    setGstin(startGstin);
+    setShowGstin(Boolean(startGstin));
     setIsExisting(customer ? true : null);
     setExistingProfile(customer || null);
 
@@ -112,6 +121,12 @@ export default function CustomerModal({
       return;
     }
 
+    const cleanGstin = gstin.trim().toUpperCase();
+    if (cleanGstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(cleanGstin)) {
+      toast.error('Enter a valid 15-character GSTIN (e.g. 27AAAAA0000A1Z5)');
+      return;
+    }
+
     const finalName = name.trim() || existingProfile?.name || 'Customer';
     setIsSaving(true);
 
@@ -119,7 +134,9 @@ export default function CustomerModal({
       name: finalName,
       phone: cleanPhone,
       address: address.trim() || existingProfile?.address || '',
+      gstin: cleanGstin || existingProfile?.gstin || '',
       points: existingProfile?.points || customer?.points || 0,
+      khataBalance: existingProfile?.khataBalance || customer?.khataBalance || 0,
       visitCount: (existingProfile?.visitCount || customer?.visitCount || 0) + 1,
       lifetimeSpend: existingProfile?.lifetimeSpend || customer?.lifetimeSpend || 0,
       updatedAt: new Date()
@@ -379,6 +396,56 @@ export default function CustomerModal({
             />
           </div>
 
+          {/* Optional B2B GSTIN (Progressive Disclosure — 0 clicks for walk-in) */}
+          <div style={{ marginTop: 10 }}>
+            {!showGstin ? (
+              <button
+                type="button"
+                id="customer-add-gstin-toggle"
+                onClick={() => setShowGstin(true)}
+                style={{
+                  background: 'none',
+                  border: '1px dashed var(--color-separator-opaque, rgba(255,255,255,0.2))',
+                  color: 'var(--color-label-secondary, #94a3b8)',
+                  borderRadius: 8,
+                  padding: '6px 10px',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left'
+                }}
+              >
+                + Add Business GSTIN (For B2B Tax Invoice)
+              </button>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-label, #ffffff)' }}>
+                    Customer GSTIN (B2B)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setGstin(''); setShowGstin(false); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-label-tertiary)', fontSize: 11, cursor: 'pointer' }}
+                  >
+                    Hide
+                  </button>
+                </div>
+                <input
+                  id="customer-gstin-input"
+                  type="text"
+                  maxLength={15}
+                  className="form-input"
+                  placeholder="e.g. 27AAAAA0000A1Z5"
+                  value={gstin}
+                  onChange={e => setGstin(e.target.value.toUpperCase())}
+                  style={{ width: '100%', height: 38, fontSize: 13, padding: '0 12px', borderRadius: 8, fontFamily: 'var(--font-mono)' }}
+                />
+              </div>
+            )}
+          </div>
+
           {/* Customer Profile Status & Loyalty Info */}
           {existingProfile && (
             <div style={{
@@ -394,9 +461,16 @@ export default function CustomerModal({
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#10b981', fontWeight: 600 }}>
                 <Award size={15} /> Loyalty Points
               </span>
-              <strong style={{ fontSize: 13, color: '#10b981' }}>
-                {existingProfile.points || 0} pts
-              </strong>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                {Number(existingProfile.khataBalance || 0) > 0 && (
+                  <strong style={{ fontSize: 12, color: '#f59e0b' }}>
+                    Khata Due: ₹{Number(existingProfile.khataBalance).toFixed(0)}
+                  </strong>
+                )}
+                <strong style={{ fontSize: 13, color: '#10b981' }}>
+                  {existingProfile.points || 0} pts
+                </strong>
+              </span>
             </div>
           )}
 

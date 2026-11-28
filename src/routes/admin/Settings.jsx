@@ -2556,6 +2556,94 @@ export default function Settings() {
                       onChange={e => updateField('workflowConfig.splitBillEnabled', e.target.checked)}
                     />
                   </div>
+
+                  {/* Packaging / Parcel Charge (India Takeaway & Delivery) */}
+                  <div style={{
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-secondary)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13.5 }}>Takeaway & Delivery Packaging Charge</div>
+                        <div style={{ fontSize: 12, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                          Auto-adds parcel / container charges on non-dine-in orders (1-tap waive in cart).
+                        </div>
+                      </div>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={settings.workflowConfig?.packagingConfig?.taxable !== false}
+                          onChange={e => updateField('workflowConfig.packagingConfig.taxable', e.target.checked)}
+                        />
+                        Apply GST/Tax
+                      </label>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: 11.5 }}>Charge Mode</label>
+                        <select
+                          id="packaging-mode-select"
+                          className="form-select"
+                          value={settings.workflowConfig?.packagingConfig?.mode ?? 'none'}
+                          onChange={e => updateField('workflowConfig.packagingConfig.mode', e.target.value)}
+                        >
+                          <option value="none">Disabled (No Charge)</option>
+                          <option value="flat">Flat per Order (e.g. ₹20)</option>
+                          <option value="percent">% of Food Subtotal (e.g. 5%)</option>
+                          <option value="per_item">Per-Item Container Fee</option>
+                        </select>
+                      </div>
+                      {(settings.workflowConfig?.packagingConfig?.mode && settings.workflowConfig.packagingConfig.mode !== 'none') && (
+                        <>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: 11.5 }}>
+                              {settings.workflowConfig.packagingConfig.mode === 'percent' ? 'Percentage (%)' : settings.workflowConfig.packagingConfig.mode === 'per_item' ? 'Default Item Fee' : 'Flat Amount'}
+                            </label>
+                            <input
+                              id="packaging-amount-input"
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              className="form-input"
+                              placeholder="e.g. 20"
+                              value={settings.workflowConfig?.packagingConfig?.amount ?? ''}
+                              onChange={e => updateField('workflowConfig.packagingConfig.amount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
+                            <label className="form-label" style={{ fontSize: 11.5, margin: 0 }}>Apply To Modes</label>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                              {['takeaway', 'delivery'].map(m => {
+                                const currentList = Array.isArray(settings.workflowConfig?.packagingConfig?.applyTo)
+                                  ? settings.workflowConfig.packagingConfig.applyTo
+                                  : ['takeaway', 'delivery'];
+                                const checked = currentList.includes(m);
+                                return (
+                                  <label key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={e => {
+                                        const next = e.target.checked
+                                          ? Array.from(new Set([...currentList, m]))
+                                          : currentList.filter(x => x !== m);
+                                        updateField('workflowConfig.packagingConfig.applyTo', next);
+                                      }}
+                                    />
+                                    {m}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Sub-section: Context-Aware Token & Live Queue (Visible ONLY if 'token' mode is active) */}

@@ -9,7 +9,7 @@ import { db } from '../firebase';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { getOrderTimestampMs } from '../utils/timezoneUtils';
 import { formatCurrency } from '../utils/formatCurrency';
-import { downloadTallyXML } from '../utils/tallyExport';
+import { downloadTallyXML, downloadGstr1CSV } from '../utils/tallyExport';
 import { BarChart3, TrendingUp, ShoppingCart, CreditCard, Download, Users, Award, Activity, PieChart, X, HeartHandshake, Receipt, FileText, FileSpreadsheet, FileCode, Bot, WalletCards } from 'lucide-react';
 import InfoTooltip from '../components/shared/InfoTooltip';
 import AiBusinessAdvisorModal from '../components/analytics/AiBusinessAdvisorModal';
@@ -589,6 +589,16 @@ export default function Reports() {
     toast.success('Tally XML vouchers generated & downloaded!');
   };
 
+  // GSTR-1 CA Summary CSV Export Handler
+  const handleExportGstr1 = () => {
+    if (!data.length) {
+      toast.error('No orders available to generate GSTR-1 summary.');
+      return;
+    }
+    downloadGstr1CSV(data, restaurant, `${restaurant?.name || 'restaurant'}_gstr1_${period}.csv`);
+    toast.success('GSTR-1 slab & B2B/B2CS summary downloaded!');
+  };
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
       {/* ── Modern Frosted Header Bar ── */}
@@ -636,15 +646,27 @@ export default function Reports() {
             <span>CSV</span>
           </button>
           {hasMode('tax_reconcile') && (
-            <button 
-              type="button"
-              className="reports-action-btn" 
-              onClick={handleExportTally} 
-              title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML"
-            >
-              <FileCode size={13} />
-              <span>Tally</span>
-            </button>
+            <>
+              <button 
+                type="button"
+                className="reports-action-btn" 
+                onClick={handleExportTally} 
+                title="Export Sales Invoices to Tally ERP 9 / TallyPrime XML"
+              >
+                <FileCode size={13} />
+                <span>Tally</span>
+              </button>
+              <button
+                type="button"
+                id="reports-export-gstr1-btn"
+                className="reports-action-btn"
+                onClick={handleExportGstr1}
+                title="Export CA-ready GSTR-1 Slab, B2B/B2CS & SAC Summary"
+              >
+                <FileSpreadsheet size={13} />
+                <span>GSTR-1</span>
+              </button>
+            </>
           )}
         </div>
       </div>

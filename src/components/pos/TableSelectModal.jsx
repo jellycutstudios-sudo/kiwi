@@ -24,7 +24,7 @@ export default function TableSelectModal({ restaurantId, currency = 'INR', table
   // Derive effective status to guarantee 100% sync with active orders
   const getEffectiveStatus = useCallback((tbl) => {
     const activeOrder = tableOrders[tbl.id];
-    const hasActiveOrder = activeOrder && !['billed', 'cancelled'].includes(activeOrder.status);
+    const hasActiveOrder = activeOrder && !['billed', 'cancelled', 'void', 'completed'].includes(activeOrder.status);
     if (hasActiveOrder) return 'occupied';
     if (tbl.status === 'reserved') return 'reserved';
     return tbl.status || 'free';

@@ -9,10 +9,12 @@ import { useOrderStore } from '../../stores/orderStore';
 import { useMenuStore } from '../../stores/menuStore';
 import { useStaffStore } from '../../stores/staffStore';
 import { useTableStore } from '../../stores/tableStore';
-import { 
-  Bell, Menu, Search, X, Download, Minimize2, Maximize2, 
-  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap, Banknote
+import {
+  Bell, Menu, Search, X, Download, Minimize2, Maximize2,
+  RefreshCw, LayoutGrid, ArrowLeft, Flame, Zap, Banknote, Languages, MoreHorizontal, Moon, Sun
 } from 'lucide-react';
+import { SUPPORTED_WAITER_LANGUAGES } from '../../utils/foodTransliteration';
+import { useThemeStore } from '../../stores/themeStore';
 import { usePosTemplate } from '../../utils/posTemplate';
 import toast from 'react-hot-toast';
 import WaiterReadySlidePopup from '../shared/WaiterReadySlidePopup';
@@ -27,17 +29,17 @@ import OfflineSyncModal from '../pos/OfflineSyncModal';
 import PwaInstallModal from '../shared/PwaInstallModal';
 
 const PAGE_TITLES = {
-  '/dashboard':         'dashboard',
-  '/pos':               'pos',
-  '/tables':            'tables',
-  '/online-orders':     'onlineOrders',
-  '/orders':            'onlineOrders',
-  '/kds':               'kitchen',
-  '/reports':           'reports',
-  '/admin/staff':       'staff',
-  '/admin/menu':        'menu',
-  '/admin/floor':       'floorPlan',
-  '/admin/settings':    'settings',
+  '/dashboard': 'dashboard',
+  '/pos': 'pos',
+  '/tables': 'tables',
+  '/online-orders': 'onlineOrders',
+  '/orders': 'onlineOrders',
+  '/kds': 'kitchen',
+  '/reports': 'reports',
+  '/admin/staff': 'staff',
+  '/admin/menu': 'menu',
+  '/admin/floor': 'floorPlan',
+  '/admin/settings': 'settings',
   '/admin/restaurants': 'restaurants',
 };
 
@@ -122,6 +124,41 @@ export default function AppShell() {
     }
   }, [isOnline]);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [showPosMoreMenu, setShowPosMoreMenu] = useState(false);
+  const posMoreMenuRef = useRef(null);
+  const effectiveTheme = useThemeStore(s => s.effectiveTheme);
+  const toggleTheme = useThemeStore(s => s.toggleTheme);
+  const isDarkTheme = effectiveTheme === 'dark';
+
+  useEffect(() => {
+    if (!showPosMoreMenu) return;
+    const handleOutside = (e) => {
+      if (posMoreMenuRef.current && !posMoreMenuRef.current.contains(e.target)) {
+        setShowPosMoreMenu(false);
+      }
+    };
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setShowPosMoreMenu(false);
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [showPosMoreMenu]);
+
+  const [waiterLang, setWaiterLang] = useState(() => {
+    try { return localStorage.getItem('kiwi_waiter_lang') || 'en'; } catch { return 'en'; }
+  });
+  const handleCycleWaiterLang = () => {
+    const idx = SUPPORTED_WAITER_LANGUAGES.findIndex(l => l.code === waiterLang);
+    const next = SUPPORTED_WAITER_LANGUAGES[(idx + 1) % SUPPORTED_WAITER_LANGUAGES.length];
+    setWaiterLang(next.code);
+    try { localStorage.setItem('kiwi_waiter_lang', next.code); } catch { }
+    window.dispatchEvent(new CustomEvent('kiwi:waiter-lang-change', { detail: next.code }));
+    toast.success(`Menu language: ${next.label}`, { id: 'pos-lang-toast', duration: 1500 });
+  };
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
   const [showInstallModal, setShowInstallModal] = useState(false);
@@ -217,10 +254,12 @@ export default function AppShell() {
     };
   }, [applyUpdate, setHasUpdate]);
 
-  // Close mobile sidebar whenever the route changes
+  const prevPathnameRef = useRef(location.pathname);
+
+  // Close mobile sidebar whenever the route actually changes
   useEffect(() => {
-    // Using a microtask defers the state update out of the synchronous render cycle,
-    // satisfying the react-hooks/set-state-in-effect rule while keeping the same UX.
+    if (prevPathnameRef.current === location.pathname) return;
+    prevPathnameRef.current = location.pathname;
     const id = setTimeout(() => setMobileSidebarOpen(false), 0);
     return () => clearTimeout(id);
   }, [location.pathname]);
@@ -242,7 +281,7 @@ export default function AppShell() {
         useAuthStore.setState({ restaurant: updated });
         try {
           localStorage.setItem(`dineos_cached_settings_${snap.id}`, JSON.stringify(updated));
-        } catch {}
+        } catch { }
       }
     });
 
@@ -266,6 +305,7 @@ export default function AppShell() {
   const isPOS = location.pathname === '/pos';
   const isKDS = location.pathname === '/kds';
   const isTableMap = location.pathname === '/tables';
+  const isFullscreenTerminal = isKDS || isTableMap;
 
   useEffect(() => {
     if (isPOS || isTableMap) {
@@ -288,19 +328,19 @@ export default function AppShell() {
   }, [isPOS, isFocusMode]);
 
   return (
-    <div className={`app-shell ${isKDS ? 'kds-app-shell' : ''}`}>
-      {!isKDS && (
-        <Sidebar 
-          collapsed={sidebarCollapsed} 
-          setCollapsed={setSidebarCollapsed} 
+    <div className={`app-shell ${isFullscreenTerminal ? 'kds-app-shell' : ''}`}>
+      {!isFullscreenTerminal && (
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          setCollapsed={setSidebarCollapsed}
           mobileOpen={mobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
         />
       )}
-      
+
       {mobileSidebarOpen && (
-        <div 
-          className="mobile-sidebar-overlay" 
+        <div
+          className="mobile-sidebar-overlay"
           onClick={() => setMobileSidebarOpen(false)}
           onTouchEnd={(e) => {
             e.preventDefault();
@@ -317,491 +357,600 @@ export default function AppShell() {
         />
       )}
 
-      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isKDS ? 'kds-main-content' : ''}`}>
+      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isFullscreenTerminal ? 'kds-main-content' : ''}`}>
         {/* Top Bar - hidden on KDS & Tables to eliminate duplicate headers */}
-        {!isKDS && !isTableMap && (
-        <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
-          {/* Burger menu button visible only on non-POS mobile/tablet */}
-          {!isPOS && (
-            <button
-              className="btn btn-secondary btn-icon burger-menu-btn"
-              onClick={() => setMobileSidebarOpen(true)}
-              id="burger-menu-btn"
-              title="Open menu"
-              aria-label="Open menu"
-              aria-expanded={mobileSidebarOpen}
-            >
-              <Menu size={20} />
-            </button>
-          )}
+        {!isFullscreenTerminal && (
+          <header className={`top-bar no-print ${isPOS ? 'pos-top-bar' : ''}`}>
+            {/* Burger menu button visible only on non-POS mobile/tablet */}
+            {!isPOS && (
+              <button
+                className="btn btn-secondary btn-icon burger-menu-btn"
+                onClick={() => setMobileSidebarOpen(true)}
+                id="burger-menu-btn"
+                title="Open menu"
+                aria-label="Open menu"
+                aria-expanded={mobileSidebarOpen}
+              >
+                <Menu size={20} />
+              </button>
+            )}
 
-          {/* Branded Logo + Menu Drawer Button on POS — 1-tap opens navigation drawer */}
-          {isPOS && (
-            <button
-              type="button"
-              className="pos-topbar-brand-btn"
-              onClick={() => setMobileSidebarOpen(prev => !prev)}
-              id="pos-topbar-brand-btn"
-              title={`${restaurant?.name || 'Rupos'} — Tap to open navigation`}
-              aria-label="Open navigation menu"
-            >
-              <Menu size={16} strokeWidth={2.2} className="pos-topbar-brand-menu-icon" />
-              <img
-                src={restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo || '/ricon.svg'}
-                alt={restaurant?.name || 'Rupos'}
-                className="pos-topbar-brand-logo"
-                onError={(e) => {
-                  if (!e.target.src.endsWith('/ricon.svg')) {
-                    e.target.src = '/ricon.svg';
-                  }
-                }}
-              />
-              <span className="pos-topbar-brand-name">
-                {restaurant?.name || 'Rupos'}
-              </span>
-            </button>
-          )}
-          
-          {!isPOS && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {location.pathname === '/tables' && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => navigate('/pos')}
-                  id="topbar-back-to-pos-btn"
-                  title="Return to POS Terminal"
-                  style={{
-                    height: '34px',
-                    padding: '0 12px',
-                    borderRadius: '8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontWeight: 700,
-                    fontSize: '12.5px',
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    borderColor: 'rgba(56, 189, 248, 0.35)',
-                    color: '#38bdf8',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <ArrowLeft size={14} strokeWidth={2.5} />
-                  <span>Back to POS</span>
-                </button>
-              )}
-              <h1 className="top-bar-title text-title3">{pageTitle}</h1>
-            </div>
-          )}
-          
-          {isPOS && (
-            <div className="pos-topbar-center">
-              {/* Back to All Categories button for Template 3 (Category Cards) */}
-              {isCategoryFirst && (!catFirstOverview || Boolean(search?.trim())) && (
-                <button
-                  type="button"
-                  id="topbar-back-to-categories-btn"
-                  className="pos-topbar-all-categories-btn"
-                  onClick={() => {
-                    setCatFirstOverview(true);
-                    setSearch('');
-                    setDietaryFilter('all');
-                  }}
-                  title="Back to all Category Cards"
-                >
-                  <ArrowLeft size={15} strokeWidth={2.5} />
-                  <span className="pos-topbar-all-cats-text">All Categories</span>
-                  <span className="pos-topbar-short-cats-text">Categories</span>
-                </button>
-              )}
-
-              {/* Search Bar - Compact & Touch-Optimized */}
-              <div className="pos-search-wrapper">
-                <Search size={14} className="pos-search-icon" />
-                <input
-                  type="search"
-                  inputMode="search"
-                  enterKeyHint="search"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  className="form-input pos-search-input"
-                  placeholder="Search menu..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      setSearch('');
-                      e.currentTarget.blur();
-                    } else if (e.key === 'Enter' && search.trim()) {
-                      e.preventDefault();
-                      window.dispatchEvent(new CustomEvent('kiwi:pos-search-enter'));
+            {/* Branded Logo + Menu Drawer Button on POS — 1-tap opens navigation drawer */}
+            {isPOS && (
+              <button
+                type="button"
+                className="pos-topbar-brand-btn"
+                onClick={() => setMobileSidebarOpen(prev => !prev)}
+                id="pos-topbar-brand-btn"
+                title={`${restaurant?.name || 'Rupos'} — Tap to open navigation`}
+                aria-label="Open navigation menu"
+              >
+                <Menu size={16} strokeWidth={2.2} className="pos-topbar-brand-menu-icon" />
+                <img
+                  src={restaurant?.receiptConfig?.logoUrl || restaurant?.logo || restaurant?.onlineLogo || '/ricon.svg'}
+                  alt={restaurant?.name || 'Rupos'}
+                  className="pos-topbar-brand-logo"
+                  onError={(e) => {
+                    if (!e.target.src.endsWith('/ricon.svg')) {
+                      e.target.src = '/ricon.svg';
                     }
                   }}
-                  id="menu-search-input"
-                  aria-label="Search menu"
                 />
-                {search && (
+                <span className="pos-topbar-brand-name">
+                  {restaurant?.name || 'Rupos'}
+                </span>
+              </button>
+            )}
+
+            {!isPOS && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {location.pathname === '/tables' && (
                   <button
                     type="button"
-                    onPointerDown={(e) => {
-                      if (e.pointerType !== 'touch' && e.button === 0) {
-                        e.preventDefault();
-                        setSearch('');
-                      }
+                    className="btn btn-secondary"
+                    onClick={() => navigate('/pos')}
+                    id="topbar-back-to-pos-btn"
+                    title="Return to POS Terminal"
+                    style={{
+                      height: '34px',
+                      padding: '0 12px',
+                      borderRadius: '8px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 700,
+                      fontSize: '12.5px',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      borderColor: 'rgba(56, 189, 248, 0.35)',
+                      color: '#38bdf8',
+                      cursor: 'pointer'
                     }}
-                    onClick={() => setSearch('')}
-                    className="pos-search-clear-btn"
-                    title="Clear search (Esc)"
-                    aria-label="Clear search"
                   >
-                    <X size={15} />
+                    <ArrowLeft size={14} strokeWidth={2.5} />
+                    <span>Back to POS</span>
                   </button>
                 )}
+                <h1 className="top-bar-title text-title3">{pageTitle}</h1>
               </div>
+            )}
 
-              {/* Top Bar Dietary Filter Pills */}
-              <div className="pos-dietary-topbar-pills" role="toolbar" aria-label="Dietary filters">
-                <button
-                  type="button"
-                  id="topbar-dietary-veg"
-                  onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
-                  className={`pos-dietary-pill veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
-                  title="Filter Vegetarian items (tap again to clear)"
-                >
-                  <span className="food-badge-veg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
-                  <span className="pos-dietary-pill-label">Veg</span>
-                </button>
-
-                <button
-                  type="button"
-                  id="topbar-dietary-nonveg"
-                  onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
-                  className={`pos-dietary-pill nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
-                  title="Filter Non-Vegetarian items (tap again to clear)"
-                >
-                  <span className="food-badge-nonveg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
-                  <span className="pos-dietary-pill-label">Non-Veg</span>
-                </button>
-
-                <button
-                  type="button"
-                  id="topbar-dietary-bestseller"
-                  onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
-                  className={`pos-dietary-pill popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
-                  title="Filter Bestseller & Popular items (tap again to clear)"
-                >
-                  <Flame size={13} />
-                  <span className="pos-dietary-pill-label">Popular</span>
-                </button>
-              </div>
-
-              {/* Priority 2: Cashier Terminal Controls (View Switcher) */}
-              <div className="pos-topbar-controls">
-                <div className="density-toggle" role="group" aria-label="Terminal view switcher">
+            {isPOS && (
+              <div className="pos-topbar-center">
+                {/* Back to All Categories button for Template 3 (Category Cards) */}
+                {isCategoryFirst && (!catFirstOverview || Boolean(search?.trim())) && (
                   <button
                     type="button"
-                    onClick={() => setMenuDensity('visual', true)}
-                    title="Visual Cards view"
-                    aria-label="Visual Cards view"
-                    className={`density-btn ${menuDensity === 'visual' ? 'active' : ''}`}
-                    id="pos-switch-cards-btn"
+                    id="topbar-back-to-categories-btn"
+                    className="pos-topbar-all-categories-btn"
+                    onClick={() => {
+                      setCatFirstOverview(true);
+                      setSearch('');
+                      setDietaryFilter('all');
+                    }}
+                    title="Back to all Category Cards"
                   >
-                    <LayoutGrid size={15} className="density-icon" />
+                    <ArrowLeft size={15} strokeWidth={2.5} />
+                    <span className="pos-topbar-all-cats-text">All Categories</span>
+                    <span className="pos-topbar-short-cats-text">Categories</span>
                   </button>
+                )}
+
+                {/* Search Bar - Compact & Touch-Optimized */}
+                <div className="pos-search-wrapper">
+                  <Search size={14} className="pos-search-icon" />
+                  <input
+                    type="search"
+                    inputMode="search"
+                    enterKeyHint="search"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="form-input pos-search-input"
+                    placeholder="Search menu or code*qty (e.g. 101*2)..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setSearch('');
+                        e.currentTarget.blur();
+                      } else if (e.key === 'Enter' && search.trim()) {
+                        e.preventDefault();
+                        window.dispatchEvent(new CustomEvent('kiwi:pos-search-enter'));
+                      }
+                    }}
+                    id="menu-search-input"
+                    aria-label="Search menu"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => {
+                        if (e.pointerType !== 'touch' && e.button === 0) {
+                          e.preventDefault();
+                          setSearch('');
+                        }
+                      }}
+                      onClick={() => setSearch('')}
+                      className="pos-search-clear-btn"
+                      title="Clear search (Esc)"
+                      aria-label="Clear search"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Top Bar Dietary Filter Pills */}
+                <div className="pos-dietary-topbar-pills" role="toolbar" aria-label="Dietary filters">
                   <button
                     type="button"
-                    onClick={() => setMenuDensity('dense', true)}
-                    title="Fast Keys view"
-                    aria-label="Fast Keys view"
-                    className={`density-btn ${menuDensity === 'dense' ? 'active' : ''}`}
-                    id="pos-switch-keys-btn"
+                    id="topbar-dietary-veg"
+                    onClick={() => setDietaryFilter(f => f === 'veg' ? 'all' : 'veg')}
+                    className={`pos-dietary-pill veg ${dietaryFilter === 'veg' ? 'active' : ''}`}
+                    title="Filter Vegetarian items (tap again to clear)"
                   >
-                    <Zap size={14} className="density-bolt-icon" />
+                    <span className="food-badge-veg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
+                    <span className="pos-dietary-pill-label">Veg</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="topbar-dietary-nonveg"
+                    onClick={() => setDietaryFilter(f => f === 'non-veg' ? 'all' : 'non-veg')}
+                    className={`pos-dietary-pill nonveg ${dietaryFilter === 'non-veg' ? 'active' : ''}`}
+                    title="Filter Non-Vegetarian items (tap again to clear)"
+                  >
+                    <span className="food-badge-nonveg" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
+                    <span className="pos-dietary-pill-label">Non-Veg</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="topbar-dietary-bestseller"
+                    onClick={() => setDietaryFilter(f => f === 'bestseller' ? 'all' : 'bestseller')}
+                    className={`pos-dietary-pill popular ${dietaryFilter === 'bestseller' ? 'active' : ''}`}
+                    title="Filter Bestseller & Popular items (tap again to clear)"
+                  >
+                    <Flame size={13} />
+                    <span className="pos-dietary-pill-label">Popular</span>
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="top-bar-actions">
-            {/* Priority 2: Till Drawer Button on POS (Cashier Shift Operation) */}
-            {isPOS && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm pos-topbar-till-btn"
-                id="till-drawer-btn"
-                onClick={() => useShiftStore.getState().setShowTillModal(true)}
-                disabled={!activeShift}
-                title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
-                style={{
-                  height: '34px',
-                  padding: '0 11px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: activeShift ? 'pointer' : 'not-allowed',
-                  opacity: activeShift ? 1 : 0.6,
-                  border: '1px solid var(--color-separator)',
-                  background: 'var(--color-bg-secondary)',
-                  color: 'var(--color-label)',
-                  flexShrink: 0
-                }}
-              >
-                <Banknote size={15} strokeWidth={2.2} />
-                <span>Till</span>
-                {activeShift && (
-                  <span
-                    className="pos-cart-till-dot"
+            <div className="top-bar-actions">
+              {/* Priority 2: Till Drawer Button on POS (Cashier Shift Operation) */}
+              {isPOS && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm pos-topbar-till-btn"
+                  id="till-drawer-btn"
+                  onClick={() => useShiftStore.getState().setShowTillModal(true)}
+                  disabled={!activeShift}
+                  title={!activeShift ? 'Open a shift first' : 'Till Drawer (Cash & Shift Management)'}
+                  style={{
+                    height: '34px',
+                    padding: '0 11px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: activeShift ? 'pointer' : 'not-allowed',
+                    opacity: activeShift ? 1 : 0.6,
+                    border: '1px solid var(--color-separator)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-label)',
+                    flexShrink: 0
+                  }}
+                >
+                  <Banknote size={15} strokeWidth={2.2} />
+                  <span>Till</span>
+                  {activeShift && (
+                    <span
+                      className="pos-cart-till-dot"
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: '#10b981',
+                        boxShadow: '0 0 6px #10b981',
+                        display: 'inline-block'
+                      }}
+                      title="Shift active"
+                    />
+                  )}
+                </button>
+              )}
+
+              {/* Direct 1-Click Update Button for Devices */}
+              {hasUpdate && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={applyUpdate}
+                  id="topbar-update-app-btn"
+                  title="A new version of DineOS is ready. Tap to update now."
+                  style={{
+                    height: '32px',
+                    padding: '0 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(135deg, #f97316, #ef4444)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <RefreshCw size={13} className={isUpdating ? 'animate-spin' : ''} />
+                  <span>{isUpdating ? 'Updating...' : 'Update Ready'}</span>
+                </button>
+              )}
+              {/* Install App button if running in browser (hidden on POS to keep cashier header clean) */}
+              {!isPOS && (canInstall || isIOS) && !isStandalone && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowInstallModal(true)}
+                  style={{
+                    height: '32px',
+                    padding: '0 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text)',
+                    cursor: 'pointer'
+                  }}
+                  title="Install DineOS as a native App"
+                  id="install-pwa-btn"
+                >
+                  <Download size={14} />
+                  <span className="desktop-only">Install</span>
+                </button>
+              )}
+
+              {/* Language selector — hidden on POS to keep cashier terminal clean and focused */}
+              {!isPOS && (
+                <div className="desktop-only" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <select
+                    id="lang-select"
+                    value={SUPPORTED_LANGS.some(l => l.code === i18n.language) ? i18n.language : 'en'}
+                    onChange={e => i18n.changeLanguage(e.target.value)}
+                    aria-label="Select interface language"
                     style={{
+                      height: '32px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text)',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      padding: '0 8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {SUPPORTED_LANGS.map(lang => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Zero-Downtime Offline Outbox, Private Sales & Network Status Pill */}
+              {(() => {
+                const isLocalOnly = Boolean(restaurant?.localStorageOnly);
+                const isPrivateSales = Boolean(restaurant?.privateSalesMode);
+
+                let borderColor = 'var(--color-border)';
+                let bgColor = 'var(--color-surface)';
+                let textColor = 'var(--color-text-secondary)';
+                let dotColor = '#22c55e';
+                let dotGlow = '0 0 6px #22c55e';
+                let statusText = 'Live Online';
+
+                if (!isOnline) {
+                  borderColor = 'rgba(245, 158, 11, 0.45)';
+                  bgColor = 'rgba(245, 158, 11, 0.14)';
+                  textColor = '#d97706';
+                  dotColor = '#f59e0b';
+                  dotGlow = '0 0 8px rgba(245, 158, 11, 0.6)';
+                  statusText = `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}`;
+                } else if (offlineQueue.length > 0) {
+                  borderColor = 'rgba(245, 158, 11, 0.45)';
+                  bgColor = 'rgba(245, 158, 11, 0.14)';
+                  textColor = '#d97706';
+                  dotColor = '#f59e0b';
+                  dotGlow = '0 0 6px #f59e0b';
+                  statusText = isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`;
+                } else if (isLocalOnly) {
+                  borderColor = 'rgba(56, 189, 248, 0.45)';
+                  bgColor = 'rgba(56, 189, 248, 0.12)';
+                  textColor = '#38bdf8';
+                  dotColor = '#38bdf8';
+                  dotGlow = '0 0 8px rgba(56, 189, 248, 0.6)';
+                  statusText = 'Local Mode';
+                } else if (isPrivateSales) {
+                  borderColor = 'rgba(16, 185, 129, 0.45)';
+                  bgColor = 'rgba(16, 185, 129, 0.12)';
+                  textColor = '#10b981';
+                  dotColor = '#10b981';
+                  dotGlow = '0 0 8px rgba(16, 185, 129, 0.6)';
+                  statusText = 'Private Sales';
+                }
+
+                // Clean state: online and 0 pending offline queue orders
+                const isClean = isOnline && offlineQueue.length === 0;
+                const useQuietPosPill = isPOS && isClean;
+
+                return (
+                  <button
+                    type="button"
+                    id="network-outbox-status-btn"
+                    className={`network-outbox-status-btn ${isClean ? 'is-clean-online' : ''}`}
+                    onClick={() => setShowOfflineModal(true)}
+                    title={isLocalOnly
+                      ? `Local-Only Mode Active — ${offlineQueue.length} order(s) stored on device. Tap to inspect.`
+                      : (isPrivateSales
+                        ? `Private Sales Mode Active — Financial records & transactions stay strictly on this device. Tap to inspect.`
+                        : (!isOnline
+                          ? `Offline Mode Active — ${offlineQueue.length} order(s) buffered locally. Tap to inspect.`
+                          : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — tap to inspect` : 'Connected to cloud server')))}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      height: useQuietPosPill ? '34px' : '38px',
+                      borderRadius: useQuietPosPill ? 'var(--radius-sm)' : '10px',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: `1px solid ${useQuietPosPill ? 'var(--color-separator)' : borderColor}`,
+                      background: useQuietPosPill ? 'var(--color-bg-secondary)' : bgColor,
+                      color: textColor,
+                      transition: 'none',
+                      flexShrink: 0
+                    }}
+                  >
+                    <span className="network-status-dot" style={{
                       width: 7,
                       height: 7,
                       borderRadius: '50%',
-                      background: '#10b981',
-                      boxShadow: '0 0 6px #10b981',
-                      display: 'inline-block'
-                    }}
-                    title="Shift active"
-                  />
-                )}
-              </button>
-            )}
+                      background: dotColor,
+                      boxShadow: dotGlow,
+                      flexShrink: 0
+                    }} />
+                    {(!isPOS || !isClean) && (
+                      <span className="network-status-text">
+                        {statusText}
+                      </span>
+                    )}
+                  </button>
+                );
+              })()}
 
-            {/* Subtle visual divider between cashier operations and system utilities */}
-            {isPOS && <div className="pos-topbar-utility-divider" aria-hidden="true" />}
-
-            {/* Priority 3: Low-frequency System Utilities (Fullscreen Focus) */}
-            {isPOS && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-icon density-expand-btn"
-                onClick={() => setIsFocusMode(!isFocusMode)}
-                title={isFocusMode ? "Exit Fullscreen Focus Mode" : "Fullscreen POS Focus Mode"}
-                aria-label={isFocusMode ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                {isFocusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              </button>
-            )}
-
-            {/* Direct 1-Click Update Button for Devices */}
-            {hasUpdate && (
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={applyUpdate}
-                id="topbar-update-app-btn"
-                title="A new version of DineOS is ready. Tap to update now."
-                style={{
-                  height: '32px',
-                  padding: '0 12px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'linear-gradient(135deg, #f97316, #ef4444)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <RefreshCw size={13} className={isUpdating ? 'animate-spin' : ''} />
-                <span>{isUpdating ? 'Updating...' : 'Update Ready'}</span>
-              </button>
-            )}
-            {/* Install App button if running in browser (hidden on POS to keep cashier header clean) */}
-            {!isPOS && (canInstall || isIOS) && !isStandalone && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowInstallModal(true)}
-                style={{
-                  height: '32px',
-                  padding: '0 10px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                  cursor: 'pointer'
-                }}
-                title="Install DineOS as a native App"
-                id="install-pwa-btn"
-              >
-                <Download size={14} />
-                <span className="desktop-only">Install</span>
-              </button>
-            )}
-
-            {/* Language selector — hidden on POS to keep cashier terminal clean and focused */}
-            {!isPOS && (
-              <div className="desktop-only" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <select
-                  id="lang-select"
-                  value={SUPPORTED_LANGS.some(l => l.code === i18n.language) ? i18n.language : 'en'}
-                  onChange={e => i18n.changeLanguage(e.target.value)}
-                  aria-label="Select interface language"
-                  style={{
-                    height: '32px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    background: 'var(--color-surface)',
-                    color: 'var(--color-text)',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    padding: '0 8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {SUPPORTED_LANGS.map(lang => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.flag} {lang.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Zero-Downtime Offline Outbox, Private Sales & Network Status Pill */}
-            {(() => {
-              const isLocalOnly = Boolean(restaurant?.localStorageOnly);
-              const isPrivateSales = Boolean(restaurant?.privateSalesMode);
-
-              let borderColor = 'var(--color-border)';
-              let bgColor = 'var(--color-surface)';
-              let textColor = 'var(--color-text-secondary)';
-              let dotColor = '#22c55e';
-              let dotGlow = '0 0 6px #22c55e';
-              let statusText = 'Live Online';
-
-              if (!isOnline) {
-                borderColor = 'rgba(245, 158, 11, 0.45)';
-                bgColor = 'rgba(245, 158, 11, 0.14)';
-                textColor = '#d97706';
-                dotColor = '#f59e0b';
-                dotGlow = '0 0 8px rgba(245, 158, 11, 0.6)';
-                statusText = `Offline${offlineQueue.length > 0 ? ` (${offlineQueue.length})` : ''}`;
-              } else if (offlineQueue.length > 0) {
-                borderColor = 'rgba(245, 158, 11, 0.45)';
-                bgColor = 'rgba(245, 158, 11, 0.14)';
-                textColor = '#d97706';
-                dotColor = '#f59e0b';
-                dotGlow = '0 0 6px #f59e0b';
-                statusText = isSyncingQueue ? `Syncing (${offlineQueue.length})` : `Outbox (${offlineQueue.length})`;
-              } else if (isLocalOnly) {
-                borderColor = 'rgba(56, 189, 248, 0.45)';
-                bgColor = 'rgba(56, 189, 248, 0.12)';
-                textColor = '#38bdf8';
-                dotColor = '#38bdf8';
-                dotGlow = '0 0 8px rgba(56, 189, 248, 0.6)';
-                statusText = 'Local Mode';
-              } else if (isPrivateSales) {
-                borderColor = 'rgba(16, 185, 129, 0.45)';
-                bgColor = 'rgba(16, 185, 129, 0.12)';
-                textColor = '#10b981';
-                dotColor = '#10b981';
-                dotGlow = '0 0 8px rgba(16, 185, 129, 0.6)';
-                statusText = 'Private Sales';
-              }
-
-              // Clean state: online and 0 pending offline queue orders
-              const isClean = isOnline && offlineQueue.length === 0;
-              const useQuietPosPill = isPOS && isClean;
-
-              return (
-                <button
-                  type="button"
-                  id="network-outbox-status-btn"
-                  className={`network-outbox-status-btn ${isClean ? 'is-clean-online' : ''}`}
-                  onClick={() => setShowOfflineModal(true)}
-                  title={isLocalOnly
-                    ? `Local-Only Mode Active — ${offlineQueue.length} order(s) stored on device. Tap to inspect.`
-                    : (isPrivateSales
-                      ? `Private Sales Mode Active — Financial records & transactions stay strictly on this device. Tap to inspect.`
-                      : (!isOnline 
-                        ? `Offline Mode Active — ${offlineQueue.length} order(s) buffered locally. Tap to inspect.` 
-                        : (offlineQueue.length > 0 ? `${offlineQueue.length} orders buffered — tap to inspect` : 'Connected to cloud server')))}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    height: useQuietPosPill ? '34px' : '38px',
-                    borderRadius: useQuietPosPill ? 'var(--radius-sm)' : '10px',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    border: `1px solid ${useQuietPosPill ? 'var(--color-separator)' : borderColor}`,
-                    background: useQuietPosPill ? 'var(--color-bg-secondary)' : bgColor,
-                    color: textColor,
-                    transition: 'none',
-                    flexShrink: 0
-                  }}
-                >
-                  <span className="network-status-dot" style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: dotColor,
-                    boxShadow: dotGlow,
-                    flexShrink: 0
-                  }} />
-                  {(!isPOS || !isClean) && (
-                    <span className="network-status-text">
-                      {statusText}
-                    </span>
+              {/* POS Topbar More / Terminal Utilities Dropdown (keeps Search wide & top bar uncrowded) */}
+              {isPOS ? (
+                <div ref={posMoreMenuRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {unreadOnlineCount > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-icon pos-topbar-bell has-unread"
+                      style={{ position: 'relative' }}
+                      onClick={() => {
+                        const count = unreadOnlineCount;
+                        markOnlineOrdersRead();
+                        toast.success(`Marked ${count} pending online orders as read.`);
+                      }}
+                      title="Unread online order notifications"
+                      aria-label={`Notifications (${unreadOnlineCount} unread)`}
+                      id="notification-bell-btn"
+                    >
+                      <Bell size={16} />
+                      <span style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: 'var(--color-red)',
+                      }} />
+                    </button>
                   )}
-                </button>
-              );
-            })()}
 
-            {/* Theme Toggle (Obsidian Dark / Light) */}
-            <div className="pos-topbar-theme-toggle">
-              <ThemeToggle />
-            </div>
+                  <button
+                    type="button"
+                    id="pos-topbar-more-btn"
+                    className={`btn btn-secondary btn-icon pos-topbar-more-btn ${(showPosMoreMenu || waiterLang !== 'en' || isFocusMode) ? 'is-non-default' : ''}`}
+                    onClick={() => setShowPosMoreMenu(v => !v)}
+                    aria-expanded={showPosMoreMenu}
+                    aria-haspopup="menu"
+                    aria-label="More terminal options"
+                    title="View mode, Fullscreen, Language, Theme & Notifications"
+                  >
+                    <MoreHorizontal size={17} />
+                  </button>
 
-            {/* Notification bell (Alerts only on mobile POS if unread orders exist) */}
-            <button
-              className={`btn btn-secondary btn-icon pos-topbar-bell ${unreadOnlineCount > 0 ? 'has-unread' : ''}`}
-              style={{ position: 'relative' }}
-              onClick={() => {
-                if (unreadOnlineCount > 0) {
-                  const count = unreadOnlineCount;
-                  markOnlineOrdersRead();
-                  toast.success(`Marked ${count} pending online orders as read.`);
-                } else {
-                  toast('You don\'t have any new notifications.');
-                }
-              }}
-              title="Notifications"
-              aria-label={`Notifications ${unreadOnlineCount > 0 ? `(${unreadOnlineCount} unread)` : ''}`}
-              id="notification-bell-btn"
-            >
-              <Bell size={16} />
-              {unreadOnlineCount > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  top: 4,
-                  right: 4,
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: 'var(--color-red)',
-                }} />
+                  {showPosMoreMenu && (
+                    <div className="pos-more-dropdown" role="menu" aria-label="Terminal options">
+                      {/* Menu Layout Segmented Switch */}
+                      <div className="pos-more-section-label">Menu Layout</div>
+                      <div className="pos-more-layout-switch">
+                        <button
+                          type="button"
+                          id="pos-switch-cards-btn"
+                          onClick={() => { setMenuDensity('visual', true); setShowPosMoreMenu(false); }}
+                          className={`pos-more-layout-btn ${menuDensity === 'visual' ? 'active' : ''}`}
+                        >
+                          <LayoutGrid size={14} />
+                          <span>Visual Cards</span>
+                        </button>
+                        <button
+                          type="button"
+                          id="pos-switch-keys-btn"
+                          onClick={() => { setMenuDensity('dense', true); setShowPosMoreMenu(false); }}
+                          className={`pos-more-layout-btn ${menuDensity === 'dense' ? 'active' : ''}`}
+                        >
+                          <Zap size={14} />
+                          <span>Fast Keys</span>
+                        </button>
+                      </div>
+
+                      <div className="pos-more-divider" />
+
+                      {/* Fullscreen Focus */}
+                      <button
+                        type="button"
+                        className="pos-more-item"
+                        role="menuitem"
+                        onClick={() => { setIsFocusMode(!isFocusMode); setShowPosMoreMenu(false); }}
+                      >
+                        <span className="pos-more-item-left">
+                          {isFocusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                          <span>{isFocusMode ? 'Exit Fullscreen' : 'Fullscreen Mode'}</span>
+                        </span>
+                        <span className="pos-more-pill">{isFocusMode ? 'ON' : 'OFF'}</span>
+                      </button>
+
+                      {/* Menu Language */}
+                      <button
+                        type="button"
+                        id="pos-waiter-lang-btn"
+                        className="pos-more-item"
+                        role="menuitem"
+                        onClick={handleCycleWaiterLang}
+                      >
+                        <span className="pos-more-item-left">
+                          <Languages size={15} />
+                          <span>Menu Language</span>
+                        </span>
+                        <span className="pos-more-pill">
+                          {SUPPORTED_WAITER_LANGUAGES.find(l => l.code === waiterLang)?.label || 'English'}
+                        </span>
+                      </button>
+
+                      {/* Theme */}
+                      <button
+                        type="button"
+                        id="pos-more-theme-btn"
+                        className="pos-more-item"
+                        role="menuitem"
+                        onClick={() => {
+                          toggleTheme();
+                          toast(`${isDarkTheme ? 'Light' : 'Dark'} mode enabled`, { icon: isDarkTheme ? '☀️' : '🌙', id: 'theme-toast', duration: 2000 });
+                        }}
+                      >
+                        <span className="pos-more-item-left">
+                          {isDarkTheme ? <Sun size={15} /> : <Moon size={15} />}
+                          <span>{isDarkTheme ? 'Switch to Light' : 'Switch to Dark'}</span>
+                        </span>
+                        <span className="pos-more-pill">{isDarkTheme ? 'Dark' : 'Light'}</span>
+                      </button>
+
+                      {/* Notifications */}
+                      <button
+                        type="button"
+                        id={unreadOnlineCount > 0 ? 'pos-more-notifications-btn' : 'notification-bell-btn'}
+                        className="pos-more-item"
+                        role="menuitem"
+                        onClick={() => {
+                          setShowPosMoreMenu(false);
+                          if (unreadOnlineCount > 0) {
+                            const count = unreadOnlineCount;
+                            markOnlineOrdersRead();
+                            toast.success(`Marked ${count} pending online orders as read.`);
+                          } else {
+                            toast('You don\'t have any new notifications.');
+                          }
+                        }}
+                      >
+                        <span className="pos-more-item-left">
+                          <Bell size={15} />
+                          <span>Notifications</span>
+                        </span>
+                        <span className="pos-more-pill">
+                          {unreadOnlineCount > 0 ? `${unreadOnlineCount} new` : 'Clear'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Theme Toggle (Obsidian Dark / Light) */}
+                  <div className="pos-topbar-theme-toggle">
+                    <ThemeToggle />
+                  </div>
+
+                  {/* Notification bell */}
+                  <button
+                    className={`btn btn-secondary btn-icon pos-topbar-bell ${unreadOnlineCount > 0 ? 'has-unread' : ''}`}
+                    style={{ position: 'relative' }}
+                    onClick={() => {
+                      if (unreadOnlineCount > 0) {
+                        const count = unreadOnlineCount;
+                        markOnlineOrdersRead();
+                        toast.success(`Marked ${count} pending online orders as read.`);
+                      } else {
+                        toast('You don\'t have any new notifications.');
+                      }
+                    }}
+                    title="Notifications"
+                    aria-label={`Notifications ${unreadOnlineCount > 0 ? `(${unreadOnlineCount} unread)` : ''}`}
+                    id="notification-bell-btn"
+                  >
+                    <Bell size={16} />
+                    {unreadOnlineCount > 0 && (
+                      <span style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: 'var(--color-red)',
+                      }} />
+                    )}
+                  </button>
+                </>
               )}
-            </button>
-          </div>
-        </header>
+            </div>
+          </header>
         )}
 
         {/* Page content */}

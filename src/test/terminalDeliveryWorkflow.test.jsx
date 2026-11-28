@@ -29,11 +29,16 @@ describe('Terminal Delivery Workflow & Safety Logic', () => {
     expect(useOrderStore.getState().assignedRiderName).toBeNull();
   });
 
-  it('POS prompts for delivery details on Checkout and Kitchen dispatch with Skip support', () => {
-    // Checkout & Kitchen dispatch guards with skipDeliveryCheck bypass
-    expect(posJsx).toContain("if (orderType === 'delivery' && !skipDeliveryCheck) {");
+  it('integrates delivery details into PaymentModal and avoids double prompts on dropdown/checkout', () => {
+    // Switching to Delivery mode does not force-open CustomerModal immediately
+    expect(posJsx).toContain('setDeliveryInfoSkipped(false)');
+    expect(posJsx).toContain('!deliveryInfoSkipped');
+    // Kitchen dispatch prompts at most once with Skip support
     expect(posJsx).toContain("toast('Enter customer phone & address or tap Skip'");
-    expect(posJsx).toContain('allowSkip={Boolean(pendingDeliveryAction)}');
+    expect(posJsx).toContain("allowSkip={orderType === 'delivery' || Boolean(pendingDeliveryAction)}");
+    // PaymentModal embeds inline editable Delivery inputs so Pay is a single popup
+    expect(paymentModalJsx).toContain('id="delivery-phone-input"');
+    expect(paymentModalJsx).toContain('id="delivery-address-input"');
   });
 
   it('POS displays prominent delivery destination bar with quick edit action', () => {

@@ -305,6 +305,80 @@ describe('Multi-Format Print & Auto-Detection Suite', () => {
       expect(html).toContain('Takeaway (Pickup)');
       expect(html).not.toContain('Token #');
     });
+
+    it('separates base item rate and priced addon charges on browser receipts and A4 invoices', () => {
+      const addonItems = [
+        {
+          name: 'Buffalo Wings',
+          qty: 1,
+          price: 360,
+          selectedModifiers: [{ id: 'mod_mayo', name: 'Mayo', priceAdd: 10 }]
+        }
+      ];
+
+      printReceiptBrowser({
+        restaurant: restaurantWithoutToken,
+        order: { id: 'ORD-ADDON-1', type: 'takeaway', total: 360, paymentMethod: 'cash' },
+        items: addonItems,
+        taxInfo: { lines: [] },
+        staffName: 'Cashier',
+        paperSize: '80mm'
+      });
+      const receiptHtml = mockDocumentWrite.mock.calls[0][0];
+      expect(receiptHtml).toContain('Buffalo Wings');
+      expect(receiptHtml).toContain('350.00');
+      expect(receiptHtml).toContain('+ Mayo');
+      expect(receiptHtml).toContain('10.00');
+
+      mockDocumentWrite.mockClear();
+      printInvoiceA4({
+        restaurant: restaurantWithoutToken,
+        order: { id: 'ORD-ADDON-1', type: 'takeaway', total: 360, paymentMethod: 'cash' },
+        items: addonItems,
+        taxInfo: { lines: [] },
+        staffName: 'Cashier'
+      });
+      const invoiceHtml = mockDocumentWrite.mock.calls[0][0];
+      expect(invoiceHtml).toContain('Buffalo Wings');
+      expect(invoiceHtml).toContain('350.00');
+      expect(invoiceHtml).toContain('+ Mayo');
+      expect(invoiceHtml).toContain('10.00');
+    });
+
+    it('prints clean minimal thermal bill for pickup, unpaid pre-bill, and token slip delivery mode', () => {
+      printReceiptBrowser({
+        restaurant: restaurantWithToken,
+        order: {
+          id: 'ORD-PICKUP-99',
+          type: 'pickup',
+          token: '19',
+          subtotal: 200,
+          total: 200,
+          paymentMethod: 'UNPAID',
+        },
+        items: [{ name: 'Cold Brew', qty: 1, price: 200 }],
+        taxInfo: { lines: [] },
+        staffName: 'Sam',
+        paperSize: '80mm',
+      });
+
+      const pickupHtml = mockDocumentWrite.mock.calls[0][0];
+      expect(pickupHtml).toContain('Takeaway · Token: #19');
+      expect(pickupHtml).toContain('PRE-BILL · PAYMENT DUE');
+      expect(pickupHtml).toContain('Thank you for your order!');
+      expect(pickupHtml).not.toContain('Online');
+
+      mockDocumentWrite.mockClear();
+      printTokenTicket({
+        token: '77',
+        orderType: 'delivery',
+        customerName: 'Zara',
+        restaurant: restaurantWithToken,
+      });
+      const tokenHtml = mockDocumentWrite.mock.calls[0][0];
+      expect(tokenHtml).toContain('077');
+      expect(tokenHtml).toContain('Delivery');
+    });
   });
 });
 

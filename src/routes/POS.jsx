@@ -22,7 +22,7 @@ import {
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift,
-  MapPin, Languages
+  MapPin
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -47,7 +47,7 @@ import { hapticTap } from '../utils/soundNotifications';
 import { transliterateFood, SUPPORTED_WAITER_LANGUAGES } from '../utils/foodTransliteration';
 import { getItemVisuals } from '../utils/itemVisuals';
 import { getCategoryChromaticColors } from '../utils/categoryColors';
-import { extractDietaryFromQuery, scoreMenuItemMatch } from '../utils/posSearch';
+import { extractDietaryFromQuery, parsePosSearchQuery, scoreMenuItemMatch } from '../utils/posSearch';
 
 const POS_CATEGORY_THEMES = [
   'pos-cat-theme-amber',
@@ -391,7 +391,7 @@ export default function POS() {
     tableId, tableName, setTable,
     customerName, customerPhone, setCustomer,
     note, setNote,
-    getSubtotal, getTaxInfo, getTotal,
+    getSubtotal, getPackagingAmount, getRoundOffAmount, getTaxInfo, getTotal,
     submitOrder,
     paymentMethod,
     setPaymentMethod,
@@ -406,6 +406,8 @@ export default function POS() {
     billPrinted, markBillPrinted,
     heldOrders, holdCurrentOrder, resumeHeldOrder, discardHeldOrder, clearAllHeldOrders,
     isComplimentary, setComplimentary,
+    packagingWaived, togglePackagingWaived,
+    customerGstin, setCustomerGstin,
     assignedWaiterId, assignedWaiterName, setAssignedWaiter
   } = useOrderStore(
     useShallow((state) => ({
@@ -425,6 +427,8 @@ export default function POS() {
       note: state.note,
       setNote: state.setNote,
       getSubtotal: state.getSubtotal,
+      getPackagingAmount: state.getPackagingAmount,
+      getRoundOffAmount: state.getRoundOffAmount,
       getTaxInfo: state.getTaxInfo,
       getTotal: state.getTotal,
       submitOrder: state.submitOrder,
@@ -461,6 +465,10 @@ export default function POS() {
       isComplimentary: Boolean(state.isComplimentary),
       setComplimentary: state.setComplimentary,
       complimentaryReason: state.complimentaryReason,
+      packagingWaived: Boolean(state.packagingWaived),
+      togglePackagingWaived: state.togglePackagingWaived,
+      customerGstin: state.customerGstin || '',
+      setCustomerGstin: state.setCustomerGstin,
       assignedWaiterId: state.assignedWaiterId || null,
       assignedWaiterName: state.assignedWaiterName || null,
       setAssignedWaiter: state.setAssignedWaiter
@@ -621,14 +629,13 @@ export default function POS() {
     }
   });
 
-  const cycleWaiterLang = useCallback(() => {
-    hapticTap('light');
-    const idx = SUPPORTED_WAITER_LANGUAGES.findIndex(l => l.code === waiterLang);
-    const next = SUPPORTED_WAITER_LANGUAGES[(idx + 1) % SUPPORTED_WAITER_LANGUAGES.length];
-    setWaiterLang(next.code);
-    try { localStorage.setItem('kiwi_waiter_lang', next.code); } catch { }
-    toast.success(`Menu language: ${next.label}`, { id: 'pos-lang-toast', duration: 1500 });
-  }, [waiterLang]);
+  useEffect(() => {
+    const handleLangChange = (e) => {
+      if (e?.detail) setWaiterLang(e.detail);
+    };
+    window.addEventListener('kiwi:waiter-lang-change', handleLangChange);
+    return () => window.removeEventListener('kiwi:waiter-lang-change', handleLangChange);
+  }, []);
 
   // Battery conservation: Screen wake lock active on fixed counter POS; allowed to sleep on mobile handhelds
   useWakeLock(!isEffectiveHandheld);
@@ -675,7 +682,14 @@ export default function POS() {
   }, [activeOrders]);
 
   const runningOrders = useMemo(() => {
-    return (activeOrders || []).filter(o => o.status !== 'billed' && o.status !== 'cancelled');
+    return (activeOrders || []).filter(o => {
+      if (['billed', 'cancelled', 'void'].includes(o.status)) return false;
+      const pm = String(o.paymentMethod || '').toLowerCase().trim();
+      const isPaid = o.paid === true || o.isComplimentary === true || Boolean(pm && pm !== 'unpaid' && !pm.includes('unpaid'));
+      if (o.status === 'completed' && isPaid) return false;
+      if (isPaid && o.type !== 'dine-in' && ['pending', 'preparing'].includes(o.status)) return false;
+      return true;
+    });
   }, [activeOrders]);
 
   const readyOrdersCount = useMemo(() => {
@@ -755,12 +769,16 @@ export default function POS() {
   useEffect(() => {
     if (items.length === 0) {
       // Defer to avoid synchronous setState-in-effect lint rule
-      const id = setTimeout(() => setMobileCartOpen(false), 0);
+      const id = setTimeout(() => {
+        setMobileCartOpen(false);
+        setDeliveryInfoSkipped(false);
+      }, 0);
       return () => clearTimeout(id);
     }
   }, [items.length]);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [pendingDeliveryAction, setPendingDeliveryAction] = useState(null); // 'checkout' | 'kitchen' | null
+  const [deliveryInfoSkipped, setDeliveryInfoSkipped] = useState(false);
   const [modalInitialPhone, setModalInitialPhone] = useState('');
   const [showTotalsBreakdown, setShowTotalsBreakdown] = useState(false);
   const [showOffersDrawer, setShowOffersDrawer] = useState(false);
@@ -865,8 +883,16 @@ export default function POS() {
 
   const subtotal = getSubtotal();
   const discountAmount = getDiscountAmount();
+  const packagingAmount = getPackagingAmount ? getPackagingAmount(restaurant) : 0;
   const taxInfo = getTaxInfo(restaurant);
+  const roundOffAmount = getRoundOffAmount ? getRoundOffAmount(restaurant) : 0;
   const total = getTotal(restaurant);
+  const isPackagingModeActive = Boolean(
+    !isComplimentary &&
+    ['takeaway', 'delivery'].includes(orderType) &&
+    restaurant?.workflowConfig?.packagingConfig?.mode &&
+    restaurant.workflowConfig.packagingConfig.mode !== 'none'
+  );
   const settledTotal = useMemo(() => {
     return (settledChecks || []).reduce((sum, c) => sum + (Number(c.total) || 0), 0);
   }, [settledChecks]);
@@ -1458,7 +1484,7 @@ export default function POS() {
     let cleanSearchQuery = '';
 
     if (searchStr) {
-      const extracted = extractDietaryFromQuery(searchStr);
+      const extracted = parsePosSearchQuery(searchStr);
       if (extracted.effectiveDietary) {
         effectiveDietary = extracted.effectiveDietary;
       }
@@ -1534,18 +1560,32 @@ export default function POS() {
     return filtered;
   }, [categories, activeCat, activeSubCat, search, dietaryFilter, itemSalesMap, activeOffers]);
 
-  // Pressing Enter/Go in POS search adds the #1 matched item (or opens modifiers) and clears search
+  // Pressing Enter/Go in POS search adds the #1 matched item (supporting code*qty like "101*3") and clears search
   useEffect(() => {
     const handleSearchEnter = () => {
       const topItem = displayItems[0];
       if (!topItem || topItem.available === false) return;
+      const { qty } = parsePosSearchQuery(search);
       const hasModifiers = Boolean(topItem.modifierGroups && topItem.modifierGroups.length > 0);
-      handleActivateCard(topItem, hasModifiers);
+      if (hasModifiers) {
+        handleActivateCard(topItem, true);
+      } else {
+        handleActivateCard({ ...topItem, qty }, false);
+        if (qty > 1) {
+          toast.success(`Added ${qty} × ${topItem.name}`, { id: 'pos-qty-add', duration: 1500 });
+        }
+      }
       setSearch('');
+      setTimeout(() => {
+        const input = document.getElementById('menu-search-input');
+        if (input && document.activeElement !== input && !hasModifiers) {
+          input.focus();
+        }
+      }, 0);
     };
     window.addEventListener('kiwi:pos-search-enter', handleSearchEnter);
     return () => window.removeEventListener('kiwi:pos-search-enter', handleSearchEnter);
-  }, [displayItems, handleActivateCard, setSearch]);
+  }, [displayItems, handleActivateCard, search, setSearch]);
 
   // Group displayItems into category sections when on "All Items" or multi-category views (Toast POS / Square standard)
   // When an active text query is typed, keep results sorted by relevance so the #1 match is immediately at the top-left!
@@ -1691,28 +1731,16 @@ export default function POS() {
 
   const [tableSelAction, setTableSelAction] = useState('select');
 
-  const handleCheckout = async (opts = {}) => {
+  const handleCheckout = async () => {
     if (!items.length) return;
-    const skipDeliveryCheck = opts?.skipDeliveryCheck === true;
-    if (orderType === 'delivery' && !skipDeliveryCheck) {
-      const activePhone = customer?.phone || customerPhone;
-      const activeAddress = customer?.address || customer?.deliveryAddress;
-      if (!activePhone || !activeAddress) {
-        hapticTap('light');
-        toast('Enter customer phone & address or tap Skip', { duration: 3500, icon: '🛵' });
-        setPendingDeliveryAction('checkout');
-        setShowCustomerModal(true);
-        return { needsDeliveryInfo: true };
-      }
-    }
     if (isComplimentary) {
       setPaymentMethod('complimentary');
       const res = await submitOrder(restaurant, staffDoc?.id);
       if (res.ok) {
         hapticTap('success');
         toast.success('Order settled as Complimentary (NC)!', { icon: '🎁' });
-        if (orderType === 'dine-in' && tableId) {
-          useTableStore.getState().freeTable(tableId);
+        if (orderType === 'dine-in' && tableId && restaurant?.id) {
+          useTableStore.getState().freeTable(restaurant.id, tableId);
         }
         clearCart();
       } else {
@@ -1739,10 +1767,10 @@ export default function POS() {
       setShowTableSel(true);
       return { needsTable: true };
     }
-    if (orderType === 'delivery' && !skipDeliveryCheck) {
+    if (orderType === 'delivery' && !skipDeliveryCheck && !deliveryInfoSkipped) {
       const activePhone = customer?.phone || customerPhone;
       const activeAddress = customer?.address || customer?.deliveryAddress;
-      if (!activePhone || !activeAddress) {
+      if (!activePhone && !activeAddress) {
         hapticTap('light');
         toast('Enter customer phone & address or tap Skip', { duration: 3500, icon: '🛵' });
         setPendingDeliveryAction('kitchen');
@@ -1786,7 +1814,7 @@ export default function POS() {
     // Print kitchen tickets (KOT) only when not in display-only (KDS paperless) mode
     const shouldPrintKot = snapOrderType === 'dine-in'
       ? (kitchenConfig?.autoPrintOnDineIn !== false)
-      : Boolean(kitchenConfig?.autoPrintOnTakeaway);
+      : (kitchenConfig?.autoPrintOnTakeaway !== false);
 
     if (kitchenMode !== 'display_only' && kitchenMode !== 'disabled' && shouldPrintKot) {
       setTimeout(() => {
@@ -1825,6 +1853,7 @@ export default function POS() {
       token: modes.includes('token') ? tokenNumber : null,
       customerName,
       customerPhone,
+      customerGstin: customerGstin || customer?.gstin || '',
       subtotal,
       discount,
       discountType,
@@ -1833,6 +1862,8 @@ export default function POS() {
       promoDiscount: storeState.promoDiscount ?? 0,
       pointsDiscount: storeState.pointsDiscount ?? 0,
       serviceChargeAmount: storeState.serviceChargeAmount ?? 0,
+      packagingAmount,
+      roundOffAmount,
       giftCardCode,
       giftCardDeduction,
       total,
@@ -1915,7 +1946,7 @@ export default function POS() {
 
       // If QSR mode — issue token (if not already set)
       let token = modes.includes('token') ? tokenNumber : null;
-      if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'dine-in') && !token) {
+      if (modes.includes('token') && (orderType === 'takeaway' || orderType === 'delivery' || orderType === 'dine-in') && !token) {
         token = await issueToken(restaurant.id);
         setToken(token);
       }
@@ -1926,12 +1957,20 @@ export default function POS() {
       const snapTableName = tableName;
       const snapCustomerName = customerName || (customer?.name ?? '');
       const snapCustomerPhone = customerPhone || (customer?.phone ?? '');
+      const snapCustomerGstin = customerGstin || (customer?.gstin ?? '');
       const snapSubtotal = subtotal;
       const snapDiscount = discount;
       const snapDiscountType = discountType;
       const snapDiscountAmount = discountAmount;
+      const snapPackagingAmount = packagingAmount;
+      const snapRoundOffAmount = roundOffAmount;
       const snapTotal = total;
-      const snapPaymentMethod = paymentMethod;
+      const rawMethod = useOrderStore.getState().paymentMethod;
+      const safePaymentMethod = (!rawMethod || String(rawMethod).toLowerCase().includes('unpaid')) ? 'cash' : rawMethod;
+      if (safePaymentMethod !== rawMethod) {
+        useOrderStore.getState().setPaymentMethod(safePaymentMethod);
+      }
+      const snapPaymentMethod = safePaymentMethod;
       const snapOrderState = useOrderStore.getState();
       const snapSplitPayments = snapOrderState.splitPayments ?? [];
       const snapTipAmount = snapOrderState.tipAmount ?? 0;
@@ -1952,6 +1991,8 @@ export default function POS() {
 
       if (res.isOffline) {
         toast.success(modes.includes('token') && (res.token || token) ? `Payment buffered offline (#${res.token || token})! Tickets printing...` : `Payment buffered offline! Tickets printing...`, { id: toastId, duration: 4500 });
+      } else if (snapPaymentMethod === 'khata') {
+        toast.success(`Added to Khata (${snapCustomerName || snapCustomerPhone || 'Customer'})`, { id: toastId, icon: '📒' });
       } else {
         toast.success('Payment completed & order placed!', { id: toastId });
       }
@@ -1991,6 +2032,7 @@ export default function POS() {
         isOffline: Boolean(res.isOffline),
         customerName: snapCustomerName,
         customerPhone: snapCustomerPhone,
+        customerGstin: snapCustomerGstin,
         subtotal: snapSubtotal,
         discount: snapDiscount,
         discountType: snapDiscountType,
@@ -1999,6 +2041,8 @@ export default function POS() {
         promoDiscount: snapPromoDiscount,
         pointsDiscount: snapPointsDiscount,
         serviceChargeAmount: snapServiceCharge,
+        packagingAmount: snapPackagingAmount,
+        roundOffAmount: snapRoundOffAmount,
         total: snapTotal,
         paymentMethod: snapPaymentMethod,
         splitPayments: snapSplitPayments,
@@ -2034,14 +2078,47 @@ export default function POS() {
           });
         }
 
-        if (modes.includes('token') && token) {
-          printTokenTicket({ token, orderType: snapOrderType, customerName: snapCustomerName, restaurant });
+        const issuedToken = res.token || token;
+        if (modes.includes('token') && issuedToken) {
+          printTokenTicket({ token: issuedToken, orderType: snapOrderType, customerName: snapCustomerName, restaurant, isOffline: Boolean(res.isOffline) });
         }
       }, 50);
     } catch (err) {
       toast.error(err.message || 'Error processing payment', { id: toastId });
     }
   };
+
+  // Counter Speed Hotkeys: F2 Cash, F3 UPI QR, F4 Fire KOT, F8 Pre-Bill, F9 Orders
+  useEffect(() => {
+    const handleFunctionHotkeys = (e) => {
+      if (!['F2', 'F3', 'F4', 'F8', 'F9'].includes(e.key)) return;
+      if (showPayment || showCustomerModal || showVoidModal || showActiveOrdersModal || activeModifierItem || showSplitBillModal || showTableSel) return;
+      e.preventDefault();
+      if (e.key === 'F9') {
+        setShowActiveOrdersModal(true);
+        return;
+      }
+      if (!items.length) {
+        toast('Add items to cart first', { id: 'pos-hotkey-empty', duration: 1500 });
+        return;
+      }
+      if (e.key === 'F2') {
+        setPaymentMethod('cash');
+        handleCheckout();
+      } else if (e.key === 'F3') {
+        setPaymentMethod('upi');
+        useOrderStore.setState({ paymentMethod: 'upi' });
+        setShowPayment(true);
+      } else if (e.key === 'F4') {
+        if (isKitchenActive) handleSendToKitchen();
+        else handleCheckout();
+      } else if (e.key === 'F8') {
+        handlePrintPreBill();
+      }
+    };
+    window.addEventListener('keydown', handleFunctionHotkeys);
+    return () => window.removeEventListener('keydown', handleFunctionHotkeys);
+  });
 
   const handleOrderTypeChange = (newType) => {
     if (editingOrderId && orderType !== newType) {
@@ -2050,11 +2127,9 @@ export default function POS() {
     }
     hapticTap('light');
     setOrderType(newType);
+    setDeliveryInfoSkipped(false);
     if (newType === 'delivery' || newType === 'takeaway') {
       setTable(null, null);
-    }
-    if (newType === 'delivery' && !customerPhone && !customer?.address) {
-      setShowCustomerModal(true);
     }
   };
 
@@ -2261,41 +2336,41 @@ export default function POS() {
                   </button>
                 )}
 
-                {/* Active Orders Pill */}
-                {runningOrders.length > 0 && (
-                  <button
-                    type="button"
-                    className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
-                    id="pos-pinned-active-orders-btn"
-                    onClick={() => {
-                      if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                      else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                      else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                      else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                      else setActiveOrdersFilter('all');
-                      setShowActiveOrdersModal(true);
-                    }}
-                    title="View active kitchen tickets, takeaway & settlement pass"
-                  >
-                    {readyOrdersCount > 0 ? (
-                      <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
-                    ) : (
-                      <FileText size={15} className="pos-op-pill-icon" />
-                    )}
-                    <span className="pos-op-pill-title">
-                      {readyOrdersCount > 0
-                        ? `${readyOrdersCount} Ready`
-                        : pendingOnlineOrdersCount > 0
-                          ? `${pendingOnlineOrdersCount} Online`
-                          : `${runningOrders.length} Running`}
-                    </span>
-                    {readyOrdersCount > 0 ? (
-                      <span className="pos-op-pulse-dot" />
-                    ) : (
-                      <span className="pos-op-live-dot" title="Active kitchen orders running" />
-                    )}
-                  </button>
-                )}
+                {/* Always-visible Orders Pill right below Floor Map (prevents rail jump & keeps Paid/Voids 1-tap away) */}
+                <button
+                  type="button"
+                  className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : runningOrders.length === 0 ? 'is-idle' : ''}`}
+                  id="pos-pinned-active-orders-btn"
+                  onClick={() => {
+                    if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                    else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                    else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                    else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                    else setActiveOrdersFilter('all');
+                    setShowActiveOrdersModal(true);
+                  }}
+                  title="Orders (Open Tickets, Paid Bills & Voids — F9)"
+                >
+                  {readyOrdersCount > 0 ? (
+                    <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                  ) : (
+                    <FileText size={15} className="pos-op-pill-icon" />
+                  )}
+                  <span className="pos-op-pill-title">
+                    {readyOrdersCount > 0
+                      ? `${readyOrdersCount} Ready`
+                      : pendingOnlineOrdersCount > 0
+                        ? `${pendingOnlineOrdersCount} Online`
+                        : runningOrders.length > 0
+                          ? `Orders (${runningOrders.length})`
+                          : 'Orders'}
+                  </span>
+                  {readyOrdersCount > 0 ? (
+                    <span className="pos-op-pulse-dot" />
+                  ) : runningOrders.length > 0 ? (
+                    <span className="pos-op-live-dot" title="Active kitchen orders running" />
+                  ) : null}
+                </button>
 
                 {/* Pinned Category Grid Launcher (Desktop Template 1 + Mobile Popup Opener for all templates) */}
                 <button
@@ -2315,21 +2390,6 @@ export default function POS() {
                   </span>
                   <span className="pos-op-cat-count">{categories.length}</span>
                   <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: -2 }} />
-                </button>
-
-                {/* Waiter / Staff Menu Language Switcher (English / Malayalam / Hindi) */}
-                <button
-                  type="button"
-                  className="pos-op-card"
-                  id="pos-waiter-lang-btn"
-                  onClick={cycleWaiterLang}
-                  title="Switch menu language (English / Malayalam / Hindi)"
-                  style={waiterLang !== 'en' ? { borderColor: 'var(--color-accent)', color: 'var(--color-accent)' } : undefined}
-                >
-                  <Languages size={14} className="pos-op-pill-icon" />
-                  <span className="pos-op-pill-title">
-                    {SUPPORTED_WAITER_LANGUAGES.find(l => l.code === waiterLang)?.native || 'EN'}
-                  </span>
                 </button>
               </div>
               {!isBistro && <div className="pos-bar-divider" />}
@@ -2447,7 +2507,7 @@ export default function POS() {
             {isShowingCategoryCards ? (
               <div className="pos-category-cards-container">
                 {/* Quick Operations & Utility Pill Bar (Option A: Slim, Touch-Friendly, Never Truncates) */}
-                <div className={`pos-operations-strip ${runningOrders.length === 0 ? 'has-two-cards' : ''}`}>
+                <div className="pos-operations-strip">
                   {/* 1. Floor Map / Tables Pill */}
                   {((restaurant?.features?.table || modes.includes('table')) && !isBillOnly) && (
                     <button
@@ -2464,41 +2524,41 @@ export default function POS() {
                     </button>
                   )}
 
-                  {/* 2. Active Orders Pill */}
-                  {runningOrders.length > 0 && (
-                    <button
-                      type="button"
-                      className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : ''}`}
-                      id="cat-card-active-orders"
-                      onClick={() => {
-                        if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
-                        else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
-                        else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
-                        else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
-                        else setActiveOrdersFilter('all');
-                        setShowActiveOrdersModal(true);
-                      }}
-                      title="View active kitchen tickets, takeaway & settlement pass"
-                    >
-                      {readyOrdersCount > 0 ? (
-                        <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
-                      ) : (
-                        <FileText size={15} className="pos-op-pill-icon" />
-                      )}
-                      <span className="pos-op-pill-title">
-                        {readyOrdersCount > 0
-                          ? `${readyOrdersCount} Ready`
-                          : pendingOnlineOrdersCount > 0
-                            ? `${pendingOnlineOrdersCount} Online`
-                            : `${runningOrders.length} Running`}
-                      </span>
-                      {readyOrdersCount > 0 ? (
-                        <span className="pos-op-pulse-dot" />
-                      ) : (
-                        <span className="pos-op-live-dot" title="Active kitchen orders running" />
-                      )}
-                    </button>
-                  )}
+                  {/* 2. Always-visible Orders Pill */}
+                  <button
+                    type="button"
+                    className={`pos-op-card pos-op-card--orders ${readyOrdersCount > 0 ? 'pos-op-card--orders-ready' : runningOrders.length === 0 ? 'is-idle' : ''}`}
+                    id="cat-card-active-orders"
+                    onClick={() => {
+                      if (readyOrdersCount > 0) setActiveOrdersFilter('ready');
+                      else if (pendingOnlineOrdersCount > 0) setActiveOrdersFilter('online');
+                      else if (onlineOrdersCount > 0 && onlineOrdersCount === runningOrders.length) setActiveOrdersFilter('online');
+                      else if (takeawayOrdersCount > 0 && takeawayOrdersCount === runningOrders.length) setActiveOrdersFilter('takeaway');
+                      else setActiveOrdersFilter('all');
+                      setShowActiveOrdersModal(true);
+                    }}
+                    title="Orders (Open Tickets, Paid Bills & Voids — F9)"
+                  >
+                    {readyOrdersCount > 0 ? (
+                      <Bell size={15} className="pos-op-pill-icon has-ready-bell" />
+                    ) : (
+                      <FileText size={15} className="pos-op-pill-icon" />
+                    )}
+                    <span className="pos-op-pill-title">
+                      {readyOrdersCount > 0
+                        ? `${readyOrdersCount} Ready`
+                        : pendingOnlineOrdersCount > 0
+                          ? `${pendingOnlineOrdersCount} Online`
+                          : runningOrders.length > 0
+                            ? `Orders (${runningOrders.length})`
+                            : 'Orders'}
+                    </span>
+                    {readyOrdersCount > 0 ? (
+                      <span className="pos-op-pulse-dot" />
+                    ) : runningOrders.length > 0 ? (
+                      <span className="pos-op-live-dot" title="Active kitchen orders running" />
+                    ) : null}
+                  </button>
 
                   {/* 3. Custom Item Pill */}
                   <button
@@ -3170,29 +3230,31 @@ export default function POS() {
               </button>
             )}
 
-            {/* 5. Clear Cart Button (only when cart has items) */}
+            {/* 5. Clear Cart Button (fixed 38px slot; expands inward on confirm so it never clips) */}
             {items.length > 0 && (
-              <button
-                type="button"
-                className={`cart-unified-clear-cart-btn ${confirmClearCart ? 'is-confirming' : ''}`}
-                onClick={() => {
-                  if (!confirmClearCart) {
-                    hapticTap('light');
-                    setConfirmClearCart(true);
-                    setTimeout(() => setConfirmClearCart(false), 3000);
-                  } else {
-                    hapticTap('medium');
-                    clearCart();
-                    setConfirmClearCart(false);
-                  }
-                }}
-                id="clear-cart-btn"
-                title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear active cart items'}
-                aria-label="Clear active cart items"
-              >
-                <Trash2 size={16} strokeWidth={confirmClearCart ? 2.5 : 2} />
-                {confirmClearCart && <span className="cart-unified-clear-label">Clear?</span>}
-              </button>
+              <div className="cart-unified-clear-slot">
+                <button
+                  type="button"
+                  className={`cart-unified-clear-cart-btn ${confirmClearCart ? 'is-confirming' : ''}`}
+                  onClick={() => {
+                    if (!confirmClearCart) {
+                      hapticTap('light');
+                      setConfirmClearCart(true);
+                      setTimeout(() => setConfirmClearCart(false), 3000);
+                    } else {
+                      hapticTap('medium');
+                      clearCart();
+                      setConfirmClearCart(false);
+                    }
+                  }}
+                  id="clear-cart-btn"
+                  title={confirmClearCart ? 'Click again to confirm clearing all items' : 'Clear active cart items'}
+                  aria-label="Clear active cart items"
+                >
+                  <Trash2 size={16} strokeWidth={confirmClearCart ? 2.5 : 2} />
+                  {confirmClearCart && <span className="cart-unified-clear-label">Clear?</span>}
+                </button>
+              </div>
             )}
           </div>
 
@@ -3777,6 +3839,31 @@ export default function POS() {
                       <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.amount, currency)}</span>
                     </div>
                   ))}
+                  {(packagingAmount > 0 || (isPackagingModeActive && packagingWaived)) && (
+                    <div className="cart-total-row" style={{ fontSize: '11.5px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        Packaging
+                        <button
+                          type="button"
+                          onClick={() => { hapticTap('light'); togglePackagingWaived(); }}
+                          style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, border: '1px solid var(--color-separator)', background: 'rgba(255,255,255,0.06)', color: packagingWaived ? '#10b981' : '#f59e0b', cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          {packagingWaived ? '+ Re-add' : 'Waive'}
+                        </button>
+                      </span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', textDecoration: packagingWaived ? 'line-through' : 'none', opacity: packagingWaived ? 0.55 : 1 }}>
+                        {formatCurrency(packagingAmount, currency)}
+                      </span>
+                    </div>
+                  )}
+                  {Math.abs(roundOffAmount) > 0 && (
+                    <div className="cart-total-row" style={{ fontSize: '11.5px', color: 'var(--color-label-secondary)' }}>
+                      <span>Round Off</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {roundOffAmount > 0 ? `+${formatCurrency(roundOffAmount, currency)}` : `-${formatCurrency(Math.abs(roundOffAmount), currency)}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -3902,6 +3989,33 @@ export default function POS() {
                   </button>
                 )}
 
+                {/* 1-Tap Packaging Waive / Restore Chip (Takeaway & Delivery when active) */}
+                {isPackagingModeActive && (packagingAmount > 0 || packagingWaived) && (
+                  packagingWaived ? (
+                    <button
+                      type="button"
+                      id="pos-packaging-restore-btn"
+                      className="cart-addon-micro-btn"
+                      onClick={() => { hapticTap('light'); togglePackagingWaived(); }}
+                      title="Restore auto packaging charge"
+                    >
+                      + Pack
+                    </button>
+                  ) : (
+                    <div className="cart-addon-micro-chip" id="pos-packaging-chip">
+                      <span style={{ cursor: 'default' }}>Pack {formatCurrency(packagingAmount, currency)}</span>
+                      <button
+                        type="button"
+                        className="cart-addon-remove"
+                        onClick={() => { hapticTap('light'); togglePackagingWaived(); }}
+                        title="Waive packaging charge (1-tap)"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  )
+                )}
+
                 {/* Complimentary NC Pill (Fast-toggle 1-tap, replaces awkward floating checkbox) */}
                 {isComplimentary ? (
                   <div
@@ -4001,61 +4115,78 @@ export default function POS() {
             </div>
           )}
 
-          {/* Action Buttons */}
+          {/* Action Buttons (Option 1 Smart Context Swap: Hold on new cart, Bill on active loaded order) */}
           {isKitchenActive ? (
             <div
               className="cart-action-buttons"
               style={{
                 display: 'grid',
-                gridTemplateColumns: orderType === 'dine-in'
-                  ? '40px 40px minmax(68px, 1fr) minmax(105px, 1.35fr)'
-                  : orderType === 'takeaway' && !isComplimentary
-                    ? '40px minmax(62px, 0.9fr) minmax(88px, 1.15fr) minmax(92px, 1.2fr)'
-                    : '40px minmax(75px, 1fr) minmax(115px, 1.4fr)',
+                gridTemplateColumns: orderType === 'takeaway' && !isComplimentary
+                  ? 'minmax(62px, 0.72fr) minmax(70px, 0.88fr) minmax(92px, 1.15fr) minmax(98px, 1.25fr)'
+                  : 'minmax(68px, 0.78fr) minmax(80px, 1fr) minmax(115px, 1.45fr)',
                 gap: 6,
                 padding: '10px 10px 14px',
                 boxSizing: 'border-box',
                 width: '100%'
               }}
             >
-              {orderType === 'dine-in' && (
+              {editingOrderId ? (
                 <button
                   className="btn btn-secondary btn-sm"
                   id="print-prebill-btn"
                   onClick={handlePrintPreBill}
                   disabled={!items.length}
                   type="button"
-                  style={{ width: 40, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                  title="Print Customer Bill / Pre-Bill Check"
+                  style={{
+                    minWidth: 0,
+                    height: 44,
+                    padding: '0 8px',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 750,
+                    color: billPrinted ? '#38bdf8' : undefined,
+                    borderColor: billPrinted ? 'rgba(56, 189, 248, 0.45)' : undefined,
+                    background: billPrinted ? 'rgba(56, 189, 248, 0.12)' : undefined
+                  }}
+                  title={billPrinted ? 'Pre-bill already printed. Tap to reprint.' : 'Print Customer Bill / Pre-Bill Check (F8)'}
                   aria-label="Print Customer Bill"
                 >
-                  <Printer size={18} />
+                  <Printer size={15} style={{ flexShrink: 0 }} />
+                  <span>{billPrinted ? 'Bill ✓' : 'Bill'}</span>
+                </button>
+              ) : (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  id="hold-order-btn"
+                  onClick={handleHoldOrder}
+                  disabled={!items.length}
+                  type="button"
+                  style={{
+                    minWidth: 0,
+                    height: 44,
+                    padding: '0 8px',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 750,
+                    color: '#f59e0b',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderColor: 'rgba(245, 158, 11, 0.3)'
+                  }}
+                  title="Hold / Park Order (Resume anytime)"
+                  aria-label="Hold Order"
+                >
+                  <PauseCircle size={15} style={{ flexShrink: 0 }} />
+                  <span>Hold</span>
                 </button>
               )}
-              <button
-                className="btn btn-secondary btn-sm"
-                id="hold-order-btn"
-                onClick={handleHoldOrder}
-                disabled={!items.length}
-                type="button"
-                style={{
-                  width: 40,
-                  height: 44,
-                  padding: 0,
-                  borderRadius: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  color: '#f59e0b',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  borderColor: 'rgba(245, 158, 11, 0.3)'
-                }}
-                title="Hold / Park Order (Resume anytime)"
-                aria-label="Hold Order"
-              >
-                <PauseCircle size={18} />
-              </button>
               <button
                 className="cart-action-btn-kitchen"
                 id="send-to-kitchen-btn"
@@ -4147,49 +4278,70 @@ export default function POS() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '40px 40px 1fr',
+                gridTemplateColumns: 'minmax(74px, 0.75fr) 1fr',
                 gap: 6,
                 padding: '10px 10px 14px',
                 boxSizing: 'border-box',
                 width: '100%'
               }}
             >
-              <button
-                className="btn btn-secondary"
-                id="print-prebill-btn"
-                onClick={handlePrintPreBill}
-                disabled={!items.length}
-                type="button"
-                style={{ width: 40, height: 44, padding: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                title="Print Customer Bill / Pre-Bill Check"
-                aria-label="Print Customer Bill"
-              >
-                <Printer size={18} />
-              </button>
-              <button
-                className="btn btn-secondary"
-                id="hold-order-btn"
-                onClick={handleHoldOrder}
-                disabled={!items.length}
-                type="button"
-                style={{
-                  width: 40,
-                  height: 44,
-                  padding: 0,
-                  borderRadius: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  color: '#f59e0b',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  borderColor: 'rgba(245, 158, 11, 0.3)'
-                }}
-                title="Hold / Park Order (Resume anytime)"
-                aria-label="Hold Order"
-              >
-                <PauseCircle size={18} />
-              </button>
+              {editingOrderId ? (
+                <button
+                  className="btn btn-secondary"
+                  id="print-prebill-btn"
+                  onClick={handlePrintPreBill}
+                  disabled={!items.length}
+                  type="button"
+                  style={{
+                    minWidth: 0,
+                    height: 44,
+                    padding: '0 8px',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    fontSize: 12.5,
+                    fontWeight: 750,
+                    color: billPrinted ? '#38bdf8' : undefined,
+                    borderColor: billPrinted ? 'rgba(56, 189, 248, 0.45)' : undefined,
+                    background: billPrinted ? 'rgba(56, 189, 248, 0.12)' : undefined
+                  }}
+                  title={billPrinted ? 'Pre-bill already printed. Tap to reprint.' : 'Print Customer Bill / Pre-Bill Check (F8)'}
+                  aria-label="Print Customer Bill"
+                >
+                  <Printer size={16} style={{ flexShrink: 0 }} />
+                  <span>{billPrinted ? 'Bill ✓' : 'Bill'}</span>
+                </button>
+              ) : (
+                <button
+                  className="btn btn-secondary"
+                  id="hold-order-btn"
+                  onClick={handleHoldOrder}
+                  disabled={!items.length}
+                  type="button"
+                  style={{
+                    minWidth: 0,
+                    height: 44,
+                    padding: '0 8px',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    fontSize: 12.5,
+                    fontWeight: 750,
+                    color: '#f59e0b',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderColor: 'rgba(245, 158, 11, 0.3)'
+                  }}
+                  title="Hold / Park Order (Resume anytime)"
+                  aria-label="Hold Order"
+                >
+                  <PauseCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>Hold</span>
+                </button>
+              )}
               <button
                 className="cart-checkout-btn"
                 id="checkout-btn"
@@ -4243,7 +4395,11 @@ export default function POS() {
                 currentCartItems.forEach(cartItem => {
                   const match = merged.find(m =>
                     m.id === cartItem.id &&
-                    JSON.stringify(m.selectedModifiers || []) === JSON.stringify(cartItem.selectedModifiers || [])
+                    JSON.stringify(m.selectedModifiers || []) === JSON.stringify(cartItem.selectedModifiers || []) &&
+                    (m.seatNumber ?? null) === (cartItem.seatNumber ?? null) &&
+                    (m.course ?? 'Mains') === (cartItem.course ?? 'Mains') &&
+                    Boolean(m.isTakeaway) === Boolean(cartItem.isTakeaway) &&
+                    (m.itemNote || '') === (cartItem.itemNote || '')
                   );
                   if (match) {
                     match.qty += cartItem.qty;
@@ -4440,6 +4596,7 @@ export default function POS() {
         <CustomerModal
           isOpen={showCustomerModal}
           onClose={() => {
+            if (orderType === 'delivery') setDeliveryInfoSkipped(true);
             setShowCustomerModal(false);
             setPendingDeliveryAction(null);
             setModalInitialPhone('');
@@ -4449,9 +4606,10 @@ export default function POS() {
           customer={customer}
           customerName={customerName}
           customerPhone={customerPhone}
-          allowSkip={Boolean(pendingDeliveryAction)}
+          allowSkip={orderType === 'delivery' || Boolean(pendingDeliveryAction)}
           onSkip={() => {
             const action = pendingDeliveryAction;
+            setDeliveryInfoSkipped(true);
             setShowCustomerModal(false);
             setPendingDeliveryAction(null);
             setModalInitialPhone('');
@@ -4463,8 +4621,10 @@ export default function POS() {
           }}
           onAttach={(profile) => {
             const action = pendingDeliveryAction;
+            setDeliveryInfoSkipped(false);
             setCustomerProfile(profile);
             setCustomer(profile.name || 'Customer', profile.phone);
+            setCustomerGstin(profile.gstin || '');
             setCustSearch('');
             setModalInitialPhone('');
             setPendingDeliveryAction(null);
@@ -4477,6 +4637,7 @@ export default function POS() {
           onDetach={() => {
             setCustomerProfile(null);
             setCustomer('', '');
+            setCustomerGstin('');
             setCustSearch('');
             setModalInitialPhone('');
           }}
@@ -5090,370 +5251,370 @@ export default function POS() {
                   const effectiveSuccessTotal = dayEndOverview.success.total > 0 ? dayEndOverview.success.total : totalSalesAmt;
 
                   return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* 2-Step Day End Stepper */}
-                    <div className="dayend-stepper">
-                      <button
-                        type="button"
-                        onClick={() => setDayEndCloseStep('overview')}
-                        className={`dayend-step ${dayEndCloseStep === 'overview' ? 'active' : 'done'}`}
-                      >
-                        <span className="dayend-step-num">1</span>
-                        <span>Day End Overview</span>
-                      </button>
-                      <span className="dayend-step-sep">›</span>
-                      <button
-                        type="button"
-                        onClick={() => setDayEndCloseStep('cash')}
-                        className={`dayend-step ${dayEndCloseStep === 'cash' ? 'active' : ''}`}
-                      >
-                        <span className="dayend-step-num">2</span>
-                        <span>Cash Count &amp; Finalize</span>
-                      </button>
-                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {/* 2-Step Day End Stepper */}
+                      <div className="dayend-stepper">
+                        <button
+                          type="button"
+                          onClick={() => setDayEndCloseStep('overview')}
+                          className={`dayend-step ${dayEndCloseStep === 'overview' ? 'active' : 'done'}`}
+                        >
+                          <span className="dayend-step-num">1</span>
+                          <span>Day End Overview</span>
+                        </button>
+                        <span className="dayend-step-sep">›</span>
+                        <button
+                          type="button"
+                          onClick={() => setDayEndCloseStep('cash')}
+                          className={`dayend-step ${dayEndCloseStep === 'cash' ? 'active' : ''}`}
+                        >
+                          <span className="dayend-step-num">2</span>
+                          <span>Cash Count &amp; Finalize</span>
+                        </button>
+                      </div>
 
-                    {dayEndCloseStep === 'overview' ? (
-                      <>
-                        {openTabsList.length > 0 && (
-                          <div className="dayend-warning-banner">
+                      {dayEndCloseStep === 'overview' ? (
+                        <>
+                          {openTabsList.length > 0 && (
+                            <div className="dayend-warning-banner">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                                <div>
+                                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f59e0b' }}>
+                                    {openTabsList.length} Open Unpaid Tab{openTabsList.length > 1 ? 's' : ''} ({formatCurrency(openTabsTotal, currency)})
+                                  </div>
+                                  <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
+                                    Settle or close open dining tables before finalizing day end.
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                onClick={() => {
+                                  setShowTillModal(false);
+                                  setShowActiveOrdersModal(true);
+                                }}
+                                style={{ flexShrink: 0, height: 28, fontSize: 11, fontWeight: 700 }}
+                              >
+                                View Orders
+                              </button>
+                            </div>
+                          )}
+
+                          {/* 4-Card Order Status Breakdown */}
+                          <div className="dayend-grid">
+                            <div className="dayend-card dayend-card--success">
+                              <div className="dayend-card-label">Success Orders</div>
+                              <div className="dayend-card-val">
+                                {dayEndOverview.loading ? '...' : formatCurrency(effectiveSuccessTotal, currency)}
+                              </div>
+                              <div className="dayend-card-sub">
+                                Orders: <strong>{effectiveSuccessCount}</strong>
+                              </div>
+                            </div>
+
+                            <div className="dayend-card dayend-card--cancelled">
+                              <div className="dayend-card-label">Cancelled / Void</div>
+                              <div className="dayend-card-val">
+                                {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.cancelled.total, currency)}
+                              </div>
+                              <div className="dayend-card-sub">
+                                Orders: <strong>{dayEndOverview.cancelled.count}</strong>
+                              </div>
+                            </div>
+
+                            <div className="dayend-card dayend-card--comp">
+                              <div className="dayend-card-label">Complimentary</div>
+                              <div className="dayend-card-val">
+                                {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.complimentary.total, currency)}
+                              </div>
+                              <div className="dayend-card-sub">
+                                Orders: <strong>{dayEndOverview.complimentary.count}</strong>
+                              </div>
+                            </div>
+
+                            <div className="dayend-card dayend-card--refund">
+                              <div className="dayend-card-label">Refunds / Returns</div>
+                              <div className="dayend-card-val">
+                                {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.refunded.total, currency)}
+                              </div>
+                              <div className="dayend-card-sub">
+                                Orders: <strong>{dayEndOverview.refunded.count}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Payment Breakdown Summary */}
+                          <div className="till-card" style={{ padding: '12px 14px' }}>
+                            <div className="till-card-header" style={{ marginBottom: 8 }}>
+                              <span>Order Payment Details</span>
+                              <span style={{ fontSize: 10.5, opacity: 0.8 }}>{totalOrdersCount} Paid</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                              <div className="dayend-pay-pill">
+                                <span>Cash ({activeShift?.cashSalesCount || 0})</span>
+                                <strong style={{ color: 'var(--color-green)' }}>{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}</strong>
+                              </div>
+                              <div className="dayend-pay-pill">
+                                <span>Card ({activeShift?.cardSalesCount || 0})</span>
+                                <strong>{formatCurrency(activeShift?.cardSalesAmount || 0, currency)}</strong>
+                              </div>
+                              <div className="dayend-pay-pill">
+                                <span>UPI / QR ({activeShift?.upiSalesCount || 0})</span>
+                                <strong>{formatCurrency(activeShift?.upiSalesAmount || 0, currency)}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setDayEndCloseStep('cash')}
+                            className="btn btn-primary"
+                            style={{
+                              width: '100%', height: 44, borderRadius: 12,
+                              fontSize: 13.5, fontWeight: 700,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                            }}
+                          >
+                            <span>Proceed to Cash Count →</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {/* Header Banner */}
+                          <div style={{
+                            background: 'rgba(239, 68, 68, 0.06)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: 12, padding: '10px 14px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10
+                          }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                              <Lock size={18} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
                               <div>
-                                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f59e0b' }}>
-                                  {openTabsList.length} Open Unpaid Tab{openTabsList.length > 1 ? 's' : ''} ({formatCurrency(openTabsTotal, currency)})
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
+                                  Close Register &amp; Count Cash
                                 </div>
                                 <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                                  Settle or close open dining tables before finalizing day end.
+                                  Count the physical cash in drawer to reconcile against system sales.
                                 </div>
                               </div>
                             </div>
                             <button
                               type="button"
                               className="btn btn-secondary btn-xs"
-                              onClick={() => {
-                                setShowTillModal(false);
-                                setShowActiveOrdersModal(true);
-                              }}
-                              style={{ flexShrink: 0, height: 28, fontSize: 11, fontWeight: 700 }}
+                              onClick={() => setDayEndCloseStep('overview')}
+                              style={{ flexShrink: 0, height: 28, fontSize: 11, fontWeight: 600 }}
                             >
-                              View Orders
+                              ← Overview
                             </button>
                           </div>
-                        )}
 
-                        {/* 4-Card Order Status Breakdown */}
-                        <div className="dayend-grid">
-                          <div className="dayend-card dayend-card--success">
-                            <div className="dayend-card-label">Success Orders</div>
-                            <div className="dayend-card-val">
-                              {dayEndOverview.loading ? '...' : formatCurrency(effectiveSuccessTotal, currency)}
-                            </div>
-                            <div className="dayend-card-sub">
-                              Orders: <strong>{effectiveSuccessCount}</strong>
-                            </div>
-                          </div>
-
-                          <div className="dayend-card dayend-card--cancelled">
-                            <div className="dayend-card-label">Cancelled / Void</div>
-                            <div className="dayend-card-val">
-                              {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.cancelled.total, currency)}
-                            </div>
-                            <div className="dayend-card-sub">
-                              Orders: <strong>{dayEndOverview.cancelled.count}</strong>
-                            </div>
-                          </div>
-
-                          <div className="dayend-card dayend-card--comp">
-                            <div className="dayend-card-label">Complimentary</div>
-                            <div className="dayend-card-val">
-                              {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.complimentary.total, currency)}
-                            </div>
-                            <div className="dayend-card-sub">
-                              Orders: <strong>{dayEndOverview.complimentary.count}</strong>
-                            </div>
-                          </div>
-
-                          <div className="dayend-card dayend-card--refund">
-                            <div className="dayend-card-label">Refunds / Returns</div>
-                            <div className="dayend-card-val">
-                              {dayEndOverview.loading ? '...' : formatCurrency(dayEndOverview.refunded.total, currency)}
-                            </div>
-                            <div className="dayend-card-sub">
-                              Orders: <strong>{dayEndOverview.refunded.count}</strong>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Payment Breakdown Summary */}
-                        <div className="till-card" style={{ padding: '12px 14px' }}>
-                          <div className="till-card-header" style={{ marginBottom: 8 }}>
-                            <span>Order Payment Details</span>
-                            <span style={{ fontSize: 10.5, opacity: 0.8 }}>{totalOrdersCount} Paid</span>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-                            <div className="dayend-pay-pill">
-                              <span>Cash ({activeShift?.cashSalesCount || 0})</span>
-                              <strong style={{ color: 'var(--color-green)' }}>{formatCurrency(activeShift?.cashSalesAmount || 0, currency)}</strong>
-                            </div>
-                            <div className="dayend-pay-pill">
-                              <span>Card ({activeShift?.cardSalesCount || 0})</span>
-                              <strong>{formatCurrency(activeShift?.cardSalesAmount || 0, currency)}</strong>
-                            </div>
-                            <div className="dayend-pay-pill">
-                              <span>UPI / QR ({activeShift?.upiSalesCount || 0})</span>
-                              <strong>{formatCurrency(activeShift?.upiSalesAmount || 0, currency)}</strong>
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setDayEndCloseStep('cash')}
-                          className="btn btn-primary"
-                          style={{
-                            width: '100%', height: 44, borderRadius: 12,
-                            fontSize: 13.5, fontWeight: 700,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                          }}
-                        >
-                          <span>Proceed to Cash Count →</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {/* Header Banner */}
-                        <div style={{
-                          background: 'rgba(239, 68, 68, 0.06)',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          borderRadius: 12, padding: '10px 14px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Lock size={18} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
+                          {/* Step 1: Expected Reference */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: 'var(--color-bg-secondary)', padding: '11px 15px',
+                            borderRadius: 11, border: '1px solid var(--color-separator)'
+                          }}>
                             <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-red)' }}>
-                                Close Register &amp; Count Cash
+                              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)', letterSpacing: '0.04em' }}>
+                                System Expected Cash
                               </div>
-                              <div style={{ fontSize: 11, color: 'var(--color-label-secondary)' }}>
-                                Count the physical cash in drawer to reconcile against system sales.
+                              <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 1 }}>
+                                Opening Float + Cash Sales - Outflows
                               </div>
                             </div>
+                            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--color-label)' }}>
+                              {formatCurrency(expectedCash, currency)}
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-xs"
-                            onClick={() => setDayEndCloseStep('overview')}
-                            style={{ flexShrink: 0, height: 28, fontSize: 11, fontWeight: 600 }}
-                          >
-                            ← Overview
-                          </button>
-                        </div>
 
-                    {/* Step 1: Expected Reference */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: 'var(--color-bg-secondary)', padding: '11px 15px',
-                      borderRadius: 11, border: '1px solid var(--color-separator)'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)', letterSpacing: '0.04em' }}>
-                          System Expected Cash
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)', marginTop: 1 }}>
-                          Opening Float + Cash Sales - Outflows
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--color-label)' }}>
-                        {formatCurrency(expectedCash, currency)}
-                      </div>
-                    </div>
-
-                    {/* Step 2: Physical Counted Cash Input */}
-                    <div style={{
-                      background: 'var(--color-bg-secondary)', padding: '14px 16px',
-                      borderRadius: 14, border: '1px solid var(--color-separator)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
-                            Step 2 · Enter Physical Counted Cash
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
-                            Type drawer total directly, or open the note breakdown helper
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowDenomCounter(!showDenomCounter)}
-                          style={{
-                            padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600,
-                            background: showDenomCounter ? 'rgba(0,122,255,0.1)' : 'var(--color-card)',
-                            color: showDenomCounter ? 'var(--color-primary)' : 'var(--color-label-secondary)',
-                            border: '1px solid var(--color-separator)', cursor: 'pointer'
-                          }}
-                        >
-                          {showDenomCounter ? 'Hide Counter' : 'Denomination Helper'}
-                        </button>
-                      </div>
-
-                      <div style={{ position: 'relative', marginTop: 10 }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Enter physical cash (e.g. 22890.50)"
-                          value={closeCountedCash}
-                          onChange={e => setCloseCountedCash(e.target.value)}
-                          style={{
-                            width: '100%', height: 48, borderRadius: 12,
-                            border: '1.5px solid var(--color-separator)', background: 'var(--color-card)',
-                            fontSize: 20, fontWeight: 800, textAlign: 'center',
-                            color: 'var(--color-label)', boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-
-                      {/* Interactive Denomination Calculator Grid */}
-                      {showDenomCounter && (
-                        <div style={{
-                          marginTop: 12, paddingTop: 12,
-                          borderTop: '1px solid var(--color-separator)'
-                        }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', marginBottom: 8 }}>
-                            Count per denomination (auto-sums above):
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-                            {[500, 200, 100, 50, 20, 10].map(d => (
-                              <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>₹{d}</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  placeholder="qty"
-                                  value={denominations[d] || ''}
-                                  onChange={e => updateDenom(d, e.target.value)}
-                                  style={{
-                                    width: '100%', height: 32, padding: '0 8px', borderRadius: 6,
-                                    border: '1px solid var(--color-separator)', background: 'var(--color-card)',
-                                    fontSize: 12, textAlign: 'center'
-                                  }}
-                                />
+                          {/* Step 2: Physical Counted Cash Input */}
+                          <div style={{
+                            background: 'var(--color-bg-secondary)', padding: '14px 16px',
+                            borderRadius: 14, border: '1px solid var(--color-separator)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)' }}>
+                                  Step 2 · Enter Physical Counted Cash
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--color-label-tertiary)' }}>
+                                  Type drawer total directly, or open the note breakdown helper
+                                </div>
                               </div>
-                            ))}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                              <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>Coins</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowDenomCounter(!showDenomCounter)}
+                                style={{
+                                  padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600,
+                                  background: showDenomCounter ? 'rgba(0,122,255,0.1)' : 'var(--color-card)',
+                                  color: showDenomCounter ? 'var(--color-primary)' : 'var(--color-label-secondary)',
+                                  border: '1px solid var(--color-separator)', cursor: 'pointer'
+                                }}
+                              >
+                                {showDenomCounter ? 'Hide Counter' : 'Denomination Helper'}
+                              </button>
+                            </div>
+
+                            <div style={{ position: 'relative', marginTop: 10 }}>
                               <input
                                 type="number"
-                                min="0"
-                                step="0.5"
-                                placeholder="₹ total"
-                                value={denominations.coins || ''}
-                                onChange={e => updateDenom('coins', e.target.value)}
+                                step="0.01"
+                                placeholder="Enter physical cash (e.g. 22890.50)"
+                                value={closeCountedCash}
+                                onChange={e => setCloseCountedCash(e.target.value)}
                                 style={{
-                                  width: '100%', height: 32, padding: '0 8px', borderRadius: 6,
-                                  border: '1px solid var(--color-separator)', background: 'var(--color-card)',
-                                  fontSize: 12, textAlign: 'center'
+                                  width: '100%', height: 48, borderRadius: 12,
+                                  border: '1.5px solid var(--color-separator)', background: 'var(--color-card)',
+                                  fontSize: 20, fontWeight: 800, textAlign: 'center',
+                                  color: 'var(--color-label)', boxSizing: 'border-box'
                                 }}
                               />
                             </div>
+
+                            {/* Interactive Denomination Calculator Grid */}
+                            {showDenomCounter && (
+                              <div style={{
+                                marginTop: 12, paddingTop: 12,
+                                borderTop: '1px solid var(--color-separator)'
+                              }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-label-secondary)', marginBottom: 8 }}>
+                                  Count per denomination (auto-sums above):
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                                  {[500, 200, 100, 50, 20, 10].map(d => (
+                                    <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>₹{d}</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="qty"
+                                        value={denominations[d] || ''}
+                                        onChange={e => updateDenom(d, e.target.value)}
+                                        style={{
+                                          width: '100%', height: 32, padding: '0 8px', borderRadius: 6,
+                                          border: '1px solid var(--color-separator)', background: 'var(--color-card)',
+                                          fontSize: 12, textAlign: 'center'
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                    <span style={{ fontSize: 11.5, fontWeight: 700, width: 44, color: 'var(--color-label)' }}>Coins</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.5"
+                                      placeholder="₹ total"
+                                      value={denominations.coins || ''}
+                                      onChange={e => updateDenom('coins', e.target.value)}
+                                      style={{
+                                        width: '100%', height: 32, padding: '0 8px', borderRadius: 6,
+                                        border: '1px solid var(--color-separator)', background: 'var(--color-card)',
+                                        fontSize: 12, textAlign: 'center'
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
+
+                          {/* Step 3: Variance Status Banner */}
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)', marginBottom: 6 }}>
+                              Step 3 · Reconciliation Status
+                            </div>
+
+                            {!hasCountedInput ? (
+                              <div style={{
+                                padding: '12px 16px', borderRadius: 12,
+                                background: 'var(--color-bg-secondary)', border: '1px dashed var(--color-separator)',
+                                display: 'flex', alignItems: 'center', gap: 10
+                              }}>
+                                <span style={{ fontSize: 18 }}>ℹ️</span>
+                                <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
+                                  Enter counted physical cash above to calculate drawer variance.
+                                </span>
+                              </div>
+                            ) : variance === 0 ? (
+                              <div style={{
+                                padding: '14px 16px', borderRadius: 12,
+                                background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.3)',
+                                display: 'flex', alignItems: 'center', gap: 12
+                              }}>
+                                <Check size={22} color="var(--color-green)" strokeWidth={3} />
+                                <div>
+                                  <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-green)' }}>
+                                    Perfect Match (₹0.00 Variance)
+                                  </div>
+                                  <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                                    Physical counted cash perfectly balances with all system sales.
+                                  </div>
+                                </div>
+                              </div>
+                            ) : variance < 0 ? (
+                              <div style={{
+                                padding: '14px 16px', borderRadius: 12,
+                                background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)',
+                                display: 'flex', alignItems: 'center', gap: 12
+                              }}>
+                                <AlertTriangle size={22} color="var(--color-red)" />
+                                <div>
+                                  <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-red)' }}>
+                                    Cash Shortage: -{formatCurrency(Math.abs(variance), currency)}
+                                  </div>
+                                  <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                                    The physical drawer is missing {formatCurrency(Math.abs(variance), currency)}. Please recount or verify if an unrecorded cash payout occurred.
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{
+                                padding: '14px 16px', borderRadius: 12,
+                                background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.3)',
+                                display: 'flex', alignItems: 'center', gap: 12
+                              }}>
+                                <Clock size={22} color="#e68a00" />
+                                <div>
+                                  <div style={{ fontSize: 13.5, fontWeight: 800, color: '#e68a00' }}>
+                                    Cash Surplus: +{formatCurrency(variance, currency)}
+                                  </div>
+                                  <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
+                                    The physical drawer contains {formatCurrency(variance, currency)} more than registered. Check if tips or float were added.
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Destructive Shift Close Button */}
+                          <div style={{ marginTop: 6 }}>
+                            <button
+                              type="button"
+                              onClick={handleCloseShiftSubmit}
+                              disabled={closingShift || !hasCountedInput}
+                              style={{
+                                width: '100%', height: 48, borderRadius: 14,
+                                background: (!hasCountedInput || closingShift) ? 'var(--color-bg-secondary)' : 'var(--color-red)',
+                                color: (!hasCountedInput || closingShift) ? 'var(--color-label-tertiary)' : '#fff',
+                                border: 'none', cursor: (!hasCountedInput || closingShift) ? 'not-allowed' : 'pointer',
+                                fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em',
+                                boxShadow: (!hasCountedInput || closingShift) ? 'none' : '0 4px 12px rgba(255,59,48,0.35)',
+                                transition: 'all 0.2s ease',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                              }}
+                            >
+                              {closingShift ? 'Finalizing & Printing Z-Report...' : 'Close Shift & Print Z-Report'}
+                            </button>
+                            <p style={{ fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '8px 0 0' }}>
+                              This permanently closes the active shift, prints the Z-Report audit, and resets the register for the next cashier.
+                            </p>
+                          </div>
+                        </>
                       )}
                     </div>
-
-                    {/* Step 3: Variance Status Banner */}
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-label-secondary)', marginBottom: 6 }}>
-                        Step 3 · Reconciliation Status
-                      </div>
-
-                      {!hasCountedInput ? (
-                        <div style={{
-                          padding: '12px 16px', borderRadius: 12,
-                          background: 'var(--color-bg-secondary)', border: '1px dashed var(--color-separator)',
-                          display: 'flex', alignItems: 'center', gap: 10
-                        }}>
-                          <span style={{ fontSize: 18 }}>ℹ️</span>
-                          <span style={{ fontSize: 12, color: 'var(--color-label-secondary)' }}>
-                            Enter counted physical cash above to calculate drawer variance.
-                          </span>
-                        </div>
-                      ) : variance === 0 ? (
-                        <div style={{
-                          padding: '14px 16px', borderRadius: 12,
-                          background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.3)',
-                          display: 'flex', alignItems: 'center', gap: 12
-                        }}>
-                          <Check size={22} color="var(--color-green)" strokeWidth={3} />
-                          <div>
-                            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-green)' }}>
-                              Perfect Match (₹0.00 Variance)
-                            </div>
-                            <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                              Physical counted cash perfectly balances with all system sales.
-                            </div>
-                          </div>
-                        </div>
-                      ) : variance < 0 ? (
-                        <div style={{
-                          padding: '14px 16px', borderRadius: 12,
-                          background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)',
-                          display: 'flex', alignItems: 'center', gap: 12
-                        }}>
-                          <AlertTriangle size={22} color="var(--color-red)" />
-                          <div>
-                            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--color-red)' }}>
-                              Cash Shortage: -{formatCurrency(Math.abs(variance), currency)}
-                            </div>
-                            <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                              The physical drawer is missing {formatCurrency(Math.abs(variance), currency)}. Please recount or verify if an unrecorded cash payout occurred.
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{
-                          padding: '14px 16px', borderRadius: 12,
-                          background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.3)',
-                          display: 'flex', alignItems: 'center', gap: 12
-                        }}>
-                          <Clock size={22} color="#e68a00" />
-                          <div>
-                            <div style={{ fontSize: 13.5, fontWeight: 800, color: '#e68a00' }}>
-                              Cash Surplus: +{formatCurrency(variance, currency)}
-                            </div>
-                            <div style={{ fontSize: 11.5, color: 'var(--color-label-secondary)', marginTop: 2 }}>
-                              The physical drawer contains {formatCurrency(variance, currency)} more than registered. Check if tips or float were added.
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Destructive Shift Close Button */}
-                    <div style={{ marginTop: 6 }}>
-                      <button
-                        type="button"
-                        onClick={handleCloseShiftSubmit}
-                        disabled={closingShift || !hasCountedInput}
-                        style={{
-                          width: '100%', height: 48, borderRadius: 14,
-                          background: (!hasCountedInput || closingShift) ? 'var(--color-bg-secondary)' : 'var(--color-red)',
-                          color: (!hasCountedInput || closingShift) ? 'var(--color-label-tertiary)' : '#fff',
-                          border: 'none', cursor: (!hasCountedInput || closingShift) ? 'not-allowed' : 'pointer',
-                          fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em',
-                          boxShadow: (!hasCountedInput || closingShift) ? 'none' : '0 4px 12px rgba(255,59,48,0.35)',
-                          transition: 'all 0.2s ease',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-                        }}
-                      >
-                        {closingShift ? 'Finalizing & Printing Z-Report...' : 'Close Shift & Print Z-Report'}
-                      </button>
-                      <p style={{ fontSize: 11, color: 'var(--color-label-tertiary)', textAlign: 'center', margin: '8px 0 0' }}>
-                        This permanently closes the active shift, prints the Z-Report audit, and resets the register for the next cashier.
-                      </p>
-                    </div>
-                      </>
-                    )}
-                  </div>
                   );
                 })()}
               </div>
