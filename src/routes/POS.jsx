@@ -22,7 +22,7 @@ import {
   FileText, Check, Clock, LayoutGrid, Zap,
   Printer, Lock, Wallet, ArrowDownRight, Coins, HeartHandshake,
   Split, Armchair, Bell, Flame, AlertTriangle, Receipt, User, UserPlus, Sparkles, PauseCircle, Gift,
-  MapPin
+  MapPin, ChefHat
 } from 'lucide-react';
 import PaymentModal from '../components/pos/PaymentModal';
 import SplitBillModal from '../components/pos/SplitBillModal';
@@ -4115,15 +4115,15 @@ export default function POS() {
             </div>
           )}
 
-          {/* Action Buttons (Option 1 Smart Context Swap: Hold on new cart, Bill on active loaded order) */}
+          {/* Action Buttons (Single-Row Touch Dock: Compact icons keep Pay total wide & unclipped on all screens) */}
           {isKitchenActive ? (
             <div
-              className={`cart-action-buttons ${orderType === 'takeaway' && !isComplimentary ? 'is-takeaway-quad' : ''}`}
+              className="cart-action-buttons"
               style={{
                 display: 'grid',
                 gridTemplateColumns: orderType === 'takeaway' && !isComplimentary
-                  ? 'minmax(0, 1fr) minmax(0, 1.15fr)'
-                  : 'minmax(0, 0.76fr) minmax(0, 0.96fr) minmax(0, 1.38fr)',
+                  ? '44px 44px auto minmax(0, 1fr)'
+                  : '44px minmax(78px, 0.9fr) minmax(0, 1.45fr)',
                 gap: 6,
                 padding: '10px 10px 14px',
                 boxSizing: 'border-box',
@@ -4139,15 +4139,14 @@ export default function POS() {
                   type="button"
                   style={{
                     minWidth: 0,
+                    width: 44,
                     height: 44,
-                    padding: '0 8px',
+                    padding: 0,
                     borderRadius: 12,
-                    display: 'flex',
+                    position: 'relative',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 4,
-                    fontSize: 12,
-                    fontWeight: 750,
                     color: billPrinted ? '#38bdf8' : undefined,
                     borderColor: billPrinted ? 'rgba(56, 189, 248, 0.45)' : undefined,
                     background: billPrinted ? 'rgba(56, 189, 248, 0.12)' : undefined
@@ -4155,8 +4154,21 @@ export default function POS() {
                   title={billPrinted ? 'Pre-bill already printed. Tap to reprint.' : 'Print Customer Bill / Pre-Bill Check (F8)'}
                   aria-label="Print Customer Bill"
                 >
-                  <Printer size={15} style={{ flexShrink: 0 }} />
-                  <span>{billPrinted ? 'Bill ✓' : 'Bill'}</span>
+                  <Printer size={17} style={{ flexShrink: 0 }} />
+                  {billPrinted && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: 5,
+                        right: 5,
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: '#38bdf8'
+                      }}
+                    />
+                  )}
                 </button>
               ) : (
                 <button
@@ -4167,15 +4179,13 @@ export default function POS() {
                   type="button"
                   style={{
                     minWidth: 0,
+                    width: 44,
                     height: 44,
-                    padding: '0 8px',
+                    padding: 0,
                     borderRadius: 12,
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 4,
-                    fontSize: 12,
-                    fontWeight: 750,
                     color: '#f59e0b',
                     background: 'rgba(245, 158, 11, 0.1)',
                     borderColor: 'rgba(245, 158, 11, 0.3)'
@@ -4183,8 +4193,7 @@ export default function POS() {
                   title="Hold / Park Order (Resume anytime)"
                   aria-label="Hold Order"
                 >
-                  <PauseCircle size={15} style={{ flexShrink: 0 }} />
-                  <span>Hold</span>
+                  <PauseCircle size={18} style={{ flexShrink: 0 }} />
                 </button>
               )}
               <button
@@ -4193,31 +4202,25 @@ export default function POS() {
                 onClick={handleSendToKitchen}
                 disabled={!items.length}
                 type="button"
-                style={{ minWidth: 0, height: 44, borderRadius: 12, opacity: items.length ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}
-                title={
-                  !isKitchenActive
-                    ? (orderType === 'dine-in' ? 'Save order to table for cashier counter payment' : 'Hold order for pickup')
-                    : (orderType === 'takeaway' ? 'Send order to kitchen and collect payment when customer picks up' : (kitchenMode === 'printer_only' ? "Print 3-inch Kitchen Ticket (KOT)" : "Send order to Kitchen (KOT)"))
-                }
+                aria-label={orderType === 'takeaway' ? 'Send Takeaway Order to Kitchen' : (kitchenMode === 'printer_only' ? 'Print KOT' : 'Send to Kitchen')}
+                style={{
+                  minWidth: 0,
+                  height: 44,
+                  borderRadius: 12,
+                  opacity: items.length ? 1 : 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  padding: orderType === 'takeaway' && !isComplimentary ? 0 : '0 8px'
+                }}
+                title={orderType === 'takeaway' ? 'Send to kitchen & collect payment at pickup' : (kitchenMode === 'printer_only' ? 'Print 3-inch Kitchen Ticket (KOT)' : 'Send order to Kitchen (KOT)')}
               >
-                {!isKitchenActive ? (
-                  orderType === 'takeaway' ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
-                      <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hold</span>
-                      <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Pickup</span>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
-                      <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Save</span>
-                      <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>Counter</span>
-                    </div>
-                  )
-                ) : orderType === 'takeaway' ? (
+                <ChefHat size={17} style={{ flexShrink: 0 }} />
+                {!(orderType === 'takeaway' && !isComplimentary) && (
                   <span style={{ fontSize: 12.5, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen KOT'}
+                    {kitchenMode === 'printer_only' ? 'KOT' : 'Kitchen'}
                   </span>
-                ) : (
-                  <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
                 )}
               </button>
               {orderType === 'takeaway' && !isComplimentary && (
@@ -4237,15 +4240,16 @@ export default function POS() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 5,
+                    gap: 4,
                     padding: '0 10px',
                     cursor: items.length ? 'pointer' : 'not-allowed'
                   }}
                   title="1-Tap Cash Pay & Print Receipt"
+                  aria-label="Quick Cash & Print Receipt"
                 >
-                  <Zap size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    Cash &amp; Print
+                  <Zap size={13} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    Cash
                   </span>
                 </button>
               )}
