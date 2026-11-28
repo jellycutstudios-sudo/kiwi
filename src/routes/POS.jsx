@@ -4118,12 +4118,12 @@ export default function POS() {
           {/* Action Buttons (Option 1 Smart Context Swap: Hold on new cart, Bill on active loaded order) */}
           {isKitchenActive ? (
             <div
-              className="cart-action-buttons"
+              className={`cart-action-buttons ${orderType === 'takeaway' && !isComplimentary ? 'is-takeaway-quad' : ''}`}
               style={{
                 display: 'grid',
                 gridTemplateColumns: orderType === 'takeaway' && !isComplimentary
-                  ? 'minmax(62px, 0.72fr) minmax(70px, 0.88fr) minmax(92px, 1.15fr) minmax(98px, 1.25fr)'
-                  : 'minmax(68px, 0.78fr) minmax(80px, 1fr) minmax(115px, 1.45fr)',
+                  ? 'minmax(0, 1fr) minmax(0, 1.15fr)'
+                  : 'minmax(0, 0.76fr) minmax(0, 0.96fr) minmax(0, 1.38fr)',
                 gap: 6,
                 padding: '10px 10px 14px',
                 boxSizing: 'border-box',
@@ -4213,10 +4213,9 @@ export default function POS() {
                     </div>
                   )
                 ) : orderType === 'takeaway' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.15, minWidth: 0 }}>
-                    <span style={{ fontSize: 12, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Kitchen</span>
-                    <span style={{ fontSize: 9.5, opacity: 0.8, fontWeight: 600, whiteSpace: 'nowrap' }}>KOT</span>
-                  </div>
+                  <span style={{ fontSize: 12.5, fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen KOT'}
+                  </span>
                 ) : (
                   <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kitchenMode === 'printer_only' ? 'Print KOT' : 'Kitchen'}</span>
                 )}
@@ -4238,14 +4237,14 @@ export default function POS() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 4,
-                    padding: '0 6px',
+                    gap: 5,
+                    padding: '0 10px',
                     cursor: items.length ? 'pointer' : 'not-allowed'
                   }}
                   title="1-Tap Cash Pay & Print Receipt"
                 >
-                  <Zap size={13} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <Zap size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Cash &amp; Print
                   </span>
                 </button>
